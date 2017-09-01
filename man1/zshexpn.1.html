@@ -1,0 +1,2963 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:45:00 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>ZSHEXPN(1) General Commands Manual ZSHEXPN(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+zshexpn - zsh expansion and substitution</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+The following types of expansions are performed in the
+indicated order in five steps:</p>
+
+<p style="margin-top: 1em">History Expansion <br>
+This is performed only in interactive shells.</p>
+
+<p style="margin-top: 1em">Alias Expansion <br>
+Aliases are expanded immediately before the command line is
+parsed as explained under Aliasing in zshmisc(1).</p>
+
+<p style="margin-top: 1em">Process Substitution <br>
+Parameter Expansion <br>
+Command Substitution <br>
+Arithmetic Expansion <br>
+Brace Expansion <br>
+These five are performed in one step in left-to-right
+fashion. After these expansions, all unquoted occurrences of
+the characters &lsquo;&acute;, &lsquo;&rsquo;&rsquo; and
+&lsquo;&quot;&rsquo; are removed.</p>
+
+<p style="margin-top: 1em">Filename Expansion <br>
+If the SH_FILE_EXPANSION option is set, the order of
+expansion is modified for compatibility with sh and ksh. In
+that case filename expansion is performed immediately <br>
+after alias expansion, preceding the set of five expansions
+mentioned above.</p>
+
+<p style="margin-top: 1em">Filename Generation <br>
+This expansion, commonly referred to as globbing, is always
+done last.</p>
+
+<p style="margin-top: 1em">The following sections explain
+the types of expansion in detail.</p>
+
+<p style="margin-top: 1em">HISTORY EXPANSION <br>
+History expansion allows you to use words from previous
+command lines in the command line you are typing. This
+simplifies spelling corrections and the repetition of
+complicated <br>
+commands or arguments. Immediately before execution, each
+command is saved in the history list, the size of which is
+controlled by the HISTSIZE parameter. The one most recent
+<br>
+command is always retained in any case. Each saved command
+in the history list is called a history event and is
+assigned a number, beginning with 1 (one) when the shell
+starts <br>
+up. The history number that you may see in your prompt (see
+EXPANSION OF PROMPT SEQUENCES in zshmisc(1)) is the number
+that is to be assigned to the next command.</p>
+
+<p style="margin-top: 1em">Overview <br>
+A history expansion begins with the first character of the
+histchars parameter, which is &lsquo;!&rsquo; by default,
+and may occur anywhere on the command line; history
+expansions do not <br>
+nest. The &lsquo;!&rsquo; can be escaped with &lsquo;&acute;
+or can be enclosed between a pair of single quotes
+(&rsquo;&rsquo;) to suppress its special meaning. Double
+quotes will not work for this. Following <br>
+this history character is an optional event designator (see
+the section &lsquo;Event Designators&rsquo;) and then an
+optional word designator (the section &lsquo;Word
+Designators&rsquo;); if neither of <br>
+these designators is present, no history expansion
+occurs.</p>
+
+<p style="margin-top: 1em">Input lines containing history
+expansions are echoed after being expanded, but before any
+other expansions take place and before the command is
+executed. It is this expanded <br>
+form that is recorded as the history event for later
+references.</p>
+
+<p style="margin-top: 1em">By default, a history reference
+with no event designator refers to the same event as any
+preceding history reference on that command line; if it is
+the only history reference in <br>
+a command, it refers to the previous command. However, if
+the option CSH_JUNKIE_HISTORY is set, then every history
+reference with no event specification always refers to the
+<br>
+previous command.</p>
+
+<p style="margin-top: 1em">For example, &lsquo;!&rsquo; is
+the event designator for the previous command, so
+&lsquo;!!:1&rsquo; always refers to the first word of the
+previous command, and &lsquo;!!$&rsquo; always refers to the
+last word of <br>
+the previous command. With CSH_JUNKIE_HISTORY set, then
+&lsquo;!:1&rsquo; and &lsquo;!$&rsquo; function in the same
+manner as &lsquo;!!:1&rsquo; and &lsquo;!!$&rsquo;,
+respectively. Conversely, if CSH_JUNKIE_HISTORY is <br>
+unset, then &lsquo;!:1&rsquo; and &lsquo;!$&rsquo; refer to
+the first and last words, respectively, of the same event
+referenced by the nearest other history reference preceding
+them on the current com&acirc; <br>
+mand line, or to the previous command if there is no
+preceding reference.</p>
+
+<p style="margin-top: 1em">The character sequence
+&lsquo;^foo^bar&rsquo; (where &lsquo;^&rsquo; is actually
+the second character of the histchars parameter) repeats the
+last command, replacing the string foo with bar. More
+pre&acirc; <br>
+cisely, the sequence &lsquo;^foo^bar^&rsquo; is synonymous
+with &lsquo;!!:s^foo^bar^&rsquo;, hence other modifiers (see
+the section &lsquo;Modifiers&rsquo;) may follow the final
+&lsquo;^&rsquo;. In particular, &lsquo;^foo^bar^:G&rsquo;
+<br>
+performs a global substitution.</p>
+
+<p style="margin-top: 1em">If the shell encounters the
+character sequence &lsquo;!&quot;&rsquo; in the input, the
+history mechanism is temporarily disabled until the current
+list (see zshmisc(1)) is fully parsed. The
+&lsquo;!&quot;&rsquo; <br>
+is removed from the input, and any subsequent
+&lsquo;!&rsquo; characters have no special significance.</p>
+
+<p style="margin-top: 1em">A less convenient but more
+comprehensible form of command history support is provided
+by the fc builtin.</p>
+
+<p style="margin-top: 1em">Event Designators <br>
+An event designator is a reference to a command-line entry
+in the history list. In the list below, remember that the
+initial &lsquo;!&rsquo; in each item may be changed to
+another character <br>
+by setting the histchars parameter.</p>
+
+<p style="margin-top: 1em">! Start a history expansion,
+except when followed by a blank, newline, &lsquo;=&rsquo; or
+&lsquo;(&rsquo;. If followed immediately by a word
+designator (see the section &lsquo;Word Designators&rsquo;),
+this <br>
+forms a history reference with no event designator (see the
+section &lsquo;Overview&rsquo;).</p>
+
+<p style="margin-top: 1em">!! Refer to the previous
+command. By itself, this expansion repeats the previous
+command.</p>
+
+<p style="margin-top: 1em">!n Refer to command-line n.</p>
+
+<p style="margin-top: 1em">!-n Refer to the current
+command-line minus n.</p>
+
+<p style="margin-top: 1em">!str Refer to the most recent
+command starting with str.</p>
+
+<p style="margin-top: 1em">!?str[?] <br>
+Refer to the most recent command containing str. The
+trailing &lsquo;?&rsquo; is necessary if this reference is
+to be followed by a modifier or followed by any text that is
+not to be <br>
+considered part of str.</p>
+
+<p style="margin-top: 1em">!# Refer to the current command
+line typed in so far. The line is treated as if it were
+complete up to and including the word before the one with
+the &lsquo;!#&rsquo; reference.</p>
+
+<p style="margin-top: 1em">!{...} Insulate a history
+reference from adjacent characters (if necessary).</p>
+
+<p style="margin-top: 1em">Word Designators <br>
+A word designator indicates which word or words of a given
+command line are to be included in a history reference. A
+&lsquo;:&rsquo; usually separates the event specification
+from the word <br>
+designator. It may be omitted only if the word designator
+begins with a &lsquo;^&rsquo;, &lsquo;$&rsquo;,
+&lsquo;*&rsquo;, &lsquo;-&rsquo; or &lsquo;%&rsquo;. Word
+designators include:</p>
+
+<p style="margin-top: 1em">0 The first input word
+(command). <br>
+n The nth argument. <br>
+^ The first argument. That is, 1. <br>
+$ The last argument. <br>
+% The word matched by (the most recent) ?str search. <br>
+x-y A range of words; x defaults to 0. <br>
+* All the arguments, or a null value if there are none. <br>
+x* Abbreviates &lsquo;x-$&rsquo;. <br>
+x- Like &lsquo;x*&rsquo; but omitting word $.</p>
+
+<p style="margin-top: 1em">Note that a &lsquo;%&rsquo; word
+designator works only when used in one of &lsquo;!%&rsquo;,
+&lsquo;!:%&rsquo; or &lsquo;!?str?:%&rsquo;, and only when
+used after a !? expansion (possibly in an earlier command).
+Anything else <br>
+results in an error, although the error may not be the most
+obvious one.</p>
+
+<p style="margin-top: 1em">Modifiers <br>
+After the optional word designator, you can add a sequence
+of one or more of the following modifiers, each preceded by
+a &lsquo;:&rsquo;. These modifiers also work on the result
+of filename <br>
+generation and parameter expansion, except where noted.</p>
+
+<p style="margin-top: 1em">a Turn a file name into an
+absolute path: prepends the current directory, if necessary,
+and resolves any use of &lsquo;..&rsquo; and &lsquo;.&rsquo;
+in the path. Note that the transformation <br>
+takes place even if the file or any intervening directories
+do not exist.</p>
+
+<p style="margin-top: 1em">A As &lsquo;a&rsquo;, but also
+resolve use of symbolic links where possible. Note that
+resolution of &lsquo;..&rsquo; occurs before resolution of
+symbolic links. This call is equivalent to a <br>
+unless your system has the realpath system call (modern
+systems do).</p>
+
+<p style="margin-top: 1em">c Resolve a command name into an
+absolute path by searching the command path given by the
+PATH variable. This does not work for commands containing
+directory parts. Note <br>
+also that this does not usually work as a glob qualifier
+unless a file of the same name is found in the current
+directory.</p>
+
+<p style="margin-top: 1em">e Remove all but the part of the
+filename extension following the &lsquo;.&rsquo;; see the
+definition of the filename extension in the description of
+the r modifier below. Note that <br>
+according to that definition the result will be empty if the
+string ends with a &lsquo;.&rsquo;.</p>
+
+<p style="margin-top: 1em">h Remove a trailing pathname
+component, leaving the head. This works like
+&lsquo;dirname&rsquo;.</p>
+
+<p style="margin-top: 1em">l Convert the words to all
+lowercase.</p>
+
+<p style="margin-top: 1em">p Print the new command but do
+not execute it. Only works with history expansion.</p>
+
+<p style="margin-top: 1em">q Quote the substituted words,
+escaping further substitutions. Works with history expansion
+and parameter expansion, though for parameters it is only
+useful if the result&acirc; <br>
+ing text is to be re-evaluated such as by eval.</p>
+
+<p style="margin-top: 1em">Q Remove one level of quotes
+from the substituted words.</p>
+
+<p style="margin-top: 1em">r Remove a filename extension
+leaving the root name. Strings with no filename extension
+are not altered. A filename extension is a &lsquo;.&rsquo;
+followed by any number of characters <br>
+(including zero) that are neither &lsquo;.&rsquo; nor
+&lsquo;/&rsquo; and that continue to the end of the string.
+For example, the extension of &lsquo;foo.orig.c&rsquo; is
+&lsquo;.c&rsquo;, and &lsquo;dir.c/foo&rsquo; has no <br>
+extension.</p>
+
+<p style="margin-top: 1em">s/l/r[/] <br>
+Substitute r for l as described below. The substitution is
+done only for the first string that matches l. For arrays
+and for filename generation, this applies to each <br>
+word of the expanded text. See below for further notes on
+substitutions.</p>
+
+<p style="margin-top: 1em">The forms &lsquo;gs/l/r&rsquo;
+and &lsquo;s/l/r/:G&rsquo; perform global substitution, i.e.
+substitute every occurrence of r for l. Note that the g or
+:G must appear in exactly the position <br>
+shown.</p>
+
+<p style="margin-top: 1em">See further notes on this form
+of substitution below.</p>
+
+<p style="margin-top: 1em">&amp; Repeat the previous s
+substitution. Like s, may be preceded immediately by a g. In
+parameter expansion the &amp; must appear inside braces, and
+in filename generation it <br>
+must be quoted with a backslash.</p>
+
+<p style="margin-top: 1em">t Remove all leading pathname
+components, leaving the tail. This works like
+&lsquo;basename&rsquo;.</p>
+
+<p style="margin-top: 1em">u Convert the words to all
+uppercase.</p>
+
+<p style="margin-top: 1em">x Like q, but break into words
+at whitespace. Does not work with parameter expansion.</p>
+
+<p style="margin-top: 1em">The s/l/r/ substitution works as
+follows. By default the left-hand side of substitutions are
+not patterns, but character strings. Any character can be
+used as the delimiter in <br>
+place of &lsquo;/&rsquo;. A backslash quotes the delimiter
+character. The character &lsquo;&amp;&rsquo;, in the
+right-hand-side r, is replaced by the text from the
+left-hand-side l. The &lsquo;&amp;&rsquo; can be quoted <br>
+with a backslash. A null l uses the previous string either
+from the previous l or from the contextual scan string s
+from &lsquo;!?s&rsquo;. You can omit the rightmost delimiter
+if a new&acirc; <br>
+line immediately follows r; the rightmost &lsquo;?&rsquo; in
+a context scan can similarly be omitted. Note the same
+record of the last l and r is maintained across all forms of
+expansion.</p>
+
+<p style="margin-top: 1em">Note that if a
+&lsquo;&amp;&rsquo; is used within glob qualifers an extra
+backslash is needed as a &amp; is a special character in
+this case.</p>
+
+<p style="margin-top: 1em">If the option HIST_SUBST_PATTERN
+is set, l is treated as a pattern of the usual form
+described in the section FILENAME GENERATION below. This can
+be used in all the places where <br>
+modifiers are available; note, however, that in globbing
+qualifiers parameter substitution has already taken place,
+so parameters in the replacement string should be quoted to
+<br>
+ensure they are replaced at the correct time. Note also that
+complicated patterns used in globbing qualifiers may need
+the extended glob qualifier notation (#q:s/.../.../) in <br>
+order for the shell to recognize the expression as a glob
+qualifier. Further, note that bad patterns in the
+substitution are not subject to the NO_BAD_PATTERN option so
+will <br>
+cause an error.</p>
+
+<p style="margin-top: 1em">When HIST_SUBST_PATTERN is set,
+l may start with a # to indicate that the pattern must match
+at the start of the string to be substituted, and a % may
+appear at the start or <br>
+after an # to indicate that the pattern must match at the
+end of the string to be substituted. The % or # may be
+quoted with two backslashes.</p>
+
+<p style="margin-top: 1em">For example, the following piece
+of filename generation code with the EXTENDED_GLOB
+option:</p>
+
+<p style="margin-top: 1em">print
+*.c(#q:s/#%(#b)s(*).c/&rsquo;S${match[1]}.C&rsquo;/)</p>
+
+<p style="margin-top: 1em">takes the expansion of *.c and
+applies the glob qualifiers in the (#q...) expression, which
+consists of a substitution modifier anchored to the start
+and end of each word (#%). <br>
+This turns on backreferences ((#b)), so that the
+parenthesised subexpression is available in the replacement
+string as ${match[1]}. The replacement string is quoted so
+that the <br>
+parameter is not substituted before the start of filename
+generation.</p>
+
+<p style="margin-top: 1em">The following f, F, w and W
+modifiers work only with parameter expansion and filename
+generation. They are listed here to provide a single point
+of reference for all modifiers.</p>
+
+<p style="margin-top: 1em">f Repeats the immediately
+(without a colon) following modifier until the resulting
+word doesn&rsquo;t change any more.</p>
+
+<p style="margin-top: 1em">F:expr: <br>
+Like f, but repeats only n times if the expression expr
+evaluates to n. Any character can be used instead of the
+&lsquo;:&rsquo;; if &lsquo;(&rsquo;, &lsquo;[&rsquo;, or
+&lsquo;{&rsquo; is used as the opening delim&acirc; <br>
+iter, the closing delimiter should be &rsquo;)&rsquo;,
+&lsquo;]&rsquo;, or &lsquo;}&rsquo;, respectively.</p>
+
+<p style="margin-top: 1em">w Makes the immediately
+following modifier work on each word in the string.</p>
+
+<p style="margin-top: 1em">W:sep: Like w but words are
+considered to be the parts of the string that are separated
+by sep. Any character can be used instead of the
+&lsquo;:&rsquo;; opening parentheses are handled spe&acirc;
+<br>
+cially, see above.</p>
+
+<p style="margin-top: 1em">PROCESS SUBSTITUTION <br>
+Each part of a command argument that takes the form
+&lsquo;&lt;(list)&rsquo;, &lsquo;&gt;(list)&rsquo; or
+&lsquo;=(list)&rsquo; is subject to process substitution.
+The expression may be preceded or followed by other <br>
+strings except that, to prevent clashes with commonly
+occurring strings and patterns, the last form must occur at
+the start of a command argument, and the forms are only
+expanded <br>
+when first parsing command or assignment arguments. Process
+substitutions may be used following redirection operators;
+in this case, the substitution must appear with no
+trail&acirc; <br>
+ing string.</p>
+
+<p style="margin-top: 1em">In the case of the &lt; or &gt;
+forms, the shell runs the commands in list as a subprocess
+of the job executing the shell command line. If the system
+supports the /dev/fd mechanism, <br>
+the command argument is the name of the device file
+corresponding to a file descriptor; otherwise, if the system
+supports named pipes (FIFOs), the command argument will be a
+<br>
+named pipe. If the form with &gt; is selected then writing
+on this special file will provide input for list. If &lt; is
+used, then the file passed as an argument will be connected
+to <br>
+the output of the list process. For example,</p>
+
+<p style="margin-top: 1em">paste &lt;(cut -f1 file1)
+&lt;(cut -f3 file2) | <br>
+tee &gt;(process1) &gt;(process2) &gt;/dev/null</p>
+
+<p style="margin-top: 1em">cuts fields 1 and 3 from the
+files file1 and file2 respectively, pastes the results
+together, and sends it to the processes process1 and
+process2.</p>
+
+<p style="margin-top: 1em">If =(...) is used instead of
+&lt;(...), then the file passed as an argument will be the
+name of a temporary file containing the output of the list
+process. This may be used instead <br>
+of the &lt; form for a program that expects to lseek (see
+lseek(2)) on the input file.</p>
+
+<p style="margin-top: 1em">There is an optimisation for
+substitutions of the form =(&lt;&lt;&lt;arg), where arg is a
+single-word argument to the here-string redirection
+&lt;&lt;&lt;. This form produces a file name contain&acirc;
+<br>
+ing the value of arg after any substitutions have been
+performed. This is handled entirely within the current
+shell. This is effectively the reverse of the special form
+$(&lt;arg) <br>
+which treats arg as a file name and replaces it with the
+file&rsquo;s contents.</p>
+
+<p style="margin-top: 1em">The = form is useful as both the
+/dev/fd and the named pipe implementation of &lt;(...) have
+drawbacks. In the former case, some programmes may
+automatically close the file <br>
+descriptor in question before examining the file on the
+command line, particularly if this is necessary for security
+reasons such as when the programme is running setuid. In the
+<br>
+second case, if the programme does not actually open the
+file, the subshell attempting to read from or write to the
+pipe will (in a typical implementation, different operating
+<br>
+systems may have different behaviour) block for ever and
+have to be killed explicitly. In both cases, the shell
+actually supplies the information using a pipe, so that
+pro&acirc; <br>
+grammes that expect to lseek (see lseek(2)) on the file will
+not work.</p>
+
+<p style="margin-top: 1em">Also note that the previous
+example can be more compactly and efficiently written
+(provided the MULTIOS option is set) as:</p>
+
+<p style="margin-top: 1em">paste &lt;(cut -f1 file1)
+&lt;(cut -f3 file2) &gt; &gt;(process1) &gt;
+&gt;(process2)</p>
+
+<p style="margin-top: 1em">The shell uses pipes instead of
+FIFOs to implement the latter two process substitutions in
+the above example.</p>
+
+<p style="margin-top: 1em">There is an additional problem
+with &gt;(process); when this is attached to an external
+command, the parent shell does not wait for process to
+finish and hence an immediately fol&acirc; <br>
+lowing command cannot rely on the results being complete.
+The problem and solution are the same as described in the
+section MULTIOS in zshmisc(1). Hence in a simplified version
+<br>
+of the example above:</p>
+
+<p style="margin-top: 1em">paste &lt;(cut -f1 file1)
+&lt;(cut -f3 file2) &gt; &gt;(process)</p>
+
+<p style="margin-top: 1em">(note that no MULTIOS are
+involved), process will be run asynchronously as far as the
+parent shell is concerned. The workaround is:</p>
+
+<p style="margin-top: 1em">{ paste &lt;(cut -f1 file1)
+&lt;(cut -f3 file2) } &gt; &gt;(process)</p>
+
+<p style="margin-top: 1em">The extra processes here are
+spawned from the parent shell which will wait for their
+completion.</p>
+
+<p style="margin-top: 1em">Another problem arises any time
+a job with a substitution that requires a temporary file is
+disowned by the shell, including the case where
+&lsquo;&amp;!&rsquo; or &lsquo;&amp;|&rsquo; appears at the
+end of a <br>
+command containing a subsitution. In that case the temporary
+file will not be cleaned up as the shell no longer has any
+memory of the job. A workaround is to use a subshell, <br>
+for example,</p>
+
+<p style="margin-top: 1em">(mycmd =(myoutput)) &amp;!</p>
+
+<p style="margin-top: 1em">as the forked subshell will wait
+for the command to finish then remove the temporary
+file.</p>
+
+<p style="margin-top: 1em">A general workaround to ensure a
+process substitution endures for an appropriate length of
+time is to pass it as a parameter to an anonymous shell
+function (a piece of shell code <br>
+that is run immediately with function scope). For example,
+this code:</p>
+
+<p style="margin-top: 1em">() { <br>
+print File $1: <br>
+cat $1 <br>
+} =(print This be the verse)</p>
+
+<p style="margin-top: 1em">outputs something resembling the
+following</p>
+
+<p style="margin-top: 1em">File /tmp/zsh6nU0kS: <br>
+This be the verse</p>
+
+<p style="margin-top: 1em">The temporary file created by
+the process substitution will be deleted when the function
+exits.</p>
+
+<p style="margin-top: 1em">PARAMETER EXPANSION <br>
+The character &lsquo;$&rsquo; is used to introduce parameter
+expansions. See zshparam(1) for a description of parameters,
+including arrays, associative arrays, and subscript notation
+to <br>
+access individual array elements.</p>
+
+<p style="margin-top: 1em">Note in particular the fact that
+words of unquoted parameters are not automatically split on
+whitespace unless the option SH_WORD_SPLIT is set; see
+references to this option <br>
+below for more details. This is an important difference from
+other shells.</p>
+
+<p style="margin-top: 1em">In the expansions discussed
+below that require a pattern, the form of the pattern is the
+same as that used for filename generation; see the section
+&lsquo;Filename Generation&rsquo;. Note <br>
+that these patterns, along with the replacement text of any
+substitutions, are themselves subject to parameter
+expansion, command substitution, and arithmetic expansion.
+In <br>
+addition to the following operations, the colon modifiers
+described in the section &lsquo;Modifiers&rsquo; in the
+section &lsquo;History Expansion&rsquo; can be applied: for
+example, ${i:s/foo/bar/} <br>
+performs string substitution on the expansion of parameter
+$i.</p>
+
+<p style="margin-top: 1em">${name} <br>
+The value, if any, of the parameter name is substituted. The
+braces are required if the expansion is to be followed by a
+letter, digit, or underscore that is not to be <br>
+interpreted as part of name. In addition, more complicated
+forms of substitution usually require the braces to be
+present; exceptions, which only apply if the option <br>
+KSH_ARRAYS is not set, are a single subscript or any colon
+modifiers appearing after the name, or any of the characters
+&lsquo;^&rsquo;, &lsquo;=&rsquo;, &lsquo;~&rsquo;,
+&lsquo;#&rsquo; or &lsquo;+&rsquo; appearing before the <br>
+name, all of which work with or without braces.</p>
+
+<p style="margin-top: 1em">If name is an array parameter,
+and the KSH_ARRAYS option is not set, then the value of each
+element of name is substituted, one element per word.
+Otherwise, the expansion <br>
+results in one word only; with KSH_ARRAYS, this is the first
+element of an array. No field splitting is done on the
+result unless the SH_WORD_SPLIT option is set. See <br>
+also the flags = and s:string:.</p>
+
+<p style="margin-top: 1em">${+name} <br>
+If name is the name of a set parameter &lsquo;1&rsquo; is
+substituted, otherwise &lsquo;0&rsquo; is substituted.</p>
+
+<p style="margin-top: 1em">${name-word} <br>
+${name:-word} <br>
+If name is set, or in the second form is non-null, then
+substitute its value; otherwise substitute word. In the
+second form name may be omitted, in which case word is <br>
+always substituted.</p>
+
+<p style="margin-top: 1em">${name+word} <br>
+${name:+word} <br>
+If name is set, or in the second form is non-null, then
+substitute word; otherwise substitute nothing.</p>
+
+<p style="margin-top: 1em">${name=word} <br>
+${name:=word} <br>
+${name::=word} <br>
+In the first form, if name is unset then set it to word; in
+the second form, if name is unset or null then set it to
+word; and in the third form, unconditionally set name <br>
+to word. In all forms, the value of the parameter is then
+substituted.</p>
+
+<p style="margin-top: 1em">${name?word} <br>
+${name:?word} <br>
+In the first form, if name is set, or in the second form if
+name is both set and non-null, then substitute its value;
+otherwise, print word and exit from the shell. <br>
+Interactive shells instead return to the prompt. If word is
+omitted, then a standard message is printed.</p>
+
+<p style="margin-top: 1em">In any of the above expressions
+that test a variable and substitute an alternate word, note
+that you can use standard shell quoting in the word value to
+selectively override the <br>
+splitting done by the SH_WORD_SPLIT option and the = flag,
+but not splitting by the s:string: flag.</p>
+
+<p style="margin-top: 1em">In the following expressions,
+when name is an array and the substitution is not quoted, or
+if the &lsquo;(@)&rsquo; flag or the name[@] syntax is used,
+matching and replacement is performed <br>
+on each array element separately.</p>
+
+<p style="margin-top: 1em">${name#pattern} <br>
+${name##pattern} <br>
+If the pattern matches the beginning of the value of name,
+then substitute the value of name with the matched portion
+deleted; otherwise, just substitute the value of <br>
+name. In the first form, the smallest matching pattern is
+preferred; in the second form, the largest matching pattern
+is preferred.</p>
+
+<p style="margin-top: 1em">${name%pattern} <br>
+${name%%pattern} <br>
+If the pattern matches the end of the value of name, then
+substitute the value of name with the matched portion
+deleted; otherwise, just substitute the value of name. In
+<br>
+the first form, the smallest matching pattern is preferred;
+in the second form, the largest matching pattern is
+preferred.</p>
+
+<p style="margin-top: 1em">${name:#pattern} <br>
+If the pattern matches the value of name, then substitute
+the empty string; otherwise, just substitute the value of
+name. If name is an array the matching array elements <br>
+are removed (use the &lsquo;(M)&rsquo; flag to remove the
+non-matched elements).</p>
+
+<p style="margin-top: 1em">${name:|arrayname} <br>
+If arrayname is the name (N.B., not contents) of an array
+variable, then any elements contained in arrayname are
+removed from the substitution of name. If the
+substitu&acirc; <br>
+tion is scalar, either because name is a scalar variable or
+the expression is quoted, the elements of arrayname are
+instead tested against the entire expression.</p>
+
+<p style="margin-top: 1em">${name:*arrayname} <br>
+Similar to the preceding subsitution, but in the opposite
+sense, so that entries present in both the original
+substitution and as elements of arrayname are retained and
+<br>
+others removed.</p>
+
+<p style="margin-top: 1em">${name:offset} <br>
+${name:offset:length} <br>
+This syntax gives effects similar to parameter subscripting
+in the form $name[start,end], but is compatible with other
+shells; note that both offset and length are inter&acirc;
+<br>
+preted differently from the components of a subscript.</p>
+
+<p style="margin-top: 1em">If offset is non-negative, then
+if the variable name is a scalar substitute the contents
+starting offset characters from the first character of the
+string, and if name is <br>
+an array substitute elements starting offset elements from
+the first element. If length is given, substitute that many
+characters or elements, otherwise the entire rest <br>
+of the scalar or array.</p>
+
+<p style="margin-top: 1em">A positive offset is always
+treated as the offset of a character or element in name from
+the first character or element of the array (this is
+different from native zsh <br>
+subscript notation). Hence 0 refers to the first character
+or element regardless of the setting of the option
+KSH_ARRAYS.</p>
+
+<p style="margin-top: 1em">A negative offset counts
+backwards from the end of the scalar or array, so that -1
+corresponds to the last character or element, and so on.</p>
+
+<p style="margin-top: 1em">When positive, length counts
+from the offset position toward the end of the scalar or
+array. When negative, length counts back from the end. If
+this results in a posi&acirc; <br>
+tion smaller than offset, a diagnostic is printed and
+nothing is substituted.</p>
+
+<p style="margin-top: 1em">The option MULTIBYTE is obeyed,
+i.e. the offset and length count multibyte characters where
+appropriate.</p>
+
+<p style="margin-top: 1em">offset and length undergo the
+same set of shell substitutions as for scalar assignment; in
+addition, they are then subject to arithmetic evaluation.
+Hence, for example</p>
+
+<p style="margin-top: 1em">print ${foo:3} <br>
+print ${foo: 1 + 2} <br>
+print ${foo:$(( 1 + 2))} <br>
+print ${foo:$(echo 1 + 2)}</p>
+
+<p style="margin-top: 1em">all have the same effect,
+extracting the string starting at the fourth character of
+$foo if the substution would otherwise return a scalar, or
+the array starting at the <br>
+fourth element if $foo would return an array. Note that with
+the option KSH_ARRAYS $foo always returns a scalar
+(regardless of the use of the offset syntax) and a form <br>
+such as $foo[*]:3 is required to extract elements of an
+array named foo.</p>
+
+<p style="margin-top: 1em">If offset is negative, the - may
+not appear immediately after the : as this indicates the
+${name:-word} form of substitution. Instead, a space may be
+inserted before the <br>
+-. Furthermore, neither offset nor length may begin with an
+alphabetic character or &amp; as these are used to indicate
+history-style modifiers. To substitute a value from a <br>
+variable, the recommended approach is to precede it with a $
+as this signifies the intention (parameter substitution can
+easily be rendered unreadable); however, as arith&acirc;
+<br>
+metic substitution is performed, the expression ${var: offs}
+does work, retrieving the offset from $offs.</p>
+
+<p style="margin-top: 1em">For further compatibility with
+other shells there is a special case for array offset 0.
+This usually accesses to the first element of the array.
+However, if the substi&acirc; <br>
+tution refers the positional parameter array, e.g. $@ or $*,
+then offset 0 instead refers to $0, offset 1 refers to $1,
+and so on. In other words, the positional parame&acirc; <br>
+ter array is effectively extended by prepending $0. Hence
+${*:0:1} substitutes $0 and ${*:1:1} substitutes $1.</p>
+
+<p style="margin-top: 1em">${name/pattern/repl} <br>
+${name//pattern/repl} <br>
+Replace the longest possible match of pattern in the
+expansion of parameter name by string repl. The first form
+replaces just the first occurrence, the second form all <br>
+occurrences. Both pattern and repl are subject to
+double-quoted substitution, so that expressions like
+${name/$opat/$npat} will work, but note the usual rule that
+pattern <br>
+characters in $opat are not treated specially unless either
+the option GLOB_SUBST is set, or $opat is instead
+substituted as ${~opat}.</p>
+
+<p style="margin-top: 1em">The pattern may begin with a
+&lsquo;#&rsquo;, in which case the pattern must match at the
+start of the string, or &lsquo;%&rsquo;, in which case it
+must match at the end of the string, or &lsquo;#%&rsquo; in
+<br>
+which case the pattern must match the entire string. The
+repl may be an empty string, in which case the final
+&lsquo;/&rsquo; may also be omitted. To quote the final
+&lsquo;/&rsquo; in other <br>
+cases it should be preceded by a single backslash; this is
+not necessary if the &lsquo;/&rsquo; occurs inside a
+substituted parameter. Note also that the &lsquo;#&rsquo;,
+&lsquo;%&rsquo; and &lsquo;#% are not <br>
+active if they occur inside a substituted parameter, even at
+the start.</p>
+
+<p style="margin-top: 1em">The first &lsquo;/&rsquo; may be
+preceded by a &lsquo;:&rsquo;, in which case the match will
+only succeed if it matches the entire word. Note also the
+effect of the I and S parameter expansion <br>
+flags below; however, the flags M, R, B, E and N are not
+useful.</p>
+
+<p style="margin-top: 1em">For example,</p>
+
+<p style="margin-top: 1em">foo=&quot;twinkle twinkle little
+star&quot; sub=&quot;t*e&quot; rep=&quot;spy&quot; <br>
+print ${foo//${~sub}/$rep} <br>
+print ${(S)foo//${~sub}/$rep}</p>
+
+<p style="margin-top: 1em">Here, the &lsquo;~&rsquo;
+ensures that the text of $sub is treated as a pattern rather
+than a plain string. In the first case, the longest match
+for t*e is substituted and the result <br>
+is &lsquo;spy star&rsquo;, while in the second case, the
+shortest matches are taken and the result is &lsquo;spy spy
+lispy star&rsquo;.</p>
+
+<p style="margin-top: 1em">${#spec} <br>
+If spec is one of the above substitutions, substitute the
+length in characters of the result instead of the result
+itself. If spec is an array expression, substitute the <br>
+number of elements of the result. Note that &lsquo;^&rsquo;,
+&lsquo;=&rsquo;, and &lsquo;~&rsquo;, below, must appear to
+the left of &lsquo;#&rsquo; when these forms are
+combined.</p>
+
+<p style="margin-top: 1em">${^spec} <br>
+Turn on the RC_EXPAND_PARAM option for the evaluation of
+spec; if the &lsquo;^&rsquo; is doubled, turn it off. When
+this option is set, array expansions of the form
+foo${xx}bar, <br>
+where the parameter xx is set to (a b c), are substituted
+with &lsquo;fooabar foobbar foocbar&rsquo; instead of the
+default &lsquo;fooa b cbar&rsquo;. Note that an empty array
+will therefore <br>
+cause all arguments to be removed.</p>
+
+<p style="margin-top: 1em">Internally, each such expansion
+is converted into the equivalent list for brace expansion.
+E.g., ${^var} becomes {$var[1],$var[2],...}, and is
+processed as described in <br>
+the section &lsquo;Brace Expansion&rsquo; below. If word
+splitting is also in effect the $var[N] may themselves be
+split into different list elements.</p>
+
+<p style="margin-top: 1em">${=spec} <br>
+Perform word splitting using the rules for SH_WORD_SPLIT
+during the evaluation of spec, but regardless of whether the
+parameter appears in double quotes; if the &lsquo;=&rsquo;
+is <br>
+doubled, turn it off. This forces parameter expansions to be
+split into separate words before substitution, using IFS as
+a delimiter. This is done by default in most <br>
+other shells.</p>
+
+<p style="margin-top: 1em">Note that splitting is applied
+to word in the assignment forms of spec before the
+assignment to name is performed. This affects the result of
+array assignments with the A <br>
+flag.</p>
+
+<p style="margin-top: 1em">${~spec} <br>
+Turn on the GLOB_SUBST option for the evaluation of spec; if
+the &lsquo;~&rsquo; is doubled, turn it off. When this
+option is set, the string resulting from the expansion will
+be <br>
+interpreted as a pattern anywhere that is possible, such as
+in filename expansion and filename generation and
+pattern-matching contexts like the right hand side of the
+&lsquo;=&rsquo; <br>
+and &lsquo;!=&rsquo; operators in conditions.</p>
+
+<p style="margin-top: 1em">In nested substitutions, note
+that the effect of the ~ applies to the result of the
+current level of substitution. A surrounding pattern
+operation on the result may can&acirc; <br>
+cel it. Hence, for example, if the parameter foo is set to
+*, ${~foo//*.c} is substituted by the pattern *.c, which may
+be expanded by filename generation, but <br>
+${${~foo}//*.c} substitutes to the string *.c, which will
+not be further expanded.</p>
+
+<p style="margin-top: 1em">If a ${...} type parameter
+expression or a $(...) type command substitution is used in
+place of name above, it is expanded first and the result is
+used as if it were the value of <br>
+name. Thus it is possible to perform nested operations:
+${${foo#head}%tail} substitutes the value of $foo with both
+&lsquo;head&rsquo; and &lsquo;tail&rsquo; deleted. The form
+with $(...) is often <br>
+useful in combination with the flags described next; see the
+examples below. Each name or nested ${...} in a parameter
+expansion may also be followed by a subscript expression
+<br>
+as described in Array Parameters in zshparam(1).</p>
+
+<p style="margin-top: 1em">Note that double quotes may
+appear around nested expressions, in which case only the
+part inside is treated as quoted; for example,
+${(f)&quot;$(foo)&quot;} quotes the result of $(foo), <br>
+but the flag &lsquo;(f)&rsquo; (see below) is applied using
+the rules for unquoted expansions. Note further that quotes
+are themselves nested in this context; for example, in <br>
+&quot;${(@f)&quot;$(foo)&quot;}&quot;, there are two sets of
+quotes, one surrounding the whole expression, the other
+(redundant) surrounding the $(foo) as before.</p>
+
+<p style="margin-top: 1em">Parameter Expansion Flags <br>
+If the opening brace is directly followed by an opening
+parenthesis, the string up to the matching closing
+parenthesis will be taken as a list of flags. In cases where
+repeating <br>
+a flag is meaningful, the repetitions need not be
+consecutive; for example, &lsquo;(q%q%q)&rsquo; means the
+same thing as the more readable &lsquo;(%%qqq)&rsquo;. The
+following flags are supported:</p>
+
+<p style="margin-top: 1em"># Evaluate the resulting words
+as numeric expressions and output the characters
+corresponding to the resulting integer. Note that this form
+is entirely distinct from use of <br>
+the # without parentheses.</p>
+
+<p style="margin-top: 1em">If the MULTIBYTE option is set
+and the number is greater than 127 (i.e. not an ASCII
+character) it is treated as a Unicode character.</p>
+
+<p style="margin-top: 1em">% Expand all % escapes in the
+resulting words in the same way as in prompts (see EXPANSION
+OF PROMPT SEQUENCES in zshmisc(1)). If this flag is given
+twice, full prompt <br>
+expansion is done on the resulting words, depending on the
+setting of the PROMPT_PERCENT, PROMPT_SUBST and PROMPT_BANG
+options.</p>
+
+<p style="margin-top: 1em">@ In double quotes, array
+elements are put into separate words. E.g.,
+&lsquo;&quot;${(@)foo}&quot;&rsquo; is equivalent to
+&lsquo;&quot;${foo[@]}&quot;&rsquo; and
+&lsquo;&quot;${(@)foo[1,2]}&quot;&rsquo; is the same as
+&lsquo;&quot;$foo[1]&quot; <br>
+&quot;$foo[2]&quot;&rsquo;. This is distinct from field
+splitting by the f, s or z flags, which still applies within
+each array element.</p>
+
+<p style="margin-top: 1em">A Create an array parameter with
+&lsquo;${...=...}&rsquo;, &lsquo;${...:=...}&rsquo; or
+&lsquo;${...::=...}&rsquo;. If this flag is repeated (as in
+&lsquo;AA&rsquo;), create an associative array parameter.
+Assignment is <br>
+made before sorting or padding. The name part may be a
+subscripted range for ordinary arrays; the word part must be
+converted to an array, for example by using <br>
+&lsquo;${(AA)=name=...}&rsquo; to activate field splitting,
+when creating an associative array.</p>
+
+<p style="margin-top: 1em">a Sort in array index order;
+when combined with &lsquo;O&rsquo; sort in reverse array
+index order. Note that &lsquo;a&rsquo; is therefore
+equivalent to the default but &lsquo;Oa&rsquo; is useful for
+obtaining <br>
+an array&rsquo;s elements in reverse order.</p>
+
+<p style="margin-top: 1em">c With ${#name}, count the total
+number of characters in an array, as if the elements were
+concatenated with spaces between them.</p>
+
+<p style="margin-top: 1em">C Capitalize the resulting
+words. &lsquo;Words&rsquo; in this case refers to sequences
+of alphanumeric characters separated by non-alphanumerics,
+not to words that result from field <br>
+splitting.</p>
+
+<p style="margin-top: 1em">D Assume the string or array
+elements contain directories and attempt to substitute the
+leading part of these by names. The remainder of the path
+(the whole of it if the <br>
+leading part was not subsituted) is then quoted so that the
+whole string can be used as a shell argument. This is the
+reverse of &lsquo;~&rsquo; substitution: see the section
+FILE&acirc; <br>
+NAME EXPANSION below.</p>
+
+<p style="margin-top: 1em">e Perform parameter expansion,
+command substitution and arithmetic expansion on the result.
+Such expansions can be nested but too deep recursion may
+have unpredictable <br>
+effects.</p>
+
+<p style="margin-top: 1em">f Split the result of the
+expansion at newlines. This is a shorthand for
+&lsquo;ps:0&rsquo;.</p>
+
+<p style="margin-top: 1em">F Join the words of arrays
+together using newline as a separator. This is a shorthand
+for &lsquo;pj:0&rsquo;.</p>
+
+<p style="margin-top: 1em">g:opts: <br>
+Process escape sequences like the echo builtin when no
+options are given (g::). With the o option, octal escapes
+don&rsquo;t take a leading zero. With the c option,
+sequences <br>
+like &lsquo;^X&rsquo; are also processed. With the e option,
+processes &lsquo;t&rsquo; and similar sequences like the
+print builtin. With both of the o and e options, behaves
+like the print <br>
+builtin except that in none of these modes is &lsquo; <br>
+i Sort case-insensitively. May be combined with
+&lsquo;n&rsquo; or &lsquo;O&rsquo;.</p>
+
+<p style="margin-top: 1em">k If name refers to an
+associative array, substitute the keys (element names)
+rather than the values of the elements. Used with subscripts
+(including ordinary arrays), <br>
+force indices or keys to be substituted even if the
+subscript form refers to values. However, this flag may not
+be combined with subscript ranges.</p>
+
+<p style="margin-top: 1em">L Convert all letters in the
+result to lower case.</p>
+
+<p style="margin-top: 1em">n Sort decimal integers
+numerically; if the first differing characters of two test
+strings are not digits, sorting is lexical. Integers with
+more initial zeroes are sorted <br>
+before those with fewer or none. Hence the array &lsquo;foo1
+foo02 foo2 foo3 foo20 foo23&rsquo; is sorted into the order
+shown. May be combined with &lsquo;i&rsquo; or
+&lsquo;O&rsquo;.</p>
+
+<p style="margin-top: 1em">o Sort the resulting words in
+ascending order; if this appears on its own the sorting is
+lexical and case-sensitive (unless the locale renders it
+case-insensitive). Sorting <br>
+in ascending order is the default for other forms of
+sorting, so this is ignored if combined with
+&lsquo;a&rsquo;, &lsquo;i&rsquo; or &lsquo;n&rsquo;.</p>
+
+<p style="margin-top: 1em">O Sort the resulting words in
+descending order; &lsquo;O&rsquo; without &lsquo;a&rsquo;,
+&lsquo;i&rsquo; or &lsquo;n&rsquo; sorts in reverse lexical
+order. May be combined with &lsquo;a&rsquo;, &lsquo;i&rsquo;
+or &lsquo;n&rsquo; to reverse the order of <br>
+sorting.</p>
+
+<p style="margin-top: 1em">P This forces the value of the
+parameter name to be interpreted as a further parameter
+name, whose value will be used where appropriate. Note that
+flags set with one of the <br>
+typeset family of commands (in particular case
+transformations) are not applied to the value of name used
+in this fashion.</p>
+
+<p style="margin-top: 1em">If used with a nested parameter
+or command substitution, the result of that will be taken as
+a parameter name in the same way. For example, if you have
+&lsquo;foo=bar&rsquo; and <br>
+&lsquo;bar=baz&rsquo;, the strings ${(P)foo}, ${(P)${foo}},
+and ${(P)$(echo bar)} will be expanded to
+&lsquo;baz&rsquo;.</p>
+
+<p style="margin-top: 1em">q Quote characters that are
+special to the shell in the resulting words with
+backslashes; unprintable or invalid characters are quoted
+using the $&rsquo;&rsquo; form, with separate <br>
+quotes for each octet.</p>
+
+<p style="margin-top: 1em">If this flag is given twice, the
+resulting words are quoted in single quotes and if it is
+given three times, the words are quoted in double quotes; in
+these forms no spe&acirc; <br>
+cial handling of unprintable or invalid characters is
+attempted. If the flag is given four times, the words are
+quoted in single quotes preceded by a $. Note that in all
+<br>
+three of these forms quoting is done unconditionally, even
+if this does not change the way the resulting string would
+be interpreted by the shell.</p>
+
+<p style="margin-top: 1em">If a q- is given (only a single
+q may appear), a minimal form of single quoting is used that
+only quotes the string if needed to protect special
+characters. Typically <br>
+this form gives the most readable output.</p>
+
+<p style="margin-top: 1em">Q Remove one level of quotes
+from the resulting words.</p>
+
+<p style="margin-top: 1em">t Use a string describing the
+type of the parameter where the value of the parameter would
+usually appear. This string consists of keywords separated
+by hyphens (&lsquo;-&rsquo;). The <br>
+first keyword in the string describes the main type, it can
+be one of &lsquo;scalar&rsquo;, &lsquo;array&rsquo;,
+&lsquo;integer&rsquo;, &lsquo;float&rsquo; or
+&lsquo;association&rsquo;. The other keywords describe the
+type in more <br>
+detail:</p>
+
+<p style="margin-top: 1em">local for local parameters</p>
+
+<p style="margin-top: 1em">left for left justified
+parameters</p>
+
+<p style="margin-top: 1em">right_blanks <br>
+for right justified parameters with leading blanks</p>
+
+<p style="margin-top: 1em">right_zeros <br>
+for right justified parameters with leading zeros</p>
+
+<p style="margin-top: 1em">lower for parameters whose value
+is converted to all lower case when it is expanded</p>
+
+<p style="margin-top: 1em">upper for parameters whose value
+is converted to all upper case when it is expanded</p>
+
+<p style="margin-top: 1em">readonly <br>
+for readonly parameters</p>
+
+<p style="margin-top: 1em">tag for tagged parameters</p>
+
+<p style="margin-top: 1em">export for exported
+parameters</p>
+
+<p style="margin-top: 1em">unique for arrays which keep
+only the first occurrence of duplicated values</p>
+
+<p style="margin-top: 1em">hide for parameters with the
+&lsquo;hide&rsquo; flag</p>
+
+<p style="margin-top: 1em">special <br>
+for special parameters defined by the shell</p>
+
+<p style="margin-top: 1em">u Expand only the first
+occurrence of each unique word.</p>
+
+<p style="margin-top: 1em">U Convert all letters in the
+result to upper case.</p>
+
+<p style="margin-top: 1em">v Used with k, substitute (as
+two consecutive words) both the key and the value of each
+associative array element. Used with subscripts, force
+values to be substituted even <br>
+if the subscript form refers to indices or keys.</p>
+
+<p style="margin-top: 1em">V Make any special characters in
+the resulting words visible.</p>
+
+<p style="margin-top: 1em">w With ${#name}, count words in
+arrays or strings; the s flag may be used to set a word
+delimiter.</p>
+
+<p style="margin-top: 1em">W Similar to w with the
+difference that empty words between repeated delimiters are
+also counted.</p>
+
+<p style="margin-top: 1em">X With this flag, parsing errors
+occurring with the Q, e and # flags or the pattern matching
+forms such as &lsquo;${name#pattern}&rsquo; are reported.
+Without the flag, errors are <br>
+silently ignored.</p>
+
+<p style="margin-top: 1em">z Split the result of the
+expansion into words using shell parsing to find the words,
+i.e. taking into account any quoting in the value. Comments
+are not treated specially <br>
+but as ordinary strings, similar to interactive shells with
+the INTERACTIVE_COMMENTS option unset (however, see the Z
+flag below for related options)</p>
+
+<p style="margin-top: 1em">Note that this is done very
+late, even later than the &lsquo;(s)&rsquo; flag. So to
+access single words in the result use nested expansions as
+in &lsquo;${${(z)foo}[2]}&rsquo;. Likewise, to <br>
+remove the quotes in the resulting words use
+&lsquo;${(Q)${(z)foo}}&rsquo;.</p>
+
+<p style="margin-top: 1em">0 Split the result of the
+expansion on null bytes. This is a shorthand for &lsquo;ps:
+:&rsquo;.</p>
+
+<p style="margin-top: 1em">The following flags (except p)
+are followed by one or more arguments as shown. Any
+character, or the matching pairs &lsquo;(...)&rsquo;,
+&lsquo;{...}&rsquo;, &lsquo;[...]&rsquo;, or
+&lsquo;&lt;...&gt;&rsquo;, may be used in place <br>
+of a colon as delimiters, but note that when a flag takes
+more than one argument, a matched pair of delimiters must
+surround each argument.</p>
+
+<p style="margin-top: 1em">p Recognize the same escape
+sequences as the print builtin in string arguments to any of
+the flags described below that follow this argument.</p>
+
+<p style="margin-top: 1em">~ Force string arguments to any
+of the flags below that follow within the parentheses to be
+treated as patterns. Compare with a ~ outside parentheses,
+which forces the <br>
+entire substituted string to be treated as a pattern. Hence,
+for example, <br>
+[[ &quot;?&quot; = ${(~j.|.)array} ]] <br>
+with the EXTENDED_GLOB option set succeeds if and only if
+$array contains the string &lsquo;?&rsquo; as an element.
+The argument may be repeated to toggle the behaviour; its
+effect only <br>
+lasts to the end of the parenthesised group.</p>
+
+<p style="margin-top: 1em">j:string: <br>
+Join the words of arrays together using string as a
+separator. Note that this occurs before field splitting by
+the s:string: flag or the SH_WORD_SPLIT option.</p>
+
+<p style="margin-top: 1em">l:expr::string1::string2: <br>
+Pad the resulting words on the left. Each word will be
+truncated if required and placed in a field expr characters
+wide.</p>
+
+<p style="margin-top: 1em">The arguments :string1: and
+:string2: are optional; neither, the first, or both may be
+given. Note that the same pairs of delimiters must be used
+for each of the three <br>
+arguments. The space to the left will be filled with string1
+(concatenated as often as needed) or spaces if string1 is
+not given. If both string1 and string2 are given, <br>
+string2 is inserted once directly to the left of each word,
+truncated if necessary, before string1 is used to produce
+any remaining padding.</p>
+
+<p style="margin-top: 1em">If the MULTIBYTE option is in
+effect, the flag m may also be given, in which case widths
+will be used for the calculation of padding; otherwise
+individual multibyte char&acirc; <br>
+acters are treated as occupying one unit of width.</p>
+
+<p style="margin-top: 1em">If the MULTIBYTE option is not
+in effect, each byte in the string is treated as occupying
+one unit of width.</p>
+
+<p style="margin-top: 1em">Control characters are always
+assumed to be one unit wide; this allows the mechanism to be
+used for generating repetitions of control characters.</p>
+
+<p style="margin-top: 1em">m Only useful together with one
+of the flags l or r or with the # length operator when the
+MULTIBYTE option is in effect. Use the character width
+reported by the system in <br>
+calculating how much of the string it occupies or the
+overall length of the string. Most printable characters have
+a width of one unit, however certain Asian character <br>
+sets and certain special effects use wider characters;
+combining characters have zero width. Non-printable
+characters are arbitrarily counted as zero width; how they
+<br>
+would actually be displayed will vary.</p>
+
+<p style="margin-top: 1em">If the m is repeated, the
+character either counts zero (if it has zero width), else
+one. For printable character strings this has the effect of
+counting the number of <br>
+glyphs (visibly separate characters), except for the case
+where combining characters themselves have non-zero width
+(true in certain alphabets).</p>
+
+<p style="margin-top: 1em">r:expr::string1::string2: <br>
+As l, but pad the words on the right and insert string2
+immediately to the right of the string to be padded.</p>
+
+<p style="margin-top: 1em">Left and right padding may be
+used together. In this case the strategy is to apply left
+padding to the first half width of each of the resulting
+words, and right padding <br>
+to the second half. If the string to be padded has odd width
+the extra padding is applied on the left.</p>
+
+<p style="margin-top: 1em">s:string: <br>
+Force field splitting at the separator string. Note that a
+string of two or more characters means that all of them must
+match in sequence; this differs from the treatment <br>
+of two or more characters in the IFS parameter. See also the
+= flag and the SH_WORD_SPLIT option. An empty string may
+also be given in which case every character will be <br>
+a separate element.</p>
+
+<p style="margin-top: 1em">For historical reasons, the
+usual behaviour that empty array elements are retained
+inside double quotes is disabled for arrays generated by
+splitting; hence the following:</p>
+
+<p style="margin-top: 1em">line=&quot;one::three&quot; <br>
+print -l &quot;${(s.:.)line}&quot;</p>
+
+<p style="margin-top: 1em">produces two lines of output for
+one and three and elides the empty field. To override this
+behaviour, supply the &quot;(@)&quot; flag as well, i.e.
+&quot;${(@s.:.)line}&quot;.</p>
+
+<p style="margin-top: 1em">Z:opts: <br>
+As z but takes a combination of option letters between a
+following pair of delimiter characters. With no options the
+effect is identical to z. (Z+c+) causes comments to <br>
+be parsed as a string and retained; any field in the
+resulting array beginning with an unquoted comment character
+is a comment. (Z+C+) causes comments to be parsed and <br>
+removed. The rule for comments is standard: anything between
+a word starting with the third character of $HISTCHARS,
+default #, up to the next newline is a comment. <br>
+(Z+n+) causes unquoted newlines to be treated as ordinary
+whitespace, else they are treated as if they are shell code
+delimiters and converted to semicolons. Options are <br>
+combined within the same set of delimiters, e.g.
+(Z+Cn+).</p>
+
+<p style="margin-top: 1em">_:flags: <br>
+The underscore (_) flag is reserved for future use. As of
+this revision of zsh, there are no valid flags; anything
+following an underscore, other than an empty pair of <br>
+delimiters, is treated as an error, and the flag itself has
+no effect.</p>
+
+<p style="margin-top: 1em">The following flags are
+meaningful with the ${...#...} or ${...%...} forms. The S
+and I flags may also be used with the ${.../...} forms.</p>
+
+<p style="margin-top: 1em">S Search substrings as well as
+beginnings or ends; with # start from the beginning and with
+% start from the end of the string. With substitution via
+${.../...} or <br>
+${...//...}, specifies non-greedy matching, i.e. that the
+shortest instead of the longest match should be
+replaced.</p>
+
+<p style="margin-top: 1em">I:expr: <br>
+Search the exprth match (where expr evaluates to a number).
+This only applies when searching for substrings, either with
+the S flag, or with ${.../...} (only the exprth <br>
+match is substituted) or ${...//...} (all matches from the
+exprth on are substituted). The default is to take the first
+match.</p>
+
+<p style="margin-top: 1em">The exprth match is counted such
+that there is either one or zero matches from each starting
+position in the string, although for global substitution
+matches overlapping <br>
+previous replacements are ignored. With the ${...%...} and
+${...%%...} forms, the starting position for the match moves
+backwards from the end as the index increases, <br>
+while with the other forms it moves forward from the
+start.</p>
+
+<p style="margin-top: 1em">Hence with the string <br>
+which switch is the right switch for Ipswich? <br>
+substitutions of the form ${(SI:N:)string#w*ch} as N
+increases from 1 will match and remove &lsquo;which&rsquo;,
+&lsquo;witch&rsquo;, &lsquo;witch&rsquo; and
+&lsquo;wich&rsquo;; the form using &lsquo;##&rsquo; will
+match and remove <br>
+&lsquo;which switch is the right switch for Ipswich&rsquo;,
+&lsquo;witch is the right switch for Ipswich&rsquo;,
+&lsquo;witch for Ipswich&rsquo; and &lsquo;wich&rsquo;. The
+form using &lsquo;%&rsquo; will remove the same matches as
+<br>
+for &lsquo;#&rsquo;, but in reverse order, and the form
+using &lsquo;%%&rsquo; will remove the same matches as for
+&lsquo;##&rsquo; in reverse order.</p>
+
+<p style="margin-top: 1em">B Include the index of the
+beginning of the match in the result.</p>
+
+<p style="margin-top: 1em">E Include the index of the end
+of the match in the result.</p>
+
+<p style="margin-top: 1em">M Include the matched portion in
+the result.</p>
+
+<p style="margin-top: 1em">N Include the length of the
+match in the result.</p>
+
+<p style="margin-top: 1em">R Include the unmatched portion
+in the result (the Rest).</p>
+
+<p style="margin-top: 1em">Rules <br>
+Here is a summary of the rules for substitution; this
+assumes that braces are present around the substitution,
+i.e. ${...}. Some particular examples are given below. Note
+that <br>
+the Zsh Development Group accepts no responsibility for any
+brain damage which may occur during the reading of the
+following rules.</p>
+
+<p style="margin-top: 1em">1. Nested substitution <br>
+If multiple nested ${...} forms are present, substitution is
+performed from the inside outwards. At each level, the
+substitution takes account of whether the current <br>
+value is a scalar or an array, whether the whole
+substitution is in double quotes, and what flags are
+supplied to the current level of substitution, just as if
+the nested <br>
+substitution were the outermost. The flags are not
+propagated up to enclosing substitutions; the nested
+substitution will return either a scalar or an array as
+determined <br>
+by the flags, possibly adjusted for quoting. All the
+following steps take place where applicable at all levels of
+substitution. Note that, unless the &lsquo;(P)&rsquo; flag
+is <br>
+present, the flags and any subscripts apply directly to the
+value of the nested substitution; for example, the expansion
+${${foo}} behaves exactly the same as ${foo}.</p>
+
+<p style="margin-top: 1em">At each nested level of
+substitution, the substituted words undergo all forms of
+single-word substitution (i.e. not filename generation),
+including command substitution, <br>
+arithmetic expansion and filename expansion (i.e. leading ~
+and =). Thus, for example, ${${:-=cat}:h} expands to the
+directory where the cat program resides. (Explana&acirc;
+<br>
+tion: the internal substitution has no parameter but a
+default value =cat, which is expanded by filename expansion
+to a full path; the outer substitution then applies the <br>
+modifier :h and takes the directory part of the path.)</p>
+
+<p style="margin-top: 1em">2. Internal parameter flags <br>
+Any parameter flags set by one of the typeset family of
+commands, in particular the L, R, Z, u and l flags for
+padding and capitalization, are applied directly to the <br>
+parameter value. Note these flags are options to the
+command, e.g. &lsquo;typeset -Z&rsquo;; they are not the
+same as the flags used within parameter substitutions.</p>
+
+<p style="margin-top: 1em">3. Parameter subscripting <br>
+If the value is a raw parameter reference with a subscript,
+such as ${var[3]}, the effect of subscripting is applied
+directly to the parameter. Subscripts are evaluated <br>
+left to right; subsequent subscripts apply to the scalar or
+array value yielded by the previous subscript. Thus if var
+is an array, ${var[1][2]} is the second character <br>
+of the first word, but ${var[2,4][2]} is the entire third
+word (the second word of the range of words two through four
+of the original array). Any number of subscripts <br>
+may appear.</p>
+
+<p style="margin-top: 1em">4. Parameter name replacement
+<br>
+The effect of any (P) flag, which treats the value so far as
+a parameter name and replaces it with the corresponding
+value, is applied.</p>
+
+<p style="margin-top: 1em">5. Double-quoted joining <br>
+If the value after this process is an array, and the
+substitution appears in double quotes, and no (@) flag is
+present at the current level, the words of the value are
+<br>
+joined with the first character of the parameter $IFS, by
+default a space, between each word (single word arrays are
+not modified). If the (j) flag is present, that is <br>
+used for joining instead of $IFS.</p>
+
+<p style="margin-top: 1em">6. Nested subscripting <br>
+Any remaining subscripts (i.e. of a nested substitution) are
+evaluated at this point, based on whether the value is an
+array or a scalar. As with 3., multiple subscripts <br>
+can appear. Note that ${foo[2,4][2]} is thus equivalent to
+${${foo[2,4]}[2]} and also to
+&quot;${${(@)foo[2,4]}[2]}&quot; (the nested substitution
+returns an array in both cases), <br>
+but not to &quot;${${foo[2,4]}[2]}&quot; (the nested
+substitution returns a scalar because of the quotes).</p>
+
+<p style="margin-top: 1em">7. Modifiers <br>
+Any modifiers, as specified by a trailing &lsquo;#&rsquo;,
+&lsquo;%&rsquo;, &lsquo;/&rsquo; (possibly doubled) or by a
+set of modifiers of the form :... (see the section
+&lsquo;Modifiers&rsquo; in the section &lsquo;History <br>
+Expansion&rsquo;), are applied to the words of the value at
+this level.</p>
+
+<p style="margin-top: 1em">8. Character evaluation <br>
+Any (#) flag is applied, evaluating the result so far
+numerically as a character.</p>
+
+<p style="margin-top: 1em">9. Length <br>
+Any initial # modifier, i.e. in the form ${#var}, is used to
+evaluate the length of the expression so far.</p>
+
+<p style="margin-top: 1em">10. Forced joining <br>
+If the &lsquo;(j)&rsquo; flag is present, or no
+&lsquo;(j)&rsquo; flag is present but the string is to be
+split as given by rule 11., and joining did not take place
+at step 5., any words in the <br>
+value are joined together using the given string or the
+first character of $IFS if none. Note that the
+&lsquo;(F)&rsquo; flag implicitly supplies a string for
+joining in this manner.</p>
+
+<p style="margin-top: 1em">11. Simple word splitting <br>
+If one of the &lsquo;(s)&rsquo; or &lsquo;(f)&rsquo; flags
+are present, or the &lsquo;=&rsquo; specifier was present
+(e.g. ${=var}), the word is split on occurrences of the
+specified string, or (for = with <br>
+neither of the two flags present) any of the characters in
+$IFS.</p>
+
+<p style="margin-top: 1em">If no &lsquo;(s)&rsquo;,
+&lsquo;(f)&rsquo; or &lsquo;=&rsquo; was given, but the word
+is not quoted and the option SH_WORD_SPLIT is set, the word
+is split on occurrences of any of the characters in $IFS.
+<br>
+Note this step, too, takes place at all levels of a nested
+substitution.</p>
+
+<p style="margin-top: 1em">12. Case modification <br>
+Any case modification from one of the flags (L), (U) or (C)
+is applied.</p>
+
+<p style="margin-top: 1em">13. Escape sequence replacement
+<br>
+First any replacements from the (g) flag are performed, then
+any prompt-style formatting from the (%) family of flags is
+applied.</p>
+
+<p style="margin-top: 1em">14. Quote application <br>
+Any quoting or unquoting using (q) and (Q) and related flags
+is applied.</p>
+
+<p style="margin-top: 1em">15. Directory naming <br>
+Any directory name substitution using (D) flag is
+applied.</p>
+
+<p style="margin-top: 1em">16. Visibility enhancement <br>
+Any modifications to make characters visible using the (V)
+flag are applied.</p>
+
+<p style="margin-top: 1em">17. Lexical word splitting <br>
+If the &rsquo;(z)&rsquo; flag or one of the forms of the
+&rsquo;(Z)&rsquo; flag is present, the word is split as if
+it were a shell command line, so that quotation marks and
+other metacharacters <br>
+are used to decide what constitutes a word. Note this form
+of splitting is entirely distinct from that described by
+rule 11.: it does not use $IFS, and does not cause <br>
+forced joining.</p>
+
+<p style="margin-top: 1em">18. Uniqueness <br>
+If the result is an array and the &lsquo;(u)&rsquo; flag was
+present, duplicate elements are removed from the array.</p>
+
+<p style="margin-top: 1em">19. Ordering <br>
+If the result is still an array and one of the
+&lsquo;(o)&rsquo; or &lsquo;(O)&rsquo; flags was present,
+the array is reordered.</p>
+
+<p style="margin-top: 1em">20. Re-evaluation <br>
+Any &lsquo;(e)&rsquo; flag is applied to the value, forcing
+it to be re-examined for new parameter substitutions, but
+also for command and arithmetic substitutions.</p>
+
+<p style="margin-top: 1em">21. Padding <br>
+Any padding of the value by the &lsquo;(l.fill.)&rsquo; or
+&lsquo;(r.fill.)&rsquo; flags is applied.</p>
+
+<p style="margin-top: 1em">22. Semantic joining <br>
+In contexts where expansion semantics requires a single word
+to result, all words are rejoined with the first character
+of IFS between. So in &lsquo;${(P)${(f)lines}}&rsquo; the
+<br>
+value of ${lines} is split at newlines, but then must be
+joined again before the P flag can be applied.</p>
+
+<p style="margin-top: 1em">If a single word is not
+required, this rule is skipped.</p>
+
+<p style="margin-top: 1em">23. Empty argument removal <br>
+If the substitution does not appear in double quotes, any
+resulting zero-length argument, whether from a scalar or an
+element of an array, is elided from the list of argu&acirc;
+<br>
+ments inserted into the command line.</p>
+
+<p style="margin-top: 1em">Strictly speaking, the removal
+happens later as the same happens with other forms of
+substitution; the point to note here is simply that it
+occurs after any of the above <br>
+parameter operations.</p>
+
+<p style="margin-top: 1em">Examples <br>
+The flag f is useful to split a double-quoted substitution
+line by line. For example, ${(f)&quot;$(&lt;file)&quot;}
+substitutes the contents of file divided so that each line
+is an element <br>
+of the resulting array. Compare this with the effect of
+$(&lt;file) alone, which divides the file up by words, or
+the same inside double quotes, which makes the entire
+content of <br>
+the file a single string.</p>
+
+<p style="margin-top: 1em">The following illustrates the
+rules for nested parameter expansions. Suppose that $foo
+contains the array (bar baz):</p>
+
+<p style="margin-top: 1em">&quot;${(@)${foo}[1]}&quot; <br>
+This produces the result b. First, the inner substitution
+&quot;${foo}&quot;, which has no array (@) flag, produces a
+single word result &quot;bar baz&quot;. The outer
+substitution <br>
+&quot;${(@)...[1]}&quot; detects that this is a scalar, so
+that (despite the &lsquo;(@)&rsquo; flag) the subscript
+picks the first character.</p>
+
+<p style="margin-top: 1em">&quot;${${(@)foo}[1]}&quot; <br>
+This produces the result &lsquo;bar&rsquo;. In this case,
+the inner substitution &quot;${(@)foo}&quot; produces the
+array &lsquo;(bar baz)&rsquo;. The outer substitution
+&quot;${...[1]}&quot; detects that this is <br>
+an array and picks the first word. This is similar to the
+simple case &quot;${foo[1]}&quot;.</p>
+
+<p style="margin-top: 1em">As an example of the rules for
+word splitting and joining, suppose $foo contains the array
+&lsquo;(ax1 bx1)&rsquo;. Then</p>
+
+<p style="margin-top: 1em">${(s/x/)foo} <br>
+produces the words &lsquo;a&rsquo;, &lsquo;1 b&rsquo; and
+&lsquo;1&rsquo;.</p>
+
+<p style="margin-top: 1em">${(j/x/s/x/)foo} <br>
+produces &lsquo;a&rsquo;, &lsquo;1&rsquo;, &lsquo;b&rsquo;
+and &lsquo;1&rsquo;.</p>
+
+<p style="margin-top: 1em">${(s/x/)foo%%1*} <br>
+produces &lsquo;a&rsquo; and &lsquo; b&rsquo; (note the
+extra space). As substitution occurs before either joining
+or splitting, the operation first generates the modified
+array (ax bx), which <br>
+is joined to give &quot;ax bx&quot;, and then split to give
+&lsquo;a&rsquo;, &lsquo; b&rsquo; and &lsquo;&rsquo;. The
+final empty string will then be elided, as it is not in
+double quotes.</p>
+
+<p style="margin-top: 1em">COMMAND SUBSTITUTION <br>
+A command enclosed in parentheses preceded by a dollar sign,
+like &lsquo;$(...)&rsquo;, or quoted with grave accents,
+like &lsquo;&lsquo;...&lsquo;&rsquo;, is replaced with its
+standard output, with any trailing <br>
+newlines deleted. If the substitution is not enclosed in
+double quotes, the output is broken into words using the IFS
+parameter. The substitution &lsquo;$(cat foo)&rsquo; may be
+replaced <br>
+by the equivalent but faster &lsquo;$(&lt;foo)&rsquo;. In
+either case, if the option GLOB_SUBST is set, the output is
+eligible for filename generation.</p>
+
+<p style="margin-top: 1em">ARITHMETIC EXPANSION <br>
+A string of the form &lsquo;$[exp]&rsquo; or
+&lsquo;$((exp))&rsquo; is substituted with the value of the
+arithmetic expression exp. exp is subjected to parameter
+expansion, command substitution and <br>
+arithmetic expansion before it is evaluated. See the section
+&lsquo;Arithmetic Evaluation&rsquo;.</p>
+
+<p style="margin-top: 1em">BRACE EXPANSION <br>
+A string of the form &lsquo;foo{xx,yy,zz}bar&rsquo; is
+expanded to the individual words &lsquo;fooxxbar&rsquo;,
+&lsquo;fooyybar&rsquo; and &lsquo;foozzbar&rsquo;.
+Left-to-right order is preserved. This construct may be <br>
+nested. Commas may be quoted in order to include them
+literally in a word.</p>
+
+<p style="margin-top: 1em">An expression of the form
+&lsquo;{n1..n2}&rsquo;, where n1 and n2 are integers, is
+expanded to every number between n1 and n2 inclusive. If
+either number begins with a zero, all the result&acirc; <br>
+ing numbers will be padded with leading zeroes to that
+minimum width, but for negative numbers the - character is
+also included in the width. If the numbers are in decreasing
+<br>
+order the resulting sequence will also be in decreasing
+order.</p>
+
+<p style="margin-top: 1em">An expression of the form
+&lsquo;{n1..n2..n3}&rsquo;, where n1, n2, and n3 are
+integers, is expanded as above, but only every n3th number
+starting from n1 is output. If n3 is negative the <br>
+numbers are output in reverse order, this is slightly
+different from simply swapping n1 and n2 in the case that
+the step n3 doesn&rsquo;t evenly divide the range. Zero
+padding can be <br>
+specified in any of the three numbers, specifying it in the
+third can be useful to pad for example
+&lsquo;{-99..100..01}&rsquo; which is not possible to
+specify by putting a 0 on either of <br>
+the first two numbers (i.e. pad to two characters).</p>
+
+<p style="margin-top: 1em">If a brace expression matches
+none of the above forms, it is left unchanged, unless the
+option BRACE_CCL (an abbreviation for &lsquo;brace character
+class&rsquo;) is set. In that case, it <br>
+is expanded to a list of the individual characters between
+the braces sorted into the order of the characters in the
+ASCII character set (multibyte characters are not currently
+<br>
+handled). The syntax is similar to a [...] expression in
+filename generation: &lsquo;-&rsquo; is treated specially to
+denote a range of characters, but &lsquo;^&rsquo; or
+&lsquo;!&rsquo; as the first character is <br>
+treated normally. For example, &lsquo;{abcdef0-9}&rsquo;
+expands to 16 words 0 1 2 3 4 5 6 7 8 9 a b c d e f.</p>
+
+<p style="margin-top: 1em">Note that brace expansion is not
+part of filename generation (globbing); an expression such
+as */{foo,bar} is split into two separate words */foo and
+*/bar before filename gener&acirc; <br>
+ation takes place. In particular, note that this is liable
+to produce a &lsquo;no match&rsquo; error if either of the
+two expressions does not match; this is to be contrasted
+with <br>
+*/(foo|bar), which is treated as a single pattern but
+otherwise has similar effects.</p>
+
+<p style="margin-top: 1em">To combine brace expansion with
+array expansion, see the ${^spec} form described in the
+section Parameter Expansion above.</p>
+
+<p style="margin-top: 1em">FILENAME EXPANSION <br>
+Each word is checked to see if it begins with an unquoted
+&lsquo;~&rsquo;. If it does, then the word up to a
+&lsquo;/&rsquo;, or the end of the word if there is no
+&lsquo;/&rsquo;, is checked to see if it can be <br>
+substituted in one of the ways described here. If so, then
+the &lsquo;~&rsquo; and the checked portion are replaced
+with the appropriate substitute value.</p>
+
+<p style="margin-top: 1em">A &lsquo;~&rsquo; by itself is
+replaced by the value of $HOME. A &lsquo;~&rsquo; followed
+by a &lsquo;+&rsquo; or a &lsquo;-&rsquo; is replaced by
+current or previous working directory, respectively.</p>
+
+<p style="margin-top: 1em">A &lsquo;~&rsquo; followed by a
+number is replaced by the directory at that position in the
+directory stack. &lsquo;~0&rsquo; is equivalent to
+&lsquo;~+&rsquo;, and &lsquo;~1&rsquo; is the top of the
+stack. &lsquo;~+&rsquo; followed by <br>
+a number is replaced by the directory at that position in
+the directory stack. &lsquo;~+0&rsquo; is equivalent to
+&lsquo;~+&rsquo;, and &lsquo;~+1&rsquo; is the top of the
+stack. &lsquo;~-&rsquo; followed by a number is <br>
+replaced by the directory that many positions from the
+bottom of the stack. &lsquo;~-0&rsquo; is the bottom of the
+stack. The PUSHD_MINUS option exchanges the effects of
+&lsquo;~+&rsquo; and &lsquo;~-&rsquo; <br>
+where they are followed by a number.</p>
+
+<p style="margin-top: 1em">Dynamic named directories <br>
+If the function zsh_directory_name exists, or the shell
+variable zsh_directory_name_functions exists and contains an
+array of function names, then the functions are used to <br>
+implement dynamic directory naming. The functions are tried
+in order until one returns status zero, so it is important
+that functions test whether they can handle the case in <br>
+question and return an appropriate status.</p>
+
+<p style="margin-top: 1em">A &lsquo;~&rsquo; followed by a
+string namstr in unquoted square brackets is treated
+specially as a dynamic directory name. Note that the first
+unquoted closing square bracket always termi&acirc; <br>
+nates namstr. The shell function is passed two arguments:
+the string n (for name) and namstr. It should either set the
+array reply to a single element which is the directory <br>
+corresponding to the name and return status zero (executing
+an assignment as the last statement is usually sufficient),
+or it should return status non-zero. In the former case <br>
+the element of reply is used as the directory; in the latter
+case the substitution is deemed to have failed. If all
+functions fail and the option NOMATCH is set, an error <br>
+results.</p>
+
+<p style="margin-top: 1em">The functions defined as above
+are also used to see if a directory can be turned into a
+name, for example when printing the directory stack or when
+expanding %~ in prompts. In <br>
+this case each function is passed two arguments: the string
+d (for directory) and the candidate for dynamic naming. The
+function should either return non-zero status, if the <br>
+directory cannot be named by the function, or it should set
+the array reply to consist of two elements: the first is the
+dynamic name for the directory (as would appear within <br>
+&lsquo;~[...]&rsquo;), and the second is the prefix length
+of the directory to be replaced. For example, if the trial
+directory is /home/myname/src/zsh and the dynamic name for
+<br>
+/home/myname/src (which has 16 characters) is s, then the
+function sets</p>
+
+<p style="margin-top: 1em">reply=(s 16)</p>
+
+<p style="margin-top: 1em">The directory name so returned
+is compared with possible static names for parts of the
+directory path, as described below; it is used if the prefix
+length matched (16 in the <br>
+example) is longer than that matched by any static name.</p>
+
+<p style="margin-top: 1em">It is not a requirement that a
+function implements both n and d calls; for example, it
+might be appropriate for certain dynamic forms of expansion
+not to be contracted to names. <br>
+In that case any call with the first argument d should cause
+a non-zero status to be returned.</p>
+
+<p style="margin-top: 1em">The completion system calls
+&lsquo;zsh_directory_name c&rsquo; followed by equivalent
+calls to elements of the array zsh_directory_name_functions,
+if it exists, in order to complete dynamic <br>
+names for directories. The code for this should be as for
+any other completion function as described in
+zshcompsys(1).</p>
+
+<p style="margin-top: 1em">As a working example, here is a
+function that expands any dynamic names beginning with the
+string p: to directories below /home/pws/perforce. In this
+simple case a static name <br>
+for the directory would be just as effective.</p>
+
+<p style="margin-top: 1em">zsh_directory_name() { <br>
+emulate -L zsh <br>
+setopt extendedglob <br>
+local -a match mbegin mend <br>
+if [[ $1 = d ]]; then <br>
+# turn the directory into a name <br>
+if [[ $2 = (#b)(/home/pws/perforce/)([^/]##)* ]]; then <br>
+typeset -ga reply <br>
+reply=(p:$match[2] $(( ${#match[1]} + ${#match[2]} )) ) <br>
+else <br>
+return 1 <br>
+fi <br>
+elif [[ $1 = n ]]; then <br>
+# turn the name into a directory <br>
+[[ $2 != (#b)p:(?*) ]] &amp;&amp; return 1 <br>
+typeset -ga reply <br>
+reply=(/home/pws/perforce/$match[1]) <br>
+elif [[ $1 = c ]]; then <br>
+# complete names <br>
+local expl <br>
+local -a dirs <br>
+dirs=(/home/pws/perforce/*(/:t)) <br>
+dirs=(p:${^dirs}) <br>
+_wanted dynamic-dirs expl &rsquo;dynamic directory&rsquo;
+compadd -S] -a dirs <br>
+return <br>
+else <br>
+return 1 <br>
+fi <br>
+return 0 <br>
+}</p>
+
+<p style="margin-top: 1em">Static named directories <br>
+A &lsquo;~&rsquo; followed by anything not already covered
+consisting of any number of alphanumeric characters or
+underscore (&lsquo;_&rsquo;), hyphen (&lsquo;-&rsquo;), or
+dot (&lsquo;.&rsquo;) is looked up as a named direc&acirc;
+<br>
+tory, and replaced by the value of that named directory if
+found. Named directories are typically home directories for
+users on the system. They may also be defined if the text
+<br>
+after the &lsquo;~&rsquo; is the name of a string shell
+parameter whose value begins with a &lsquo;/&rsquo;. Note
+that trailing slashes will be removed from the path to the
+directory (though the origi&acirc; <br>
+nal parameter is not modified).</p>
+
+<p style="margin-top: 1em">It is also possible to define
+directory names using the -d option to the hash builtin.</p>
+
+<p style="margin-top: 1em">In certain circumstances (in
+prompts, for instance), when the shell prints a path, the
+path is checked to see if it has a named directory as its
+prefix. If so, then the prefix <br>
+portion is replaced with a &lsquo;~&rsquo; followed by the
+name of the directory. The shortest way of referring to the
+directory is used, with ties broken in favour of using a
+named direc&acirc; <br>
+tory, except when the directory is / itself. The parameters
+$PWD and $OLDPWD are never abbreviated in this fashion.</p>
+
+<p style="margin-top: 1em">&lsquo;=&rsquo; expansion <br>
+If a word begins with an unquoted &lsquo;=&rsquo; and the
+EQUALS option is set, the remainder of the word is taken as
+the name of a command. If a command exists by that name, the
+word is <br>
+replaced by the full pathname of the command.</p>
+
+<p style="margin-top: 1em">Notes <br>
+Filename expansion is performed on the right hand side of a
+parameter assignment, including those appearing after
+commands of the typeset family. In this case, the right hand
+<br>
+side will be treated as a colon-separated list in the manner
+of the PATH parameter, so that a &lsquo;~&rsquo; or an
+&lsquo;=&rsquo; following a &lsquo;:&rsquo; is eligible for
+expansion. All such behaviour can be <br>
+disabled by quoting the &lsquo;~&rsquo;, the
+&lsquo;=&rsquo;, or the whole expression (but not simply the
+colon); the EQUALS option is also respected.</p>
+
+<p style="margin-top: 1em">If the option MAGIC_EQUAL_SUBST
+is set, any unquoted shell argument in the form
+&lsquo;identifier=expression&rsquo; becomes eligible for
+file expansion as described in the previous para&acirc; <br>
+graph. Quoting the first &lsquo;=&rsquo; also inhibits
+this.</p>
+
+<p style="margin-top: 1em">FILENAME GENERATION <br>
+If a word contains an unquoted instance of one of the
+characters &lsquo;*&rsquo;, &lsquo;(&rsquo;,
+&lsquo;|&rsquo;, &lsquo;&lt;&rsquo;, &lsquo;[&rsquo;, or
+&lsquo;?&rsquo;, it is regarded as a pattern for filename
+generation, unless the GLOB option is <br>
+unset. If the EXTENDED_GLOB option is set, the
+&lsquo;^&rsquo; and &lsquo;#&rsquo; characters also denote a
+pattern; otherwise they are not treated specially by the
+shell.</p>
+
+<p style="margin-top: 1em">The word is replaced with a list
+of sorted filenames that match the pattern. If no matching
+pattern is found, the shell gives an error message, unless
+the NULL_GLOB option is <br>
+set, in which case the word is deleted; or unless the
+NOMATCH option is unset, in which case the word is left
+unchanged.</p>
+
+<p style="margin-top: 1em">In filename generation, the
+character &lsquo;/&rsquo; must be matched explicitly; also,
+a &lsquo;.&rsquo; must be matched explicitly at the
+beginning of a pattern or after a &lsquo;/&rsquo;, unless
+the GLOB_DOTS <br>
+option is set. No filename generation pattern matches the
+files &lsquo;.&rsquo; or &lsquo;..&rsquo;. In other
+instances of pattern matching, the &lsquo;/&rsquo; and
+&lsquo;.&rsquo; are not treated specially.</p>
+
+<p style="margin-top: 1em">Glob Operators <br>
+* Matches any string, including the null string.</p>
+
+<p style="margin-top: 1em">? Matches any character.</p>
+
+<p style="margin-top: 1em">[...] Matches any of the
+enclosed characters. Ranges of characters can be specified
+by separating two characters by a &lsquo;-&rsquo;. A
+&lsquo;-&rsquo; or &lsquo;]&rsquo; may be matched by
+including it as the <br>
+first character in the list. There are also several named
+classes of characters, in the form &lsquo;[:name:]&rsquo;
+with the following meanings. The first set use the macros
+pro&acirc; <br>
+vided by the operating system to test for the given
+character combinations, including any modifications due to
+local language settings, see ctype(3):</p>
+
+<p style="margin-top: 1em">[:alnum:] <br>
+The character is alphanumeric</p>
+
+<p style="margin-top: 1em">[:alpha:] <br>
+The character is alphabetic</p>
+
+<p style="margin-top: 1em">[:ascii:] <br>
+The character is 7-bit, i.e. is a single-byte character
+without the top bit set.</p>
+
+<p style="margin-top: 1em">[:blank:] <br>
+The character is either space or tab</p>
+
+<p style="margin-top: 1em">[:cntrl:] <br>
+The character is a control character</p>
+
+<p style="margin-top: 1em">[:digit:] <br>
+The character is a decimal digit</p>
+
+<p style="margin-top: 1em">[:graph:] <br>
+The character is a printable character other than
+whitespace</p>
+
+<p style="margin-top: 1em">[:lower:] <br>
+The character is a lowercase letter</p>
+
+<p style="margin-top: 1em">[:print:] <br>
+The character is printable</p>
+
+<p style="margin-top: 1em">[:punct:] <br>
+The character is printable but neither alphanumeric nor
+whitespace</p>
+
+<p style="margin-top: 1em">[:space:] <br>
+The character is whitespace</p>
+
+<p style="margin-top: 1em">[:upper:] <br>
+The character is an uppercase letter</p>
+
+<p style="margin-top: 1em">[:xdigit:] <br>
+The character is a hexadecimal digit</p>
+
+<p style="margin-top: 1em">Another set of named classes is
+handled internally by the shell and is not sensitive to the
+locale:</p>
+
+<p style="margin-top: 1em">[:IDENT:] <br>
+The character is allowed to form part of a shell identifier,
+such as a parameter name</p>
+
+<p style="margin-top: 1em">[:IFS:] <br>
+The character is used as an input field separator, i.e. is
+contained in the IFS parameter</p>
+
+<p style="margin-top: 1em">[:IFSSPACE:] <br>
+The character is an IFS white space character; see the
+documentation for IFS in the zshparam(1) manual page.</p>
+
+<p style="margin-top: 1em">[:WORD:] <br>
+The character is treated as part of a word; this test is
+sensitive to the value of the WORDCHARS parameter</p>
+
+<p style="margin-top: 1em">Note that the square brackets
+are additional to those enclosing the whole set of
+characters, so to test for a single alphanumeric character
+you need &lsquo;[[:alnum:]]&rsquo;. Named <br>
+character sets can be used alongside other types, e.g.
+&lsquo;[[:alpha:]0-9]&rsquo;.</p>
+
+<p style="margin-top: 1em">[^...] <br>
+[!...] Like [...], except that it matches any character
+which is not in the given set.</p>
+
+<p style="margin-top: 1em">&lt;[x]-[y]&gt; <br>
+Matches any number in the range x to y, inclusive. Either of
+the numbers may be omitted to make the range open-ended;
+hence &lsquo;&lt;-&gt;&rsquo; matches any number. To match
+individual <br>
+digits, the [...] form is more efficient.</p>
+
+<p style="margin-top: 1em">Be careful when using other
+wildcards adjacent to patterns of this form; for example,
+&lt;0-9&gt;* will actually match any number whatsoever at
+the start of the string, since <br>
+the &lsquo;&lt;0-9&gt;&rsquo; will match the first digit,
+and the &lsquo;*&rsquo; will match any others. This is a
+trap for the unwary, but is in fact an inevitable
+consequence of the rule that the <br>
+longest possible match always succeeds. Expressions such as
+&lsquo;&lt;0-9&gt;[^[:digit:]]*&rsquo; can be used
+instead.</p>
+
+<p style="margin-top: 1em">(...) Matches the enclosed
+pattern. This is used for grouping. If the KSH_GLOB option
+is set, then a &lsquo;@&rsquo;, &lsquo;*&rsquo;,
+&lsquo;+&rsquo;, &lsquo;?&rsquo; or &lsquo;!&rsquo;
+immediately preceding the &lsquo;(&rsquo; is treated
+spe&acirc; <br>
+cially, as detailed below. The option SH_GLOB prevents bare
+parentheses from being used in this way, though the KSH_GLOB
+option is still available.</p>
+
+<p style="margin-top: 1em">Note that grouping cannot extend
+over multiple directories: it is an error to have a
+&lsquo;/&rsquo; within a group (this only applies for
+patterns used in filename generation). <br>
+There is one exception: a group of the form (pat/)#
+appearing as a complete path segment can match a sequence of
+directories. For example, foo/(a*/)#bar matches foo/bar,
+<br>
+foo/any/bar, foo/any/anyother/bar, and so on.</p>
+
+<p style="margin-top: 1em">x|y Matches either x or y. This
+operator has lower precedence than any other. The
+&lsquo;|&rsquo; character must be within parentheses, to
+avoid interpretation as a pipeline.</p>
+
+<p style="margin-top: 1em">^x (Requires EXTENDED_GLOB to be
+set.) Matches anything except the pattern x. This has a
+higher precedence than &lsquo;/&rsquo;, so
+&lsquo;^foo/bar&rsquo; will search directories in
+&lsquo;.&rsquo; except <br>
+&lsquo;./foo&rsquo; for a file named &lsquo;bar&rsquo;.</p>
+
+<p style="margin-top: 1em">x~y (Requires EXTENDED_GLOB to
+be set.) Match anything that matches the pattern x but does
+not match y. This has lower precedence than any operator
+except &lsquo;|&rsquo;, so <br>
+&lsquo;*/*~foo/bar&rsquo; will search for all files in all
+directories in &lsquo;.&rsquo; and then exclude
+&lsquo;foo/bar&rsquo; if there was such a match. Multiple
+patterns can be excluded by <br>
+&lsquo;foo~bar~baz&rsquo;. In the exclusion pattern (y),
+&lsquo;/&rsquo; and &lsquo;.&rsquo; are not treated
+specially the way they usually are in globbing.</p>
+
+<p style="margin-top: 1em">x# (Requires EXTENDED_GLOB to be
+set.) Matches zero or more occurrences of the pattern x.
+This operator has high precedence; &lsquo;12#&rsquo; is
+equivalent to &lsquo;1(2#)&rsquo;, rather than <br>
+&lsquo;(12)#&rsquo;. It is an error for an unquoted
+&lsquo;#&rsquo; to follow something which cannot be
+repeated; this includes an empty string, a pattern already
+followed by &lsquo;##&rsquo;, or parenthe&acirc; <br>
+ses when part of a KSH_GLOB pattern (for example,
+&lsquo;!(foo)#&rsquo; is invalid and must be replaced by
+&lsquo;*(!(foo))&rsquo;).</p>
+
+<p style="margin-top: 1em">x## (Requires EXTENDED_GLOB to
+be set.) Matches one or more occurrences of the pattern x.
+This operator has high precedence; &lsquo;12##&rsquo; is
+equivalent to &lsquo;1(2##)&rsquo;, rather than <br>
+&lsquo;(12)##&rsquo;. No more than two active
+&lsquo;#&rsquo; characters may appear together. (Note the
+potential clash with glob qualifiers in the form
+&lsquo;1(2##)&rsquo; which should therefore be <br>
+avoided.)</p>
+
+<p style="margin-top: 1em">ksh-like Glob Operators <br>
+If the KSH_GLOB option is set, the effects of parentheses
+can be modified by a preceding &lsquo;@&rsquo;,
+&lsquo;*&rsquo;, &lsquo;+&rsquo;, &lsquo;?&rsquo; or
+&lsquo;!&rsquo;. This character need not be unquoted to have
+special effects, <br>
+but the &lsquo;(&rsquo; must be.</p>
+
+<p style="margin-top: 1em">@(...) Match the pattern in the
+parentheses. (Like &lsquo;(...)&rsquo;.)</p>
+
+<p style="margin-top: 1em">*(...) Match any number of
+occurrences. (Like &lsquo;(...)#&rsquo;.)</p>
+
+<p style="margin-top: 1em">+(...) Match at least one
+occurrence. (Like &lsquo;(...)##&rsquo;.)</p>
+
+<p style="margin-top: 1em">?(...) Match zero or one
+occurrence. (Like &lsquo;(|...)&rsquo;.)</p>
+
+<p style="margin-top: 1em">!(...) Match anything but the
+expression in parentheses. (Like
+&lsquo;(^(...))&rsquo;.)</p>
+
+<p style="margin-top: 1em">Precedence <br>
+The precedence of the operators given above is (highest)
+&lsquo;^&rsquo;, &lsquo;/&rsquo;, &lsquo;~&rsquo;,
+&lsquo;|&rsquo; (lowest); the remaining operators are simply
+treated from left to right as part of a string, with
+&lsquo;#&rsquo; <br>
+and &lsquo;##&rsquo; applying to the shortest possible
+preceding unit (i.e. a character, &lsquo;?&rsquo;,
+&lsquo;[...]&rsquo;, &lsquo;&lt;...&gt;&rsquo;, or a
+parenthesised expression). As mentioned above, a
+&lsquo;/&rsquo; used as a directory <br>
+separator may not appear inside parentheses, while a
+&lsquo;|&rsquo; must do so; in patterns used in other
+contexts than filename generation (for example, in case
+statements and tests within <br>
+&lsquo;[[...]]&rsquo;), a &lsquo;/&rsquo; is not special;
+and &lsquo;/&rsquo; is also not special after a
+&lsquo;~&rsquo; appearing outside parentheses in a filename
+pattern.</p>
+
+<p style="margin-top: 1em">Globbing Flags <br>
+There are various flags which affect any text to their right
+up to the end of the enclosing group or to the end of the
+pattern; they require the EXTENDED_GLOB option. All take
+<br>
+the form (#X) where X may have one of the following
+forms:</p>
+
+<p style="margin-top: 1em">i Case insensitive: upper or
+lower case characters in the pattern match upper or lower
+case characters.</p>
+
+<p style="margin-top: 1em">l Lower case characters in the
+pattern match upper or lower case characters; upper case
+characters in the pattern still only match upper case
+characters.</p>
+
+<p style="margin-top: 1em">I Case sensitive: locally
+negates the effect of i or l from that point on.</p>
+
+<p style="margin-top: 1em">b Activate backreferences for
+parenthesised groups in the pattern; this does not work in
+filename generation. When a pattern with a set of active
+parentheses is matched, <br>
+the strings matched by the groups are stored in the array
+$match, the indices of the beginning of the matched
+parentheses in the array $mbegin, and the indices of the end
+<br>
+in the array $mend, with the first element of each array
+corresponding to the first parenthesised group, and so on.
+These arrays are not otherwise special to the shell. <br>
+The indices use the same convention as does parameter
+substitution, so that elements of $mend and $mbegin may be
+used in subscripts; the KSH_ARRAYS option is respected. <br>
+Sets of globbing flags are not considered parenthesised
+groups; only the first nine active parentheses can be
+referenced.</p>
+
+<p style="margin-top: 1em">For example,</p>
+
+<p style="margin-top: 1em">foo=&quot;a string with a
+message&quot; <br>
+if [[ $foo = (a|an)&rsquo; &rsquo;(#b)(*)&rsquo; &rsquo;*
+]]; then <br>
+print ${foo[$mbegin[1],$mend[1]]} <br>
+fi</p>
+
+<p style="margin-top: 1em">prints &lsquo;string with
+a&rsquo;. Note that the first parenthesis is before the (#b)
+and does not create a backreference.</p>
+
+<p style="margin-top: 1em">Backreferences work with all
+forms of pattern matching other than filename generation,
+but note that when performing matches on an entire array,
+such as ${array#pattern}, <br>
+or a global substitution, such as ${param//pat/repl}, only
+the data for the last match remains available. In the case
+of global replacements this may still be useful. <br>
+See the example for the m flag below.</p>
+
+<p style="margin-top: 1em">The numbering of backreferences
+strictly follows the order of the opening parentheses from
+left to right in the pattern string, although sets of
+parentheses may be nested. <br>
+There are special rules for parentheses followed by
+&lsquo;#&rsquo; or &lsquo;##&rsquo;. Only the last match of
+the parenthesis is remembered: for example, in &lsquo;[[
+abab = (#b)([ab])# ]]&rsquo;, only <br>
+the final &lsquo;b&rsquo; is stored in match[1]. Thus extra
+parentheses may be necessary to match the complete segment:
+for example, use &lsquo;X((ab|cd)#)Y&rsquo; to match a whole
+string of <br>
+either &lsquo;ab&rsquo; or &lsquo;cd&rsquo; between
+&lsquo;X&rsquo; and &lsquo;Y&rsquo;, using the value of
+$match[1] rather than $match[2].</p>
+
+<p style="margin-top: 1em">If the match fails none of the
+parameters is altered, so in some cases it may be necessary
+to initialise them beforehand. If some of the backreferences
+fail to match -- <br>
+which happens if they are in an alternate branch which fails
+to match, or if they are followed by # and matched zero
+times -- then the matched string is set to the empty <br>
+string, and the start and end indices are set to -1.</p>
+
+<p style="margin-top: 1em">Pattern matching with
+backreferences is slightly slower than without.</p>
+
+<p style="margin-top: 1em">B Deactivate backreferences,
+negating the effect of the b flag from that point on.</p>
+
+<p style="margin-top: 1em">cN,M The flag (#cN,M) can be
+used anywhere that the # or ## operators can be used except
+in the expressions &lsquo;(*/)#&rsquo; and
+&lsquo;(*/)##&rsquo; in filename generation, where
+&lsquo;/&rsquo; has special <br>
+meaning; it cannot be combined with other globbing flags and
+a bad pattern error occurs if it is misplaced. It is
+equivalent to the form {N,M} in regular expressions. <br>
+The previous character or group is required to match between
+N and M times, inclusive. The form (#cN) requires exactly N
+matches; (#c,M) is equivalent to specifying N as <br>
+0; (#cN,) specifies that there is no maximum limit on the
+number of matches.</p>
+
+<p style="margin-top: 1em">m Set references to the match
+data for the entire string matched; this is similar to
+backreferencing and does not work in filename generation.
+The flag must be in effect at <br>
+the end of the pattern, i.e. not local to a group. The
+parameters $MATCH, $MBEGIN and $MEND will be set to the
+string matched and to the indices of the beginning and end
+<br>
+of the string, respectively. This is most useful in
+parameter substitutions, as otherwise the string matched is
+obvious.</p>
+
+<p style="margin-top: 1em">For example,</p>
+
+<p style="margin-top: 1em">arr=(veldt jynx grimps waqf zho
+buck) <br>
+print ${arr//(#m)[aeiou]/${(U)MATCH}}</p>
+
+<p style="margin-top: 1em">forces all the matches (i.e. all
+vowels) into uppercase, printing &lsquo;vEldt jynx grImps
+wAqf zhO bUck&rsquo;.</p>
+
+<p style="margin-top: 1em">Unlike backreferences, there is
+no speed penalty for using match references, other than the
+extra substitutions required for the replacement strings in
+cases such as the <br>
+example shown.</p>
+
+<p style="margin-top: 1em">M Deactivate the m flag, hence
+no references to match data will be created.</p>
+
+<p style="margin-top: 1em">anum Approximate matching: num
+errors are allowed in the string matched by the pattern. The
+rules for this are described in the next subsection.</p>
+
+<p style="margin-top: 1em">s, e Unlike the other flags,
+these have only a local effect, and each must appear on its
+own: &lsquo;(#s)&rsquo; and &lsquo;(#e)&rsquo; are the only
+valid forms. The &lsquo;(#s)&rsquo; flag succeeds only at
+the <br>
+start of the test string, and the &lsquo;(#e)&rsquo; flag
+succeeds only at the end of the test string; they correspond
+to &lsquo;^&rsquo; and &lsquo;$&rsquo; in standard regular
+expressions. They are useful <br>
+for matching path segments in patterns other than those in
+filename generation (where path segments are in any case
+treated separately). For example, <br>
+&lsquo;*((#s)|/)test((#e)|/)*&rsquo; matches a path segment
+&lsquo;test&rsquo; in any of the following strings: test,
+test/at/start, at/end/test, in/test/middle.</p>
+
+<p style="margin-top: 1em">Another use is in parameter
+substitution; for example &lsquo;${array/(#s)A*Z(#e)}&rsquo;
+will remove only elements of an array which match the
+complete pattern &lsquo;A*Z&rsquo;. There are other <br>
+ways of performing many operations of this type, however the
+combination of the substitution operations &lsquo;/&rsquo;
+and &lsquo;//&rsquo; with the &lsquo;(#s)&rsquo; and
+&lsquo;(#e)&rsquo; flags provides a single <br>
+simple and memorable method.</p>
+
+<p style="margin-top: 1em">Note that assertions of the form
+&lsquo;(^(#s))&rsquo; also work, i.e. match anywhere except
+at the start of the string, although this actually means
+&lsquo;anything except a zero-length <br>
+portion at the start of the string&rsquo;; you need to use
+&lsquo;(&quot;&quot;~(#s))&rsquo; to match a zero-length
+portion of the string not at the start.</p>
+
+<p style="margin-top: 1em">q A &lsquo;q&rsquo; and
+everything up to the closing parenthesis of the globbing
+flags are ignored by the pattern matching code. This is
+intended to support the use of glob qualifiers, <br>
+see below. The result is that the pattern
+&lsquo;(#b)(*).c(#q.)&rsquo; can be used both for globbing
+and for matching against a string. In the former case, the
+&lsquo;(#q.)&rsquo; will be <br>
+treated as a glob qualifier and the &lsquo;(#b)&rsquo; will
+not be useful, while in the latter case the
+&lsquo;(#b)&rsquo; is useful for backreferences and the
+&lsquo;(#q.)&rsquo; will be ignored. Note that <br>
+colon modifiers in the glob qualifiers are also not applied
+in ordinary pattern matching.</p>
+
+<p style="margin-top: 1em">u Respect the current locale in
+determining the presence of multibyte characters in a
+pattern, provided the shell was compiled with
+MULTIBYTE_SUPPORT. This overrides the <br>
+MULTIBYTE option; the default behaviour is taken from the
+option. Compare U. (Mnemonic: typically multibyte characters
+are from Unicode in the UTF-8 encoding, although <br>
+any extension of ASCII supported by the system library may
+be used.)</p>
+
+<p style="margin-top: 1em">U All characters are considered
+to be a single byte long. The opposite of u. This overrides
+the MULTIBYTE option.</p>
+
+<p style="margin-top: 1em">For example, the test string
+fooxx can be matched by the pattern (#i)FOOXX, but not by
+(#l)FOOXX, (#i)FOO(#I)XX or ((#i)FOOX)X. The string
+(#ia2)readme specifies case-insensi&acirc; <br>
+tive matching of readme with up to two errors.</p>
+
+<p style="margin-top: 1em">When using the ksh syntax for
+grouping both KSH_GLOB and EXTENDED_GLOB must be set and the
+left parenthesis should be preceded by @. Note also that the
+flags do not affect let&acirc; <br>
+ters inside [...] groups, in other words (#i)[a-z] still
+matches only lowercase letters. Finally, note that when
+examining whole paths case-insensitively every directory
+must be <br>
+searched for all files which match, so that a pattern of the
+form (#i)/foo/bar/... is potentially slow.</p>
+
+<p style="margin-top: 1em">Approximate Matching <br>
+When matching approximately, the shell keeps a count of the
+errors found, which cannot exceed the number specified in
+the (#anum) flags. Four types of error are recognised:</p>
+
+<p style="margin-top: 1em">1. Different characters, as in
+fooxbar and fooybar.</p>
+
+<p style="margin-top: 1em">2. Transposition of characters,
+as in banana and abnana.</p>
+
+<p style="margin-top: 1em">3. A character missing in the
+target string, as with the pattern road and target string
+rod.</p>
+
+<p style="margin-top: 1em">4. An extra character appearing
+in the target string, as with stove and strove.</p>
+
+<p style="margin-top: 1em">Thus, the pattern (#a3)abcd
+matches dcba, with the errors occurring by using the first
+rule twice and the second once, grouping the string as
+[d][cb][a] and [a][bc][d].</p>
+
+<p style="margin-top: 1em">Non-literal parts of the pattern
+must match exactly, including characters in character
+ranges: hence (#a1)??? matches strings of length four, by
+applying rule 4 to an empty part <br>
+of the pattern, but not strings of length two, since all the
+? must match. Other characters which must match exactly are
+initial dots in filenames (unless the GLOB_DOTS option <br>
+is set), and all slashes in filenames, so that a/bc is two
+errors from ab/c (the slash cannot be transposed with
+another character). Similarly, errors are counted separately
+for <br>
+non-contiguous strings in the pattern, so that (ab|cd)ef is
+two errors from aebf.</p>
+
+<p style="margin-top: 1em">When using exclusion via the ~
+operator, approximate matching is treated entirely
+separately for the excluded part and must be activated
+separately. Thus, (#a1)README~READ_ME <br>
+matches READ.ME but not READ_ME, as the trailing READ_ME is
+matched without approximation. However,
+(#a1)README~(#a1)READ_ME does not match any pattern of the
+form READ?ME as <br>
+all such forms are now excluded.</p>
+
+<p style="margin-top: 1em">Apart from exclusions, there is
+only one overall error count; however, the maximum errors
+allowed may be altered locally, and this can be delimited by
+grouping. For example, <br>
+(#a1)cat((#a0)dog)fox allows one error in total, which may
+not occur in the dog section, and the pattern
+(#a1)cat(#a0)dog(#a1)fox is equivalent. Note that the point
+at which an <br>
+error is first found is the crucial one for establishing
+whether to use approximation; for example, (#a1)abc(#a0)xyz
+will not match abcdxyz, because the error occurs at the
+&lsquo;x&rsquo;, <br>
+where approximation is turned off.</p>
+
+<p style="margin-top: 1em">Entire path segments may be
+matched approximately, so that
+&lsquo;(#a1)/foo/d/is/available/at/the/bar&rsquo; allows one
+error in any path segment. This is much less efficient than
+without <br>
+the (#a1), however, since every directory in the path must
+be scanned for a possible approximate match. It is best to
+place the (#a1) after any path segments which are known to
+<br>
+be correct.</p>
+
+<p style="margin-top: 1em">Recursive Globbing <br>
+A pathname component of the form &lsquo;(foo/)#&rsquo;
+matches a path consisting of zero or more directories
+matching the pattern foo.</p>
+
+<p style="margin-top: 1em">As a shorthand,
+&lsquo;**/&rsquo; is equivalent to &lsquo;(*/)#&rsquo;; note
+that this therefore matches files in the current directory
+as well as subdirectories. Thus:</p>
+
+<p style="margin-top: 1em">ls (*/)#bar</p>
+
+<p style="margin-top: 1em">or</p>
+
+<p style="margin-top: 1em">ls **/bar</p>
+
+<p style="margin-top: 1em">does a recursive directory
+search for files named &lsquo;bar&rsquo; (potentially
+including the file &lsquo;bar&rsquo; in the current
+directory). This form does not follow symbolic links; the
+alterna&acirc; <br>
+tive form &lsquo;***/&rsquo; does, but is otherwise
+identical. Neither of these can be combined with other forms
+of globbing within the same path segment; in that case, the
+&lsquo;*&rsquo; operators <br>
+revert to their usual effect.</p>
+
+<p style="margin-top: 1em">Glob Qualifiers <br>
+Patterns used for filename generation may end in a list of
+qualifiers enclosed in parentheses. The qualifiers specify
+which filenames that otherwise match the given pattern will
+<br>
+be inserted in the argument list.</p>
+
+<p style="margin-top: 1em">If the option BARE_GLOB_QUAL is
+set, then a trailing set of parentheses containing no
+&lsquo;|&rsquo; or &lsquo;(&rsquo; characters (or
+&lsquo;~&rsquo; if it is special) is taken as a set of glob
+qualifiers. A <br>
+glob subexpression that would normally be taken as glob
+qualifiers, for example &lsquo;(^x)&rsquo;, can be forced to
+be treated as part of the glob pattern by doubling the
+parentheses, in <br>
+this case producing &lsquo;((^x))&rsquo;.</p>
+
+<p style="margin-top: 1em">If the option EXTENDED_GLOB is
+set, a different syntax for glob qualifiers is available,
+namely &lsquo;(#qx)&rsquo; where x is any of the same glob
+qualifiers used in the other format. The <br>
+qualifiers must still appear at the end of the pattern.
+However, with this syntax multiple glob qualifiers may be
+chained together. They are treated as a logical AND of the
+<br>
+individual sets of flags. Also, as the syntax is
+unambiguous, the expression will be treated as glob
+qualifiers just as long any parentheses contained within it
+are balanced; <br>
+appearance of &lsquo;|&rsquo;, &lsquo;(&rsquo; or
+&lsquo;~&rsquo; does not negate the effect. Note that
+qualifiers will be recognised in this form even if a bare
+glob qualifier exists at the end of the pattern, <br>
+for example &lsquo;*(#q*)(.)&rsquo; will recognise
+executable regular files if both options are set; however,
+mixed syntax should probably be avoided for the sake of
+clarity.</p>
+
+<p style="margin-top: 1em">A qualifier may be any one of
+the following:</p>
+
+<p style="margin-top: 1em">/ directories</p>
+
+<p style="margin-top: 1em">F &lsquo;full&rsquo; (i.e.
+non-empty) directories. Note that the opposite sense (^F)
+expands to empty directories and all non-directories. Use
+(/^F) for empty directories.</p>
+
+<p style="margin-top: 1em">. plain files</p>
+
+<p style="margin-top: 1em">@ symbolic links</p>
+
+<p style="margin-top: 1em">= sockets</p>
+
+<p style="margin-top: 1em">p named pipes (FIFOs)</p>
+
+<p style="margin-top: 1em">* executable plain files
+(0100)</p>
+
+<p style="margin-top: 1em">% device files (character or
+block special)</p>
+
+<p style="margin-top: 1em">%b block special files</p>
+
+<p style="margin-top: 1em">%c character special files</p>
+
+<p style="margin-top: 1em">r owner-readable files
+(0400)</p>
+
+<p style="margin-top: 1em">w owner-writable files
+(0200)</p>
+
+<p style="margin-top: 1em">x owner-executable files
+(0100)</p>
+
+<p style="margin-top: 1em">A group-readable files
+(0040)</p>
+
+<p style="margin-top: 1em">I group-writable files
+(0020)</p>
+
+<p style="margin-top: 1em">E group-executable files
+(0010)</p>
+
+<p style="margin-top: 1em">R world-readable files
+(0004)</p>
+
+<p style="margin-top: 1em">W world-writable files
+(0002)</p>
+
+<p style="margin-top: 1em">X world-executable files
+(0001)</p>
+
+<p style="margin-top: 1em">s setuid files (04000)</p>
+
+<p style="margin-top: 1em">S setgid files (02000)</p>
+
+<p style="margin-top: 1em">t files with the sticky bit
+(01000)</p>
+
+<p style="margin-top: 1em">fspec files with access rights
+matching spec. This spec may be a octal number optionally
+preceded by a &lsquo;=&rsquo;, a &lsquo;+&rsquo;, or a
+&lsquo;-&rsquo;. If none of these characters is given, the
+behavior <br>
+is the same as for &lsquo;=&rsquo;. The octal number
+describes the mode bits to be expected, if combined with a
+&lsquo;=&rsquo;, the value given must match the file-modes
+exactly, with a &lsquo;+&rsquo;, at <br>
+least the bits in the given number must be set in the
+file-modes, and with a &lsquo;-&rsquo;, the bits in the
+number must not be set. Giving a &lsquo;?&rsquo; instead of
+a octal digit anywhere in <br>
+the number ensures that the corresponding bits in the
+file-modes are not checked, this is only useful in
+combination with &lsquo;=&rsquo;.</p>
+
+<p style="margin-top: 1em">If the qualifier &lsquo;f&rsquo;
+is followed by any other character anything up to the next
+matching character (&lsquo;[&rsquo;, &lsquo;{&rsquo;, and
+&lsquo;&lt;&rsquo; match &lsquo;]&rsquo;, &lsquo;}&rsquo;,
+and &lsquo;&gt;&rsquo; respectively, any other char&acirc;
+<br>
+acter matches itself) is taken as a list of comma-separated
+sub-specs. Each sub-spec may be either an octal number as
+described above or a list of any of the characters <br>
+&lsquo;u&rsquo;, &lsquo;g&rsquo;, &lsquo;o&rsquo;, and
+&lsquo;a&rsquo;, followed by a &lsquo;=&rsquo;, a
+&lsquo;+&rsquo;, or a &lsquo;-&rsquo;, followed by a list of
+any of the characters &lsquo;r&rsquo;, &lsquo;w&rsquo;,
+&lsquo;x&rsquo;, &lsquo;s&rsquo;, and &lsquo;t&rsquo;, or an
+octal digit. The first list of <br>
+characters specify which access rights are to be checked. If
+a &lsquo;u&rsquo; is given, those for the owner of the file
+are used, if a &lsquo;g&rsquo; is given, those of the group
+are checked, a <br>
+&lsquo;o&rsquo; means to test those of other users, and the
+&lsquo;a&rsquo; says to test all three groups. The
+&lsquo;=&rsquo;, &lsquo;+&rsquo;, and &lsquo;-&rsquo; again
+says how the modes are to be checked and have the same
+mean&acirc; <br>
+ing as described for the first form above. The second list
+of characters finally says which access rights are to be
+expected: &lsquo;r&rsquo; for read access, &lsquo;w&rsquo;
+for write access, <br>
+&lsquo;x&rsquo; for the right to execute the file (or to
+search a directory), &lsquo;s&rsquo; for the setuid and
+setgid bits, and &lsquo;t&rsquo; for the sticky bit.</p>
+
+<p style="margin-top: 1em">Thus, &lsquo;*(f70?)&rsquo;
+gives the files for which the owner has read, write, and
+execute permission, and for which other group members have
+no rights, independent of the permis&acirc; <br>
+sions for other users. The pattern &lsquo;*(f-100)&rsquo;
+gives all files for which the owner does not have execute
+permission, and &lsquo;*(f:gu+w,o-rx:)&rsquo; gives the
+files for which the <br>
+owner and the other members of the group have at least write
+permission, and for which other users don&rsquo;t have read
+or execute permission.</p>
+
+<p style="margin-top: 1em">estring <br>
++cmd The string will be executed as shell code. The filename
+will be included in the list if and only if the code returns
+a zero status (usually the status of the last com&acirc;
+<br>
+mand).</p>
+
+<p style="margin-top: 1em">In the first form, the first
+character after the &lsquo;e&rsquo; will be used as a
+separator and anything up to the next matching separator
+will be taken as the string; &lsquo;[&rsquo;,
+&lsquo;{&rsquo;, and <br>
+&lsquo;&lt;&rsquo; match &lsquo;]&rsquo;, &lsquo;}&rsquo;,
+and &lsquo;&gt;&rsquo;, respectively, while any other
+character matches itself. Note that expansions must be
+quoted in the string to prevent them from being expanded
+<br>
+before globbing is done. string is then executed as shell
+code. The string globqual is appended to the array
+zsh_eval_context the duration of execution.</p>
+
+<p style="margin-top: 1em">During the execution of string
+the filename currently being tested is available in the
+parameter REPLY; the parameter may be altered to a string to
+be inserted into the <br>
+list instead of the original filename. In addition, the
+parameter reply may be set to an array or a string, which
+overrides the value of REPLY. If set to an array, the <br>
+latter is inserted into the command line word by word.</p>
+
+<p style="margin-top: 1em">For example, suppose a directory
+contains a single file &lsquo;lonely&rsquo;. Then the
+expression
+&lsquo;*(e:&rsquo;reply=(${REPLY}{1,2})&rsquo;:)&rsquo; will
+cause the words &lsquo;lonely1&rsquo; and
+&lsquo;lonely2&rsquo; to be <br>
+inserted into the command line. Note the quoting of
+string.</p>
+
+<p style="margin-top: 1em">The form +cmd has the same
+effect, but no delimiters appear around cmd. Instead, cmd is
+taken as the longest sequence of characters following the +
+that are alphanumeric <br>
+or underscore. Typically cmd will be the name of a shell
+function that contains the appropriate test. For
+example,</p>
+
+<p style="margin-top: 1em">nt() { [[ $REPLY -nt $NTREF ]] }
+<br>
+NTREF=reffile <br>
+ls -l *(+nt)</p>
+
+<p style="margin-top: 1em">lists all files in the directory
+that have been modified more recently than reffile.</p>
+
+<p style="margin-top: 1em">ddev files on the device dev</p>
+
+<p style="margin-top: 1em">l[-|+]ct <br>
+files having a link count less than ct (-), greater than ct
+(+), or equal to ct</p>
+
+<p style="margin-top: 1em">U files owned by the effective
+user ID</p>
+
+<p style="margin-top: 1em">G files owned by the effective
+group ID</p>
+
+<p style="margin-top: 1em">uid files owned by user ID id if
+that is a number. Otherwise, id specifies a user name: the
+character after the &lsquo;u&rsquo; will be taken as a
+separator and the string between it and <br>
+the next matching separator will be taken as a user name.
+The starting separators &lsquo;[&rsquo;, &lsquo;{&rsquo;,
+and &lsquo;&lt;&rsquo; match the final separators
+&lsquo;]&rsquo;, &lsquo;}&rsquo;, and &lsquo;&gt;&rsquo;,
+respectively; any other <br>
+character matches itself. The selected files are those owned
+by this user. For example, &lsquo;u:foo:&rsquo; or
+&lsquo;u[foo]&rsquo; selects files owned by user
+&lsquo;foo&rsquo;.</p>
+
+<p style="margin-top: 1em">gid like uid but with group IDs
+or names</p>
+
+<p style="margin-top: 1em">a[Mwhms][-|+]n <br>
+files accessed exactly n days ago. Files accessed within the
+last n days are selected using a negative value for n (-n).
+Files accessed more than n days ago are selected <br>
+by a positive n value (+n). Optional unit specifiers
+&lsquo;M&rsquo;, &lsquo;w&rsquo;, &lsquo;h&rsquo;,
+&lsquo;m&rsquo; or &lsquo;s&rsquo; (e.g. &lsquo;ah5&rsquo;)
+cause the check to be performed with months (of 30 days),
+weeks, hours, min&acirc; <br>
+utes or seconds instead of days, respectively. An explicit
+&lsquo;d&rsquo; for days is also allowed.</p>
+
+<p style="margin-top: 1em">Any fractional part of the
+difference between the access time and the current part in
+the appropriate units is ignored in the comparison. For
+instance, &lsquo;echo *(ah-5)&rsquo; <br>
+would echo files accessed within the last five hours, while
+&lsquo;echo *(ah+5)&rsquo; would echo files accessed at
+least six hours ago, as times strictly between five and six
+hours <br>
+are treated as five hours.</p>
+
+<p style="margin-top: 1em">m[Mwhms][-|+]n <br>
+like the file access qualifier, except that it uses the file
+modification time.</p>
+
+<p style="margin-top: 1em">c[Mwhms][-|+]n <br>
+like the file access qualifier, except that it uses the file
+inode change time.</p>
+
+<p style="margin-top: 1em">L[+|-]n <br>
+files less than n bytes (-), more than n bytes (+), or
+exactly n bytes in length.</p>
+
+<p style="margin-top: 1em">If this flag is directly
+followed by a &lsquo;k&rsquo; (&lsquo;K&rsquo;),
+&lsquo;m&rsquo; (&lsquo;M&rsquo;), or &lsquo;p&rsquo;
+(&lsquo;P&rsquo;) (e.g. &lsquo;Lk-50&rsquo;) the check is
+performed with kilobytes, megabytes, or blocks (of 512
+bytes) <br>
+instead. In this case a file is regarded as
+&quot;exactly&quot; the size if the file size rounded up to
+the next unit is equal to the test size. Hence
+&lsquo;*(Lm1)&rsquo; matches files from <br>
+1 byte up to 1 Megabyte inclusive. Note also that the set of
+files &quot;less than&quot; the test size only includes
+files that would not match the equality test; hence
+&lsquo;*(Lm-1)&rsquo; <br>
+only matches files of zero size.</p>
+
+<p style="margin-top: 1em">^ negates all qualifiers
+following it</p>
+
+<p style="margin-top: 1em">- toggles between making the
+qualifiers work on symbolic links (the default) and the
+files they point to</p>
+
+<p style="margin-top: 1em">M sets the MARK_DIRS option for
+the current pattern</p>
+
+<p style="margin-top: 1em">T appends a trailing qualifier
+mark to the filenames, analogous to the LIST_TYPES option,
+for the current pattern (overrides M)</p>
+
+<p style="margin-top: 1em">N sets the NULL_GLOB option for
+the current pattern</p>
+
+<p style="margin-top: 1em">D sets the GLOB_DOTS option for
+the current pattern</p>
+
+<p style="margin-top: 1em">n sets the NUMERIC_GLOB_SORT
+option for the current pattern</p>
+
+<p style="margin-top: 1em">oc specifies how the names of
+the files should be sorted. If c is n they are sorted by
+name (the default); if it is L they are sorted depending on
+the size (length) of the <br>
+files; if l they are sorted by the number of links; if a, m,
+or c they are sorted by the time of the last access,
+modification, or inode change respectively; if d, files <br>
+in subdirectories appear before those in the current
+directory at each level of the search -- this is best
+combined with other criteria, for example &lsquo;odon&rsquo;
+to sort on <br>
+names for files within the same directory; if N, no sorting
+is performed. Note that a, m, and c compare the age against
+the current time, hence the first name in the list <br>
+is the youngest file. Also note that the modifiers ^ and -
+are used, so &lsquo;*(^-oL)&rsquo; gives a list of all files
+sorted by file size in descending order, following any
+symbolic <br>
+links. Unless oN is used, multiple order specifiers may
+occur to resolve ties.</p>
+
+<p style="margin-top: 1em">oe and o+ are special cases;
+they are each followed by shell code, delimited as for the e
+glob qualifier and the + glob qualifier respectively (see
+above). The code is <br>
+executed for each matched file with the parameter REPLY set
+to the name of the file on entry and globsort appended to
+zsh_eval_context. The code should modify the parame&acirc;
+<br>
+ter REPLY in some fashion. On return, the value of the
+parameter is used instead of the file name as the string on
+which to sort. Unlike other sort operators, oe and o+ <br>
+may be repeated, but note that the maximum number of sort
+operators of any kind that may appear in any glob expression
+is 12.</p>
+
+<p style="margin-top: 1em">Oc like &lsquo;o&rsquo;, but
+sorts in descending order; i.e. &lsquo;*(^oc)&rsquo; is the
+same as &lsquo;*(Oc)&rsquo; and &lsquo;*(^Oc)&rsquo; is the
+same as &lsquo;*(oc)&rsquo;; &lsquo;Od&rsquo; puts files in
+the current directory before those in <br>
+subdirectories at each level of the search.</p>
+
+<p style="margin-top: 1em">[beg[,end]] <br>
+specifies which of the matched filenames should be included
+in the returned list. The syntax is the same as for array
+subscripts. beg and the optional end may be mathemat&acirc;
+<br>
+ical expressions. As in parameter subscripting they may be
+negative to make them count from the last match backward.
+E.g.: &lsquo;*(-OL[1,3])&rsquo; gives a list of the names of
+the <br>
+three largest files.</p>
+
+<p style="margin-top: 1em">Pstring <br>
+The string will be prepended to each glob match as a
+separate word. string is delimited in the same way as
+arguments to the e glob qualifier described above. The
+quali&acirc; <br>
+fier can be repeated; the words are prepended separately so
+that the resulting command line contains the words in the
+same order they were given in the list of glob quali&acirc;
+<br>
+fiers.</p>
+
+<p style="margin-top: 1em">A typical use for this is to
+prepend an option before all occurrences of a file name; for
+example, the pattern &lsquo;*(P:-f:)&rsquo; produces the
+command line arguments &lsquo;-f file1 -f <br>
+file2 ...&rsquo;</p>
+
+<p style="margin-top: 1em">More than one of these lists can
+be combined, separated by commas. The whole list matches if
+at least one of the sublists matches (they are
+&lsquo;or&rsquo;ed, the qualifiers in the sublists <br>
+are &lsquo;and&rsquo;ed). Some qualifiers, however, affect
+all matches generated, independent of the sublist in which
+they are given. These are the qualifiers &lsquo;M&rsquo;,
+&lsquo;T&rsquo;, &lsquo;N&rsquo;, &lsquo;D&rsquo;,
+&lsquo;n&rsquo;, &lsquo;o&rsquo;, <br>
+&lsquo;O&rsquo; and the subscripts given in brackets
+(&lsquo;[...]&rsquo;).</p>
+
+<p style="margin-top: 1em">If a &lsquo;:&rsquo; appears in
+a qualifier list, the remainder of the expression in
+parenthesis is interpreted as a modifier (see the section
+&lsquo;Modifiers&rsquo; in the section &lsquo;History
+Expan&acirc; <br>
+sion&rsquo;). Each modifier must be introduced by a separate
+&lsquo;:&rsquo;. Note also that the result after
+modification does not have to be an existing file. The name
+of any existing file <br>
+can be followed by a modifier of the form
+&lsquo;(:..)&rsquo; even if no actual filename generation is
+performed, although note that the presence of the
+parentheses causes the entire expres&acirc; <br>
+sion to be subjected to any global pattern matching options
+such as NULL_GLOB. Thus:</p>
+
+<p style="margin-top: 1em">ls *(-/)</p>
+
+<p style="margin-top: 1em">lists all directories and
+symbolic links that point to directories, and</p>
+
+<p style="margin-top: 1em">ls *(%W)</p>
+
+<p style="margin-top: 1em">lists all world-writable device
+files in the current directory, and</p>
+
+<p style="margin-top: 1em">ls *(W,X)</p>
+
+<p style="margin-top: 1em">lists all files in the current
+directory that are world-writable or world-executable,
+and</p>
+
+<p style="margin-top: 1em">echo /tmp/foo*(u0^@:t)</p>
+
+<p style="margin-top: 1em">outputs the basename of all
+root-owned files beginning with the string &lsquo;foo&rsquo;
+in /tmp, ignoring symlinks, and</p>
+
+<p style="margin-top: 1em">ls
+*.*~(lex|parse).[ch](^D^l1)</p>
+
+<p style="margin-top: 1em">lists all files having a link
+count of one whose names contain a dot (but not those
+starting with a dot, since GLOB_DOTS is explicitly switched
+off) except for lex.c, lex.h, <br>
+parse.c and parse.h.</p>
+
+<p style="margin-top: 1em">print
+b*.pro(#q:s/pro/shmo/)(#q.:s/builtin/shmiltin/)</p>
+
+<p style="margin-top: 1em">demonstrates how colon modifiers
+and other qualifiers may be chained together. The ordinary
+qualifier &lsquo;.&rsquo; is applied first, then the colon
+modifiers in order from left to right. <br>
+So if EXTENDED_GLOB is set and the base pattern matches the
+regular file builtin.pro, the shell will print
+&lsquo;shmiltin.shmo&rsquo;.</p>
+
+<p style="margin-top: 1em">zsh 5.0.2 December 21, 2012
+ZSHEXPN(1)</p>
+<hr>
+</body>
+</html>

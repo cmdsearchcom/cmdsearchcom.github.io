@@ -1,0 +1,196 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:21:15 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>LAMTRACE(1) LAM COMMANDS LAMTRACE(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+lamtrace - Unload LAM trace data.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+lamtrace [-hkvR] [-mpi] [-l listno] [-f #secs] [filename]
+[nodes] [processes]</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-h Print useful information on this command.</p>
+
+<p style="margin-top: 1em">-k Copy and do not remove trace
+data.</p>
+
+<p style="margin-top: 1em">-v Be verbose.</p>
+
+<p style="margin-top: 1em">-R Delete all trace data from
+the specified nodes.</p>
+
+<p style="margin-top: 1em">-l Unload only from the given
+list number.</p>
+
+<p style="margin-top: 1em">-mpi Unload trace data for an
+MPI application.</p>
+
+<p style="margin-top: 1em">-f #secs Signal target processes
+to flush trace data to the daemon. Then wait #secs before
+unloading.</p>
+
+<p style="margin-top: 1em">filename Place trace data into
+this file (default: def.lamtr).</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+The -t option of mpirun(1) and loadgo(1) allows the
+application to generate execution traces. These traces are
+first stored in a buffer within each application process.
+When <br>
+the buffer is full and when the application terminates, the
+runtime buffer is flushed to the trace daemon (a structural
+component within the LAM daemon). The trace daemon will <br>
+also collect data up to a pre-compiled limit. Beyond this
+limit, the oldest traces in will be forgotten in favor of
+the newer traces.</p>
+
+<p style="margin-top: 1em">After an application has
+finished, the record of its execution is stored in the trace
+daemons of each node that was running the application. The
+lamtrace command can be used to <br>
+retrieve these traces and store them in one file for display
+by a performance visualization tool, such as xmpi(1). If the
+application was started by xmpi(1), lamtrace is not <br>
+normally needed as the equivalent functionality is invoked
+with a button.</p>
+
+<p style="margin-top: 1em">Incomplete trace data can be
+unloaded while the application is running. The output file
+must not exist prior to invoking lamtrace. This is a good
+situation to use the -k op&acirc; <br>
+tion, which preserves the trace daemon&rsquo;s contents
+after unloading. Each reload will then get the entire
+run&rsquo;s trace data up to the present time.</p>
+
+<p style="margin-top: 1em">A running process is likely to
+be holding the most recent trace data in an internal buffer.
+A standard LAM signal, LAM_SIGTRACE (see doom(1)), causes
+trace enabled processes to <br>
+flush the internal trace buffer to the daemon. The -f option
+tells lamtrace to send this signal to all target processes
+before unloading trace data. A race condition develops <br>
+between the target process storing trace data to the daemon
+and the unloading procedure. The problem is foisted upon the
+user who gives a delay parameter after -f.</p>
+
+<p style="margin-top: 1em">Trace data are organized by
+node, process identifier and list number. A process can
+store traces on any node, although the local node is the
+obvious, least intrusive choice. <br>
+The process can identify itself in any meaningful way
+(getpid(2) is a good idea) The list number is also chosen by
+the process. These values may be set by an instrumented
+li&acirc; <br>
+brary, such as libmpi(3), or directly by the application
+with lam_rtrstore(2). Unloading flexibility follows that of
+storing with the -l option selecting the list number, and
+<br>
+standard LAM command line mnemonics selecting nodes and
+processes.</p>
+
+<p style="margin-top: 1em">Dropping old traces when a
+pre-compiled volume limit is reached only happens for
+positive list numbers. Traces in negatively numbered lists
+will be collected until the underly&acirc; <br>
+ing system runs out of memory. Do not use negative list
+numbers for high volume trace data.</p>
+
+<p style="margin-top: 1em">If no process selection is given
+on the command line, trace data will be unloaded for all
+processes on each specified node.</p>
+
+<p style="margin-top: 1em">LAM, its trace daemon and
+lamtrace are all unaware of the format and meaning of
+traces.</p>
+
+<p style="margin-top: 1em">The -R option does not unload
+trace data. It causes the target trace daemons to free the
+memory occupied by trace data in the given list. If all
+lists are specified (no -l op&acirc; <br>
+tion), the trace daemon is effectively reset to its state
+after initiating LAM.</p>
+
+<p style="margin-top: 1em">Unloading MPI Trace Data <br>
+A special capability, selected by the -mpi option, exists to
+search for and unload only the trace data generated by an
+MPI application. For this purpose, lamtrace is aware of <br>
+the particular reserved list numbers that libmpi(3) uses to
+store traces. It begins by searching all specified nodes and
+processes (the whole LAM multicomputer, if nothing is <br>
+specified) for a special trace generated by process rank 0
+in MPI_COMM_WORLD of an MPI application. This special trace
+contains the node and process identifiers of all processes
+<br>
+in that MPI_COMM_WORLD communicator. lamtrace then uses the
+node / process information to collect all trace data
+generated by libmpi(3).</p>
+
+<p style="margin-top: 1em">If multiple world communicators
+exist within LAM&rsquo;s trace daemons, the first one found
+is used. Multiple worlds may be present due to multiple
+concurrent applications, trace data <br>
+from a previous run not removed (either with lamtrace or
+lamclean(1)), or an application that spawns processes. A
+particular world communicator can be located by providing
+pre&acirc; <br>
+cise node and process location to lamtrace.</p>
+
+<p style="margin-top: 1em">The -mpi option is not
+compatible with the -l option.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+lamtrace -v -mpi mytraces <br>
+Unload trace data into the file &quot;mytraces&quot; from
+the first MPI application found in a search of the entire
+LAM multicomputer. Report on important steps as they are
+done.</p>
+
+<p style="margin-top: 1em">lamtrace n30 -l 5 p21367 <br>
+Unload trace data from list 5 of process ID 21367 on node
+30. Operate silently.</p>
+
+<p style="margin-top: 1em">lamtrace -mpi n30 p21367 <br>
+Unload trace data from the MPI application world group whose
+process rank 0 has PID 21367 and is/was running on node
+30.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+Since trace data can be unloaded during an
+application&rsquo;s execution, there should be a way to
+incrementally append to an output file. This is a bit tricky
+with -mpi, but it can <br>
+be done.</p>
+
+<p style="margin-top: 1em">FILES <br>
+def.lamtr default output file</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+mpirun(1), loadgo(1), lam_rtrstore(1), lamclean(1),
+libmpi(3), xmpi(1)</p>
+
+<p style="margin-top: 1em">LAM 7.1.4 July, 2007
+LAMTRACE(1)</p>
+<hr>
+</body>
+</html>

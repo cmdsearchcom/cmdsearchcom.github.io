@@ -1,0 +1,178 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:13:19 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>memleak(8) System Manager&rsquo;s Manual memleak(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+memleak - Print a summary of outstanding allocations and
+their call stacks to detect memory leaks. Uses Linux
+eBPF/bcc.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+memleak [-h] [-p PID] [-t] [-a] [-o OLDER] [-c COMMAND] [-s
+SAMPLE_RATE] [-T TOP] [-z MIN_SIZE] [-Z MAX_SIZE] [INTERVAL]
+[COUNT]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+memleak traces and matches memory allocation and
+deallocation requests, and collects call stacks for each
+allocation. memleak can then print a summary of which call
+stacks per&acirc; <br>
+formed allocations that weren&rsquo;t subsequently
+freed.</p>
+
+<p style="margin-top: 1em">When tracing a specific process,
+memleak instruments malloc and free from libc. When tracing
+all processes, memleak instruments kmalloc and kfree.</p>
+
+<p style="margin-top: 1em">memleak may introduce
+significant overhead when tracing processes that allocate
+and free many blocks very quickly. See the OVERHEAD section
+below.</p>
+
+<p style="margin-top: 1em">This tool only works on Linux
+4.6+. Stack traces are obtained using the new
+BPF_STACK_TRACE&lsquo; APIs. For kernels older than 4.6, see
+the version under tools/old.</p>
+
+<p style="margin-top: 1em">REQUIREMENTS <br>
+CONFIG_BPF and bcc.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-h Print usage message.</p>
+
+<p style="margin-top: 1em">-p PID Trace this process ID
+only (filtered in-kernel). This traces malloc and free from
+libc.</p>
+
+<p style="margin-top: 1em">-t Print a trace of all
+allocation and free requests and results.</p>
+
+<p style="margin-top: 1em">-a Print a list of allocations
+that weren&rsquo;t freed (and their sizes) in addition to
+their call stacks.</p>
+
+<p style="margin-top: 1em">-o OLDER <br>
+Print only allocations older than OLDER milliseconds. Useful
+to remove false positives. The default value is 500
+milliseconds.</p>
+
+<p style="margin-top: 1em">-c COMMAND <br>
+Run the specified command and trace its allocations only.
+This traces malloc and free from libc.</p>
+
+<p style="margin-top: 1em">-s SAMPLE_RATE <br>
+Record roughly every SAMPLE_RATE-th allocation to reduce
+overhead.</p>
+
+<p style="margin-top: 1em">-t TOP Print only the top TOP
+stacks (sorted by size). The default value is 10.</p>
+
+<p style="margin-top: 1em">-z MIN_SIZE <br>
+Capture only allocations that are larger than or equal to
+MIN_SIZE bytes.</p>
+
+<p style="margin-top: 1em">-Z MAX_SIZE <br>
+Capture only allocations that are smaller than or equal to
+MAX_SIZE bytes.</p>
+
+<p style="margin-top: 1em">INTERVAL <br>
+Print a summary of oustanding allocations and their call
+stacks every INTERVAL seconds. The default interval is 5
+seconds.</p>
+
+<p style="margin-top: 1em">COUNT Print the outstanding
+allocations summary COUNT times and then exit.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+Print outstanding kernel allocation stacks every 3 seconds:
+<br>
+# memleak 3</p>
+
+<p style="margin-top: 1em">Print user outstanding
+allocation stacks and allocation details for the process
+1005: <br>
+# memleak -p 1005 -a</p>
+
+<p style="margin-top: 1em">Sample roughly every 5th
+allocation (~20%) of the call stacks and print the top 5
+<br>
+stacks 10 times before quitting. # memleak -s 5 --top=5
+10</p>
+
+<p style="margin-top: 1em">Run ./allocs and print
+outstanding allocation stacks for that process: <br>
+# memleak -c ./allocs</p>
+
+<p style="margin-top: 1em">Capture only allocations between
+16 and 32 bytes in size: <br>
+# memleak -z 16 -Z 32</p>
+
+<p style="margin-top: 1em">OVERHEAD <br>
+memleak can have significant overhead if the target process
+or kernel performs allocations at a very high rate.
+Pathological cases may exhibit up to 100x degradation in
+running <br>
+time. Most of the time, however, memleak shouldn&rsquo;t
+cause a significant slowdown. You can use the -s switch to
+reduce the overhead further by capturing only every N-th
+allocation. <br>
+The -z and -Z switches can also reduce overhead by capturing
+only allocations of specific sizes.</p>
+
+<p style="margin-top: 1em">To determine the rate at which
+your application is calling malloc/free, or the rate at
+which your kernel is calling kmalloc/kfree, place a probe
+with perf and collect statistics. <br>
+For example, to determine how many calls to __kmalloc are
+placed in a typical period of 10 seconds:</p>
+
+<p style="margin-top: 1em"># perf probe
+&rsquo;__kmalloc&rsquo;</p>
+
+<p style="margin-top: 1em"># perf stat -a -e
+&rsquo;probe:__kmalloc&rsquo; -- sleep 10</p>
+
+<p style="margin-top: 1em">SOURCE <br>
+This is from bcc.</p>
+
+
+<p style="margin-top: 1em">https://github.com/iovisor/bcc</p>
+
+<p style="margin-top: 1em">Also look in the bcc
+distribution for a companion _examples.txt file containing
+example usage, output, and commentary for this tool.</p>
+
+<p style="margin-top: 1em">OS <br>
+Linux</p>
+
+<p style="margin-top: 1em">STABILITY <br>
+Unstable - in development.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Sasha Goldshtein</p>
+
+<p style="margin-top: 1em">USER COMMANDS 2016-01-14
+memleak(8)</p>
+<hr>
+</body>
+</html>

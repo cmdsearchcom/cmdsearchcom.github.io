@@ -1,0 +1,181 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:31:29 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>PG_REWIND(1) PostgreSQL 9.6.4 Documentation
+PG_REWIND(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+pg_rewind - synchronize a PostgreSQL data directory with
+another data directory that was forked from it</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+pg_rewind [option...] {-D | --target-pgdata} directory
+{--source-pgdata=directory | --source-server=connstr}</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+pg_rewind is a tool for synchronizing a PostgreSQL cluster
+with another copy of the same cluster, after the
+clusters&rsquo; timelines have diverged. A typical scenario
+is to bring an <br>
+old master server back online after failover as a standby
+that follows the new master.</p>
+
+<p style="margin-top: 1em">The result is equivalent to
+replacing the target data directory with the source one.
+Only changed blocks from relation files are copied; all
+other files are copied in full, <br>
+including configuration files. The advantage of pg_rewind
+over taking a new base backup, or tools like rsync, is that
+pg_rewind does not require reading through unchanged blocks
+<br>
+in the cluster. This makes it a lot faster when the database
+is large and only a small fraction of blocks differ between
+the clusters.</p>
+
+<p style="margin-top: 1em">pg_rewind examines the timeline
+histories of the source and target clusters to determine the
+point where they diverged, and expects to find WAL in the
+target cluster&rsquo;s pg_xlog <br>
+directory reaching all the way back to the point of
+divergence. The point of divergence can be found either on
+the target timeline, the source timeline, or their common
+ancestor. <br>
+In the typical failover scenario where the target cluster
+was shut down soon after the divergence, this is not a
+problem, but if the target cluster ran for a long time after
+the <br>
+divergence, the old WAL files might no longer be present. In
+that case, they can be manually copied from the WAL archive
+to the pg_xlog directory, or fetched on startup by <br>
+configuring recovery.conf. The use of pg_rewind is not
+limited to failover, e.g. a standby server can be promoted,
+run some write transactions, and then rewinded to become a
+<br>
+standby again.</p>
+
+<p style="margin-top: 1em">When the target server is
+started for the first time after running pg_rewind, it will
+go into recovery mode and replay all WAL generated in the
+source server after the point of <br>
+divergence. If some of the WAL was no longer available in
+the source server when pg_rewind was run, and therefore
+could not be copied by the pg_rewind session, it must be
+made <br>
+available when the target server is started. This can be
+done by creating a recovery.conf file in the target data
+directory with a suitable restore_command.</p>
+
+<p style="margin-top: 1em">pg_rewind requires that the
+target server either has the wal_log_hints option enabled in
+postgresql.conf or data checksums enabled when the cluster
+was initialized with initdb. <br>
+Neither of these are currently on by default.
+full_page_writes must also be set to on, but is enabled by
+default.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+pg_rewind accepts the following command-line arguments:</p>
+
+<p style="margin-top: 1em">-D directory <br>
+--target-pgdata=directory <br>
+This option specifies the target data directory that is
+synchronized with the source. The target server must be shut
+down cleanly before running pg_rewind</p>
+
+<p style="margin-top: 1em">--source-pgdata=directory <br>
+Specifies the file system path to the data directory of the
+source server to synchronize the target with. This option
+requires the source server to be cleanly shut down.</p>
+
+<p style="margin-top: 1em">--source-server=connstr <br>
+Specifies a libpq connection string to connect to the source
+PostgreSQL server to synchronize the target with. The
+connection must be a normal (non-replication) connection
+<br>
+with superuser access. This option requires the source
+server to be running and not in recovery mode.</p>
+
+<p style="margin-top: 1em">-n <br>
+--dry-run <br>
+Do everything except actually modifying the target
+directory.</p>
+
+<p style="margin-top: 1em">-P <br>
+--progress <br>
+Enables progress reporting. Turning this on will deliver an
+approximate progress report while copying data from the
+source cluster.</p>
+
+<p style="margin-top: 1em">--debug <br>
+Print verbose debugging output that is mostly useful for
+developers debugging pg_rewind.</p>
+
+<p style="margin-top: 1em">-V <br>
+--version <br>
+Display version information, then exit.</p>
+
+<p style="margin-top: 1em">-? <br>
+--help <br>
+Show help, then exit.</p>
+
+<p style="margin-top: 1em">ENVIRONMENT <br>
+When --source-server option is used, pg_rewind also uses the
+environment variables supported by libpq (see Section 32.14,
+&acirc;Environment Variables&acirc;, in the
+documentation).</p>
+
+<p style="margin-top: 1em">NOTES <br>
+How it works <br>
+The basic idea is to copy all file system-level changes from
+the source cluster to the target cluster:</p>
+
+<p style="margin-top: 1em">1. Scan the WAL log of the
+target cluster, starting from the last checkpoint before the
+point where the source cluster&rsquo;s timeline history
+forked off from the target cluster. For <br>
+each WAL record, record each data block that was touched.
+This yields a list of all the data blocks that were changed
+in the target cluster, after the source cluster forked <br>
+off.</p>
+
+<p style="margin-top: 1em">2. Copy all those changed blocks
+from the source cluster to the target cluster, either using
+direct file system access (--source-pgdata) or SQL
+(--source-server).</p>
+
+<p style="margin-top: 1em">3. Copy all other files such as
+pg_clog and configuration files from the source cluster to
+the target cluster (everything except the relation
+files).</p>
+
+<p style="margin-top: 1em">4. Apply the WAL from the source
+cluster, starting from the checkpoint created at failover.
+(Strictly speaking, pg_rewind doesn&rsquo;t apply the WAL,
+it just creates a backup label <br>
+file that makes PostgreSQL start by replaying all WAL from
+that checkpoint forward.)</p>
+
+<p style="margin-top: 1em">PostgreSQL 9.6.4 2017
+PG_REWIND(1)</p>
+<hr>
+</body>
+</html>

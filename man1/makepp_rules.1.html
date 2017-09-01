@@ -1,0 +1,1039 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:23:47 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>MAKEPP_RULES(1) Makepp MAKEPP_RULES(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+makepp_rules -- How to tell makepp to build something</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+?: &amp;, <br>
+-, <br>
+@, B: :build_cache, <br>
+:build_check, D: :dispatch, E: :env, I:
+&quot;ignore_error&quot;, <br>
+:include, L: :last_chance, M: makeperl, N:
+&quot;noecho&quot;, P: :parser, <br>
+&quot;perl&quot;, S: :signature</p>
+
+<p style="margin-top: 1em">A rule is what tells makepp how
+to build a file or a class of files. Makepp supports the
+same rule syntax as other implementations of make, plus some
+additions of its own.</p>
+
+<p style="margin-top: 1em">A rule has the general
+format</p>
+
+<p style="margin-top: 1em">target_expression :
+dependency_expression [ : optional arguments] <br>
+actions</p>
+
+<p style="margin-top: 1em">The list of targets may not
+contain any automatic variables (except
+&quot;$(foreach)&quot;). The dependency list may contain
+only automatic variables referring to the target (i.e., <br>
+&quot;$(output)&quot;, &quot;$(outputs)&quot;, or their
+synonyms). The action may contain any automatic
+variables.</p>
+
+<p style="margin-top: 1em">If makepp decides that the rule
+needs to be executed, each line of the rule is executed
+sequentially, and if any returns a non-zero status, the
+remainder are not executed (and <br>
+makepp aborts with an error unless you specified the
+&quot;-k&quot; option on the command line.) Each action
+should be only one line. If an action is too long to write
+conveniently on a <br>
+single line, you can split it into several lines and put a
+backslash to indicate that the several lines should be
+combined into one.</p>
+
+<p style="margin-top: 1em">In order to distinguish actions
+from the next rule, the action should be indented more than
+the line containing the targets and dependencies. Unlike
+other implementations of <br>
+make, makepp doesn&rsquo;t really care how much you indent
+it or whether you use tab characters rather than spaces. To
+keep backward compatibility with traditional make, the rules
+<br>
+makepp uses to decide when actions end and the next rule
+begins are somewhat complicated:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The first action
+line must be indented more than the line containing the
+target.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If a line is
+indented by one tab character or 8 spaces or more, then it
+is considered an action line.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; A blank line or
+a comment line with the &quot;#&quot; character at the right
+margin ends the rule, unless the next non-blank line is
+indented more than 8 spaces (or more than one tab).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If a line is
+indented as much or more than the first action line, then it
+is considered an additional action line.</p>
+
+<p style="margin-top: 1em">There are a few special action
+items:</p>
+
+<p style="margin-top: 1em">&amp; This symbol shall be
+followed by a command name and any number of arguments.
+Shell syntax is not understood fully here, only single and
+double quotes and backslashed <br>
+characters within, as throughout makepp. The command name
+either leads to a function &quot;c_name&quot; to be called
+with the remaining strings as arguments. If such a function
+can <br>
+not be found, this is identical to calling &quot;run&quot;
+from a &quot;perl&quot; block.</p>
+
+<p style="margin-top: 1em">This allows efficiently calling
+a built-in, makefile-provided or external command. The
+prefix &quot;&amp;&quot; has been chosen because it is the
+function invoker in Perl, and because at <br>
+the beginning it is illegal in Shell.</p>
+
+<p style="margin-top: 1em">$(ROOT)/include/%.h: %.h <br>
+&amp;ln $(input) $(output)</p>
+
+<p style="margin-top: 1em">noecho <br>
+@ Normally, each shell command is printed as it is executed.
+However, if the first word of the action is
+&quot;noecho&quot; (or if it begins with the character
+&quot;@&quot;), then the command is <br>
+not printed. For example,</p>
+
+<p style="margin-top: 1em">%.o: %.cxx <br>
+noecho $(LIBTOOL) --mode=compile $(CC) -c $(input)</p>
+
+<p style="margin-top: 1em">This means that when the libtool
+command is executed, it is not printed. (Libtool itself
+usually prints the modified command that it executes, so
+it&rsquo;s redundant to print it <br>
+twice.)</p>
+
+<p style="margin-top: 1em">ignore_error <br>
+- Normally, if the shell command returns a non-zero status,
+then makepp aborts because the command failed. However, some
+programs incorrectly set the status on exit, or there <br>
+may be an error which really isn&rsquo;t fatal and
+shouldn&rsquo;t abort the whole compilation. You can cause
+makepp to ignore the return status by specifying
+&quot;ignore_error&quot; as the <br>
+first word of the command line (or &quot;-&quot; as the
+first character). For example,</p>
+
+<p style="margin-top: 1em">$(phony distribution): <br>
+ignore_error rm -r my_program-$(VERSION) # Get rid of
+previous junk. <br>
+&amp;mkdir my_program-$(VERSION) <br>
+&amp;cp $(FILES) my_program-$(VERSION) <br>
+tar cf my_program-$(VERSION).tar my_program-$(VERSION)</p>
+
+<p style="margin-top: 1em">This command makes a directory,
+copies a bunch of files into it, and then puts everything
+into a tar file for distribution. It&rsquo;s a good idea to
+clean out the previous <br>
+contents of the directory, if there was anything there
+previously, and that&rsquo;s what the first line does. The
+&quot;rm&quot; might fail, but its return status is
+ignored.</p>
+
+<p style="margin-top: 1em">perl <br>
+makeperl <br>
+This is essentially the same as the perl statement, but it
+is performed each time when running the rule, not when
+reading the makefile. The first variant is plain Perl code,
+<br>
+while the second variant first passes the statement through
+Make-style variable expansion.</p>
+
+<p style="margin-top: 1em">For the two possibilities of
+putting the braces of the body, see the explanation at
+&quot;perl_perlcode&quot; in makepp_statements. Note that
+the third variant explained there makes <br>
+no sence here, because all action lines must be indented.
+You must signal failure in Perl statements, by calling
+&quot;die&quot;.</p>
+
+<p style="margin-top: 1em">Per rule the Perl statements are
+currently evaluated in a common subprocess, except on
+Windows. That means they have only read access to any
+makefile variables. It is also <br>
+the process which executes non-Perl actions. So calling exec
+or exit will confuse makepp. But this may change in the
+future. For an efficient way to call Perl scripts, see <br>
+the previous item &quot;&amp;&quot; or &quot;run&quot;.</p>
+
+<p style="margin-top: 1em">$(phony version): <br>
+noecho perl {{ # $(target) &amp; $(VERSION) from Perl: <br>
+print &quot;This is &quot;.f_target().&quot; $VERSION0; <br>
+}} <br>
+echo You can mix this with Shell commands <br>
+-makeperl { print &quot;This is $(target) $(VERSION)0 }</p>
+
+<p style="margin-top: 1em">There are several different
+kinds of rules, each with different purposes.</p>
+
+<p style="margin-top: 1em">Explicit Rules <br>
+target1 target2: dependency1 dependency2 ... <br>
+actions to be performed</p>
+
+<p style="margin-top: 1em">This syntax specifies that in
+order to make either target1 or target2, all the files
+dependency1, dependency2, etc., must already have been made.
+Then the given actions are <br>
+executed by the shell to make the targets.</p>
+
+<p style="margin-top: 1em">The first explicit rule in a
+file is the default target, and is made if you do not
+specify any targets on the command line.</p>
+
+<p style="margin-top: 1em">Unlike traditional make
+programs, makepp usually assumes that one invocation of the
+action makes all of the targets (unless there are no
+dependencies). For example, one <br>
+invocation of yacc creates both output files for this
+rule:</p>
+
+<p style="margin-top: 1em">y.tab.c y.tab.h : parser.y <br>
+$(YACC) -d parser.y</p>
+
+<p style="margin-top: 1em">Note that other implementations
+of make do not have a concept of a single command producing
+multiple output files, and so when you specify multiple
+targets they will execute the <br>
+rule once per target. Makepp will revert to this behavior if
+it looks like this is an old-style makefile. Specifically,
+it will execute the rule once per target, instead of <br>
+just once overall, if all of the following are true:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The rule action
+mentions the automatic variable $@. (The synonyms
+&quot;$(output)&quot; or &quot;$(target)&quot; do not
+trigger this behavior.)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The rule action
+does not mention the automatic variable
+&quot;$(outputs)&quot; (or its synonym
+&quot;$(targets)&quot;).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; This is not a
+pattern rule, and there is no foreach clause.</p>
+
+<p style="margin-top: 1em">For example,</p>
+
+<p style="margin-top: 1em">all test install: <br>
+for subdir in $(SUBDIRS); do cd $$subdir &amp;&amp; $(MAKE)
+$@; cd ..; done</p>
+
+<p style="margin-top: 1em">is a common idiom in makefiles,
+and makepp supports it. (Note that you should never use
+recursive make in any new makefiles you write--use the
+&quot;load_makefile&quot; statement, or <br>
+implicit makefile loading instead.)</p>
+
+<p style="margin-top: 1em">If you want to have the same
+rule executed once for each target (e.g., because the
+targets have similar commands), it&rsquo;s preferable to use
+either a pattern rule (see below) or a <br>
+&quot;foreach&quot; clause. For example, if with a
+traditional make program you would write:</p>
+
+<p style="margin-top: 1em">a b c d: <br>
+do_something to build $@ &gt; $@</p>
+
+<p style="margin-top: 1em">in makepp, you would probably
+want to write it like this:</p>
+
+<p style="margin-top: 1em">$(foreach) : : foreach a b c d
+<br>
+do_something to build $(output) &gt; $(output)</p>
+
+<p style="margin-top: 1em">Phony targets</p>
+
+<p style="margin-top: 1em">A phony target is a target that
+will never actually exist in the file system; it&rsquo;s
+just a way of getting makepp to build some targets and
+possibly execute some additional <br>
+commands.</p>
+
+<p style="margin-top: 1em">A typical phony target is
+&quot;all&quot;, which usually is used to cause everything
+that can be built to be built, like this:</p>
+
+<p style="margin-top: 1em">all: prog1 prog2 subdir/prog3
+subdir2/libmine.a <br>
+@&amp;echo &quot;All done!&quot;</p>
+
+<p style="margin-top: 1em">If you type &quot;makepp
+all&quot;, or if you put all as the first explicit target in
+your makefile (which is typical) and just type
+&quot;makepp&quot;, then it will cause all the dependencies
+to be <br>
+built, then it will print &quot;All done!&quot;. At this
+point, makepp will look for the file ./all and will discover
+that it doesn&rsquo;t exist. It will complain loudly.</p>
+
+<p style="margin-top: 1em">To keep makepp from expecting
+the file ./all to exit, you need to tell it that it&rsquo;s
+a phony target. Just put a line like the following in your
+makefile (it makes no difference <br>
+where):</p>
+
+<p style="margin-top: 1em">.PHONY: all</p>
+
+<p style="margin-top: 1em">An equivalent alternative which
+is sometimes more convenient is to use the &quot;$(phony
+)&quot; function, like this:</p>
+
+<p style="margin-top: 1em">$(phony all): prog1 prog2
+subdir/prog3 subdir2/libmine.a</p>
+
+<p style="margin-top: 1em">Phony targets in one makefile
+can refer to phony targets in another makefile. This is
+often done with the &quot;clean&quot; target, like this:</p>
+
+<p style="margin-top: 1em"># Top level makefile: <br>
+# lots of rules and stuff here <br>
+# .... <br>
+$(phony clean): subdir1/clean subdir2/clean <br>
+&amp;rm -fm my_program</p>
+
+<p style="margin-top: 1em">Then in the subdirectories, the
+makefiles might read like this:</p>
+
+<p style="margin-top: 1em"># Makefile in a subdirectory
+<br>
+# ... <br>
+$(phony clean): <br>
+&amp;rm -fm $(wildcard *.o *.a)</p>
+
+<p style="margin-top: 1em">But nowadays you would use the
+&quot;makeppclean&quot; command, instead of a clean
+target.</p>
+
+<p style="margin-top: 1em">Wildcards</p>
+
+<p style="margin-top: 1em">It is safe to specify wildcards
+in the dependency list. Wildcards match not only files that
+exist, but files which can be created given the rules in the
+makefile. For example, <br>
+to build a library from all .o files in a directory, you
+could write this:</p>
+
+<p style="margin-top: 1em">libmine.a: *.o <br>
+&amp;rm -f $(output) <br>
+ar cr $(output) $(inputs)</p>
+
+<p style="margin-top: 1em">This will work even if none of
+the &quot;.o&quot; files have been created yet, because
+makepp&rsquo;s wildcards match files which do not yet exist
+but can be built. This will even pick up files <br>
+whose rule is discovered later (in the same makefile, or one
+not yet read). In this last point it differs from the
+&quot;wildcard&quot; function, which is limited to the known
+rules, as <br>
+it must return its result when it is expanded.</p>
+
+<p style="margin-top: 1em">Makepp supports all the usual
+shell wildcards (&quot;*&quot;, &quot;?&quot;, and
+&quot;[]&quot;). It also has a wildcard &quot;**&quot; which
+matches any number of intervening directories. (This idea
+was stolen from <br>
+zsh.) For example, &quot;**/*.c&quot; matches all the .c
+files in the entire source tree. &quot;objects/**/*.o&quot;
+matches all the .o files contained anywhere in the
+subdirectory objects or any <br>
+of its subdirectories or any of their subdirectories. The
+&quot;**&quot; wildcard will not follow soft links to
+directories at any level. It also will never return phony
+targets.</p>
+
+<p style="margin-top: 1em">Makepp&rsquo;s wildcards will
+ignore files or directories which exist but cannot be read.
+After all, such files cannot be used in the build process
+anyway. Putting unreadable files <br>
+in a directory is primarily useful to inhibit the automatic
+import of the given file from a repository.</p>
+
+<p style="margin-top: 1em">The initial assertion was that
+this is safe. This is in the sence that it works whether the
+files already exist, or need to be built first. However it
+is unsafe in the sence <br>
+that it will still match files that were built by makepp,
+but no longer have a rule (e.g. you removed the .c file, but
+the .o file is still there.) To prevent this, use the <br>
+&quot;--rm-stale&quot; option.</p>
+
+<p style="margin-top: 1em">Pattern rules <br>
+A pattern rule is a rule that is applied based on some
+textual pattern. This is used to apply the same rule to a
+whole class of files. The syntax is the same as GNU
+make&rsquo;s <br>
+pattern rules:</p>
+
+<p style="margin-top: 1em">%.o: %.c <br>
+$(CC) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">This says that any file in the
+current directory which matches &quot;*.c&quot; can be
+converted into the corresponding .o file using the given
+command.</p>
+
+<p style="margin-top: 1em">Note that several pattern
+dependencies may be supplied. For example, if your xyz.o
+file depends on the corresponding xyz.cpp file, and also on
+a file called moc_xyz.cflags which <br>
+contains the compiler options, this could be expressed
+with:</p>
+
+<p style="margin-top: 1em">%.o: %.cpp %.cflags <br>
+$(CXX) &lsquo;cat $(stem).cflags&lsquo; -c $(inputs) -o
+$(output)</p>
+
+<p style="margin-top: 1em">You may also have several
+pattern targets. For example,</p>
+
+<p style="margin-top: 1em">%.tab.h %.tab.c : %.y <br>
+yacc -d $(input) <br>
+&amp;mv y.tab.h $(stem).tab.h <br>
+&amp;mv y.tab.c $(stem).tab.c</p>
+
+<p style="margin-top: 1em">Ordinarily, pattern rules only
+look for files in the current directories. You can force
+them to search in the current directory and all directories
+beneath it by setting</p>
+
+<p style="margin-top: 1em">makepp_percent_subdirs := 1</p>
+
+<p style="margin-top: 1em">before the first pattern rule in
+your makefile or on the command line for example.</p>
+
+<p style="margin-top: 1em">There is a clear difference
+between &quot;%&quot; and the wildcard &quot;*&quot;, though
+both match any string: The wildcard returns a list of files
+that is completely used at that point. So this <br>
+depends on all .o files buildable here:</p>
+
+<p style="margin-top: 1em">prog: *.o <br>
+$(LD) $(LDFLAGS) $(inputs) -o $(output)</p>
+
+<p style="margin-top: 1em">This could not be achieved by
+replacing &quot;*&quot; with &quot;%&quot;, because the
+latter is for one-by-one matching of input to output,
+producing internally one rule for each matched stem.</p>
+
+<p style="margin-top: 1em">Static pattern rules <br>
+A static pattern rule is a pattern rule that is applied only
+to a limited set of files:</p>
+
+<p style="margin-top: 1em">$(SPECIAL_MODULES).o : %.o :
+%.cpp <br>
+$(CXX) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">This says that the pattern rule
+applies only to the files in
+&quot;$(SPECIAL_MODULES).o&quot;.</p>
+
+<p style="margin-top: 1em">This is mostly for compatibility
+with GNU make; foreach rules (see below) are a more powerful
+way of doing the same thing.</p>
+
+<p style="margin-top: 1em">Foreach rules <br>
+The above pattern rule syntax is powerful enough to support
+almost all builds, but occasionally it is necessary to do
+something more complicated. Makepp provides a more powerful
+<br>
+syntax: the &quot;:foreach&quot; clause for the rule.</p>
+
+<p style="margin-top: 1em">target_expression :
+dependency_expression : foreach file-list <br>
+actions</p>
+
+<p style="margin-top: 1em">The simplest kind of foreach
+rule is just a pattern rule whose application is restricted
+to a specific list of files. For example, suppose you have a
+pattern rule that tells <br>
+makepp how to compile all .c files. However, you have a list
+of .c files for which you want to do something different.
+You could do something like this:</p>
+
+<p style="margin-top: 1em"># Here&rsquo;s the rule that
+applies to everything: <br>
+%.o : %.c <br>
+$(CC) $(CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">%.o : %.c : foreach
+$(SPECIAL_MODULES) <br>
+$(CC) $(SPECIAL_CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">An even more powerful use of
+foreach rules takes advantage of the fact that the variable
+&quot;$(foreach)&quot; is set in turn to each file matching
+the file list and the target and <br>
+dependency expressions are evaluated. The file-list may
+contain wildcards, and these match even files which
+don&rsquo;t exist yet but which can be built (see
+&quot;Wildcards&quot; in <br>
+makepp_rules).</p>
+
+<p style="margin-top: 1em">This is an unwieldy syntax but
+it is extremely flexible, because the &quot;$(foreach)&quot;
+variable may appear in any way in the expression. First,
+note that pattern rules are in fact a <br>
+special case of foreach rules; the pattern rule</p>
+
+<p style="margin-top: 1em">%.o : %.c <br>
+$(CC) $(CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">is exactly equivalent to:</p>
+
+<p style="margin-top: 1em">$(patsubst %.c, %.o, $(foreach))
+: $(foreach) : foreach *.c <br>
+$(CC) $(CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">(In fact, it&rsquo;s converted
+to approximately that internally.)</p>
+
+<p style="margin-top: 1em">As an example of how you would
+use a &quot;:foreach&quot; clause where a pattern rule
+isn&rsquo;t sufficient, suppose you have some .c files which
+are built using some kind of preprocessor which <br>
+takes as input files with a .k extension. You want to
+compile those .c files with a different set of compilation
+options than the usual .c files which are ordinary source
+files. <br>
+You could do something like this:</p>
+
+<p style="margin-top: 1em"># Rule for ordinary .c files:
+<br>
+%.o : %.c <br>
+$(CC) $(CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em"># Rule to make .c files from .k
+files: <br>
+%.c : %.k <br>
+$(preprocessor) $(input) &gt; $(output)</p>
+
+<p style="margin-top: 1em"># Special build rules for .c
+files which are made from .k files: <br>
+$(foreach:%.k=%.o) : $(foreach:%.c=%.k) : foreach *.k <br>
+$(CC) $(SPECIAL_CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">(This uses the slightly more
+concise substitution reference syntax rather than calling
+&quot;patsubst&quot; explicitly.)</p>
+
+<p style="margin-top: 1em">Note that if all you want to do
+is to change the value of a variable (&quot;CFLAGS&quot; in
+this case) it&rsquo;s sometimes more convenient to use
+target-specific variables.</p>
+
+<p style="margin-top: 1em">Legacy suffix rules <br>
+For backward compatibility, makepp supports the old-style
+suffix rules.</p>
+
+<p style="margin-top: 1em">.suffix1.suffix2: <br>
+actions</p>
+
+<p style="margin-top: 1em">is equivalent to</p>
+
+<p style="margin-top: 1em">%.suffix2: %.suffix1 <br>
+actions</p>
+
+<p style="margin-top: 1em">but much harder to remember.
+(Which suffix comes first?) Typically, a rule will appear in
+a legacy makefile like this:</p>
+
+<p style="margin-top: 1em">.c.o: <br>
+$(CC) $(CFLAGS) -c $*.c -o $*.o</p>
+
+<p style="margin-top: 1em">which is exactly equivalent
+to</p>
+
+<p style="margin-top: 1em">%.o : %.c <br>
+$(CC) $(CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">Conflicting rules <br>
+When there is more than one way to make a file, makepp uses
+a simple procedure to determine which rule to use.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; It is an error
+to have conflicting explicit rules for building a file.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Pattern rules
+and foreach rules with wildcards never override explicit
+rules. Thus explicit rules can be used to specify exceptions
+for pattern rules. (Note that simply <br>
+using a &quot;:foreach&quot; clause doesn&rsquo;t make
+something a pattern rule. It must have a wildcard (like
+&quot;*&quot; or &quot;?&quot;) as part of the filename in
+the &quot;:foreach&quot; clause. If it is just <br>
+an explicit list of files, it is treated as an explicit rule
+for each of those files.)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; When conflicting
+pattern rules come from different makefiles, rules from
+&quot;nearer&quot; makefiles override rules from
+&quot;farther&quot; makefiles. &quot;Nearer&quot; means that
+the makefile is <br>
+located closer to the target in the directory hierarchy
+(i.e., the file name of the target relative to the directory
+the makefile is run from is shorter). If this doesn&rsquo;t
+<br>
+distinguish the makefiles, then the rule from the makefile
+which is loaded latest is used.</p>
+
+<p style="margin-top: 1em">This means that you can specify
+a pattern rule that applies to all files in your entire
+directory tree in just the top-level makefile, but then you
+can override it in a <br>
+lower-level makefile. For example, your top-level makefile
+could contain:</p>
+
+<p style="margin-top: 1em">%.o : %.c : foreach **/*.c <br>
+$(CC) $(CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">and you could have a makefile in
+one of the subdirectories that says:</p>
+
+<p style="margin-top: 1em">%.o : %.c <br>
+$(CC) $(SPECIAL_CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Pattern rules
+that have a shorter chain of inference are preferred over
+other pattern rules. For example, if you had the following
+rules (based on an example from the Linux <br>
+kernel):</p>
+
+<p style="margin-top: 1em">%.s: %.c <br>
+$(CC) -s $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">%.o: %.s <br>
+$(AS) $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">%.o: %.c <br>
+$(CC) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">If we need to build
+&quot;xyz.o&quot;, we could either build the intermediate
+&quot;.s&quot; file and then run that through the assembler
+using the first two rules, or we could go directly to a <br>
+&quot;.o&quot; file using the last rule. The last rule is
+preferred because there are fewer steps in the chain of
+inference (one instead of two).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Pattern rules
+later in a makefile override pattern rules that are earlier.
+(This is backwards from GNU make.) This means that you
+should put your more general rules <br>
+earlier, and your more specific rules later. For
+example,</p>
+
+<p style="margin-top: 1em">%.o: %.c # General compilation
+rule. <br>
+action</p>
+
+<p style="margin-top: 1em">special_%.o: special_%.c #
+Special rule for files with a <br>
+different action # &quot;special_&quot; prefix.</p>
+
+<p style="margin-top: 1em">Rule options <br>
+Sometimes it is necessary to supply additional options to
+modify how makepp executes the rule. These options are
+specified as &quot;:optionname value&quot;, either on the
+line containing <br>
+the dependencies, or on the next line.</p>
+
+<p style="margin-top: 1em">Supplying the options on
+separate lines may make it possible for you to use the same
+makefile with makepp and a traditional make. For
+example,</p>
+
+<p style="margin-top: 1em">target : dependencies <br>
+: signature target_newer <br>
+actions</p>
+
+<p style="margin-top: 1em">will work fine with a
+traditional Unix make, because it interprets the &quot;:
+signature&quot; line as a shell command, and a command
+beginning with a colon does nothing.</p>
+
+<p style="margin-top: 1em">:build_cache
+/path/to/build/cache <br>
+target : dependencies <br>
+: build_cache /put/cache/files/over/there <br>
+actions</p>
+
+<p style="margin-top: 1em">Specifies the path to a build
+cache to be used for files produced by this rule. This
+overrides the effect of the &quot;build_cache&quot;
+statement or the &quot;--build-cache&quot; command line <br>
+option, if any, for this rule. See makepp_build_cache for
+details about build caches.</p>
+
+<p style="margin-top: 1em">If you specify &quot;none&quot;
+instead of a path, you disable the build cache for this
+particular rule. This can be useful to avoid wasting disk
+space on files that you know aren&rsquo;t <br>
+useful to cache, either because you are very sure they will
+never be reused or because they are built so fast that
+it&rsquo;s not worth caching them.</p>
+
+<p style="margin-top: 1em">:build_check build_check_method
+<br>
+target : dependencies <br>
+: build_check target_newer <br>
+actions</p>
+
+<p style="margin-top: 1em">This tells makepp what algorithm
+to use to decide if the targets need to be rebuilt. See
+makepp_build_check for more details. This overrides the
+effect of the &quot;build_check&quot; <br>
+statement or the &quot;--build-check-method&quot; command
+line option, if any, for this rule.</p>
+
+<p style="margin-top: 1em">:env VARIABLE ... <br>
+Add a dependency on the values of the named environment
+variables. If any of them differ from the previous build,
+then the targets are considered out of date, if the <br>
+build_check method so dictates. (All of the built-in build
+check methods except for target_newer respect this.)</p>
+
+<p style="margin-top: 1em">VARIABLE may be of the form
+&quot;filename in PATH_VARIABLE&quot; (in quotes), in which
+case the targets are considered out of date if the first
+directory from the colon-delimited <br>
+value of PATH_VARIABLE in which filename exists is different
+from the last build. This can be used to avoid rebuilding
+the targets when PATH_VARIABLE changes in an <br>
+irrelevant way.</p>
+
+<p style="margin-top: 1em">:dispatch command ... <br>
+Enclose each shell action (but not Perl actions nor Perl
+commands) in a &quot;sh -c &rsquo;...&rsquo;&quot; and
+prefix it with command, but assume that the target
+doesn&rsquo;t depend on command. This <br>
+is useful if you want to send actions to a job queuing
+system, but the result is assumed to be independent of the
+queuing parameters, as well as to whether the queuing system
+<br>
+is used at all.</p>
+
+<p style="margin-top: 1em">:include file_or_pattern <br>
+Rule varies depending on compiler:</p>
+
+<p style="margin-top: 1em">%.o : %.c <br>
+: include %.d : signature C <br>
+gcc -MD -c ...</p>
+
+<p style="margin-top: 1em">%.o : %.c <br>
+: include %.u : signature C # IBM uses a different suffix
+<br>
+xlc -M -c ...</p>
+
+<p style="margin-top: 1em">sub dependify { # Turn
+Microsoft&rsquo;s chatter into useful format <br>
+s/; ?0$1 ? &quot;&rsquo;$2&rsquo; <br>
+s/(Note: including file: *)?(.+?) &quot; :
+&quot;&rsquo;&quot;.f_output().&quot;&rsquo;: &quot;/e; <br>
+} <br>
+%.o : %.c <br>
+: include %.d : signature C <br>
+cl -showIncludes -c ... &gt;$(stem).d <br>
+&amp;sed &amp;dependify -o +&lt;$(stem).d</p>
+
+<p style="margin-top: 1em">Some compilers (Intel&rsquo;s
+icc just like gcc above, or IBM&rsquo;s xlc) can produce
+dependency files on the fly. That is, while they compile,
+they write a makefile that makepp can <br>
+include. The advantage over makepp&rsquo;s scanner is that
+it is guaranteed to be 100% correct, where we may only come
+close.</p>
+
+<p style="margin-top: 1em">This option harnesses that in a
+special way: If the file is not present, i.e. typically on
+the 1st build, normal scanning occurs. But if the file is
+present, no scanning <br>
+occurs (which is why we specify a smart signature above --
+not scanning falls back to the dumb default of timestamp and
+size). Instead it includes the file, before executing <br>
+the rule. After successfully executing the rule, it forgets
+whatever it read the first time, given that the file might
+have been outdated. Instead it reads the file again, <br>
+if it changed, for having up-to-date build info.</p>
+
+<p style="margin-top: 1em">WARNING: This is inherently
+unreliable. The dependency file gets produced by the very
+rule for which it is a dependency. On the other hand, the
+compiler knows about all <br>
+it&rsquo;s internal sub-includes, which makepp usually
+ignores. This is a reliability advantage only for the case
+where a compiler patch fixes only the sub-includes. The
+price is <br>
+that makepp ends up looking at many more files, which takes
+time.</p>
+
+<p style="margin-top: 1em">There is a catch when you remove
+an &quot;#include&quot; statement and the corresponding
+file: It will still be mentioned in the dependency file from
+the last time, when it was needed. <br>
+In such a case you must edit the dependency file to remove
+the dependency which is no longer fulfillable.</p>
+
+<p style="margin-top: 1em">This feature can not be used
+with a build cache because fetching a file from there
+requires knowing everything about the file. But a dependency
+file depends on those files <br>
+makepp learns about by reading it. Such a circular
+dependency is not normally possible in a reliable build
+system. This is an exception because after rebuilding and
+<br>
+rereading a dependency file everything is correct again.</p>
+
+<p style="margin-top: 1em">If you build in your
+repositories, makepp will pick up the dependency file from
+the 1st repository which contains one. This is unlike other
+files, where it takes the 1st <br>
+with the expected signature. This is better than for build
+caches, where for lack of signature, it can&rsquo;t even
+find the file.</p>
+
+<p style="margin-top: 1em">:last_chance <br>
+Enable an open-ended rule, such as</p>
+
+<p style="margin-top: 1em">%.foo foo%.bar: :last_chance
+<br>
+&amp;echo $@ -o $@ <br>
+&amp;cp $(outputs)</p>
+
+<p style="margin-top: 1em">Because a rule such as this
+could generate an essentially infinite number of targets, a
+target of this rule will not match a $(wildcard) function or
+pattern rule unless <br>
+something else has already instanced the rule by referencing
+the target specifically. Furthermore, if
+&quot;--rm-stale&quot; is specified, then a target left over
+from a previous <br>
+makepp run will appear stale if the only way to build it is
+via a last_chance rule that hasn&rsquo;t been instanced for
+the target yet, which is a desirable behavior because the
+<br>
+build will fail more consistently when it erroneously relies
+on a wildcard to match targets from a previous run.</p>
+
+<p style="margin-top: 1em">The &quot;:last_chance&quot;
+option is intended to call attention to the special behavior
+of the rule with respect to matching wildcards.</p>
+
+<p style="margin-top: 1em">:parser parser <br>
+This tells makepp how to parse the command for detecting
+(include) files. Usually, makepp guesses how to do this
+based on the words in the command itself (see <br>
+makepp_scanning for details). However, if makepp guesses
+wrongly, you may want to explicitly indicate the parser,
+like this:</p>
+
+<p style="margin-top: 1em">%.o: %.abc <br>
+: parser c_compilation <br>
+action here</p>
+
+<p style="margin-top: 1em">This causes makepp to perform
+the same parsing and scanning that it does for C/C++ build
+commands, even if it doesn&rsquo;t recognize the action as a
+C compilation.</p>
+
+<p style="margin-top: 1em">The default parser depends on
+the command. If you do not specify a &quot;:parser&quot;
+option, then the first word of each command is examined. For
+example for a compile or link <br>
+command, makepp will use the &quot;c_compilation&quot;
+parser; or if the command looks like the GNU variant,
+&quot;gcc_compilation&quot;. If no parser is found it uses
+the &quot;none&quot; parser. For <br>
+more details on this, or if you want to write your own
+parser or change makepp&rsquo;s default parsers, see
+makepp_scanning.</p>
+
+<p style="margin-top: 1em">Note that this applies to every
+command in the rule, which may not be what you want:</p>
+
+<p style="margin-top: 1em">%.o: %.c : parser c-compilation
+<br>
+@echo &rsquo;Building $(output)&rsquo; <br>
+@funny_cc ...</p>
+
+<p style="margin-top: 1em">This will also interpret
+&quot;echo&quot; as a compiler and deduce its argument
+&rsquo;Building mymodule.o&rsquo; as an implicit dependency.
+This will lead to the complaint that it doesn&rsquo;t know
+<br>
+how to build such a file. In this case you would be better
+off with &quot;register_parser&quot;. There you find an
+explanation how parser can be given either as a classname or
+as a <br>
+function name.</p>
+
+<p style="margin-top: 1em">:signature signature_method <br>
+target : dependencies <br>
+: signature md5 <br>
+actions</p>
+
+<p style="margin-top: 1em">This tells makepp what algorithm
+to use to determine if the dependencies have changed. See
+makepp_signatures for more details. Signature methods which
+are included with the <br>
+makepp distribution are are &quot;plain&quot;,
+&quot;md5&quot;, &quot;C&quot; or
+&quot;c_compilation_md5&quot;, and
+&quot;shared_object&quot;. This overrides any signature
+method specified with the &quot;-m&quot; or <br>
+&quot;--signature-method&quot; command line options, or with
+the &quot;signature&quot; statement.</p>
+
+<p style="margin-top: 1em">Special characters <br>
+Makepp can support filenames that have special characters in
+them like a colon or a space. Suppose, for example, you want
+to create a file called &quot;a:thing&quot; from the file
+<br>
+&quot;b:thing&quot;. You can&rsquo;t write the rule this
+way:</p>
+
+<p style="margin-top: 1em">a:thing : b:thing # This is a
+syntax error <br>
+&amp;cat $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">because makepp won&rsquo;t know
+which colons separate targets from dependencies and which
+are part of the filenames. Instead, simply enclose the name
+in quotes, like this:</p>
+
+<p style="margin-top: 1em">&quot;a:thing&quot; :
+&quot;b:thing&quot; <br>
+&amp;cat $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">Now the rule is unambiguous.</p>
+
+<p style="margin-top: 1em">Makepp&rsquo;s quoting syntax is
+quite similar to the shell&rsquo;s. You can, for example,
+use single quotes instead of double quotes, or you can
+escape special characters with a backslash:</p>
+
+<p style="margin-top: 1em">athing : &rsquo;b:thing&rsquo;
+<br>
+&amp;cat $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">Suppose, for example, that your
+filename is &quot;&rsquo;&quot;!;. Now why you&rsquo;d want
+such a filename I don&rsquo;t know, but here are several
+ways you could specify it to makepp (and the shell):</p>
+
+<p style="margin-top: 1em">&acute;&rsquo;&quot;!;&rsquo;
+<br>
+&quot;&rsquo;</p>
+
+<p style="margin-top: 1em">Pay attention as to when makepp
+strips quotes and when the shell does. Makepp looks at
+quotes only in the following cases:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; in the
+&quot;ifeq&quot; family of tests</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; before and after
+the rule colon</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; in a makepp
+builtin command</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; in a function
+that pertains to files</p>
+
+<p style="margin-top: 1em">Unlike the shell, makepp
+doesn&rsquo;t expand quotes while assigning them to a
+variable. Thus the following rules are identical:</p>
+
+<p style="margin-top: 1em">FILE = &rsquo;name with
+spaces&rsquo; <br>
+x := $(print $(FILE)) # just to check that quotes are still
+there <br>
+$(FILE): # quotes around single file stripped by makepp <br>
+&amp;echo hello -o$(FILE) # quotes around single file
+stripped by makepp <br>
+echo there &gt;&gt;$(FILE) # quotes around single file
+stripped by Shell <br>
+&rsquo;name with spaces&rsquo;: <br>
+&amp;echo hello -o&rsquo;name with spaces&rsquo; <br>
+echo there &gt;&gt;&rsquo;$(output)&rsquo; # quotes were
+stripped above, add them again</p>
+
+<p style="margin-top: 1em">Note that (unlike the Shell)
+variables beginning with &quot;$&quot; are expanded even
+inside single quotes. Dollar signs cannot be protected by
+quotes or backslashes. To get a literal <br>
+dollar sign, use a double dollar sign, e.g.,</p>
+
+<p style="margin-top: 1em">$(phony all): <br>
+@&amp;echo This is a dollar sign: $$ <br>
+@for val in a b c d; do echo $$val; done</p>
+
+<p style="margin-top: 1em">Generally, you should be able to
+deal with just about any special character by quoting it in
+some way. This includes spaces, control characters, etc.
+However, be aware that at <br>
+present, makepp&rsquo;s comment stripping is somewhat
+simplistic, and any &quot;#&quot; characters preceded by
+whitespace will be interpreted as comments no matter how
+they are quoted.</p>
+
+<p style="margin-top: 1em">When a target or dependency name
+is put into an automatic variable like
+&quot;$(output)&quot;, then the quotes and any backslashes
+are stripped. This means that if you want to reference <br>
+the filename in the actions, you will probably have to quote
+it again, like this:</p>
+
+<p style="margin-top: 1em">&quot;a file name with
+spaces&quot;: <br>
+echo &quot;Special contents&quot; &gt; &quot;$@&quot;</p>
+
+<p style="margin-top: 1em">If you don&rsquo;t put the
+quotes around $@, then the shell will see the command</p>
+
+<p style="margin-top: 1em">echo &quot;Special
+contents&quot; &gt; a file name with spaces</p>
+
+<p style="margin-top: 1em">which writes the string
+&quot;Special contents file name with spaces&quot; to the
+file called a. This is probably not what you want.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Gary Holt (holt-makepp@gholt.net)</p>
+
+<p style="margin-top: 1em">perl v5.24.1 2016-11-28
+MAKEPP_RULES(1)</p>
+<hr>
+</body>
+</html>

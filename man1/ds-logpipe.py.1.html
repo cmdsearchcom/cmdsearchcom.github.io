@@ -1,0 +1,178 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:05:37 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>DS-LOGPIPE.PY(1) General Commands Manual
+DS-LOGPIPE.PY(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+ds-logpipe.py - Create and read from a named pipe instead of
+a log file</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+ds-logpipe.py /full/path/to/namedpipe <br>
+[-m maxlinestobuffer] [-u userid] [-s serverpidfile] [-t
+servertimeout] [--plugin=/path/to/pluginfile.py]
+[pluginfile.arg=value]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+The Named Pipe Log Script allows you to replace a log file
+with a named pipe attached to a script. The server can then
+send the log output to a script instead of to a log file.
+<br>
+This allows you to do many different things such as:</p>
+
+<p style="margin-top: 1em">* log only certain events e.g.
+failed binds, connections from certain ip addresses, etc.
+<br>
+* log only lines that match a certain pattern <br>
+* log only the last N lines - useful for enabling full error
+log debug levels in production environments <br>
+* send an email or other notification when a certain event
+is detected</p>
+
+<p style="margin-top: 1em">The script is written in python,
+and allows plugins. By default, the script will log the last
+N lines (default 1000). There are two plugins provided - one
+to log only failed bind <br>
+attempts, and one that will log only lines that match given
+regular expressions.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+A summary of options is included below.</p>
+
+<p style="margin-top: 1em">/full/path/to/namedpipe <br>
+Required - full path and file name of the named pipe. If
+this does not exist, it will be created. If it exists and is
+a named pipe, the script will use it. If it exists <br>
+and is not a pipe, the script will abort. The ownership will
+be the same as the user running the script (or see the -u
+option below).</p>
+
+<p style="margin-top: 1em">-m|--maxlines=N <br>
+Number of lines to buffer - default is 1000</p>
+
+<p style="margin-top: 1em">-u|--userid=user <br>
+The pipe and any other files created by the script will be
+chown()&rsquo;d to this userid. This may be a string userid
+name or a numeric userid value.</p>
+
+
+<p style="margin-top: 1em">-s|--serverpidfile=/path/to/servername.pid
+<br>
+If you want the script to exit when a particular directory
+server exists, specify the full path to the file containing
+the server pid. The default is usually something <br>
+like /var/run/dirsrv/slapd-&lt;instancename&gt;.pid where
+&lt;instancename&gt; is usually the hostname</p>
+
+<p style="margin-top: 1em">-t|--servertimeout=N <br>
+Since the serverpidfile may not exist yet when the script is
+run, the script will wait by default 60 seconds for the pid
+file to exist and the server to be started. Use <br>
+this option to specify a different timeout. The -t option
+only applies when using -s or --serverpid - otherwise it
+does nothing.</p>
+
+<p style="margin-top: 1em">--serverpid=P <br>
+IF the server you want to track is already running, you can
+specify it using this argument. If the specified pid is not
+valid, the script will abort.</p>
+
+
+<p style="margin-top: 1em">-p|--plugin=/full/path/to/pluginname.py
+<br>
+Specify a plugin to use. The plugin must be a python file
+and must end in .py. It must specify a function called
+plugin and may specify functions called pre and post.</p>
+
+<p style="margin-top: 1em">pluginname.arg1=value ...
+pluginname.argN=value <br>
+You can specify arguments to plugins on the command line. If
+there is a plugin specified as
+--plugin=/full/path/to/pluginname.py, the arguments for that
+plugin are speci&acirc; <br>
+fied as pluginname.argname=value. The script parses these
+arguments and passes them to the plugin pre function as a
+python dict. IF there is more than one argument named <br>
+pluginname.argname the values are passed as a python
+list.</p>
+
+<p style="margin-top: 1em">DIRECTORY SERVER NOTES <br>
+The directory server will usually need to be configured to
+log to the named pipe instead of the usual log file. For
+example, use the following LDIF to tell the server to use
+the <br>
+file access.pipe for the access log: <br>
+dn: cn=config <br>
+changetype: modify <br>
+replace: nsslapd-accesslog-maxlogsperdir <br>
+nsslapd-accesslog-maxlogsperdir: 1 <br>
+- <br>
+replace: nsslapd-accesslog-logexpirationtime <br>
+nsslapd-accesslog-logexpirationtime: -1 <br>
+- <br>
+replace: nsslapd-accesslog-logrotationtime <br>
+nsslapd-accesslog-logrotationtime: -1 <br>
+- <br>
+replace: nsslapd-accesslog <br>
+nsslapd-accesslog:
+/var/log/dirsrv/slapd-localhost/access.pipe <br>
+- <br>
+replace: nsslapd-accesslog-logbuffering <br>
+nsslapd-accesslog-logbuffering: off</p>
+
+<p style="margin-top: 1em">NOTE: Before doing this, you
+should save your current configuration so you can restore it
+later. <br>
+ldapsearch ... -s base -b &quot;cn=config&quot;
+nsslapd-accesslog-maxlogsperdir
+nsslapd-accesslog-logexpirationtime
+nsslapd-accesslog-logrotationtime nsslapd-accesslog
+nsslapd-accesslog <br>
+&gt; savedaccesslog.ldif</p>
+
+<p style="margin-top: 1em">The error log and audit log have
+similarly named configuration attributes e.g.
+nsslapd-errorlog, nsslapd-auditlog. Note that the audit log
+is disabled by default - use nsslapd- <br>
+auditlog-logging-enabled: on to enable it.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+ds-logpipe.py was written by the 389 Project.</p>
+
+<p style="margin-top: 1em">REPORTING BUGS <br>
+Report bugs to https://fedorahosted.org/389/newticket.</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright &Acirc;&copy; 2009 Red Hat, Inc. <br>
+This is free software. You may redistribute copies of it
+under the terms of the Directory Server license found in the
+LICENSE file of this software distribution. This license
+<br>
+is essentially the GNU General Public License version 2 with
+an exception for plug-in distribution.</p>
+
+<p style="margin-top: 1em">November 24, 2009
+DS-LOGPIPE.PY(1)</p>
+<hr>
+</body>
+</html>

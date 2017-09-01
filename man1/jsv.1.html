@@ -1,0 +1,456 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:20:06 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>JSV(1) Sun Grid Engine File Formats JSV(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+JSV - Sun Grid Engine Job Submission Verifier</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+JSV is an abbreviation for Job Submission Verifier. A JSV is
+a script or binary that can be used to verify, modify or
+reject a job during the time of job submission.</p>
+
+<p style="margin-top: 1em">JSVs will be triggered by submit
+clients like qsub, qrsh, qsh and qmon on submit hosts
+(Client JSV) or they verify incoming jobs on the master host
+(Server JSV) or both.</p>
+
+<p style="margin-top: 1em">CONFIGURATION <br>
+JSVs can be configured on various locations. Either a
+jsv_url can be provided with the -jsv submit parameter
+during job submission, a corresponding switch can be added
+to one of <br>
+the sge_request files or a jsv_url can be configured in the
+global cluster configuration of the Sun Grid Engine
+installation.</p>
+
+<p style="margin-top: 1em">All defined JSV instances will
+be executed in following order:</p>
+
+<p style="margin-top: 1em">1) qsub -jsv ... <br>
+2) $cwd/.sge_request <br>
+3) $HOME/.sge_request <br>
+4) $SGE_ROOT/$SGE_CELL/common/sge_request <br>
+5) Global configuration</p>
+
+<p style="margin-top: 1em">The Client JSVs (1-3) can be
+defined by Sun Grid Engine end users whereas the client JSV
+defined in the global sge_request file (4) and the server
+JSV (5) can only be defined by <br>
+the Sun Grid Engine administrators.</p>
+
+<p style="margin-top: 1em">Due to the fact that (4) and (5)
+are defined and configured by Sun Grid Engine administrators
+and because they are executed as last JSV instances in the
+sequence of JSV scripts, <br>
+an administrator has an additional way to define certain
+policies for a cluster.</p>
+
+<p style="margin-top: 1em">As soon as one JSV instance
+rejects a job the whole process of verification is stopped
+and the end user will get a corresponding error message that
+the submission of the job has <br>
+failed.</p>
+
+<p style="margin-top: 1em">If a JSV accepts a job or
+accepts a job after it applied several modifications then
+the following JSV instance will get the job parameters
+including all modifications as input <br>
+for the verification process. This is done as long as either
+the job is accepted or rejected.</p>
+
+<p style="margin-top: 1em">Find more information how to use
+Client JSVs in qsub(1) and for Server JSVs in
+sge_conf(5)</p>
+
+<p style="margin-top: 1em">LIFETIME <br>
+A Client or Server JSV is started as own UNIX process. This
+process communicates either with a Sun Grid Engine client
+process or the master daemon by exchanging commands, job
+<br>
+parameters and other data via stdin/stdout channels.</p>
+
+<p style="margin-top: 1em">Client JSV instances are started
+by client applications before a job is sent to qmaster. This
+instance does the job verification for the job to be
+submitted. After that verifica&acirc; <br>
+tion the JSV process is stopped.</p>
+
+<p style="margin-top: 1em">Server JSV instances are started
+for each worker thread part of the qmaster process (for
+version 6.2 of Sun Grid Engine this means that two processes
+are started). Each of those <br>
+processes have to verify job parameters for multiple jobs as
+long as the master is running, the underlying JSV
+configuration is not changed and no error occurs.</p>
+
+<p style="margin-top: 1em">TIMEOUT <br>
+The timeout is a modifiable value that will measure the
+response time of either the client or server JSV. In the
+event that the response time of the JSV is longer than
+timeout <br>
+value specified, this will result in the JSV being
+re-started. The server JSV timeout value is specified
+through the qmaster parameter jsv_timeout. The client JSV
+timeout value <br>
+is set through the environment variable SGE_JSV_TIMEOUT. The
+default value is 10 seconds, and this value must be greater
+than 0. If the timeout has been reach, the JSV will only
+<br>
+try to re-start once, if the timeout is reached again an
+error will occur.</p>
+
+<p style="margin-top: 1em">THRESHOLD <br>
+The threshold value is defined as a qmaster parameter
+jsv_threshold. This value measures the time for a server job
+verification. If this time exceeds the defined threshold
+then <br>
+additional logging will appear in the master message file at
+the INFO level. This value is specified in milliseconds and
+has a default value of 5000. If a value of 0 is defined <br>
+then this means all jobs will be logged in the message
+file.</p>
+
+<p style="margin-top: 1em">PROTOCOL <br>
+After a JSV script or binary is started it will get commands
+through its stdin stream and it has to respond with certain
+commands on the stdout stream. Data which is send via the
+<br>
+stderr stream of a JSV instance is ignored. Each command
+which is send to/by a JSV script has to be terminated by a
+new line character (&rsquo;0) whereas new line characters
+are not <br>
+allowed in the whole command string itself.</p>
+
+<p style="margin-top: 1em">In general commands which are
+exchanged between a JSV and client/qmaster have following
+format. Commands and arguments are case sensitive. Find the
+EBNF command description <br>
+below.</p>
+
+<p style="margin-top: 1em">command := command_name &rsquo;
+&rsquo; { argument &rsquo; &rsquo; } ;</p>
+
+<p style="margin-top: 1em">A command starts with a
+command_name followed by a space character and a space
+separated list of arguments.</p>
+
+<p style="margin-top: 1em">PROTOCOL (JSV side) <br>
+Following commands have to be implemented by an JSV script
+so that it conforms to version 1.0 of the JSV protocol which
+was first implemented in Sun Grid Engine 6.2u2:</p>
+
+<p style="margin-top: 1em">begin_command :=
+&rsquo;BEGIN&rsquo; ; <br>
+After a JSV instance has received all env_commands and
+param_commands of a job which should be verified, the
+client/qmaster will trigger the verification process by
+send&acirc; <br>
+ing one begin_command. After that it will wait for
+param_commands and env_commands which are sent back from the
+JSV instance to modify the job specification. As part of
+<br>
+the verification process a JSV script or binary has to use
+the result_command to indicate that the verification process
+is finished for a job.</p>
+
+<p style="margin-top: 1em">env_command := ENV &rsquo;
+&rsquo; modifier &rsquo; &rsquo; name &rsquo; &rsquo; value
+;</p>
+
+<p style="margin-top: 1em">modifier := &rsquo;ADD&rsquo; |
+&rsquo;MOD&rsquo; | &rsquo;DEL&rsquo; ; <br>
+The env_command is an optional command which has only to be
+implemented by a JSV instance if the send_data_command is
+sent by this JSV before a the started_command was <br>
+sent. Only in that case the client or master will use one or
+multiple env_commands to pass the environment variables
+(name and value) to the JSV instance which would be <br>
+exported to the job environment when the job would be
+started. Client and qmaster will only sent env_commands with
+the modifier &rsquo;ADD&rsquo;.</p>
+
+<p style="margin-top: 1em">JSV instances modify the set of
+environment variables by sending back env_commands and by
+using the modifiers ADD, MOD and DEL.</p>
+
+<p style="margin-top: 1em">param_command :=
+&rsquo;PARAM&rsquo; &rsquo; &rsquo; param_parameter &rsquo;
+&rsquo; value ;</p>
+
+<p style="margin-top: 1em">param_parameter :=
+submit_parameter | pseudo_parameter ; <br>
+The param_command has two additional arguments which are
+separated by space characters. The first argument is either
+a submit_parameter as it is specified in qsub(1) or it <br>
+is a pseudo_parameters as documented below. The second
+parameter is the value of the corresponding
+param_parameter.</p>
+
+<p style="margin-top: 1em">Multiple param_commands will be
+sent to a JSV instance after the JSV has sent a
+started_command. The sum of all param_commands which is sent
+represents a job specification <br>
+of that job which should be verified.</p>
+
+<p style="margin-top: 1em">submit_parameters are for
+example b (similar to the qsub -b switch) or masterq
+(similar to qsub -masterq switch). Find a complete list of
+submit_parameters in the qsub(1) <br>
+man page. Please note that not in all cases the
+param_parameter name and the corresponding value format is
+equivalent with the qsub switch name and its argument
+format. <br>
+E.g. the qsub -pe parameters will by available as a set of
+parameters with the name pe_name, pe_min, pe_max or the
+switch combination -soft -l will be passed to JSV <br>
+scripts as l_soft parameter. For details concerning this
+differences consult also the qsub(1) man page.</p>
+
+<p style="margin-top: 1em">start_command :=
+&rsquo;START&rsquo; ; <br>
+The start_command has no additional arguments. This command
+indicates that a new job verification should be started. It
+is the first command which will be sent to JSV <br>
+script after it has been started and it will initiate each
+new job verification. A JSV instance might trash cached
+values which are still stored due to a previous job
+ver&acirc; <br>
+ification. The application which send the start_command will
+wait for a started_command before it continues.</p>
+
+<p style="margin-top: 1em">quit_command :=
+&rsquo;QUIT&rsquo; ; <br>
+The quit_command has no additional arguments. If this
+command is sent to a JSV instance then it should terminate
+itself immediately.</p>
+
+<p style="margin-top: 1em">PROTOCOL (client/qmaster side)
+<br>
+A JSV script or binary can send a set of commands to a
+client/qmaster process to indicate its state in the
+communication process, to change the job specification of a
+job which <br>
+should be verified and to report messages or errors. Below
+you can find the commands which are understood by the
+client/qmaster which will implement version 1.0 of the
+communica&acirc; <br>
+tion protocol which was first implemented in Sun Grid Engine
+6.2u2:</p>
+
+<p style="margin-top: 1em">error_command :=
+&rsquo;ERROR&rsquo; message ; <br>
+Any time a JSV script encounters an error it might report it
+to the client/qmaster. If the error happens during a job
+verification the job which is currently verified will <br>
+be rejected. The JSV binary or script will also be restarted
+before it gets a new verification task.</p>
+
+<p style="margin-top: 1em">log_command := &rsquo;LOG&rsquo;
+log_level ;</p>
+
+<p style="margin-top: 1em">log_level := &rsquo;INFO&rsquo;
+| &rsquo;WARNING&rsquo; | &rsquo;ERROR&rsquo; <br>
+log_commands can be used whenever the client or qmaster
+expects input from a JSV instance. This command can be used
+in client JSVs to send information to the user submit&acirc;
+<br>
+ting the job. In client JSVs all messages, independent of
+the log_level will be printed to the stdout stream of the
+used submit client. If a server JSV receives a
+log_com&acirc; <br>
+mand it will add the received message to the message file
+respecting the specified log_level. Please note that message
+might contain spaces but no new line characters.</p>
+
+<p style="margin-top: 1em">param_command (find definition
+above) <br>
+By sending param_commands a JSV script can change the job
+specification of the job which should be verified. If a JSV
+instance later on sends a result_command which indi&acirc;
+<br>
+cates that a JSV instance should be accepted with correction
+then the values provided with these param_commands will be
+used to modify the job before it is accepted by the <br>
+Sun Grid Engine system.</p>
+
+<p style="margin-top: 1em">result_command :=
+&rsquo;RESULT&rsquo; result_type [ message ] ;</p>
+
+<p style="margin-top: 1em">result_type :=
+&rsquo;ACCEPT&rsquo; | &rsquo;CORRECT&rsquo; |
+&rsquo;REJECT&rsquo; | &rsquo;REJECT_WAIT&rsquo; ; <br>
+After the verification of a job is done a JSV script or
+binary has to send a result_command which indicates what
+should happen with the job. If the result_type is <br>
+ACCEPTED the job will be accepted as it was initially
+submitted by the end user. All param_commands and
+env_commands which might have been sent before the
+result_command <br>
+are ignored in this case. The result_type CORRECT indicates
+that the job should be accepted after all modifications sent
+via param_commands and env_commands are applied <br>
+to the job. REJECT and REJECT_WAIT cause the client or
+qmaster instance to reject the job.</p>
+
+<p style="margin-top: 1em">send_data_command :=
+&rsquo;SEND&rsquo; data_name ;</p>
+
+<p style="margin-top: 1em">data_name := &rsquo;ENV&rsquo;;
+<br>
+If a client/qmaster receives a send_env_command from a JSV
+instance before a started_command is sent, then it will not
+only pass job parameters with param_commands but <br>
+also env_commands which provide the JSV with the information
+which environment variables would be exported to the job
+environment if the job is accepted and started later <br>
+on.</p>
+
+<p style="margin-top: 1em">The job environment is not
+passed to JSV instances as default because the job
+environment of the end user might contain data which might
+be interpreted wrong in the JSV <br>
+context and might therefore cause errors or security
+issues.</p>
+
+<p style="margin-top: 1em">started_command :=
+&rsquo;STARTED&rsquo; ; <br>
+By sending the started_command a JSV instance indicates that
+it is ready to receive param_commands and env_commands for a
+new job verification. It will only receive <br>
+env_commands if it sends a send_data_command before the
+started_command.</p>
+
+<p style="margin-top: 1em">PSEUDO PARAMETERS <br>
+CLIENT The corresponding value for the CLIENT parameters is
+either &rsquo;qmaster&rsquo; or the name of a submit client
+like &rsquo;qsub&rsquo;, <br>
+&rsquo;qsh&rsquo;, &rsquo;qrsh&rsquo;, &rsquo;qlogin&rsquo;
+and so on This parameter value can&rsquo;t be changed by JSV
+instances. It will always be sent as part of a job
+verification.</p>
+
+<p style="margin-top: 1em">CMDARGS <br>
+Number of arguments which will be passed to the job script
+or command when the job execution is started. It will always
+be sent as part of a job verification. If no <br>
+arguments should be passed to the job script or command it
+will have the value 0. This parameter can be changed by JSV
+instances. If the value of CMDARGS is bigger than <br>
+the number of available CMDARG&lt;id&gt; parameters then the
+missing parameters will be automatically passed as empty
+parameters to the job script.</p>
+
+<p style="margin-top: 1em">CMDNAME <br>
+Either the path to the script or the command name in case of
+binary submission. It will always be sent as part of a job
+verification.</p>
+
+<p style="margin-top: 1em">CONTEXT <br>
+Either &rsquo;client&rsquo; if the JSV which receives this
+param_command was started by a commandline client like qsub,
+qsh, ... or &rsquo;master&rsquo; if it was started by the
+sge_qmaster <br>
+process. It will always be sent as part of a job
+verification. Changing the value of this parameters is not
+possible within JSV instances.</p>
+
+<p style="margin-top: 1em">GROUP Defines Primary group of
+the user which tries to submit the job which should be
+verified. This parameter cannot be changed but is always
+sent as part of the verification <br>
+process. The user name is passed as parameters with the name
+USER.</p>
+
+<p style="margin-top: 1em">JOB_ID Not available in the
+client context (see CONTEXT). Otherwise it contains the job
+number of the job which will be submitted to Grid Engine
+when the verification process is <br>
+successful. JOB_ID is an optional parameter which
+can&rsquo;t be changed by JSV instances.</p>
+
+<p style="margin-top: 1em">USER Username of the user which
+tries to submit the job which should be verified. Cannot be
+changed but is always sent as part of the verification
+process. The group name is <br>
+passed as parameter with the name GROUP</p>
+
+<p style="margin-top: 1em">VERSION <br>
+VERSION will always be sent as part of a job verification
+process and it will always be the first parameter which is
+sent. It will contain a version number of the format <br>
+&lt;major&gt;.&lt;minor&gt;. In version 6.2u2 and higher the
+value will be &rsquo;1.0&rsquo;. The value of this parameter
+can&rsquo;t be changed.</p>
+
+<p style="margin-top: 1em">EXAMPLE <br>
+Here is an example for the communication of a client with a
+JSV instance when following job is submitted:</p>
+
+<p style="margin-top: 1em">&gt; qsub -pe p 3 -hard -l
+a=1,b=5 -soft -l q=all.q
+$SGE_ROOT/examples/jobs/sleeper.sh</p>
+
+<p style="margin-top: 1em">Data in the first column is sent
+from the client/qmaster to the JSV instance. That data
+contained in the second column is sent from the JSV script
+to the client/qmaster. New line <br>
+characters which terminate each line in the communication
+protocol are omitted.</p>
+
+<p style="margin-top: 1em">START <br>
+SEND ENV <br>
+STARTED <br>
+PARAM VERSION 1.0 <br>
+PARAM CONTEXT client <br>
+PARAM CLIENT qsub <br>
+PARAM USER ernst <br>
+PARAM GROUP staff <br>
+PARAM CMDNAME /sge_root/examples/jobs/sleeper.sh <br>
+PARAM CMDARGS 1 <br>
+PARAM CMDARG0 12 <br>
+PARAM l_hard a=1,b=5 <br>
+PARAM l_soft q=all.q <br>
+PARAM M user@hostname <br>
+PARAM N Sleeper <br>
+PARAM o /dev/null <br>
+PARAM pe_name pe1 <br>
+PARAM pe_min 3 <br>
+PARAM pe_max 3 <br>
+PARAM S /bin/sh <br>
+BEGIN <br>
+RESULT STATE ACCEPT</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+sge_intro(1), qalter(1), qlogin(1), qmake(1), qrsh(1),
+qsh(1), qsub(1), qtcsh(1),</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+See sge_intro(1) for a full statement of rights and
+permissions.</p>
+
+<p style="margin-top: 1em">SGE 6.2u5 $Date: 2009/08/25
+19:39:34 $ JSV(1)</p>
+<hr>
+</body>
+</html>

@@ -1,0 +1,1447 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:08:41 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>explain_lca2010(1) General Commands Manual
+explain_lca2010(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+explain_lca2010 - No medium found: when it&rsquo;s time to
+stop trying to read strerror(3)&rsquo;s mind.</p>
+
+<p style="margin-top: 1em">MOTIVATION <br>
+The idea for libexplain occurred to me back in the early
+1980s. Whenever a system call returns an error, the kernel
+knows exactly what went wrong... and compresses this into
+<br>
+less that 8 bits of errno. User space has access to the same
+data as the kernel, it should be possible for user space to
+figure out exactly what happened to provoke the error <br>
+return, and use this to write good error messages.</p>
+
+<p style="margin-top: 1em">Could it be that simple?</p>
+
+<p style="margin-top: 1em">Error messages as finesse <br>
+Good error messages are often those &acirc;one
+percent&acirc; tasks that get dropped when schedule pressure
+squeezes your project. However, a good error message can
+make a huge, dispropor&acirc; <br>
+tionate improvement to the user experience, when the user
+wanders into scarey unknown territory not usually
+encountered. This is no easy task.</p>
+
+<p style="margin-top: 1em">As a larval programmer, the
+author didn&rsquo;t see the problem with (completely
+accurate) error messages like this one: <br>
+floating exception (core dumped) <br>
+until the alternative non&acirc;programmer interpretation
+was pointed out. But that isn&rsquo;t the only thing wrong
+with Unix error messages. How often do you see error
+messages like: <br>
+$ ./stupid <br>
+can&rsquo;t open file <br>
+$ <br>
+There are two options for a developer at this point:</p>
+
+<p style="margin-top: 1em">1. <br>
+you can run a debugger, such as gdb(1), or</p>
+
+<p style="margin-top: 1em">2. <br>
+you can use strace(1) or truss(1) to look inside.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Remember that
+your users may not even have access to these tools, let
+alone the ability to use them. (It&rsquo;s a very long time
+since Unix beginner meant &acirc;has only written one <br>
+device driver&acirc;.)</p>
+
+<p style="margin-top: 1em">In this example, however, using
+strace(1) reveals <br>
+$ strace -e trace=open ./stupid <br>
+open(&quot;some/file&quot;, O_RDONLY) = -1 ENOENT (No such
+file or directory) <br>
+can&rsquo;t open file <br>
+$ <br>
+This is considerably more information than the error message
+provides. Typically, the stupid source code looks like this
+<br>
+int fd = open(&quot;some/thing&quot;, O_RDONLY); <br>
+if (fd &lt; 0) <br>
+{ <br>
+fprintf(stderr, &quot;can&rsquo;t open file0); <br>
+exit(1); <br>
+} <br>
+The user isn&rsquo;t told which file, and also fails to tell
+the user which error. Was the file even there? Was there a
+permissions problem? It does tell you it was trying to open
+a <br>
+file, but that was probably by accident.</p>
+
+<p style="margin-top: 1em">Grab your clue stick and go beat
+the larval programmer with it. Tell him about perror(3). The
+next time you use the program you see a different error
+message: <br>
+$ ./stupid <br>
+open: No such file or directory <br>
+$ <br>
+Progress, but not what we expected. How can the user fix the
+problem if the error message doesn&rsquo;t tell him what the
+problem was? Looking at the source, we see <br>
+int fd = open(&quot;some/thing&quot;, O_RDONLY); <br>
+if (fd &lt; 0) <br>
+{ <br>
+perror(&quot;open&quot;); <br>
+exit(1); <br>
+} <br>
+Time for another run with the clue stick. This time, the
+error message takes one step forward and one step back: <br>
+$ ./stupid <br>
+some/thing: No such file or directory <br>
+$ <br>
+Now we know the file it was trying to open, but are no
+longer informed that it was open(2) that failed. In this
+case it is probably not significant, but it can be
+significant <br>
+for other system calls. It could have been creat(2) instead,
+an operation implying that different permissions are
+necessary. <br>
+const char *filename = &quot;some/thing&quot;; <br>
+int fd = open(filename, O_RDONLY); <br>
+if (fd &lt; 0) <br>
+{ <br>
+perror(filename); <br>
+exit(1); <br>
+} <br>
+The above example code is unfortunately typical of
+non&acirc;larval programmers as well. Time to tell our
+padawan learner about the strerror(3) system call. <br>
+$ ./stupid <br>
+open some/thing: No such file or directory <br>
+$ <br>
+This maximizes the information that can be presented to the
+user. The code looks like this: <br>
+const char *filename = &quot;some/thing&quot;; <br>
+int fd = open(filename, O_RDONLY); <br>
+if (fd &lt; 0) <br>
+{ <br>
+fprintf(stderr, &quot;open %s: %s0, filename,
+strerror(errno)); <br>
+exit(1); <br>
+} <br>
+Now we have the system call, the filename, and the error
+string. This contains all the information that strace(1)
+printed. That&rsquo;s as good as it gets.</p>
+
+<p style="margin-top: 1em">Or is it?</p>
+
+<p style="margin-top: 1em">Limitations of perror and
+strerror <br>
+The problem the author saw, back in the 1980s, was that the
+error message is incomplete. Does &acirc;no such file or
+directory&acirc; refer to the &acirc;some&acirc; directory,
+or to the &acirc;thing&acirc; file <br>
+in the &acirc;some&acirc; directory?</p>
+
+<p style="margin-top: 1em">A quick look at the man page for
+strerror(3) is telling: <br>
+strerror - return string describing error number <br>
+Note well: it is describing the error number, not the
+error.</p>
+
+<p style="margin-top: 1em">On the other hand, the kernel
+knows what the error was. There was a specific point in the
+kernel code, caused by a specific condition, where the
+kernel code branched and said <br>
+&acirc;no&acirc;. Could a user&acirc;space program figure
+out the specific condition and write a better error
+message?</p>
+
+<p style="margin-top: 1em">However, the problem goes
+deeper. What if the problem occurs during the read(2) system
+call, rather than the open(2) call? It is simple for the
+error message associated with <br>
+open(2) to include the file name, it&rsquo;s right there.
+But to be able to include a file name in the error
+associated with the read(2) system call, you have to pass
+the file name <br>
+all the way down the call stack, as well as the file
+descriptor.</p>
+
+<p style="margin-top: 1em">And here is the bit that grates:
+the kernel already knows what file name the file descriptor
+is associated with. Why should a programmer have to pass
+redundant data all the way <br>
+down the call stack just to improve an error message that
+may never be issued? In reality, many programmers
+don&rsquo;t bother, and the resulting error messages are the
+worse for it.</p>
+
+<p style="margin-top: 1em">But that was the 1980s, on a
+PDP11, with limited resources and no shared libraries. Back
+then, no flavor of Unix included /proc even in rudimentary
+form, and the lsof(1) program <br>
+was over a decade away. So the idea was shelved as
+impractical.</p>
+
+<p style="margin-top: 1em">Level Infinity Support <br>
+Imagine that you are level infinity support. Your job
+description says that you never ever have to talk to users.
+Why, then, is there still a constant stream of people
+wanting <br>
+you, the local Unix guru, to decipher yet another error
+message?</p>
+
+<p style="margin-top: 1em">Strangely, 25 years later,
+despite a simple permissions system, implemented with
+complete consistency, most Unix users still have no idea how
+to decode &acirc;No such file or direc&acirc; <br>
+tory&acirc;, or any of the other cryptic error messages they
+see every day. Or, at least, cryptic to them.</p>
+
+<p style="margin-top: 1em">Wouldn&rsquo;t it be nice if
+first level tech support didn&rsquo;t need error messages
+deciphered? Wouldn&rsquo;t it be nice to have error messages
+that users could understand without calling <br>
+tech support?</p>
+
+<p style="margin-top: 1em">These days /proc on Linux is
+more than able to provide the information necessary to
+decode the vast majority of error messages, and point the
+user to the proximate cause of their <br>
+problem. On systems with a limited /proc implementation, the
+lsof(1) command can fill in many of the gaps.</p>
+
+<p style="margin-top: 1em">In 2008, the stream of
+translation requests happened to the author way too often.
+It was time to re&acirc;examine that 25 year old idea, and
+libexplain is the result.</p>
+
+<p style="margin-top: 1em">USING THE LIBRARY <br>
+The interface to the library tries to be consistent, where
+possible. Let&rsquo;s start with an example using
+strerror(3): <br>
+if (rename(old_path, new_path) &lt; 0) <br>
+{ <br>
+fprintf(stderr, &quot;rename %s %s: %s0, old_path, new_path,
+<br>
+strerror(errno)); <br>
+exit(1); <br>
+} <br>
+The idea behind libexplain is to provide a strerror(3)
+equivalent for each system call, tailored specifically to
+that system call, so that it can provide a more detailed
+error <br>
+message, containing much of the information you see under
+the &acirc;ERRORS&acirc; heading of section 2 and 3 man
+pages, supplemented with information about actual
+conditions, actual argu&acirc; <br>
+ment values, and system limits.</p>
+
+<p style="margin-top: 1em">The Simple Case <br>
+The strerror(3) replacement: <br>
+if (rename(old_path, new_path) &lt; 0) <br>
+{ <br>
+fprintf(stderr, &quot;%s0, explain_rename(old_path,
+new_path)); <br>
+exit(1); <br>
+}</p>
+
+<p style="margin-top: 1em">The Errno Case <br>
+It is also possible to pass an explicit errno(3) value, if
+you must first do some processing that would disturb errno,
+such as error recovery: <br>
+if (rename(old_path, new_path &lt; 0)) <br>
+{ <br>
+int old_errno = errno; <br>
+...code that disturbs errno... <br>
+fprintf(stderr, &quot;%s0, explain_errno_rename(old_errno,
+<br>
+old_path, new_path)); <br>
+exit(1); <br>
+}</p>
+
+<p style="margin-top: 1em">The Multi&acirc;thread Cases
+<br>
+Some applications are multi&acirc;threaded, and thus are
+unable to share libexplain&rsquo;s internal buffer. You can
+supply your own buffer using <br>
+if (unlink(pathname)) <br>
+{ <br>
+char message[3000]; <br>
+explain_message_unlink(message, sizeof(message), pathname);
+<br>
+error_dialog(message); <br>
+return -1; <br>
+} <br>
+And for completeness, both errno(3) and thread&acirc;safe:
+<br>
+ssize_t nbytes = read(fd, data, sizeof(data)); <br>
+if (nbytes &lt; 0) <br>
+{ <br>
+char message[3000]; <br>
+int old_errno = errno; <br>
+...error recovery... <br>
+explain_message_errno_read(message, sizeof(message), <br>
+old_errno, fd, data, sizeof(data)); <br>
+error_dialog(message); <br>
+return -1; <br>
+}</p>
+
+<p style="margin-top: 1em">These are replacements for
+strerror_r(3), on systems that have it.</p>
+
+<p style="margin-top: 1em">Interface Sugar <br>
+A set of functions added as convenience functions, to woo
+programmers to use the libexplain library, turn out to be
+the author&rsquo;s most commonly used libexplain functions
+in com&acirc; <br>
+mand line programs: <br>
+int fd = explain_creat_or_die(filename, 0666); <br>
+This function attempts to create a new file. If it
+can&rsquo;t, it prints an error message and exits with
+EXIT_FAILURE. If there is no error, it returns the new file
+descriptor.</p>
+
+<p style="margin-top: 1em">A related function: <br>
+int fd = explain_creat_on_error(filename, 0666); <br>
+will print the error message on failure, but also returns
+the original error result, and errno(3) is unmolested, as
+well.</p>
+
+<p style="margin-top: 1em">All the other system calls <br>
+In general, every system call has its own include file <br>
+#include &lt;libexplain/name.h&gt; <br>
+that defines function prototypes for six functions:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+explain_name,</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+explain_errno_name,</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+explain_message_name,</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+explain_message_errno_name,</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+explain_name_or_die and</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+explain_name_on_error.</p>
+
+<p style="margin-top: 1em">Every function prototype has
+Doxygen documentation, and this documentation is not
+stripped when the include files are installed.</p>
+
+<p style="margin-top: 1em">The wait(2) system call (and
+friends) have some extra variants that also interpret
+failure to be an exit status that isn&rsquo;t EXIT_SUCCESS.
+This applies to system(3) and pclose(3) <br>
+as well.</p>
+
+<p style="margin-top: 1em">Coverage includes 221 system
+calls and 547 ioctl requests. There are many more system
+calls yet to implement. System calls that never return, such
+as exit(2), are not present <br>
+in the library, and will never be. The exec family of system
+calls are supported, because they return when there is an
+error.</p>
+
+<p style="margin-top: 1em">Cat <br>
+This is what a hypothetical &acirc;cat&acirc; program could
+look like, with full error reporting, using libexplain. <br>
+#include &lt;libexplain/libexplain.h&gt; <br>
+#include &lt;stdlib.h&gt; <br>
+#include &lt;unistd.h&gt; <br>
+There is one include for libexplain, plus the usual
+suspects. (If you wish to reduce the preprocessor load, you
+can use the specific &lt;libexplain/name.h&gt; includes.)
+<br>
+static void <br>
+process(FILE *fp) <br>
+{ <br>
+for (;;) <br>
+{ <br>
+char buffer[4096]; <br>
+size_t n = explain_fread_or_die(buffer, 1, sizeof(buffer),
+fp); <br>
+if (!n) <br>
+break; <br>
+explain_fwrite_or_die(buffer, 1, n, stdout); <br>
+} <br>
+} <br>
+The process function copies a file stream to the standard
+output. Should an error occur for either reading or writing,
+it is reported (and the pathname will be included in the
+<br>
+error) and the command exits with EXIT_FAILURE. We
+don&rsquo;t even worry about tracking the pathnames, or
+passing them down the call stack. <br>
+int <br>
+main(int argc, char **argv) <br>
+{ <br>
+for (;;) <br>
+{ <br>
+int c = getopt(argc, argv, &quot;o:&quot;); <br>
+if (c == EOF) <br>
+break; <br>
+switch (c) <br>
+{ <br>
+case &rsquo;o&rsquo;: <br>
+explain_freopen_or_die(optarg, &quot;w&quot;, stdout); <br>
+break; <br>
+The fun part of this code is that libexplain can report
+errors including the pathname even if you don&rsquo;t
+explicitly re&acirc;open stdout as is done here. We
+don&rsquo;t even worry about <br>
+tracking the file name. <br>
+default: <br>
+fprintf(stderr, &quot;Usage: %ss [ -o &lt;filename&gt; ]
+&lt;filename&gt;...0, <br>
+argv[0]); <br>
+return EXIT_FAILURE; <br>
+} <br>
+} <br>
+if (optind == argc) <br>
+process(stdin); <br>
+else <br>
+{ <br>
+while (optind &lt; argc) <br>
+{ <br>
+FILE *fp = explain_fopen_or_die(argv[optind]++,
+&quot;r&quot;); <br>
+process(fp); <br>
+explain_fclose_or_die(fp); <br>
+} <br>
+} <br>
+The standard output will be closed implicitly, but too late
+for an error report to be issued, so we do that here, just
+in case the buffered I/O hasn&rsquo;t written anything yet,
+and <br>
+there is an ENOSPC error or something. <br>
+explain_fflush_or_die(stdout); <br>
+return EXIT_SUCCESS; <br>
+} <br>
+That&rsquo;s all. Full error reporting, clear code.</p>
+
+<p style="margin-top: 1em">Rusty&rsquo;s Scale of Interface
+Goodness <br>
+For those of you not familiar with it, Rusty Russel&rsquo;s
+&acirc;How Do I Make This Hard to Misuse?&acirc; page is a
+must&acirc;read for API designers. <br>
+
+http://ozlabs.org/~rusty/index.cgi/tech/2008&acirc;03&acirc;30.html</p>
+
+<p style="margin-top: 1em">10. It&rsquo;s impossible to get
+wrong.</p>
+
+<p style="margin-top: 1em">Goals need to be set high,
+ambitiously high, lest you accomplish them and think you are
+finished when you are not.</p>
+
+<p style="margin-top: 1em">The libexplain library detects
+bogus pointers and many other bogus system call parameters,
+and generally tries to avoid segfaults in even the most
+trying circumstances.</p>
+
+<p style="margin-top: 1em">The libexplain library is
+designed to be thread safe. More real&acirc;world use will
+likely reveal places this can be improved.</p>
+
+<p style="margin-top: 1em">The biggest problem is with the
+actual function names themselves. Because C does not have
+name&acirc;spaces, the libexplain library always uses an
+explain_ name prefix. This is the <br>
+traditional way of creating a pseudo&acirc;name&acirc;space
+in order to avoid symbol conflicts. However, it results in
+some unnatural&acirc;sounding names.</p>
+
+<p style="margin-top: 1em">9. The compiler or linker
+won&rsquo;t let you get it wrong.</p>
+
+<p style="margin-top: 1em">A common mistake is to use
+explain_open where explain_open_or_die was intended.
+Fortunately, the compiler will often issue a type error at
+this point (e.g. can&rsquo;t assign const <br>
+char * rvalue to an int lvalue).</p>
+
+<p style="margin-top: 1em">8. The compiler will warn if you
+get it wrong.</p>
+
+<p style="margin-top: 1em">If explain_rename is used when
+explain_rename_or_die was intended, this can cause other
+problems. GCC has a useful warn_unused_result function
+attribute, and the libexplain <br>
+library attaches it to all the explain_name function calls
+to produce a warning when you make this mistake. Combine
+this with gcc -Werror to promote this to level 9
+goodness.</p>
+
+<p style="margin-top: 1em">7. The obvious use is (probably)
+the correct one.</p>
+
+<p style="margin-top: 1em">The function names have been
+chosen to convey their meaning, but this is not always
+successful. While explain_name_or_die and
+explain_name_on_error are fairly descriptive, the <br>
+less&acirc;used thread safe variants are harder to decode.
+The function prototypes help the compiler towards
+understanding, and the Doxygen comments in the header files
+help the user <br>
+towards understanding.</p>
+
+<p style="margin-top: 1em">6. The name tells you how to use
+it.</p>
+
+<p style="margin-top: 1em">It is particularly important to
+read explain_name_or_die as &acirc;explain (name or
+die)&acirc;. Using a consistent explain_ name&acirc;space
+prefix has some unfortunate side&acirc;effects in the
+obvi&acirc; <br>
+ousness department, as well.</p>
+
+<p style="margin-top: 1em">The order of words in the names
+also indicate the order of the arguments. The argument lists
+always end with the same arguments as passed to the system
+call; all of them. If <br>
+_errno_ appears in the name, its argument always precedes
+the system call arguments. If _message_ appears in the name,
+its two arguments always come first.</p>
+
+<p style="margin-top: 1em">5. Do it right or it will break
+at runtime.</p>
+
+<p style="margin-top: 1em">The libexplain library detects
+bogus pointers and many other bogus system call parameters,
+and generally tries to avoid segfaults in even the most
+trying circumstances. It <br>
+should never break at runtime, but more real&acirc;world use
+will no doubt improve this.</p>
+
+<p style="margin-top: 1em">Some error messages are aimed at
+developers and maintainers rather than end users, as this
+can assist with bug resolution. Not so much &acirc;break at
+runtime&acirc; as &acirc;be informative at <br>
+runtime&acirc; (after the system call barfs).</p>
+
+<p style="margin-top: 1em">4. Follow common convention and
+you&rsquo;ll get it right.</p>
+
+<p style="margin-top: 1em">Because C does not have
+name&acirc;spaces, the libexplain library always uses an
+explain_ name prefix. This is the traditional way of
+creating a pseudo&acirc;name&acirc;space in order to avoid
+<br>
+symbol conflicts.</p>
+
+<p style="margin-top: 1em">The trailing arguments of all
+the libexplain call are identical to the system call they
+are describing. This is intended to provide a consistent
+convention in common with the <br>
+system calls themselves.</p>
+
+<p style="margin-top: 1em">3. Read the documentation and
+you&rsquo;ll get it right.</p>
+
+<p style="margin-top: 1em">The libexplain library aims to
+have complete Doxygen documentation for each and every
+public API call (and internally as well).</p>
+
+<p style="margin-top: 1em">MESSAGE CONTENT <br>
+Working on libexplain is a bit like looking at the underside
+of your car when it is up on the hoist at the
+mechanic&rsquo;s. There&rsquo;s some ugly stuff under there,
+plus mud and crud, <br>
+and users rarely see it. A good error message needs to be
+informative, even for a user who has been fortunate enough
+not to have to look at the under&acirc;side very often, and
+also <br>
+informative for the mechanic listening to the user&rsquo;s
+description over the phone. This is no easy task.</p>
+
+<p style="margin-top: 1em">Revisiting our first example,
+the code would like this if it uses libexplain: <br>
+int fd = explain_open_or_die(&quot;some/thing&quot;,
+O_RDONLY, 0); <br>
+will fail with an error message like this <br>
+open(pathname = &quot;some/file&quot;, flags = O_RDONLY)
+failed, No such file or directory (2, ENOENT) because there
+is no &quot;some&quot; directory in the current directory
+<br>
+This breaks down into three pieces <br>
+system&acirc;call failed, system&acirc;error because <br>
+explanation</p>
+
+<p style="margin-top: 1em">Before Because <br>
+It is possible to see the part of the message before
+&acirc;because&acirc; as overly technical to
+non&acirc;technical users, mostly as a result of accurately
+printing the system call itself at the <br>
+beginning of the error message. And it looks like strace(1)
+output, for bonus geek points. <br>
+open(pathname = &quot;some/file&quot;, flags = O_RDONLY)
+failed, No such file or directory (2, ENOENT) <br>
+This part of the error message is essential to the developer
+when he is writing the code, and equally important to the
+maintainer who has to read bug reports and fix bugs in the
+<br>
+code. It says exactly what failed.</p>
+
+<p style="margin-top: 1em">If this text is not presented to
+the user then the user cannot copy&acirc;and&acirc;paste it
+into a bug report, and if it isn&rsquo;t in the bug report
+the maintainer can&rsquo;t know what actually went <br>
+wrong.</p>
+
+<p style="margin-top: 1em">Frequently tech staff will use
+strace(1) or truss(1) to get this exact information, but
+this avenue is not open when reading bug reports. The bug
+reporter&rsquo;s system is far far <br>
+away, and, by now, in a far different state. Thus, this
+information needs to be in the bug report, which means it
+must be in the error message.</p>
+
+<p style="margin-top: 1em">The system call representation
+also gives context to the rest of the message. If need
+arises, the offending system call argument may be referred
+to by name in the explanation <br>
+after &acirc;because&acirc;. In addition, all strings are
+fully quoted and escaped C strings, so embedded newlines and
+non&acirc;printing characters will not cause the
+user&rsquo;s terminal to go hay&acirc; <br>
+wire.</p>
+
+<p style="margin-top: 1em">The system&acirc;error is what
+comes out of strerror(2), plus the error symbol. Impatient
+and expert sysadmins could stop reading at this point, but
+the author&rsquo;s experience to date is <br>
+that reading further is rewarding. (If it isn&rsquo;t
+rewarding, it&rsquo;s probably an area of libexplain that
+can be improved. Code contributions are welcome, of
+course.)</p>
+
+<p style="margin-top: 1em">After Because <br>
+This is the portion of the error message aimed at
+non&acirc;technical users. It looks beyond the simple system
+call arguments, and looks for something more specific. <br>
+there is no &quot;some&quot; directory in the current
+directory <br>
+This portion attempts to explain the proximal cause of the
+error in plain language, and it is here that
+internationalization is essential.</p>
+
+<p style="margin-top: 1em">In general, the policy is to
+include as much information as possible, so that the user
+doesn&rsquo;t need to go looking for it (and doesn&rsquo;t
+leave it out of the bug report).</p>
+
+<p style="margin-top: 1em">Internationalization <br>
+Most of the error messages in the libexplain library have
+been internationalized. There are no localizations as yet,
+so if you want the explanations in your native language,
+<br>
+please contribute.</p>
+
+<p style="margin-top: 1em">The &acirc;most of&acirc;
+qualifier, above, relates to the fact that the
+proof&acirc;of&acirc;concept implementation did not include
+internationalization support. The code base is being revised
+pro&acirc; <br>
+gressively, usually as a result of refactoring messages so
+that each error message string appears in the code exactly
+once.</p>
+
+<p style="margin-top: 1em">Provision has been made for
+languages that need to assemble the portions of <br>
+system&acirc;call failed, system&acirc;error because
+explanation <br>
+in different orders for correct grammar in localized error
+messages.</p>
+
+<p style="margin-top: 1em">Postmortem <br>
+There are times when a program has yet to use libexplain,
+and you can&rsquo;t use strace(1) either. There is an
+explain(1) command included with libexplain that can be used
+to deci&acirc; <br>
+pher error messages, if the state of the underlying system
+hasn&rsquo;t changed too much. <br>
+$ explain rename foo /tmp/bar/baz -e ENOENT <br>
+rename(oldpath = &quot;foo&quot;, newpath =
+&quot;/tmp/bar/baz&quot;) failed, No such file or directory
+(2, ENOENT) because there is no &quot;bar&quot; directory in
+the newpath &quot;/tmp&quot; directory <br>
+$ <br>
+Note how the path ambiguity is resolved by using the system
+call argument name. Of course, you have to know the error
+and the system call for explain(1) to be useful. As an <br>
+aside, this is one of the ways used by the libexplain
+automatic test suite to verify that libexplain is
+working.</p>
+
+<p style="margin-top: 1em">Philosophy <br>
+&acirc;Tell me everything, including stuff I didn&rsquo;t
+know to look for.&acirc;</p>
+
+<p style="margin-top: 1em">The library is implemented in
+such a way that when statically linked, only the code you
+actually use will be linked. This is achieved by having one
+function per source file, <br>
+whenever feasible.</p>
+
+<p style="margin-top: 1em">When it is possible to supply
+more information, libexplain will do so. The less the user
+has to track down for themselves, the better. This means
+that UIDs are accompanied by <br>
+the user name, GIDs are accompanied by the group name, PIDs
+are accompanied by the process name, file descriptors and
+streams are accompanied by the pathname, etc.</p>
+
+<p style="margin-top: 1em">When resolving paths, if a path
+component does not exist, libexplain will look for similar
+names, in order to suggest alternatives for typographical
+errors.</p>
+
+<p style="margin-top: 1em">The libexplain library tries to
+use as little heap as possible, and usually none. This is to
+avoid perturbing the process state, as far as possible,
+although sometimes it is <br>
+unavoidable.</p>
+
+<p style="margin-top: 1em">The libexplain library attempts
+to be thread safe, by avoiding global variables, keeping
+state on the stack as much as possible. There is a single
+common message buffer, and the <br>
+functions that use it are documented as not being thread
+safe.</p>
+
+<p style="margin-top: 1em">The libexplain library does not
+disturb a process&rsquo;s signal handlers. This makes
+determining whether a pointer would segfault a challenge,
+but not impossible.</p>
+
+<p style="margin-top: 1em">When information is available
+via a system call as well as available through a /proc
+entry, the system call is preferred. This is to avoid
+disturbing the process&rsquo;s state. There <br>
+are also times when no file descriptors are available.</p>
+
+<p style="margin-top: 1em">The libexplain library is
+compiled with large file support. There is no large/small
+schizophrenia. Where this affects the argument types in the
+API, and error will be issued if <br>
+the necessary large file defines are absent.</p>
+
+<p style="margin-top: 1em">FIXME: Work is needed to make
+sure that file system quotas are handled in the code. This
+applies to some getrlimit(2) boundaries, as well.</p>
+
+<p style="margin-top: 1em">There are cases when relatives
+paths are uninformative. For example: system daemons,
+servers and background processes. In these cases, absolute
+paths are used in the error <br>
+explanations.</p>
+
+<p style="margin-top: 1em">PATH RESOLUTION <br>
+Short version: see path_resolution(7).</p>
+
+<p style="margin-top: 1em">Long version: Most users have
+never heard of path_resolution(7), and many advanced users
+have never read it. Here is an annotated version:</p>
+
+<p style="margin-top: 1em">Step 1: Start of the resolution
+process <br>
+If the pathname starts with the slash (&acirc;/&acirc;)
+character, the starting lookup directory is the root
+directory of the calling process.</p>
+
+<p style="margin-top: 1em">If the pathname does not start
+with the slash(&acirc;/&acirc;) character, the starting
+lookup directory of the resolution process is the current
+working directory of the process.</p>
+
+<p style="margin-top: 1em">Step 2: Walk along the path <br>
+Set the current lookup directory to the starting lookup
+directory. Now, for each non&acirc;final component of the
+pathname, where a component is a substring delimited by
+slash (&acirc;/&acirc;) <br>
+characters, this component is looked up in the current
+lookup directory.</p>
+
+<p style="margin-top: 1em">If the process does not have
+search permission on the current lookup directory, an EACCES
+error is returned (&quot;Permission denied&quot;). <br>
+open(pathname = &quot;/home/archives/.ssh/private_key&quot;,
+flags = O_RDONLY) failed, Permission denied (13, EACCES)
+because the process does not have search permission to the
+<br>
+pathname &quot;/home/archives/.ssh&quot; directory, the
+process effective GID 1000 &quot;pmiller&quot; does not
+match the directory owner 1001 &quot;archives&quot; so the
+owner permission mode &quot;rwx&quot; is <br>
+ignored, the others permission mode is &quot;---&quot;, and
+the process is not privileged (does not have the
+DAC_READ_SEARCH capability)</p>
+
+<p style="margin-top: 1em">If the component is not found,
+an ENOENT error is returned (&quot;No such file or
+directory&quot;). <br>
+unlink(pathname = &quot;/home/microsoft/rubbish&quot;)
+failed, No such file or directory (2, ENOENT) because there
+is no &quot;microsoft&quot; directory in the pathname
+&quot;/home&quot; directory</p>
+
+<p style="margin-top: 1em">There is also some support for
+users when they mis&acirc;type pathnames, making suggestions
+when ENOENT is returned: <br>
+open(pathname = &quot;/user/include/fcntl.h&quot;, flags =
+O_RDONLY) failed, No such file or directory (2, ENOENT)
+because there is no &quot;user&quot; directory in the
+pathname &quot;/&quot; direc&acirc; <br>
+tory, did you mean the &quot;usr&quot; directory
+instead?</p>
+
+<p style="margin-top: 1em">If the component is found, but
+is neither a directory nor a symbolic link, an ENOTDIR error
+is returned (&quot;Not a directory&quot;). <br>
+open(pathname = &quot;/home/pmiller/.netrc/lca&quot;, flags
+= O_RDONLY) failed, Not a directory (20, ENOTDIR) because
+the &quot;.netrc&quot; regular file in the pathname
+&quot;/home/pmiller&quot; <br>
+directory is being used as a directory when it is not</p>
+
+<p style="margin-top: 1em">If the component is found and is
+a directory, we set the current lookup directory to that
+directory, and go to the next component.</p>
+
+<p style="margin-top: 1em">If the component is found and is
+a symbolic link (symlink), we first resolve this symbolic
+link (with the current lookup directory as starting lookup
+directory). Upon error, <br>
+that error is returned. If the result is not a directory, an
+ENOTDIR error is returned. <br>
+unlink(pathname = &quot;/tmp/dangling/rubbish&quot;) failed,
+No such file or directory (2, ENOENT) because the
+&quot;dangling&quot; symbolic link in the pathname
+&quot;/tmp&quot; directory refers to <br>
+&quot;nowhere&quot; that does not exist <br>
+If the resolution of the symlink is successful and returns a
+directory, we set the current lookup directory to that
+directory, and go to the next component. Note that the
+reso&acirc; <br>
+lution process here involves recursion. In order to protect
+the kernel against stack overflow, and also to protect
+against denial of service, there are limits on the maximum
+<br>
+recursion depth, and on the maximum number of symbolic links
+followed. An ELOOP error is returned when the maximum is
+exceeded (&quot;Too many levels of symbolic links&quot;).
+<br>
+open(pathname = &quot;/tmp/dangling&quot;, flags = O_RDONLY)
+failed, Too many levels of symbolic links (40, ELOOP)
+because a symbolic link loop was encountered in pathname,
+starting <br>
+at &quot;/tmp/dangling&quot; <br>
+It is also possible to get an ELOOP or EMLINK error if there
+are too many symlinks, but no loop was detected. <br>
+open(pathname = &quot;/tmp/rabbit&acirc;hole&quot;, flags =
+O_RDONLY) failed, Too many levels of symbolic links (40,
+ELOOP) because too many symbolic links were encountered in
+pathname <br>
+(8) <br>
+Notice how the actual limit is also printed.</p>
+
+<p style="margin-top: 1em">Step 3: Find the final entry
+<br>
+The lookup of the final component of the pathname goes just
+like that of all other components, as described in the
+previous step, with two differences:</p>
+
+<p style="margin-top: 1em">(i) The final component need not
+be a directory (at least as far as the path resolution
+process is concerned. It may have to be a directory, or a
+non&acirc;directory, because of the <br>
+requirements of the specific system call).</p>
+
+<p style="margin-top: 1em">(ii) <br>
+It is not necessarily an error if the final component is not
+found; maybe we are just creating it. The details on the
+treatment of the final entry are described in the man&acirc;
+<br>
+ual pages of the specific system calls.</p>
+
+<p style="margin-top: 1em">(iii) <br>
+It is also possible to have a problem with the last
+component if it is a symbolic link and it should not be
+followed. For example, using the open(2) O_NOFOLLOW flag:
+<br>
+open(pathname = &quot;a&acirc;symlink&quot;, flags =
+O_RDONLY | O_NOFOLLOW) failed, Too many levels of symbolic
+links (ELOOP) because O_NOFOLLOW was specified but pathname
+refers to a sym&acirc; <br>
+bolic link</p>
+
+<p style="margin-top: 1em">(iv) <br>
+It is common for users to make mistakes when typing
+pathnames. The libexplain library attempts to make
+suggestions when ENOENT is returned, for example: <br>
+open(pathname = &quot;/usr/include/filecontrl.h&quot;, flags
+= O_RDONLY) failed, No such file or directory (2, ENOENT)
+because there is no &quot;filecontrl.h&quot; regular file in
+the pathname <br>
+&quot;/usr/include&quot; directory, did you mean the
+&quot;fcntl.h&quot; regular file instead?</p>
+
+<p style="margin-top: 1em">(v) It is also possible that the
+final component is required to be something other than a
+regular file: <br>
+readlink(pathname = &quot;just&acirc;a&acirc;file&quot;,
+data = 0x7F930A50, data_size = 4097) failed, Invalid
+argument (22, EINVAL) because pathname is a regular file,
+not a symbolic link</p>
+
+<p style="margin-top: 1em">(vi) <br>
+FIXME: handling of the &quot;t&quot; bit.</p>
+
+<p style="margin-top: 1em">Limits <br>
+There are a number of limits with regards to pathnames and
+filenames.</p>
+
+<p style="margin-top: 1em">Pathname length limit <br>
+There is a maximum length for pathnames. If the pathname (or
+some intermediate pathname obtained while resolving symbolic
+links) is too long, an ENAMETOOLONG error is <br>
+returned (&quot;File name too long&quot;). Notice how the
+system limit is included in the error message. <br>
+open(pathname = &quot;very...long&quot;, flags = O_RDONLY)
+failed, File name too long (36, ENAMETOOLONG) because
+pathname exceeds the system maximum path length (4096)</p>
+
+<p style="margin-top: 1em">Filename length limit <br>
+Some Unix variants have a limit on the number of bytes in
+each path component. Some of them deal with this silently,
+and some give ENAMETOOLONG; the libexplain library <br>
+uses pathconf(3) _PC_NO_TRUNC to tell which. If this error
+happens, the libexplain library will state the limit in the
+error message, the limit is obtained from path&acirc; <br>
+conf(3) _PC_NAME_MAX. Notice how the system limit is
+included in the error message. <br>
+open(pathname = &quot;system7/only-had-14-characters&quot;,
+flags = O_RDONLY) failed, File name too long (36,
+ENAMETOOLONG) because &quot;only-had-14-characters&quot;
+component is longer <br>
+than the system limit (14)</p>
+
+<p style="margin-top: 1em">Empty pathname <br>
+In the original Unix, the empty pathname referred to the
+current directory. Nowadays POSIX decrees that an empty
+pathname must not be resolved successfully. <br>
+open(pathname = &quot;&quot;, flags = O_RDONLY) failed, No
+such file or directory (2, ENOENT) because POSIX decrees
+that an empty pathname must not be resolved successfully</p>
+
+<p style="margin-top: 1em">Permissions <br>
+The permission bits of a file consist of three groups of
+three bits. The first group of three is used when the
+effective user ID of the calling process equals the owner ID
+of <br>
+the file. The second group of three is used when the group
+ID of the file either equals the effective group ID of the
+calling process, or is one of the supplementary group IDs
+<br>
+of the calling process. When neither holds, the third group
+is used. <br>
+open(pathname = &quot;/etc/passwd&quot;, flags = O_WRONLY)
+failed, Permission denied (13, EACCES) because the process
+does not have write permission to the &quot;passwd&quot;
+regular file in <br>
+the pathname &quot;/etc&quot; directory, the process
+effective UID 1000 &quot;pmiller&quot; does not match the
+regular file owner 0 &quot;root&quot; so the owner
+permission mode &quot;rw-&quot; is ignored, the <br>
+others permission mode is &quot;r--&quot;, and the process
+is not privileged (does not have the DAC_OVERRIDE
+capability) <br>
+Some considerable space is given to this explanation, as
+most users do not know that this is how the permissions
+system works. In particular: the owner, group and other
+permis&acirc; <br>
+sions are exclusive, they are not &acirc;OR&acirc;ed
+together.</p>
+
+<p style="margin-top: 1em">STRANGE AND INTERESTING SYSTEM
+CALLS <br>
+The process of writing a specific error handler for each
+system call often reveals interesting quirks and boundary
+conditions, or obscure errno(3) values.</p>
+
+<p style="margin-top: 1em">ENOMEDIUM, No medium found <br>
+The act of copying a CD was the source of the title for this
+paper. <br>
+$ dd if=/dev/cdrom of=fubar.iso <br>
+dd: opening &acirc;/dev/cdrom&acirc;: No medium found <br>
+$ <br>
+The author wondered why his computer was telling him there
+is no such thing as a psychic medium. Quite apart from the
+fact that huge numbers of native English speakers are not
+<br>
+even aware that &acirc;media&acirc; is a plural, let alone
+that &acirc;medium&acirc; is its singular, the string
+returned by strerror(3) for ENOMEDIUM is so terse as to be
+almost completely free of con&acirc; <br>
+tent.</p>
+
+<p style="margin-top: 1em">When open(2) returns ENOMEDIUM
+it would be nice if the libexplain library could expand a
+little on this, based on the type of drive it is. For
+example: <br>
+... because there is no disk in the floppy drive <br>
+... because there is no disc in the CD&acirc;ROM drive <br>
+... because there is no tape in the tape drive <br>
+... because there is no memory stick in the card reader</p>
+
+<p style="margin-top: 1em">And so it came to pass... <br>
+open(pathname = &quot;/dev/cdrom&quot;, flags = O_RDONLY)
+failed, No medium found (123, ENOMEDIUM) because there does
+not appear to be a disc in the CD&acirc;ROM drive <br>
+The trick, that the author was previously unaware of, was to
+open the device using the O_NONBLOCK flag, which will allow
+you to open a drive with no medium in it. You then issue
+<br>
+device specific ioctl(2) requests until you figure out what
+the heck it is. (Not sure if this is POSIX, but it also
+seems to work that way in BSD and Solaris, according to the
+<br>
+wodim(1) sources.)</p>
+
+<p style="margin-top: 1em">Note also the differing uses of
+&acirc;disk&acirc; and &acirc;disc&acirc; in context. The CD
+standard originated in France, but everything else has a
+&acirc;k&acirc;.</p>
+
+<p style="margin-top: 1em">EFAULT, Bad address <br>
+Any system call that takes a pointer argument can return
+EFAULT. The libexplain library can figure out which argument
+is at fault, and it does it without disturbing the process
+<br>
+(or thread) signal handling.</p>
+
+<p style="margin-top: 1em">When available, the mincore(2)
+system call is used, to ask if the memory region is valid.
+It can return three results: mapped but not in physical
+memory, mapped and in physical <br>
+memory, and not mapped. When testing the validity of a
+pointer, the first two are &acirc;yes&acirc; and the last
+one is &acirc;no&acirc;.</p>
+
+<p style="margin-top: 1em">Checking C strings are more
+difficult, because instead of a pointer and a size, we only
+have a pointer. To determine the size we would have to find
+the NUL, and that could seg&acirc; <br>
+fault, catch&acirc;22.</p>
+
+<p style="margin-top: 1em">To work around this, the
+libexplain library uses the lstat(2) sysem call (with a
+known good second argument) to test C strings for validity.
+A failure return &amp;&amp; errno == EFAULT <br>
+is a &acirc;no&acirc;, and anythng else is a
+&acirc;yes&acirc;. This, of course limits strings to
+PATH_MAX characters, but that usually isn&rsquo;t a problem
+for the libexplain library, because that is <br>
+almost always the longest strings it cares about.</p>
+
+<p style="margin-top: 1em">EMFILE, Too many open files <br>
+This error occurs when a process already has the maximum
+number of file descriptors open. If the actual limit is to
+be printed, and the libexplain library tries to, you
+can&rsquo;t <br>
+open a file in /proc to read what it is. <br>
+open_max = sysconf(_SC_OPEN_MAX); <br>
+This one wan&rsquo;t so difficult, there is a sysconf(3) way
+of obtaining the limit.</p>
+
+<p style="margin-top: 1em">ENFILE, Too many open files in
+system <br>
+This error occurs when the system limit on the total number
+of open files has been reached. In this case there is no
+handy sysconf(3) way of obtain the limit.</p>
+
+<p style="margin-top: 1em">Digging deeper, one may discover
+that on Linux there is a /proc entry we could read to obtain
+this value. Catch&acirc;22: we are out of file descriptors,
+so we can&rsquo;t open a file to <br>
+read the limit.</p>
+
+<p style="margin-top: 1em">On Linux there is a system call
+to obtain it, but it has no [e]glibc wrapper function, so
+you have to all it very carefully: <br>
+long <br>
+explain_maxfile(void) <br>
+{ <br>
+#ifdef __linux__ <br>
+struct __sysctl_args args; <br>
+int32_t maxfile; <br>
+size_t maxfile_size = sizeof(maxfile); <br>
+int name[] = { CTL_FS, FS_MAXFILE }; <br>
+memset(&amp;args, 0, sizeof(struct __sysctl_args)); <br>
+args.name = name; <br>
+args.nlen = 2; <br>
+args.oldval = &amp;maxfile; <br>
+args.oldlenp = &amp;maxfile_size; <br>
+if (syscall(SYS__sysctl, &amp;args) &gt;= 0) <br>
+return maxfile; <br>
+#endif <br>
+return -1; <br>
+} <br>
+This permits the limit to be included in the error message,
+when available.</p>
+
+<p style="margin-top: 1em">EINVAL &acirc;Invalid
+argument&acirc; vs ENOSYS &acirc;Function not
+implemented&acirc; <br>
+Unsupported actions (such as symlink(2) on a FAT file
+system) are not reported consistently from one system call
+to the next. It is possible to have either EINVAL or ENOSYS
+<br>
+returned.</p>
+
+<p style="margin-top: 1em">As a result, attention must be
+paid to these error cases to get them right, particularly as
+the EINVAL could also be referring to problems with one or
+more system call arguments.</p>
+
+<p style="margin-top: 1em">Note that errno(3) is not always
+set <br>
+There are times when it is necessary to read the [e]glibc
+sources to determine how and when errors are returned for
+some system calls.</p>
+
+<p style="margin-top: 1em">feof(3), fileno(3) <br>
+It is often assumed that these functions cannot return an
+error. This is only true if the stream argument is valid,
+however they are capable of detecting an invalid
+pointer.</p>
+
+<p style="margin-top: 1em">fpathconf(3), pathconf(3) <br>
+The return value of fpathconf(2) and pathconf(2) could
+legitimately be -1, so it is necessary to see if errno(3)
+has been explicitly set.</p>
+
+<p style="margin-top: 1em">ioctl(2) <br>
+The return value of ioctl(2) could legitimately be -1, so it
+is necessary to see if errno(3) has been explicitly set.</p>
+
+<p style="margin-top: 1em">readdir(3) <br>
+The return value of readdir(3) is NULL for both errors and
+end&acirc;of&acirc;file. It is necessary to see if errno(3)
+has been explicitly set.</p>
+
+<p style="margin-top: 1em">setbuf(3), setbuffer(3),
+setlinebuf(3), setvbuf(3) <br>
+All but the last of these functions return void. And
+setvbuf(3) is only documented as returning
+&acirc;non&acirc;zero&acirc; on error. It is necessary to
+see if errno(3) has been explicitly <br>
+set.</p>
+
+<p style="margin-top: 1em">strtod(3), strtol(3),
+strtold(3), strtoll(3), strtoul(3), strtoull(3) <br>
+These functions return 0 on error, but that is also a
+legitimate return value. It is necessary to see if errno(3)
+has been explicitly set.</p>
+
+<p style="margin-top: 1em">ungetc(3) <br>
+While only a single character of backup is mandated by the
+ANSI C standard, it turns out that [e]glibc permits more...
+but that means it can fail with ENOMEM. It can also <br>
+fail with EBADF if fp is bogus. Most difficult of all, if
+you pass EOF an error return occurs, but errno is not
+set.</p>
+
+<p style="margin-top: 1em">The libexplain library detects
+all of these errors correctly, even in cases where the error
+values are poorly documented, if at all.</p>
+
+<p style="margin-top: 1em">ENOSPC, No space left on device
+<br>
+When this error refers to a file on a file system, the
+libexplain library prints the mount point of the file system
+with the problem. This can make the source of the error much
+<br>
+clearer. <br>
+write(fildes = 1 &quot;example&quot;, data = 0xbfff2340,
+data_size = 5) failed, No space left on device (28, ENOSPC)
+because the file system containing fildes
+(&quot;/home&quot;) has no more <br>
+space for data <br>
+As more special device support is added, error messages are
+expected to include the device name and actual size of the
+device.</p>
+
+<p style="margin-top: 1em">EROFS, Read&acirc;only file
+system <br>
+When this error refers to a file on a file system, the
+libexplain library prints the mount point of the file system
+with the problem. This can make the source of the error much
+<br>
+clearer.</p>
+
+<p style="margin-top: 1em">As more special device support
+is added, error messages are expected to include the device
+name and type. <br>
+open(pathname = &quot;/dev/fd0&quot;, O_RDWR, 0666) failed,
+Read&acirc;only file system (30, EROFS) because the floppy
+disk has the write protect tab set</p>
+
+<p style="margin-top: 1em">...because a CD&acirc;ROM is not
+writable <br>
+...because the memory card has the write protect tab set
+<br>
+...because the &Acirc;&frac12; inch magnetic tape does not
+have a write ring</p>
+
+<p style="margin-top: 1em">rename <br>
+The rename(2) system call is used to change the location or
+name of a file, moving it between directories if required.
+If the destination pathname already exists it will be <br>
+atomically replaced, so that there is no point at which
+another process attempting to access it will find it
+missing.</p>
+
+<p style="margin-top: 1em">There are limitations, however:
+you can only rename a directory on top of another directory
+if the destination directory is not empty. <br>
+rename(oldpath = &quot;foo&quot;, newpath = &quot;bar&quot;)
+failed, Directory not empty (39, ENOTEMPTY) because newpath
+is not an empty directory; that is, it contains entries
+other than &quot;.&quot; <br>
+and &quot;..&quot; <br>
+You can&rsquo;t rename a directory on top of a
+non&acirc;directory, either. <br>
+rename(oldpath = &quot;foo&quot;, newpath = &quot;bar&quot;)
+failed, Not a directory (20, ENOTDIR) because oldpath is a
+directory, but newpath is a regular file, not a directory
+<br>
+Nor is the reverse allowed <br>
+rename(oldpath = &quot;foo&quot;, newpath = &quot;bar&quot;)
+failed, Is a directory (21, EISDIR) because newpath is a
+directory, but oldpath is a regular file, not a
+directory</p>
+
+<p style="margin-top: 1em">This, of course, makes the
+libexplain library&rsquo;s job more complicated, because the
+unlink(2) or rmdir(2) system call is called implicitly by
+rename(2), and so all of the unlink(2) <br>
+or rmdir(2) errors must be detected and handled, as
+well.</p>
+
+<p style="margin-top: 1em">dup2 <br>
+The dup2(2) system call is used to create a second file
+descriptor that references the same object as the first file
+descriptor. Typically this is used to implement shell input
+<br>
+and output redirection.</p>
+
+<p style="margin-top: 1em">The fun thing is that, just as
+rename(2) can atomically rename a file on top of an existing
+file and remove the old file, dup2(2) can do this onto an
+already&acirc;open file descrip&acirc; <br>
+tor.</p>
+
+<p style="margin-top: 1em">Once again, this makes the
+libexplain library&rsquo;s job more complicated, because the
+close(2) system call is called implicitly by dup2(2), and so
+all of close(2)&rsquo;s errors must be <br>
+detected and handled, as well.</p>
+
+<p style="margin-top: 1em">ADVENTURES IN IOCTL SUPPORT <br>
+The ioctl(2) system call provides device driver authors with
+a way to communicate with user&acirc;space that
+doesn&rsquo;t fit within the existing kernel API. See
+ioctl_list(2).</p>
+
+<p style="margin-top: 1em">Decoding Request Numbers <br>
+From a cursory look at the ioctl(2) interface, there would
+appear to be a large but finite number of possible ioctl(2)
+requests. Each different ioctl(2) request is effectively
+<br>
+another system call, but without any type&acirc;safety at
+all - the compiler can&rsquo;t help a programmer get these
+right. This was probably the motivation behind tcflush(3)
+and friends.</p>
+
+<p style="margin-top: 1em">The initial impression is that
+you could decode ioctl(2) requests using a huge switch
+statement. This turns out to be infeasible because one very
+rapidly discovers that it is <br>
+impossible to include all of the necessary system headers
+defining the various ioctl(2) requests, because they have a
+hard time playing nicely with each other.</p>
+
+<p style="margin-top: 1em">A deeper look reveals that there
+is a range of &acirc;private&acirc; request numbers, and
+device driver authors are encouraged to use them. This means
+that there is a far larger possible <br>
+set of requests, with ambiguous request numbers, than are
+immediately apparent. Also, there are some historical
+ambiguities as well.</p>
+
+<p style="margin-top: 1em">We already knew that the switch
+was impractical, but now we know that to select the
+appropriate request name and explanation we must consider
+not only the request number but also <br>
+the file descriptor.</p>
+
+<p style="margin-top: 1em">The implementation of ioctl(2)
+support within the libexplain library is to have a table of
+pointers to ioctl(2) request descriptors. Each of these
+descriptors includes an <br>
+optional pointer to a disambiguation function.</p>
+
+<p style="margin-top: 1em">Each request is actually
+implemented in a separate source file, so that the necessary
+include files are relieved of the obligation to play nicely
+with others.</p>
+
+<p style="margin-top: 1em">Representation <br>
+The philosophy behind the libexplain library is to provide
+as much information as possible, including an accurate
+representation of the system call. In the case of ioctl(2)
+this <br>
+means printing the correct request number (by name) and also
+a correct (or at least useful) representation of the third
+argument.</p>
+
+<p style="margin-top: 1em">The ioctl(2) prototype looks
+like this: <br>
+int ioctl(int fildes, int request, ...); <br>
+which should have your type&acirc;safety alarms going off.
+Internal to [e]glibc, this is turned into a variety of
+forms: <br>
+int __ioctl(int fildes, int request, long arg); <br>
+int __ioctl(int fildes, int request, void *arg); <br>
+and the Linux kernel syscall interface expects <br>
+asmlinkage long sys_ioctl(unsigned int fildes, unsigned int
+request, unsigned long arg); <br>
+The extreme variability of the third argument is a
+challenge, when the libexplain library tries to print a
+representation of that third argument. However, once the
+request num&acirc; <br>
+ber has been disambiguated, each entry in the the libexplain
+library&rsquo;s ioctl table has a custom print_data function
+(OO done manually).</p>
+
+<p style="margin-top: 1em">Explanations <br>
+There are fewer problems determining the explanation to be
+used. Once the request number has been disambiguated, each
+entry in the libexplain library&rsquo;s ioctl table has a
+custom <br>
+print_explanation function (again, OO done manually).</p>
+
+<p style="margin-top: 1em">Unlike section 2 and section 3
+system calls, most ioctl(2) requests have no errors
+documented. This means, to give good error descriptions, it
+is necessary to read kernel <br>
+sources to discover</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; what errno(3)
+values may be returned, and</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; the cause of
+each error.</p>
+
+<p style="margin-top: 1em">Because of the OO nature of
+function call dispatching withing the kernel, you need to
+read all sources implementing that ioctl(2) request, not
+just the generic implementation. <br>
+It is to be expected that different kernels will have
+different error numbers and subtly different error
+causes.</p>
+
+<p style="margin-top: 1em">EINVAL vs ENOTTY <br>
+The situation is even worse for ioctl(2) requests than for
+system calls, with EINVAL and ENOTTY both being used to
+indicate that an ioctl(2) request is inappropriate in that
+con&acirc; <br>
+text, and occasionally ENOSYS, ENOTSUP and EOPNOTSUPP (meant
+to be used for sockets) as well. There are comments in the
+Linux kernel sources that seem to indicate a progressive
+<br>
+cleanup is in progress. For extra chaos, BSD adds ENOIOCTL
+to the confusion.</p>
+
+<p style="margin-top: 1em">As a result, attention must be
+paid to these error cases to get them right, particularly as
+the EINVAL could also be referring to problems with one or
+more system call arguments.</p>
+
+<p style="margin-top: 1em">intptr_t <br>
+The C99 standard defines an integer type that is guaranteed
+to be able to hold any pointer without representation
+loss.</p>
+
+<p style="margin-top: 1em">The above function syscall
+prototype would be better written <br>
+long sys_ioctl(unsigned int fildes, unsigned int request,
+intptr_t arg); <br>
+The problem is the cognitive dissonance induced by
+device&acirc;specific or file&acirc;system&acirc;specific
+ioctl(2) implementations, such as: <br>
+long vfs_ioctl(struct file *filp, unsigned int cmd, unsigned
+long arg); <br>
+The majority of ioctl(2) requests actually have an int *arg
+third argument. But having it declared long leads to code
+treating this as long *arg. This is harmless on
+32&acirc;bits <br>
+(sizeof(long) == sizeof(int)) but nasty on 64&acirc;bits
+(sizeof(long) != sizeof(int)). Depending on the
+endian&acirc;ness, you do or don&rsquo;t get the value you
+expect, but you always get a <br>
+memory scribble or stack scribble as well.</p>
+
+<p style="margin-top: 1em">Writing all of these as <br>
+int ioctl(int fildes, int request, ...); <br>
+int __ioctl(int fildes, int request, intptr_t arg); <br>
+long sys_ioctl(unsigned int fildes, unsigned int request,
+intptr_t arg); <br>
+long vfs_ioctl(struct file *filp, unsigned int cmd, intptr_t
+arg); <br>
+emphasizes that the integer is only an integer to represent
+a quantity that is almost always an unrelated pointer
+type.</p>
+
+<p style="margin-top: 1em">CONCLUSION <br>
+Use libexplain, your users will like it.</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+libexplain version 1.4 <br>
+Copyright (C) 2008, 2009, 2010, 2011, 2012, 2013, 2014 Peter
+Miller</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Written by Peter Miller
+&lt;pmiller@opensource.org.au&gt;</p>
+ 
+<p style="margin-top: 1em">explain_lca2010(1)</p>
+<hr>
+</body>
+</html>

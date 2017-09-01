@@ -1,0 +1,1319 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:10:01 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>DACS_AUTH_TRANSFER(8) DACS Web Services Manual
+DACS_AUTH_TRANSFER(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+dacs_auth_transfer - transfer credentials between
+federations</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+dacs_auth_transfer [dacsoptions[1]]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This web service is part of the DACS suite.</p>
+
+<p style="margin-top: 1em">The dacs_auth_transfer service
+securely exports credentials (which represent an identity)
+from one DACS federation to another (or from DACS to a
+different identity management <br>
+system), or securely imports an identity from one DACS
+federation to another (or from a different identity
+management system to DACS). This ability to transfer
+credentials (i.e., <br>
+import or export them) lets a DACS federation federate with
+another system, creating a &quot;super federation&quot; with
+single sign-on capability. DACS calls such federations
+affiliated <br>
+federations.</p>
+
+<p style="margin-top: 1em">A DACS federation can use
+dacs_auth_transfer to leverage authentication mechanisms not
+available to it, other systems can use it to leverage DACS,
+and users can potentially <br>
+access any access-controlled resource located in any of the
+cooperating federations.</p>
+
+<p style="margin-top: 1em">In a Nutshell <br>
+For two DACS federations, here is how the service is
+typically used. One or more jurisdictions in Federation A
+provide links labelled &quot;Transfer Login To Federation
+B&quot; (or <br>
+similar). Following any of these links will initiate the
+mechanism to export the user&rsquo;s identity to Federation
+B. Alternatively, or additionally, one or more jurisdictions
+in <br>
+Federation B provide links labelled &quot;Transfer Login
+From Federation A&quot;. Following any of these links will
+initiate the mechanism to import the user&rsquo;s identity
+from Federation <br>
+A.</p>
+
+<p style="margin-top: 1em">A user authenticates in
+Federation A, obtaining credentials understood only in that
+federation. When the user decides to access resources in
+Federation B, he follows one of <br>
+the links. Assuming all access control constraints are
+satisfied, new credentials will be returned to him that are
+understood in Federation B. His existing Federation A <br>
+credentials continue to exist.</p>
+
+<p style="margin-top: 1em">The user is now recognized by
+both federations. If the user is known as FedA::J1:bobo in
+Federation A, then he will also be known by that name in
+Federation B. If Federation <br>
+B happens to have a jurisdiction named J1 and a user at that
+jurisdiction named bobo, that user (FedB::J1:bobo) is
+separate and distinct as far as DACS is concerned.</p>
+
+<p style="margin-top: 1em">Note that, in general, it is not
+correct in the scenario above for Federation B to
+automatically initiate a credential transfer if an
+unauthenticated user (with respect to <br>
+Federation B) is denied access. This is because Federation B
+cannot tell with which federation it should be initiated (if
+there is more than one) or even if this is something <br>
+that the user wants done (perhaps the user needs to
+authenticate in the usual way at Federation A). Therefore,
+except perhaps in special circumstances, explicit user <br>
+interaction is necessary.</p>
+
+<p style="margin-top: 1em">For DACS, the complete protocol
+is implemented by one program, dacs_auth_transfer. It
+provides the importing, exporting, and server-to-server
+stages of the protocol and it can <br>
+also optionally assist middleware with the initial
+presentation stage of the protocol. The protocol is
+described below.</p>
+
+<p style="margin-top: 1em">If an identity needs to be
+imported to a non-DACS system, that system must implement
+the identity transfer protocol described here, or a subset
+of it. If a non-DACS system only <br>
+needs to export an identity to a DACS federation, it may
+only need a small amount of middleware to initiate the
+transfer.</p>
+
+<p style="margin-top: 1em">Security <br>
+1. A small degree of cooperation is required between DACS
+administrators at two affiliated federations so that they
+each know how to configure the feature. The two <br>
+federations remain autonomous, however.</p>
+
+<p style="margin-top: 1em">2. Transferring credentials to a
+DACS federation (exporting) neither creates a new account
+nor creates a new identity. It merely converts credentials
+that were obtained in <br>
+one federation into DACS credentials that are recognized
+within another federation. Because a DACS user identity
+includes a federation name, among federated DACS systems
+<br>
+a user&rsquo;s identity is unique. After transfer to a
+different federation, the original credentials continue to
+exist and are unaltered.</p>
+
+<p style="margin-top: 1em">3. Exporting credentials to
+another federation and later transferring them back to the
+initial DACS federation (or exporting credentials within a
+federation) will replace <br>
+the initial credentials with new ones for the same identity.
+The two sets of credentials will not be identical, however,
+and the imported ones may be less complete and <br>
+therefore &quot;weaker&quot; than the original credentials
+with respect to authorization processing.</p>
+
+<p style="margin-top: 1em">4. System administrators should
+ensure that dacs_auth_transfer is configured so that it is
+impossible to import credentials to a federation from which
+they were exported, <br>
+otherwise it may be possible for users to defeat the expiry
+of credentials by repeatedly regenerating them.</p>
+
+<p style="margin-top: 1em">5. The identity transfer
+protocol includes a server-to-server operation that must use
+SSL/TLS. The identity of the server issuing the request must
+be verified, either <br>
+through its X.509 (SSL) client certificate, DACS
+credentials, or perhaps its IP address.</p>
+
+<p style="margin-top: 1em">6. As an additional security
+measure, a jurisdiction will only accept credentials for an
+identity outside of its federation if enabled by
+ACCEPT_ALIEN_CREDENTIALS[2].</p>
+
+<p style="margin-top: 1em">7. While this document talks in
+terms of a DACS federation importing credentials,
+importation actually takes place at a DACS jurisdiction,
+just as authentication does. That <br>
+target jurisdiction is similarly responsible for the
+resulting credentials and is identified within the new
+credentials for access control testing and audit
+purposes.</p>
+
+<p style="margin-top: 1em">8. Any appropriately configured
+jurisdiction is capable of exporting or importing
+credentials. Some federations might choose to create
+&quot;administrative jurisdictions&quot; solely <br>
+for this purpose (e.g., export.example.com and
+import.example.com), however, just as a federation might be
+structured to limit authentication services to a designated
+<br>
+jurisdiction.</p>
+
+<p style="margin-top: 1em">The Identity Transfer Protocol
+<br>
+The ability to transfer credentials from one identity
+management system to another is a feature that can be
+beneficial to both users and system administrators. For
+users, it can <br>
+provide the convenience of single sign-on; a user need only
+be authenticated by one federation to be able to access
+resources within a different federated system. For a system
+<br>
+administrator, it means that fewer user identities need to
+be created and managed.</p>
+
+<p style="margin-top: 1em">Overview <br>
+The systems being federated might exist within a single
+organization or be associated with different, autonomous
+organizations that have a trust relationship, very much as
+<br>
+DACS jurisdictions do. The transfer of credentials need not
+be reciprocal; that is, Federation A may allow identities to
+be imported from Federation B but not vice versa.</p>
+
+<p style="margin-top: 1em">The architecture of the transfer
+mechanism is primarily constrained by the typical
+browser-oriented usage of DACS, where credentials are
+encapsulated within an HTTP cookie, <br>
+thereby dictating how credentials are set in an
+off-the-shelf browser and when credentials will be sent by
+the browser. The approach is complicated somewhat because a
+DACS <br>
+user may have multiple concurrent credentials or may be
+unauthenticated. Also, a DACS federation may wish to
+federate with more than one foreign federation. Therefore,
+<br>
+interaction with the user will sometimes be necessary so
+that she can select the particular identity to be
+transferred and a target federation to which that identity
+is to be <br>
+transferred. A jurisdiction or federation must be able to
+customize this interaction for appropriate web site
+integration (i.e., look and feel), but a bare-bones
+capability <br>
+must still be provided by dacs_auth_transfer.</p>
+
+<p style="margin-top: 1em">The design tries to balance
+security, usability, performance, availability,
+configuration complexity, implementation effort,
+administrative needs, generality, and <br>
+extensibility, all within the constraints of the DACS
+architecture and requirements.</p>
+
+<p style="margin-top: 1em">Though it is assumed that
+SSL/TLS is used to secure all network communication and
+identify the communicating hosts where necessary, some major
+potential threats against a <br>
+transfer capability must be addressed by the design:</p>
+
+<p style="margin-top: 1em">1. Replay: the system must
+prevent the malicious or accidental use of expired
+credentials, reuse of authentication material by a different
+browser user (such as through <br>
+browser history or a bookmark), use of authentication
+material discovered in a log file, and so on</p>
+
+<p style="margin-top: 1em">2. Forgery and Tampering: the
+system must prevent a malicious user from changing
+authentication material to get different or
+&quot;better&quot; credentials using the transfer
+protocol</p>
+
+<p style="margin-top: 1em">Replay is addressed in the
+transfer protocol by restricting the exposure of
+authentication and protocol material and by limiting its
+validity period. Injection of copied <br>
+material is also made difficult. Forgery and tampering are
+addressed through cryptographic means; using
+well-established techniques, it is thought to be practically
+<br>
+impossible to create forged authentication material or
+modify it undetectably.</p>
+
+<p style="margin-top: 1em">Security <br>
+Importation of identities has federation-wide ramifications
+but it is the responsibility of each jurisdiction to decide
+whether it will allow its dacs_auth_transfer <br>
+service to import an identity or its rules to honour an
+identity imported by another jurisdiction within the
+federation. A jurisdiction may independently allow
+identities <br>
+to be imported from an external system, just as it may
+unilaterally decide whether it will authenticate users and
+how it will do so. On the other hand, a jurisdiction is <br>
+free to reject imported identities, just as it is free to
+reject an identity vouched for by another jurisdiction in
+its federation. Federation members may wish to <br>
+establish guidelines and procedures for importing
+identities.</p>
+
+<p style="margin-top: 1em">Protocol Operation <br>
+The purpose of the protocol is to transfer an identity
+understood by the initial federation to the target
+federation. The initial federation exports an identity; the
+target <br>
+federation imports the identity.</p>
+
+<p style="margin-top: 1em">The four stages (operations) of
+the protocol are now described, in the order in which they
+are used. In all cases, &quot;the user&quot; can be a
+browser or middleware.</p>
+
+<p style="margin-top: 1em">1. The PRESENTATION operation,
+which is performed in the initial federation and is
+optional, is used for prompting the user to select the
+credentials to be transferred and <br>
+identify the target federation. The purpose of the
+PRESENTATION operation is simply to make it easier for a
+user or middleware to invoke the EXPORT operation; the
+EXPORT <br>
+operation can be invoked directly without engaging in this
+step of the protocol, however.</p>
+
+<p style="margin-top: 1em">2. The EXPORT operation is
+invoked at the initial federation by a user to request that
+the initial federation initiate the transfer of credentials
+representing a given <br>
+identity to a given federation. After receiving and
+validating its arguments, the EXPORT operation invokes the
+TOKEN operation at the target federation. If the target <br>
+federation tentatively approves the importation of the
+identity, it returns a URL to which the EXPORT stage
+redirects the user. If the target federation rejects the
+<br>
+request (or the request fails), the EXPORT stage returns an
+error indication that should be reflected back to the user
+and terminates the protocol.</p>
+
+<p style="margin-top: 1em">3. The TOKEN operation is the
+heart of the protocol. By invoking it at the target
+federation, the initial federation vouches for the identity
+to be transferred and requests <br>
+that the target federation honour the user&rsquo;s request
+for credentials valid within the target federation; the
+latter is free to reject the request for any reason. To <br>
+accomplish the transfer, the initial federation requests a
+token from the target federation.</p>
+
+<p style="margin-top: 1em">A token is cryptographically
+protected, opaque information encapsulated within a URL as
+its query component; the token is meaningful only to the
+target federation (i.e., <br>
+its meaning is unspecified by the protocol). It could
+contain a database key for the transaction, a nonce, or a
+self-contained description of the transaction. All that is
+<br>
+required by the protocol is that it be kept secret among the
+communicating parties for as long as it is valid, that its
+validity period be no longer than what is required <br>
+to complete the last stage of identity transfer, that it be
+difficult to forge, and that it be tamper-resistant.</p>
+
+<p style="margin-top: 1em">If the request for a token is
+granted, the target federation returns a URL that
+encapsulates it, otherwise an error indication is returned
+to the initial federation which <br>
+in turn returns an error indication to the user and
+terminates the protocol.</p>
+
+<p style="margin-top: 1em">4. The IMPORT request is sent by
+the user to the target federation. A complete URL containing
+the IMPORT request will typically be created by the target
+federation, returned <br>
+to the initial federation, and forwarded to the user as a
+browser redirect by the EXPORT stage. Upon successfully
+validating the request, which includes an examination of
+<br>
+the token and checking for revocation of the identity (see
+dacs.acls(5)[3] for a description of how
+authentication/access revocation works), the target
+federation returns <br>
+credentials (as an HTTP cookie) that are returned to the
+user in the final step of the IMPORT operation - this is the
+end-goal of the protocol - and the user is <br>
+redirected by the target federation to an appropriate
+&quot;success&quot; URL as a convenience to the user. If the
+transfer fails, no new credentials are returned and the user
+is <br>
+redirected to an appropriate &quot;failure&quot; URL by the
+target federation.</p>
+
+<p style="margin-top: 1em">Implementation <br>
+The dacs_auth_transfer service implements all of the stages
+as separate operations of a single web service; a different
+implementation might create separate services for each <br>
+stage or operation, or implement a subset of the
+functionality (e.g., it might only support exporting
+identities).</p>
+
+<p style="margin-top: 1em">Each of the federating systems
+must be assigned a unique name (for DACS, through the
+FEDERATION_NAME directive) so that identities can be
+globally unique. The federating <br>
+systems need not share a common domain name suffix.</p>
+
+<p style="margin-top: 1em">Note <br>
+In the current implementation of dacs_auth_transfer,
+configuration information associated with target federations
+is not automatically distributed by DACS to a <br>
+federation&rsquo;s jurisdictions. This means that only those
+jurisdictions that have been specifically configured to
+import identities will be able to do so; a jurisdiction <br>
+will not automatically understand how to interact with a
+given target federation that is configured at a different
+jurisdiction. Each jurisdiction&rsquo;s administrator
+wanting <br>
+to provide this service must configure his site&rsquo;s
+dacs_auth_transfer service appropriately.</p>
+
+<p style="margin-top: 1em">Details of the
+dacs_auth_transfer implementation and configuration
+requirements are now presented. A different implementation
+of the protocol could look very different.</p>
+
+<p style="margin-top: 1em">PRESENTATION <br>
+dacs_auth_transfer can emit an HTML document to prompt the
+user (by default, using the style sheet
+dacs_auth_transfer.css[4]). The user selects an identity and
+target <br>
+federation and submits a form. Alternatively, the
+information necessary to construct prompts can be returned
+within an XML document that conforms to <br>
+dacs_auth_transfer.dtd[5]. A site is also free to implement
+its own presentation stage.</p>
+
+<p style="margin-top: 1em">The list of known target
+federation names from which a user can select is obtained
+from mappings that have been configured at this jurisdiction
+(see below).</p>
+
+<p style="margin-top: 1em">When emitting HTML, the web page
+generated by dacs_auth_transfer can be customized through
+the auth_transfer VFS item type. The following items are
+emitted if they exist:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; header: Initial
+HTML to emit instead of the default.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; prologue: HTML
+to emit immediately after the header.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; instructions:
+HTML to emit immediately after the prologue and before the
+form.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; form: Additional
+HTML to emit within the form. A likely use of this is to
+specify a hidden TRANSFER_SUCCESS_URL argument.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; epilogue: HTML
+to emit immediately after the form.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; trailer: Final
+HTML to emit instead of the default.</p>
+
+<p style="margin-top: 1em">For example, consider the
+configuration directive:</p>
+
+<p style="margin-top: 1em">VFS
+&quot;[auth_transfer]dacs-fs:${Conf::DACS_HOME}/auth_transfer&quot;</p>
+
+<p style="margin-top: 1em">If files named header and
+trailer exist in the directory
+${Conf::DACS_HOME}/auth_transfer, they are expected to
+contain the initial and final HTML content, respectively.
+<br>
+Note that these files consist of text and HTML markup but
+are not complete HTML documents.</p>
+
+<p style="margin-top: 1em">Customization of the HTML form
+is possible using configuration variables:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+transfer_export_uri: the URL of the program to which the
+form should be submitted. By default, the URL is created
+from the one used to invoke the presentation stage, <br>
+which will usually be that of dacs_auth_transfer.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+transfer_submit_label: the text label to put in the
+form&rsquo;s submit button.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+transfer_submit_method: the HTTP method to use to submit the
+form (GET is the default).</p>
+
+<p style="margin-top: 1em">For example, the submit
+button&rsquo;s text can be specified using the
+directive:</p>
+
+<p style="margin-top: 1em">EVAL
+${Conf::transfer_submit_label} = &quot;Execute the
+transfer!&quot;</p>
+
+<p style="margin-top: 1em">EXPORT <br>
+The identity to be transferred and the name of the target
+federation are submitted to dacs_auth_transfer as arguments
+of the EXPORT operation. The request must be <br>
+accompanied by DACS credentials that match this identity and
+the target federation must be recognized by the receiving
+jurisdiction.</p>
+
+<p style="margin-top: 1em">For example, this URL asks the
+jurisdiction associated with example.com to export the
+identity EXAMPLE:bobo to the target federation DSS:</p>
+
+
+<p style="margin-top: 1em">https://example.com/dacs/dacs_auth_transfer?OPERATION=EXPORT
+&amp;TARGET_FEDERATION=DSS
+&amp;DACS_IDENTITY=EXAMPLE:bobo</p>
+
+<p style="margin-top: 1em">For the request to succeed,
+credentials for EXAMPLE:bobo must be sent with the request,
+permission must be granted (by example.com) to export the
+identity, example.com <br>
+must be configured with an appropriate mapping, described
+below, such that it knows how to submit a TOKEN request to a
+service associated with federation DSS, and that <br>
+service must allow importation of the identity.</p>
+
+<p style="margin-top: 1em">The mappings of federation
+identifiers to URLs for export purposes are provided through
+the AUTH_TRANSFER_EXPORT[6] directive. That is, these
+mappings indicate which <br>
+target federations have been configured at this jurisdiction
+and associate a target federation identifier (a short,
+descriptive keyword) with a URL of a web service that <br>
+implements the TOKEN operation for the target federation. It
+is from these mappings that the list of selectable target
+federations is obtained.</p>
+
+<p style="margin-top: 1em">Note <br>
+Unless jurisdictions coordinate mappings with each other,
+the same jurisdiction must perform both the PRESENTATION and
+EXPORT operations. <br>
+For example, dacs.conf might include the directive:</p>
+
+<p style="margin-top: 1em">AUTH_TRANSFER_EXPORT &quot;DSS
+https://dacs.dss.ca/cgi-bin/dacs/dacs_auth_transfer&quot;</p>
+
+<p style="margin-top: 1em">This directive specifies one
+target federation, identified by the name DSS, and
+associates it with the URL of a service implementing the
+TOKEN operation.</p>
+
+<p style="margin-top: 1em">Security <br>
+The TOKEN operation must be performed over a secure
+communication channel, typically using SSL/TLS. URLs
+appearing in these mappings should therefore specify https.
+<br>
+The issuer of the TOKEN operation may identify itself using
+an SSL client certificate; if SSL_PROG_CLIENT_CRT[7] is
+configured, that certificate will automatically be <br>
+used.</p>
+
+<p style="margin-top: 1em">If the issuer of the TOKEN
+operation possesses DACS credentials obtained offline from
+the target federation (e.g., using dacscookie(1)[8]), it can
+specify that they <br>
+be sent with the request by putting them in an object named
+FEDNAME.cookies relative to the auth_transfer item type.
+directory ${Conf::DACS_HOME}/auth_transfer, one <br>
+cookie per line. The FEDNAME filename suffix is the
+federation identifier for the importing federation.</p>
+
+<p style="margin-top: 1em">For instance, given the
+AUTH_TRANSFER_EXPORT directive and the VFS directive for
+auth_transfer above, all cookies found in a file named <br>
+/usr/local/dacs/auth_transfer/DSS.cookies would be sent with
+the TOKEN operation to identify the initial federation.
+These cookies would have been obtained from <br>
+federation DSS over a secure communication channel.</p>
+
+<p style="margin-top: 1em">TOKEN <br>
+The syntax and semantics of a token are meaningful only to
+the target federation and can be changed without affecting
+any initial federation. In the current <br>
+implementation, the token is comprised of information such
+as the identity to be transferred, the current date at the
+transfer federation, the client&rsquo;s IP address, and <br>
+(optionally) the client&rsquo;s role string, which is
+encrypted using the target federation&rsquo;s
+federation-wide key and base-64 encoded.</p>
+
+<p style="margin-top: 1em">Note <br>
+The identity to be transferred must be a syntactically valid
+DACS username. <br>
+The period during which a token is valid is determined
+solely by the target federation. Its lifetime will
+ordinarily be just a few seconds, after which it will be
+treated <br>
+as invalid by the IMPORT stage. The
+AUTH_TRANSFER_TOKEN_LIFETIME_SECS[9] directive specifies
+this value for dacs_auth_transfer; if not given, a
+compile-time default is <br>
+used.</p>
+
+<p style="margin-top: 1em">A jurisdiction within the target
+federation that provides identity importation must must
+configure at least one Transfer clause. The transfer
+directives are largely <br>
+analogous to the authentication and roles directives. Each
+Transfer element must have an id attribute. Its value is
+merely a label (an alphabetic followed by zero or more <br>
+alphanumerics, hyphens, and underscores) that allows the
+clause to be referenced. The id attribute values must be
+unique (case-sensitively) within the clause&rsquo;s <br>
+Jurisdiction section.</p>
+
+<p style="margin-top: 1em">Security <br>
+&Acirc;&middot; An access control rule must be in place to
+ensure that this operation can only be executed by a
+legitimate server belonging to a recognized initial
+federation.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The caller may
+not have supplied DACS credentials to identify itself and
+therefore the user()[10] function may not be of use.</p>
+
+<p style="margin-top: 1em">Transfer Clause Directives
+Index:</p>
+
+<p style="margin-top: 1em">1. CREDENTIALS_LIFETIME_SECS
+(Optional1)</p>
+
+<p style="margin-top: 1em">2. ERROR_URL (Optional1)</p>
+
+<p style="margin-top: 1em">3. EXIT* (Optional1)</p>
+
+<p style="margin-top: 1em">4. IMPORT_FROM (Required)</p>
+
+<p style="margin-top: 1em">5. IMPORT_ROLES (Optional1)</p>
+
+<p style="margin-top: 1em">6. IMPORT_URL (Optional1)</p>
+
+<p style="margin-top: 1em">7. PREDICATE (Optional1)</p>
+
+<p style="margin-top: 1em">8. REFEDERATE (Optional1)</p>
+
+<p style="margin-top: 1em">9. ROLES* (Optional1)</p>
+
+<p style="margin-top: 1em">10. SUCCESS_URL (Optional1)</p>
+
+<p style="margin-top: 1em">IMPORT_FROM (Required) <br>
+This directive, which may be repeated, names an initial
+federation, as identified by the INITIAL_FEDERATION
+argument, to which this clause applies. It must be a <br>
+syntactically valid federation name. These names are
+case-sensitive.</p>
+
+<p style="margin-top: 1em">REFEDERATE (Optional1) <br>
+If &quot;yes&quot; (case insensitive), the federation and
+jurisdiction of the imported identity (i.e., the
+DACS_IDENTITY argument) are changed to that of the target
+<br>
+jurisdiction. If this directive is unspecified or has
+another value, the original identity is retained.</p>
+
+<p style="margin-top: 1em">For example, if the TOKEN
+operation at jurisdiction ALPHA of federation FED2 is passed
+DACS_IDENTITY with a value of FED1::BETA:bobo and REFEDERATE
+is enabled, then <br>
+the imported identity will be FED2::ALPHA:bobo .</p>
+
+<p style="margin-top: 1em">Security <br>
+This directive is useful in certain circumstances in that it
+can prevent a particular individual from being known by
+multiple names, which may complicate access <br>
+control rules. It must be used with care, however.</p>
+
+<p style="margin-top: 1em">Say Bobo is naturally known as
+ALPHA:bobo within federation FED2. If she authenticates as
+FED1::BETA:bobo and uses dacs_auth_transfer to obtain
+credentials in <br>
+FED2, then by default her new credentials will be for the
+name FED1::BETA:bobo; i.e., her DACS identity is
+retained.</p>
+
+<p style="margin-top: 1em">Access control rules in FED2 may
+need to handle both names, however, which can lead to
+problems. Some DACS administrators in FED2 may not even be
+aware of FED1, <br>
+and so access to FED1::BETA:bobo may be denied while access
+to the same resource may be granted to FED2::ALPHA:bobo.</p>
+
+<p style="margin-top: 1em">If no two distinct identities in
+FED1 can be mapped to the same identity in FED2 (i.e., the
+same username component is not associated with more than one
+<br>
+jurisdiction that can export the identity to FED2), then the
+administrator at the initial federation can advise the
+administrator at the target federation that <br>
+the REFEDERATE directive should be enabled. Transferred
+identities will then be modified to appear to have been
+authenticated by FED2::ALPHA. When this feature is <br>
+configured, although Bobo authenticates as FED1::BETA:bobo,
+her imported identity will be FED2::ALPHA:bobo.</p>
+
+<p style="margin-top: 1em">If enabling this directive would
+cause two or more distinct identities to be mapped to the
+same DACS identity, the directive should not be used because
+different <br>
+individuals may be assigned the same DACS name in the target
+federation.</p>
+
+<p style="margin-top: 1em">PREDICATE (Optional1) <br>
+The value of this directive is an expression. If the
+expression does not evaluate to True, importation will not
+be permitted.</p>
+
+<p style="margin-top: 1em">CREDENTIALS_LIFETIME_SECS
+(Optional1) <br>
+This directive is used to override the value of the
+AUTH_CREDENTIALS_DEFAULT_LIFETIME_SECS[11] directive or the
+default.</p>
+
+<p style="margin-top: 1em">IMPORT_ROLES (Optional1) <br>
+If &quot;yes&quot; (case insensitive), any roles in the
+existing credentials will be copied to the new credentials.
+The roles must be syntactically valid at the target <br>
+jurisdiction. Within the context of the clause, the variable
+${Auth::IMPORTED_ROLES} is assigned the roles string. The
+default is &quot;no&quot;.</p>
+
+<p style="margin-top: 1em">IMPORT_URL (Optional1) <br>
+This is the URL of the IMPORT stage of the protocol. By
+default, this is the same as that of the TOKEN stage, which
+is correct for dacs_auth_transfer since it <br>
+implements all stages of the protocol.</p>
+
+<p style="margin-top: 1em">SUCCESS_URL (Optional1) <br>
+If the transfer is successful and the user has not specified
+another URL via the TRANSFER_SUCCESS_URL argument, the user
+will be redirected to SUCCESS_URL. This <br>
+directive is used by dacs_auth_transfer in the IMPORT
+stage.</p>
+
+<p style="margin-top: 1em">ERROR_URL (Optional1) <br>
+If the transfer fails and the user has not specified another
+URL via the TRANSFER_ERROR_URL argument, the user will be
+redirected to ERROR_URL. This directive is used <br>
+by dacs_auth_transfer in the IMPORT stage.</p>
+
+<p style="margin-top: 1em">ROLES* (Optional1) <br>
+The value of this directive is an expression that is
+evaluated at run-time. Provided an error does not occur, the
+resulting string becomes the role string for the new <br>
+credentials. The new role string must be syntactically valid
+at the target jurisdiction. The variable
+${Auth::IMPORTED_ROLES} is initialized to the role string
+(if <br>
+any - see IMPORT_ROLES) from the existing credentials and is
+assigned the value of the expression.</p>
+
+<p style="margin-top: 1em">For example, to add fed1 to
+those found in the existing credentials:</p>
+
+<p style="margin-top: 1em">IMPORT_ROLES &quot;yes&quot;
+<br>
+ROLES* &rsquo;${Auth::IMPORTED_ROLES} .
+&quot;,fed1&quot;&rsquo;</p>
+
+<p style="margin-top: 1em">EXIT* (Optional1) <br>
+The value of this directive is an expression that is
+evaluated at run-time. Provided an error does not occur,
+side effects from the evaluation may alter the final <br>
+result of the clause. The variable ${Auth::IMPORTED_ROLES}
+is initialized to the role string (if any - see
+IMPORT_ROLES) from the existing credentials and <br>
+${Auth::IMPORTED_USERNAME} is assigned the (tentative)
+imported username component from the imported credentials.
+Either variable may be modified by the expression. <br>
+The new role string must be syntactically valid at the
+target jurisdiction. The new username must be syntactically
+valid.</p>
+
+<p style="margin-top: 1em">This directive maps all imported
+usernames to guest, relative to the target jurisdiction:</p>
+
+<p style="margin-top: 1em">EXIT*
+&rsquo;${Auth::IMPORTED_USERNAME} =
+&quot;guest&quot;&rsquo;</p>
+
+<p style="margin-top: 1em">IMPORT <br>
+An IMPORT request is validated before being accepted, which
+includes examining the token and checking for revocation of
+the identity. There is no guarantee that if the <br>
+TOKEN operation succeeds the IMPORT operation will also.</p>
+
+<p style="margin-top: 1em">DACS credentials imported by
+dacs_auth_transfer are marked as being alien and imported,
+the jurisdiction that executed the importation is recorded,
+and the IP address <br>
+associated with the user&rsquo;s initial credentials are
+associated with the new credentials; these characteristics
+can be tested using the dacs.exprs(5)[10] function.</p>
+
+<p style="margin-top: 1em">Security <br>
+An access control rule must be in place to ensure that this
+operation can only be executed by appropriate users. Access
+might well be granted to any user but might <br>
+reasonably be restricted based on IP address, etc.</p>
+
+<p style="margin-top: 1em">To recap, assuming
+dacs_auth_transfer is used to transfer credentials between
+two DACS federations (which we will call Federation A and
+Federation B) and no errors occur, the <br>
+flow of control will typically be as follows:</p>
+
+<p style="margin-top: 1em">1. The user follows a link that
+invokes dacs_auth_transfer at some jurisdiction within
+Federation A.</p>
+
+<p style="margin-top: 1em">2. dacs_auth_transfer generates
+an HTML document that is displayed on the user&rsquo;s
+browser. The user selects a target federation (Federation B)
+and credentials to transfer <br>
+from those presented within an HTML form and submits it,
+invoking dacs_auth_transfer at Federation A again, but this
+time to perform the EXPORT operation. The list of <br>
+credentials from which the user can choose depends on the
+user&rsquo;s current credentials in Federation A. The list
+of target federations depends on those known to the <br>
+jurisdiction that processes the request.</p>
+
+<p style="margin-top: 1em">3. The dacs_auth_transfer at
+Federation A processes the EXPORT operation and invokes the
+TOKEN operation at Federation B. This action is transparent
+to the user. The <br>
+response from Federation B is a URL that represents a
+complete IMPORT operation directed at Federation B. The
+EXPORT operation redirects the user&rsquo;s browser to that
+URL.</p>
+
+<p style="margin-top: 1em">4. Upon receiving the redirect,
+the user&rsquo;s browser invokes the IMPORT operation at
+Federation B. Federation B returns new credentials and
+redirects the user&rsquo;s browser to a <br>
+configured or requested URL.</p>
+
+<p style="margin-top: 1em">To interoperate with
+dacs_auth_transfer to import DACS credentials, a program
+must implement the TOKEN operation. It must also provide
+functionality similar to that of the <br>
+IMPORT operation. Because the TOKEN operation returns a URL
+encapsulating an IMPORT request to which the client is
+redirected, however, the IMPORT operation can be <br>
+implementation-dependent and does need to interoperate with
+dacs_auth_transfer.</p>
+
+<p style="margin-top: 1em">To interoperate with
+dacs_auth_transfer to export credentials to a DACS
+federation, a program must be capable of invoking
+dacs_auth_transfer with the TOKEN operation and its <br>
+arguments, and redirect the client to the URL provided by
+dacs_auth_transfer.</p>
+
+<p style="margin-top: 1em">Web Service Arguments <br>
+In addition to the standard CGI arguments[12],
+dacs_auth_agent understands a variety of arguments that
+depend on the operation being requested. The descriptions of
+the arguments <br>
+that follow are therefore grouped by operation.</p>
+
+<p style="margin-top: 1em">The additional arguments
+accepted by dacs_auth_transfer follow.</p>
+
+<p style="margin-top: 1em">Presentation <br>
+For this stage, the value of the OPERATION argument is
+PRESENTATION (case insensitive).</p>
+
+<p style="margin-top: 1em">The FORMAT argument (see
+dacs(1)[13]) determines the type of output, with the default
+being HTML.</p>
+
+<p style="margin-top: 1em">Additional arguments:</p>
+
+<p style="margin-top: 1em">REDIRECT_DEFAULT <br>
+If &quot;yes&quot; and there is exactly one set of
+credentials and one target federation (i.e., there is
+nothing for the client to select), then automatically
+redirect the client <br>
+to a URL representing the EXPORT stage of the protocol.
+Though the client will not be required to submit a form, he
+will not have the opportunity to see which identity is <br>
+being transferred or the name of the target federation.</p>
+
+<p style="margin-top: 1em">Export <br>
+For this stage, the value of the OPERATION argument is
+EXPORT (case insensitive).</p>
+
+<p style="margin-top: 1em">Additional arguments:</p>
+
+<p style="margin-top: 1em">DACS_IDENTITY <br>
+This is the identity corresponding to the credentials to be
+exported, expressed as a full DACS user identity (see
+dacs(1)[14]).</p>
+
+<p style="margin-top: 1em">TARGET_FEDERATION <br>
+This is the jurisdiction&rsquo;s identifier for the
+federation to which the selected credentials are to be
+transferred. The user will typically select this identifier
+from a <br>
+list produced by the same jurisdiction that performs the
+PRESENTATION operation.</p>
+
+<p style="margin-top: 1em">TRANSFER_SUCCESS_URL <br>
+If the transfer operation is successful, the user will be
+redirected to this URL.</p>
+
+<p style="margin-top: 1em">TRANSFER_ERROR_URL <br>
+If the transfer operation fails, the user will be redirected
+to this URL. If unspecified, the AUTH_TRANSFER_ERROR_URL
+will be used if configured, otherwise a message will <br>
+be emitted.</p>
+
+<p style="margin-top: 1em">DACS_DEBUG <br>
+If &quot;yes&quot;, operate in a debugging mode.</p>
+
+<p style="margin-top: 1em">Token <br>
+For this stage, the value of the OPERATION argument is TOKEN
+(case insensitive).</p>
+
+<p style="margin-top: 1em">Additional arguments:</p>
+
+<p style="margin-top: 1em">DACS_IDENTITY <br>
+The value of this argument is identical to the argument of
+the same name that is passed to the EXPORT stage. If the
+transfer succeeds, this is the identity for which new <br>
+credentials will be issued.</p>
+
+<p style="margin-top: 1em">INITIAL_FEDERATION <br>
+This is the identifier for the federation that received the
+EXPORT request. The target federation must have a mapping
+for this identifier.</p>
+
+<p style="margin-top: 1em">CLIENT_ADDR <br>
+The IP address from which the EXPORT request was issued.</p>
+
+<p style="margin-top: 1em">TRANSFER_SUCCESS_URL <br>
+If the transfer operation is successful, the user wants to
+be redirected to this URL. If unspecified, a default URL
+will be used.</p>
+
+<p style="margin-top: 1em">TRANSFER_ERROR_URL <br>
+If the transfer operation fails, the user will be redirected
+to this URL. If unspecified, a default URL will be used.</p>
+
+<p style="margin-top: 1em">DACS_DEBUG <br>
+If &quot;yes&quot;, operate in a debugging mode.</p>
+
+<p style="margin-top: 1em">Import <br>
+For this stage, the value of the OPERATION argument is
+IMPORT (case insensitive).</p>
+
+<p style="margin-top: 1em">Additional arguments:</p>
+
+<p style="margin-top: 1em">TOKEN <br>
+This is the value of the token returned by a previous call
+to the TOKEN stage of the protocol.</p>
+
+<p style="margin-top: 1em">TRANSFER_SUCCESS_URL <br>
+If the transfer operation is successful, the user wants to
+be redirected to this URL. If unspecified, a default URL
+configured at the target federation using the <br>
+AUTH_TRANSFER_SUCCESS_URL[15] directive will be used.</p>
+
+<p style="margin-top: 1em">TRANSFER_ERROR_URL <br>
+If the transfer operation fails, the user wants to be
+redirected to this URL. If unspecified, a default URL
+configured at the target federation using the <br>
+AUTH_TRANSFER_ERROR_URL[16] will be used.</p>
+
+<p style="margin-top: 1em">DACS_DEBUG <br>
+If &quot;yes&quot;, operate in a debugging mode.</p>
+
+<p style="margin-top: 1em">EXAMPLE <br>
+The following example describes step-by-step how to
+configure two DACS federations, FED_EX1 (example.com) and
+FED_EX2 (example.net), to enable credentials to be
+transferred from <br>
+FED_EX1 to FED_EX2. For FED_EX1, the jurisdiction J1
+(j1.example.com) will be configured to export credentials
+and for FED_EX2, J2 (j2.example.net) will be configured to
+import <br>
+credentials. The example assumes that these two
+jurisdictions have already installed and configured DACS and
+that it is possible to authenticate (obtain credentials)
+somewhere <br>
+within FED_EX1.</p>
+
+<p style="margin-top: 1em">Note <br>
+This example will not actually work without changing the
+domain names, URLs, and identities that it uses for
+demonstration purposes to those configured for your
+federations <br>
+and jurisdictions. Having successfully reproduced this
+example functionality on your systems, it should be apparent
+how to extend it for additional jurisdictions and <br>
+federations, and how to make credential transfer
+bidirectional.</p>
+
+<p style="margin-top: 1em">1. At J1, add a
+jurisdiction-specific access control rule that allows
+dacs_auth_transfer to be used to export an identity:</p>
+
+<p style="margin-top: 1em">&lt;acl_rule
+status=&quot;enabled&quot;&gt; <br>
+&lt;services&gt; <br>
+&lt;service
+url_expr=&rsquo;&quot;${Conf::dacs_cgi_bin_prefix}/dacs_auth_transfer&quot;&rsquo;/&gt;
+<br>
+&lt;/services&gt;</p>
+
+<p style="margin-top: 1em">&lt;rule
+order=&quot;allow,deny&quot;
+pass_credentials=&quot;all&quot;&gt; <br>
+&lt;allow&gt; <br>
+user(&quot;auth&quot;) and (${Args::OPERATION} eq
+&quot;PRESENTATION&quot; <br>
+or ${Args::OPERATION} eq &quot;EXPORT&quot;) <br>
+&lt;/allow&gt; <br>
+&lt;/rule&gt; <br>
+&lt;/acl_rule&gt;</p>
+
+<p style="margin-top: 1em">At J2, add a
+jurisdiction-specific access control rule that allows
+dacs_auth_transfer to be used to import an identity:</p>
+
+<p style="margin-top: 1em">&lt;acl_rule
+status=&quot;enabled&quot;&gt; <br>
+&lt;services&gt; <br>
+&lt;service
+url_expr=&rsquo;&quot;${Conf::dacs_cgi_bin_prefix}/dacs_auth_transfer&quot;&rsquo;/&gt;
+<br>
+&lt;/services&gt;</p>
+
+<p style="margin-top: 1em">&lt;rule
+order=&quot;allow,deny&quot;
+pass_credentials=&quot;all&quot;&gt; <br>
+&lt;allow&gt; <br>
+(from(&quot;j1.example.com&quot;) and ${Args::OPERATION} eq
+&quot;TOKEN&quot;) <br>
+or ${Args::OPERATION} eq &quot;IMPORT&quot; <br>
+&lt;/allow&gt; <br>
+&lt;/rule&gt; <br>
+&lt;/acl_rule&gt;</p>
+
+<p style="margin-top: 1em">Security <br>
+In particular, the rule at the target federation must
+restrict access based on the identity, or possibly the IP
+address, associated with the request. If the cookie-based
+<br>
+authentication method is used, the rule would test for that
+specific identity.</p>
+
+<p style="margin-top: 1em">2. At J1, configure
+dacs_auth_transfer to know how to invoke the TOKEN operation
+so that it can export credentials to FED_EX2. Add this
+directive to dacs.conf:</p>
+
+<p style="margin-top: 1em">AUTH_TRANSFER_EXPORT
+&quot;FED_EX2
+https://j2.example.net/cgi-bin/dacs/dacs_auth_transfer&quot;</p>
+
+<p style="margin-top: 1em">Note that this is the only
+required additional configuration at J1.</p>
+
+<p style="margin-top: 1em">3. At J2, configure
+dacs_auth_transfer so that it will import credentials from
+FED_EX1. Add a Transfer clause to dacs.conf:</p>
+
+<p style="margin-top: 1em">ACCEPT_ALIEN_CREDENTIALS
+&quot;yes&quot;</p>
+
+<p style="margin-top: 1em">&lt;Transfer
+id=&quot;fed_ex1&quot;&gt; <br>
+IMPORT_FROM &quot;FED_EX1&quot; <br>
+SUCCESS_URL
+&quot;https://j2.example.net/cgi-bin/dacs/dacs_current_credentials&quot;
+<br>
+&lt;/Transfer&gt;</p>
+
+<p style="margin-top: 1em">This configuration allows
+credentials to be imported from federation FED_EX1. As the
+default, after successful importation users will be
+redirected to a page that lists their <br>
+identities in federation FED_EX2. In practice this might
+point to the site&rsquo;s home page, for example. The
+jurisdiction must be told to recognize credentials imported
+from <br>
+FED_EX2 using the ACCEPT_ALIEN_CREDENTIALS directive.</p>
+
+<p style="margin-top: 1em">4. The configuration can now be
+tested. First, authenticate somewhere within FED_EX1 using
+your browser. Let&rsquo;s assume that you authenticated as
+the identity FED_EX1::J1:bob so <br>
+that this example can refer to a specific name. Invoke this
+URL from the browser:</p>
+
+
+<p style="margin-top: 1em">https://j1.example.com/cgi-bin/dacs/dacs_auth_transfer?OPERATION=PRESENTATION</p>
+
+<p style="margin-top: 1em">You should be presented with a
+web page that displays the identity FED_EX1::J1:bob (and any
+others that happen to be in effect) and the target
+federation name FED_EX2 (and <br>
+any other federations specified by a AUTH_TRANSFER_EXPORT
+directive). It might be instructive to view the source for
+the HTML page if you are still not clear about what the <br>
+PRESENTATION operation does. Click on the Transfer button
+(if necessary, first selecting an identity and target
+federation).</p>
+
+<p style="margin-top: 1em">One can bypass the PRESENTATION
+operation by directly invoking the URL:</p>
+
+
+<p style="margin-top: 1em">https://j1.example.com/cgi-bin/dacs/dacs_auth_transfer?
+OPERATION=EXPORT&amp;DACS_IDENTITY=FED_EX1::J1:bob</p>
+
+<p style="margin-top: 1em">If the transfer is successful,
+your browser should now possess the original credentials for
+the identity FED_EX1::J1:bob, valid within FED_EX1, and
+credentials for the <br>
+identity FED_EX1::J1:bob that are valid within FED_EX2;
+dacs_current_credentials, where your browser should be
+redirected to in this example, should display the latter.
+Note <br>
+that though issued by different sites, the two cookies have
+the same cookie name.</p>
+
+<p style="margin-top: 1em">The following example
+illustrates how an identity might be transferred from a
+non-DACS federation (SOME_FED) to a DACS federation (again,
+FED_EX2 via its jurisdiction J2). We <br>
+will assume that an appropriate access control rule has been
+configured at J2.</p>
+
+<p style="margin-top: 1em">As in the previous example, at
+J2, configure dacs_auth_transfer so that it will import
+credentials from SOME_FED by adding a Transfer clause to
+dacs.conf:</p>
+
+<p style="margin-top: 1em">ACCEPT_ALIEN_CREDENTIALS
+&quot;yes&quot;</p>
+
+<p style="margin-top: 1em">&lt;Transfer
+id=&quot;some_fed&quot;&gt; <br>
+IMPORT_FROM &quot;SOME_FED&quot; <br>
+REFEDERATE &quot;YES&quot; <br>
+IMPORT_ROLES &quot;NO&quot; <br>
+&lt;/Transfer&gt;</p>
+
+<p style="margin-top: 1em">This configuration allows
+credentials to be imported from federation SOME_FED.</p>
+
+<p style="margin-top: 1em">A system administrator must
+write a small program, run somewhere within SOME_FED, that
+will invoke dacs_auth_transfer at J2 with appropriate
+arguments. The program might be run <br>
+automatically as part of the login procedure at SOME_FED or
+explicitly by providing a link that a user can follow (e.g.,
+labelled &quot;Transfer Login To FED_EX2&quot;, or similar).
+The <br>
+program simply invokes the TOKEN operation at J2 and, if
+successful, redirects the user to the URL that is returned
+to it by dacs_auth_transfer (which represents an IMPORT <br>
+operation). If the IMPORT operation succeeds, the user will
+be issued an HTTP cookie bearing the DACS credentials. If
+desired, the URL that the user should visit after a <br>
+successful transfer can be specified through the
+TRANSFER_SUCCESS_URL argument.</p>
+
+<p style="margin-top: 1em">The program might initiate the
+transfer by constructing and invoking a URL (via the POST
+method) much like this:</p>
+
+<p style="margin-top: 1em">import_url=&lsquo;http -p
+INITIAL_FEDERATION &quot;SOME_FED&quot; -p DACS_IDENTITY
+&quot;FED_EX2::J2:bobo&quot; -p CLIENT_ADDR 127.0.0.1 -p
+TRANSFER_SUCCESS_URL
+&quot;https://j2.example.net/cgi-bin/dacs/dacs_current_credentials&quot;
+-p OPERATION TOKEN
+&rsquo;https://j2.example.net/cgi-bin/dacs/dacs_auth_transfer&rsquo;&lsquo;</p>
+
+<p style="margin-top: 1em">Here, the requested DACS
+identity is FED_EX2::J2:bobo. If the response looks like a
+URL, then the TOKEN operation succeeded; to continue the
+transfer, the program must redirect <br>
+the user to the URL. In this example, if credentials are
+returned to the user, the user will be redirected to
+dacs_current_credentials by DACS (which is useful for
+testing but <br>
+unlikely in actual use).</p>
+
+<p style="margin-top: 1em">FILES <br>
+dacs_auth_transfer.css[4]</p>
+
+<p style="margin-top: 1em">DIAGNOSTICS <br>
+The program exits 0 if everything was fine, 1 if an error
+occurred.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+dacs_authenticate(8)[17], dacs_auth_agent(8)[18],
+dacs.conf(5)[19]</p>
+
+<p style="margin-top: 1em">BUGS <br>
+The jurisdictional meta information should be extended to
+identify importing and exporting jurisdictions (e.g., as
+reported by dacs_list_jurisdictions(8)[20]).</p>
+
+<p style="margin-top: 1em">It should be possible to
+optionally perform comparative checks on the IP address from
+which the EXPORT request was issued and the IP address from
+which the IMPORT request was <br>
+issued. At present, if they are not identical a warning
+message is logged but importation is allowed.</p>
+
+<p style="margin-top: 1em">The current implementation is
+stateless on the server side. By including a nonce in the
+token, the possibility of replay could be further
+reduced.</p>
+
+<p style="margin-top: 1em">A mechanism for mapping imported
+names may be needed.</p>
+
+<p style="margin-top: 1em">Although the credential&rsquo;s
+DACS role string is passed to the target federation, a
+flexible mechanism for optionally including them in the
+imported credentials should be added.</p>
+
+<p style="margin-top: 1em">The protocol should be improved
+with respect to peer identification for the TOKEN
+operation.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Distributed Systems Software (www.dss.ca[21])</p>
+
+<p style="margin-top: 1em">COPYING <br>
+Copyright2003-2015 Distributed Systems Software. See the
+LICENSE[22] file that accompanies the distribution for
+licensing information.</p>
+
+<p style="margin-top: 1em">NOTES <br>
+1. dacsoptions <br>
+http://dacs.dss.ca/man/dacs.1.html#dacsoptions</p>
+
+<p style="margin-top: 1em">2. ACCEPT_ALIEN_CREDENTIALS <br>
+
+http://dacs.dss.ca/man/dacs.conf.5.html#ACCEPT_ALIEN_CREDENTIALS</p>
+
+<p style="margin-top: 1em">3. dacs.acls(5) <br>
+http://dacs.dss.ca/man/dacs.acls.5.html</p>
+
+<p style="margin-top: 1em">4. dacs_auth_transfer.css <br>
+http://dacs.dss.ca/man//css/dacs_auth_transfer.css</p>
+
+<p style="margin-top: 1em">5. dacs_auth_transfer.dtd <br>
+
+http://dacs.dss.ca/man/../dtd-xsd/dacs_auth_transfer.dtd</p>
+
+<p style="margin-top: 1em">6. AUTH_TRANSFER_EXPORT <br>
+
+http://dacs.dss.ca/man/dacs.conf.5.html#AUTH_TRANSFER_EXPORT</p>
+
+<p style="margin-top: 1em">7. SSL_PROG_CLIENT_CRT <br>
+
+http://dacs.dss.ca/man/dacs.conf.5.html#SSL_PROG_CLIENT_CRT</p>
+
+<p style="margin-top: 1em">8. dacscookie(1) <br>
+http://dacs.dss.ca/man/dacscookie.1.html</p>
+
+<p style="margin-top: 1em">9.
+AUTH_TRANSFER_TOKEN_LIFETIME_SECS <br>
+
+http://dacs.dss.ca/man/dacs.conf.5.html#AUTH_TRANSFER_TOKEN_LIFETIME_SECS</p>
+
+<p style="margin-top: 1em">10. user() <br>
+http://dacs.dss.ca/man/dacs.exprs.5.html#user</p>
+
+<p style="margin-top: 1em">11.
+AUTH_CREDENTIALS_DEFAULT_LIFETIME_SECS <br>
+
+http://dacs.dss.ca/man/dacs.conf.5.html#AUTH_CREDENTIALS_DEFAULT_LIFETIME_SECS</p>
+
+<p style="margin-top: 1em">12. standard CGI arguments <br>
+
+http://dacs.dss.ca/man/dacs.services.8.html#standard_cgi_args</p>
+
+<p style="margin-top: 1em">13. dacs(1) <br>
+http://dacs.dss.ca/man/dacs.1.html</p>
+
+<p style="margin-top: 1em">14. dacs(1) <br>
+http://dacs.dss.ca/man/dacs.1.html#naming</p>
+
+<p style="margin-top: 1em">15. AUTH_TRANSFER_SUCCESS_URL
+<br>
+
+http://dacs.dss.ca/man/dacs.conf.5.html#AUTH_TRANSFER_SUCCESS_URL</p>
+
+<p style="margin-top: 1em">16. AUTH_TRANSFER_ERROR_URL <br>
+
+http://dacs.dss.ca/man/dacs.conf.5.html#AUTH_TRANSFER_ERROR_URL</p>
+
+<p style="margin-top: 1em">17. dacs_authenticate(8) <br>
+http://dacs.dss.ca/man/dacs_authenticate.8.html</p>
+
+<p style="margin-top: 1em">18. dacs_auth_agent(8) <br>
+http://dacs.dss.ca/man/dacs_auth_agent.8.html</p>
+
+<p style="margin-top: 1em">19. dacs.conf(5) <br>
+http://dacs.dss.ca/man/dacs.conf.5.html</p>
+
+<p style="margin-top: 1em">20. dacs_list_jurisdictions(8)
+<br>
+http://dacs.dss.ca/man/dacs_list_jurisdictions.8.html</p>
+
+<p style="margin-top: 1em">21. www.dss.ca <br>
+http://www.dss.ca</p>
+
+<p style="margin-top: 1em">22. LICENSE <br>
+http://dacs.dss.ca/man/../misc/LICENSE</p>
+
+<p style="margin-top: 1em">DACS 1.4.38a 01/12/2017
+DACS_AUTH_TRANSFER(8)</p>
+<hr>
+</body>
+</html>

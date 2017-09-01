@@ -1,0 +1,408 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:33:51 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>PROCSERV(1) procServ Manual PROCSERV(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+procServ - Process Server with Telnet Console and Log
+Access</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+procServ [OPTIONS] -P endpoint... command args...</p>
+
+<p style="margin-top: 1em">procServ [OPTIONS] endpoint
+command args...</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+procServ(1) creates a run time environment for a command
+(e.g. a soft IOC). It forks a server run as a daemon into
+the background, which creates a child process running
+command <br>
+with all remaining args from the command line. The server
+provides control access (stdin/stdout) to the child process
+console by offering a telnet connection at the specified
+<br>
+endpoint(s).</p>
+
+<p style="margin-top: 1em">An endpoint can either be a TCP
+server socket (specified by the port number) or a UNIX
+domain socket (where available). See ENDPOINT SPECIFICATION
+below for details. For security <br>
+reasons, control access is restricted to connections from
+localhost (127.0.0.1), so that a prior login in to the host
+machine is required. (See --allow option.)</p>
+
+<p style="margin-top: 1em">The first variant allows
+multiple endpoint declarations and treats all non-option
+arguments as the command line for the child process. The
+second variant (provided for backward <br>
+compatibility) declares one endpoint with its specification
+taken from the first non-option argument.</p>
+
+<p style="margin-top: 1em">procServ can be configured to
+write a console log of all in- and output of the child
+process into a file using the -L (--logfile) option. Sending
+the signal SIGHUP to the server <br>
+will make it reopen the log file.</p>
+
+<p style="margin-top: 1em">To facilitate running under a
+central console access management (like conserver), the -l
+(--logport) option creates an additional endpoint, which is
+by default public (i.e. TCP <br>
+access is not restricted to connections from localhost), and
+provides read-only (log) access to the child&acirc;s
+console. The -r (--restrict) option restricts both control
+and log <br>
+access to connections from localhost.</p>
+
+<p style="margin-top: 1em">Both control and log endpoints
+allow multiple connections, which are handled transparently:
+all input from control connections is forwarded to the child
+process, all output from <br>
+the child is forwarded to all control and log connections
+(and written to the log file). All diagnostic messages from
+the procServ server process start with &quot;@@@&quot; to be
+clearly <br>
+distinguishable from child process messages. A name
+specified by the -n (--name) option will replace the command
+string in many messages for increased readability.</p>
+
+<p style="margin-top: 1em">The server will by default
+automatically respawn the child process when it dies. To
+avoid spinning, a minimum time between child process
+restarts is honored (default: 15 seconds, <br>
+can be changed using the --holdoff option). This behavior
+can be toggled online using the toggle command ^T, the
+default may be changed using the --noautorestart option. You
+can <br>
+restart a running child manually by sending a signal to the
+child process using the kill command ^X. With the child
+process being shut down, the server accepts two commands: ^R
+<br>
+or ^X to restart the child, and ^Q to quit the server. The
+-w (--wait) option starts the server in this shut down mode,
+waiting for a control connection to issue a manual start
+<br>
+command to spawn the child.</p>
+
+<p style="margin-top: 1em">Any connection (control or log)
+can be disconnected using the client&acirc;s disconnect
+sequence. Control connections can also be disconnected by
+sending the logout command character <br>
+that can be specified using the -x (--logoutcmd) option.</p>
+
+<p style="margin-top: 1em">To block input characters that
+are potentially dangerous to the child (e.g. ^D and ^C on
+soft IOCs), the -i (--ignore) option can be used to specify
+characters that are silently <br>
+ignored when coming from a control connection.</p>
+
+<p style="margin-top: 1em">To facilitate being started and
+stopped as a standard system service, the -p (--pidfile)
+option tells the server to create a PID file containing the
+PID of the server process. <br>
+The -I (--info-file) option writes a file listing the server
+PID and a list of all endpoints.</p>
+
+<p style="margin-top: 1em">The -d (--debug) option runs the
+server in debug mode: the daemon process stays in the
+foreground, printing all regular log content plus additional
+debug messages to stdout.</p>
+
+<p style="margin-top: 1em">ENDPOINT SPECIFICATION <br>
+Both control and log endpoints may be bound to either TCP or
+UNIX sockets (where supported). Allowed endpoint
+specifications are:</p>
+
+<p style="margin-top: 1em">&lt;port&gt; <br>
+Bind to either 0.0.0.0:&lt;port&gt; (any) or
+127.0.0.1:&lt;port&gt; (localhost) depending on the type of
+endpoint and the setting of -r (--restrict) and --allow
+options.</p>
+
+<p style="margin-top: 1em">&lt;ifaceaddr&gt;:&lt;port&gt;
+<br>
+Bind to the specified interface address and &lt;port&gt;.
+The interface IP address &lt;ifaceaddr&gt; must be given in
+numeric form. Uses 127.0.0.1 (localhost) for security
+reasons unless <br>
+the --allow option is also used.</p>
+
+<p style="margin-top: 1em">unix:&lt;/path/to/socket&gt;
+<br>
+Bind to a named unix domain socket that will be created at
+the specified absolute or relative path. The server process
+must have permission to create files in the enclosing <br>
+directory. The socket file will be owned by the uid and
+primary gid of the procServ server process with permissions
+0666 (equivalent to a TCP socket bound to localhost).</p>
+
+
+<p style="margin-top: 1em">unix:&lt;user&gt;:&lt;group&gt;:&lt;perm&gt;:&lt;/path/to/socket&gt;
+<br>
+Bind to a named unix domain socket that will be created at
+the specified absolute or relative path. The server process
+must have permission to create files in the enclosing <br>
+directory. The socket file will be owned by the specified
+&lt;user&gt; and &lt;group&gt; with &lt;perm&gt;
+permissions. Any of &lt;user&gt;, &lt;group&gt;, and/or
+&lt;perm&gt; may be omitted. E.g. &quot;-P <br>
+unix::grp:0660:/run/procServ/foo/control&quot; will create
+the named socket with 0660 permissions and allow the
+&quot;grp&quot; group connect to it. This requires that
+procServ be run as <br>
+root or a member of &quot;grp&quot;.</p>
+
+<p style="margin-top: 1em">unix:@&lt;/path/to/socket&gt;
+<br>
+Bind to an abstract unix domain socket (Linux specific).
+Abstract sockets do not exist on the filesystem, and have no
+permissions checks. They are functionally similar to a <br>
+TCP socket bound to localhost, but identified with a name
+string instead of a port number.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+--allow <br>
+Allow TCP control connections from anywhere. (Default:
+restrict control access to connections from localhost.)
+Creates a serious security hole, as telnet clients from <br>
+anywhere can connect to the child&acirc;s stdin/stdout and
+might execute arbitrary commands on the host if the child
+permits. Needs to be enabled at compile-time (see Makefile).
+<br>
+Please do not enable and use this option unless you exactly
+know why and what you are doing.</p>
+
+<p style="margin-top: 1em">--autorestartcmd=char <br>
+Toggle auto restart flag when char is sent on a control
+connection. Use ^ to specify a control character,
+&quot;&quot; to disable. Default is ^T.</p>
+
+<p style="margin-top: 1em">--coresize=size <br>
+Set the maximum size of core file. See getrlimit(2)
+documentation for details. Setting size to 0 will keep child
+from creating core files.</p>
+
+<p style="margin-top: 1em">-c, --chdir=dir <br>
+Change directory to dir before starting the child. This is
+done each time the child is started to make sure symbolic
+links are properly resolved on child restart.</p>
+
+<p style="margin-top: 1em">-d, --debug <br>
+Enter debug mode. Debug mode will keep the server process in
+the foreground and enables diagnostic messages that will be
+sent to the controlling terminal.</p>
+
+<p style="margin-top: 1em">-e, --exec=file <br>
+Run file as executable for child. Default is command.</p>
+
+<p style="margin-top: 1em">-f, --foreground <br>
+Keep the server process in the foreground and connected to
+the controlling terminal.</p>
+
+<p style="margin-top: 1em">-h, --help <br>
+Print help message.</p>
+
+<p style="margin-top: 1em">--holdoff=n <br>
+Wait at least n seconds between child restart attempts.
+(Default is 15 seconds.)</p>
+
+<p style="margin-top: 1em">-i, --ignore=chars <br>
+Ignore all characters in chars on control connections. This
+can be used to shield the child process from input
+characters that are potentially dangerous, e.g. ^D and ^C
+<br>
+characters that would shut down a soft IOC. Use ^ to specify
+control characters, ^^ to specify a single ^ character.</p>
+
+<p style="margin-top: 1em">*-I, --info-file &lt;file&gt;
+<br>
+Write instance information to this file.</p>
+
+<p style="margin-top: 1em">-k, --killcmd=char <br>
+Kill the child process (child will be restarted
+automatically by default) when char is sent on a control
+connection. Use ^ to specify a control character,
+&quot;&quot; for no kill <br>
+command. Default is ^X.</p>
+
+<p style="margin-top: 1em">--killsig=signal <br>
+Kill the child using signal when receiving the kill command.
+Default is 9 (SIGKILL).</p>
+
+<p style="margin-top: 1em">-l, --logport=endpoint <br>
+Provide read-only log access to the child&acirc;s console on
+endpoint. See ENDPOINT SPECIFICATION above. By default, TCP
+log endpoints allow connections from anywhere. Use the -r
+<br>
+(--restrict) option to restrict TCP access to local
+connections.</p>
+
+<p style="margin-top: 1em">-L, --logfile=file <br>
+Write a console log of all in and output to file. - selects
+stdout.</p>
+
+<p style="margin-top: 1em">--logstamp[=fmt] <br>
+Prefix lines in logs with a time stamp, setting the time
+stamp format string to fmt. Default is
+&quot;[&lt;timefmt&gt;] &quot;. (See --timefmt option.)</p>
+
+<p style="margin-top: 1em">-n, --name=title <br>
+In all server messages, use title instead of the full
+command line to increase readability.</p>
+
+<p style="margin-top: 1em">--noautorestart <br>
+Do not automatically restart child process on exit.</p>
+
+<p style="margin-top: 1em">-P, --port=endpoint <br>
+Provide control access to the child&acirc;s console on
+endpoint. See ENDPOINT SPECIFICATION above. By default, TCP
+control endpoints are restricted to local connections. Use
+the <br>
+--allow option to allow TCP access from anywhere.</p>
+
+<p style="margin-top: 1em">-p, --pidfile=file <br>
+Write the PID of the server process into file.</p>
+
+<p style="margin-top: 1em">--timefmt=fmt <br>
+Set the format string used to print time stamps to fmt.
+Default is &quot;%c&quot;. (See strftime(3) documentation
+for details.)</p>
+
+<p style="margin-top: 1em">-q, --quiet <br>
+Do not write informational output (server). Avoids
+cluttering the screen when run as part of a system
+script.</p>
+
+<p style="margin-top: 1em">--restrict <br>
+Restrict TCP access (control and log) to connections from
+localhost.</p>
+
+<p style="margin-top: 1em">-V, --version <br>
+Print program version.</p>
+
+<p style="margin-top: 1em">-w, --wait <br>
+Do not start the child immediately. Instead, wait for a
+control connection and a manual start command.</p>
+
+<p style="margin-top: 1em">-x, --logoutcmd=char <br>
+Log out (close client connection) when char is sent on an
+control connection. Use ^ to specify a control character.
+Default is empty.</p>
+
+<p style="margin-top: 1em">USAGE <br>
+To start a soft IOC using procServ, change the directory
+into the IOC&acirc;s boot directory. A typical command line
+would be</p>
+
+<p style="margin-top: 1em">procServ -n &quot;My
+SoftIOC&quot; -i ^D^C 20000 ./st.cmd</p>
+
+<p style="margin-top: 1em">To connect to the IOC, log into
+the soft IOC&acirc;s host and connect to port 20000
+using</p>
+
+<p style="margin-top: 1em">telnet localhost 20000</p>
+
+<p style="margin-top: 1em">To connect from a remote
+machine, ssh to a user account on procservhost and connect
+to port 20000 using</p>
+
+<p style="margin-top: 1em">ssh -t user@procservhost telnet
+localhost 20000</p>
+
+<p style="margin-top: 1em">You will be connected to the
+soft IOCs console and receive an informative welcome
+message. All output from the procServ server will start with
+&quot;@@@&quot; to allow telling it apart <br>
+from messages that your IOC sends.</p>
+
+<p style="margin-top: 1em">&gt; telnet localhost 20000 <br>
+Trying 127.0.0.1... <br>
+Connected to localhost. <br>
+Escape character is &rsquo;^]&rsquo;. <br>
+@@@ Welcome to the procServ process server (procServ Version
+2.1.0) <br>
+@@@ Use ^X to kill the child, auto restart is ON, use ^T to
+toggle auto restart <br>
+@@@ procServ server PID: 21413 <br>
+@@@ Startup directory:
+/projects/ctl/lange/epics/ioc/test314/iocBoot/iocexample
+<br>
+@@@ Child &quot;My SoftIOC&quot; started as: ./st.cmd <br>
+@@@ Child &quot;My SoftIOC&quot; PID: 21414 <br>
+@@@ procServ server started at: Fri Apr 25 16:43:00 2008
+<br>
+@@@ Child &quot;My SoftIOC&quot; started at: Fri Apr 25
+16:43:00 2008 <br>
+@@@ 0 user(s) and 0 logger(s) connected (plus you)</p>
+
+<p style="margin-top: 1em">Type the kill command character
+^X to reboot the soft IOC and get server messages about this
+action.</p>
+
+<p style="margin-top: 1em">Type the telnet escape character
+^] to get back to a telnet prompt then &quot;quit&quot; to
+exit telnet (and ssh when you were connecting remotely).</p>
+
+<p style="margin-top: 1em">Though procServ was originally
+intended to be an environment to run soft IOCs, an arbitrary
+process might be started as child. It provides an
+environment for any program that <br>
+requires access to its console, while running in the
+background as a daemon, and keeping a log by writing a file
+or through a console access and logging facility (such as
+<br>
+conserver).</p>
+
+<p style="margin-top: 1em">ENVIRONMENT VARIABLES <br>
+PROCSERV_PID <br>
+Sets the file name to write the PID of the server process
+into. (See -p option.)</p>
+
+<p style="margin-top: 1em">PROCSERV_DEBUG <br>
+If set, procServ starts in debug mode. (See -d option.)</p>
+
+<p style="margin-top: 1em">KNOWN PROBLEMS <br>
+None so far.</p>
+
+<p style="margin-top: 1em">REPORTING BUGS <br>
+Please report bugs using the issue tracker at
+https://github.com/ralphlange/procServ/issues.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Originally written by David H. Thompson (ORNL). Current
+author: Ralph Lange &lt;ralph.lange@gmx.de&gt;.</p>
+
+<p style="margin-top: 1em">RESOURCES <br>
+GitHub project: https://github.com/ralphlange/procServ</p>
+
+<p style="margin-top: 1em">COPYING <br>
+All copyrights reserved. Free use of this software is
+granted under the terms of the GNU General Public License
+(GPLv3).</p>
+
+<p style="margin-top: 1em">procServ 2.7.0 01/18/2017
+PROCSERV(1)</p>
+<hr>
+</body>
+</html>

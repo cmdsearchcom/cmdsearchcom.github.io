@@ -1,0 +1,390 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:00:53 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>CR_CHECKPOINT(1) User Commands CR_CHECKPOINT(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+cr_checkpoint - checkpoints a process, process group, or
+session.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+cr_checkpoint [options] ID</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+Invoking cr_checkpoint causes a process (with or without all
+of its descendants), all processes within a process group,
+or all processes within a session, to be checkpointed. <br>
+The result is a checkpoint file (or a directory with one
+checkpoint file per process) that contains all the state
+needed to restart the process(es) at a later time.
+Checkpointed <br>
+processes can be restarted via cr_restart(1).</p>
+
+<p style="margin-top: 1em">To be checkpointed by
+cr_checkpoint, a process must have the libcr.so library (or
+one of its relatives) loaded. This can be achieved by
+starting the program with cr_run(1), or <br>
+by linking your application with -lcr. Or, the library may
+be loaded by other libraries you have linked with (such as a
+checkpoint-ready MPI library), or your system&rsquo;s
+parallel <br>
+job startup script, etc. Check your system documentation for
+details.</p>
+
+<p style="margin-top: 1em">File creation/replacement <br>
+By default (or if --atomic is passed) cr_checkpoint creates
+the new context file/directory atomically: either the
+checkpoint fails (and any existing context file/directory is
+<br>
+unchanged), or it appears in the directory ready to be used
+by cr_restart. If an existing checkpoint with the same file
+name exists, it will either be be unmodified (if the new
+<br>
+checkpoint fails for any reason), or replaced atomically
+(via rename(2). If --backup[=NAME] is passed, any existing
+checkpoint will be backed up instead, either to NAME or with
+<br>
+a numbered extension (.~1~, .~2~, etc., with more recent
+checkpoints having higher numbers). If --clobber is passed,
+the checkpoint will immediately remove any existing
+check&acirc; <br>
+point files, and will write the checkpoint directly out into
+the target file/directory: this option uses less disk space
+if an existing checkpoint is present, since the old <br>
+checkpoint is immediately discarded, but if the checkpoint
+fails, the pre-existing checkpoint is lost. Finally, if
+--noclobber is passed, then the checkpoint will fail if the
+<br>
+target file/directory exists.</p>
+
+<p style="margin-top: 1em">File sync <br>
+By default (or when --sync is passed), cr_checkpoint waits
+until the checkpoint is complete in memory, and additionally
+calls fsync(2) on all files and directories involved in <br>
+the checkpoint (including back-up files) to disk before
+exiting. Passing --nosync causes these fsync calls to be
+skipped.</p>
+
+<p style="margin-top: 1em">Timeout <br>
+A maximum timeout in seconds can be set for a checkpoint via
+the --time flag: if the checkpoint takes longer than this,
+cr_checkpoint will print an error mesage and exit with an
+<br>
+error. If a timeout occurs, the state of the process or
+processes that were being checkpointed is undefined.</p>
+
+<p style="margin-top: 1em">Signals <br>
+By default checkpointed processes continue to run after a
+checkpoint is complete. Alternatively, you may specify that
+they be stopped (via --stop), or terminated/aborted/killed
+<br>
+(via --term, --abort, or --kill). This is done by sending
+the appropriate signal to every process that is part of the
+checkpoint. If the processes were stopped at the time the
+<br>
+checkpoint was requested, then --cont may be used to send
+SIGCONT to all processes after the checkpoint is
+completed.</p>
+
+<p style="margin-top: 1em">Memory mapped files <br>
+By default, checkpoints do not include any files that are
+mmap()ed into the process address space unless they are
+already unlinked at the time the checkpoint is taken. This
+is a <br>
+space/time saving optimization under the assumption that the
+files required will still be present (and uncorrupted) at
+restart time. Typically the largest savings comes from not
+<br>
+saving the executable file or dynamic (a.k.a shared)
+libraries. However, options exist to cause the checkpoint to
+save these files as well. The flag --save-exe will cause the
+<br>
+executable file to be included in the context file. The flag
+--save-private will include in the context file any files
+that are mapped with the MAP_PRIVATE flag, which under <br>
+Linux includes the executable and dynamic/shared libaries.
+The flag --save-shared is for saving files that are mapped
+with the MAP_SHARED flag. Note that this is not the flag
+<br>
+you want for shared libraries. At restart any file saved by
+these flags will be mapped into the process regardless of
+whether any file exists at the original location. If there
+<br>
+is file at the original location it remains untouched by the
+restart. Finally --save-all and --save-none will cause all
+(or none) of these optional mmaped files to be saved. <br>
+The default is --save-none. When passing multiple of these
+options they are processed from left to right with all
+options being additive, except for --save-none which cancels
+<br>
+the effects of any these options appearing earlier.</p>
+
+<p style="margin-top: 1em">Checkpointing ptrace()ed
+processes <br>
+There is (currently) no way to fully transparently deal with
+checkpoints of processes that are being traced with
+ptrace(2). Therefore, the default behavior (also available
+via <br>
+--ptraced-error) is to return an error if any of the
+processes to be checkpointed are currently being ptraced.
+However, there are two other possible behaviors to choose
+among:</p>
+
+<p style="margin-top: 1em">--ptraced-skip <br>
+Ptraced processes will be siliently excluded from the
+checkpoint. No error is generated unless this results in
+zero processes checkpointed.</p>
+
+<p style="margin-top: 1em">--ptraced-allow <br>
+Ptraced processes will be checkpointed just like any other
+processes. WARNING: Because the checkpointed process and the
+BLCR kernel module must interact using signals and <br>
+system calls, the debugger (or other tracer) may need to
+&lsquo;continue&rsquo; the target process(es), possibly more
+than once, to allow the checkpoint to complete.</p>
+
+<p style="margin-top: 1em">Checkpointing ptrace()ing
+processes <br>
+There is (currently) no way to fully transparently deal with
+checkpoints of processes that are tracing other processes
+using ptrace(2). Therefore, the default behavior (also <br>
+available via --ptracer-error) is to return an error if any
+of the processes to be checkpointed are currently ptracing
+other processes. However --ptracer-skip is available to <br>
+cause cr_checkpoint to silently exclude such processes from
+the checkpoint. No error is generated in that case unless
+this would result in zero processes checkpointed.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+General options: <br>
+-v, --verbose <br>
+print progress messages to stderr.</p>
+
+<p style="margin-top: 1em">-q, --quiet <br>
+suppress error/warning messages to stderr.</p>
+
+<p style="margin-top: 1em">-?, --help <br>
+print this message and exit.</p>
+
+<p style="margin-top: 1em">--version <br>
+print version information and exit.</p>
+
+<p style="margin-top: 1em">Options for scope of the
+checkpoint: <br>
+-T, --tree <br>
+ID identifies a process id. It and all of its descendants
+are to be checkpointed. This is the default.</p>
+
+<p style="margin-top: 1em">-p, --pid, --process <br>
+ID identifies a single process id.</p>
+
+<p style="margin-top: 1em">-g, --pgid, --group <br>
+ID identifies a process group id.</p>
+
+<p style="margin-top: 1em">-s, --sid, --session <br>
+ID identifies a session id.</p>
+
+<p style="margin-top: 1em">Options for destination location
+of the checkpoint: <br>
+-c, --cwd <br>
+checkpoint saved as a single &rsquo;context.ID&rsquo; file
+in cr_checkpoint&rsquo;s working directory (default).</p>
+
+<p style="margin-top: 1em">-d, --dir DIR <br>
+checkpoint saved in new directory DIR, with one
+&rsquo;context.ID&rsquo; file per process
+(unimplemented).</p>
+
+<p style="margin-top: 1em">-f, --file FILE <br>
+checkpoint saved as FILE.</p>
+
+<p style="margin-top: 1em">-F, --fd FD <br>
+checkpoint written to an open file descriptor.</p>
+
+<p style="margin-top: 1em">Options for creation/replacement
+policy for checkpoint files: <br>
+--atomic <br>
+checkpoint created/replaced atomically (default).</p>
+
+<p style="margin-top: 1em">--backup[=NAME] <br>
+checkpoint created atomically, and any existing checkpoint
+backed up to NAME or *.~1~, *.~2~, etc.</p>
+
+<p style="margin-top: 1em">--clobber <br>
+checkpoint written incrementally to target, overwriting any
+pre-existing checkpoint.</p>
+
+<p style="margin-top: 1em">--noclobber <br>
+checkpoint will fail if the target file exists.</p>
+
+<p style="margin-top: 1em">These options are ignored if the
+destination is a file descriptor.</p>
+
+<p style="margin-top: 1em">Options for signal sent to
+process(es) after checkpoint: <br>
+--run no signal sent: continue execution (default).</p>
+
+<p style="margin-top: 1em">-S, --signal NUM <br>
+signal NUM sent to all processess.</p>
+
+<p style="margin-top: 1em">--stop SIGSTOP sent to all
+processes.</p>
+
+<p style="margin-top: 1em">--term SIGTERM sent to all
+processes.</p>
+
+<p style="margin-top: 1em">--abort <br>
+SIGABRT sent to all processes.</p>
+
+<p style="margin-top: 1em">--kill SIGKILL sent to all
+processes.</p>
+
+<p style="margin-top: 1em">--cont SIGCONT sent to all
+processes.</p>
+
+<p style="margin-top: 1em">Options in this group are
+mutually exclusive. If more than one is given then only the
+last will be honored.</p>
+
+<p style="margin-top: 1em">Options for file system
+synchronization (default is --sync): <br>
+--sync fsync checkpoint file(s) to disk (default).</p>
+
+<p style="margin-top: 1em">--nosync <br>
+do not fsync checkpoint file(s) to disk.</p>
+
+<p style="margin-top: 1em">Options to save optional
+portions of memory: <br>
+--save-exe <br>
+save the executable file.</p>
+
+<p style="margin-top: 1em">--save-private <br>
+save private mapped files. (executables and libraries are
+mapped this way)</p>
+
+<p style="margin-top: 1em">--save-shared <br>
+save shared mapped files. (System V IPC is mapped this
+way).</p>
+
+<p style="margin-top: 1em">--save-all <br>
+save all of the above.</p>
+
+<p style="margin-top: 1em">--save-none <br>
+save none of the above (the default).</p>
+
+<p style="margin-top: 1em">Options for ptraced processes
+(default is --ptraced-error): <br>
+--ptraced-error <br>
+return an error if a checkpoint is requested of a process
+being ptraced.</p>
+
+<p style="margin-top: 1em">--ptraced-skip <br>
+ptraced processes are silently excluded from the checkpoint
+request. If the checkpoint scope is --tree, then this will
+also exclude any children of such processes. No <br>
+error is produced unless this results in zero processes
+checkpointed.</p>
+
+<p style="margin-top: 1em">--ptraced-allow <br>
+checkpoint ptraced processes normally. WARNING: This may
+require the tracer to &quot;continue&quot; the target
+process(es), possibly more than once.</p>
+
+<p style="margin-top: 1em">Options for processes ptracing
+others (default is --ptracer-error): <br>
+--ptracer-error <br>
+return an error if a checkpoint is requested of a process
+which is ptracing others.</p>
+
+<p style="margin-top: 1em">--ptracer-skip <br>
+processes ptracing others are silently excluded from the
+checkpoint request. If the checkpoint scope is --tree, then
+this will also exclude any children of such pro&acirc; <br>
+cesses. No error is produced unless this results in zero
+processes checkpointed.</p>
+
+<p style="margin-top: 1em">Options for kernel log messages
+(default is --kmsg-error): <br>
+--kmsg-none <br>
+don&rsquo;t report any kernel messages.</p>
+
+<p style="margin-top: 1em">--kmsg-error <br>
+on checkpoint failure, report on stderr any kernel messages
+associated with the checkpoint request.</p>
+
+<p style="margin-top: 1em">--kmsg-warning <br>
+report on stderr any kernel messages associated with the
+checkpoint request, regardless of success or failure.
+Messages generated in the absence of failure are considered
+<br>
+to be warnings.</p>
+
+<p style="margin-top: 1em">Options in this group are
+mutually exclusive. If more than one is given then only the
+last will be honored. Note that --quiet suppresses all
+stderr output, including <br>
+these messages.</p>
+
+<p style="margin-top: 1em">Misc Options: <br>
+-t, --time SEC <br>
+allow only SEC seconds for target to complete checkpoint
+(default: wait indefinitely).</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+To checkpoint the process with process ID 23452, saving its
+state to file context.23452:</p>
+
+<p style="margin-top: 1em">cr_checkpoint -p 23452</p>
+
+<p style="margin-top: 1em">To checkpoint all the processes
+in process group 68473, and save them to file groupie:</p>
+
+<p style="margin-top: 1em">cr_checkpoint -g -f groupie
+68473</p>
+
+<p style="margin-top: 1em">To checkpoint all the process in
+session 8362, and save separate &rsquo;context.PID&rsquo;
+files for each process in directory
+&rsquo;my_checkpoints&rsquo;:</p>
+
+<p style="margin-top: 1em">cr_checkpoint -s -d
+my_checkpoints 8362</p>
+
+<p style="margin-top: 1em">BUGS <br>
+Some features in this manpage may be unimplemented.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Jason Duell, Paul Hargrove, and Eric Roman, Lawrence
+Berkeley National Laboratory.</p>
+
+<p style="margin-top: 1em">REPORTING BUGS <br>
+Bug reports may be filed on the web at
+http://mantis.lbl.gov/bugzilla.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+cr_restart(1), cr_run(1)</p>
+
+<p style="margin-top: 1em">Berkeley Lab Checkpoint/Restart
+August 2016 CR_CHECKPOINT(1)</p>
+<hr>
+</body>
+</html>

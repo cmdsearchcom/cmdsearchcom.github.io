@@ -1,0 +1,543 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:35:52 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>ROLLINIT(1) User Contributed Perl Documentation
+ROLLINIT(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+rollinit - Create new rollrec records for a DNSSEC-Tools
+rollrec file.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+rollinit [options] &lt;zonename1&gt; ...
+&lt;zonenameN&gt;</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+rollinit creates new rollrec entries for a rollrec file.
+This rollrec file will be used by rollerd to manage key
+rollover for the named zones.</p>
+
+<p style="margin-top: 1em">The newly generated rollrec
+entries are written to standard output, unless the -out
+option is specified.</p>
+
+<p style="margin-top: 1em">A rollrec entry has this
+format:</p>
+
+<p style="margin-top: 1em">roll &quot;example.com&quot;
+<br>
+zonename &quot;example.com&quot; <br>
+zonefile &quot;example.com.signed&quot; <br>
+keyrec &quot;example.com.krf&quot; <br>
+zonegroup &quot;example-zones&quot; <br>
+kskphase &quot;0&quot; <br>
+zskphase &quot;0&quot; <br>
+administrator &quot;bob@bobhost.example.com&quot; <br>
+directory &quot;/var/dns/zones/example.com&quot; <br>
+loglevel &quot;phase&quot; <br>
+ksk_rolldate &quot; &quot; <br>
+ksk_rollsecs &quot;0&quot; <br>
+zsk_rolldate &quot; &quot; <br>
+zsk_rollsecs &quot;0&quot; <br>
+maxttl &quot;604800&quot; <br>
+display &quot;1&quot; <br>
+phasestart &quot;Mon Jan 9 16:00:00 2006&quot; <br>
+# optional records for RFC5011 rolling: <br>
+istrustanchor &quot;no&quot; <br>
+holddowntime &quot;60D&quot;</p>
+
+<p style="margin-top: 1em">The keywords roll and skip
+indicate whether rollerd should process or ignore a
+particular rollrec entry. roll records are created by
+default; skip entries are created if the <br>
+-skip option is specified.</p>
+
+<p style="margin-top: 1em">The roll line has a name which
+is used to distinguish it from all other rollrec entries in
+the file. The zonename field is set to the name of the zone.
+These two data are often <br>
+the same, but this is not required. rollinit will set them
+to the same value, unless the -rollrec option is used.</p>
+
+<p style="margin-top: 1em">The zonefile and keyrec fields
+are set according to command-line options and arguments. The
+manner of generating the rollrec&rsquo;s actual values is a
+little complex and is described <br>
+in the ZONEFILE And KEYREC FIELDS section below.</p>
+
+<p style="margin-top: 1em">The zonegroup field is used to
+associate a set of rollrecs together, so they can be
+controlled by a single rollctl -group command. Multiple
+zonegroups may be specified in a <br>
+comma-separated list. Leading and trailing whitespace will
+be deleted, but internal whitespace is allowed. This field
+is optional and rollinit only sets it if the -zonegroup <br>
+option is specified. (While this is using the term
+&quot;zone&quot;, it is actually referring to the name of
+the rollrec entries.)</p>
+
+<p style="margin-top: 1em">The administrator field is set
+to the email address of the person (or person, if the
+address is actually a mailing list) considered to be the
+responsible person for the zone.</p>
+
+<p style="margin-top: 1em">The directory field is set to
+the directory that contains the the files for the zone.
+These files include the zone file, the signed zone file, and
+the keyrec file.</p>
+
+<p style="margin-top: 1em">The loglevel field is set to the
+level of log messages that rollerd should produce for this
+zone. The log level includes those messages at a greater
+priority to the specified <br>
+level, so a level of &quot;phase&quot; will also include
+&quot;err&quot; and &quot;fatal&quot; messages.</p>
+
+<p style="margin-top: 1em">The kskphase and zskphase fields
+indicate the rollover phase for the zone&rsquo;s KSK and ZSK
+keys. The value 0 indicates that the zone is in normal
+operation (non-rollover) for that <br>
+key type. A non-zero phase (1-7 for KSKs; 1-4 for ZSKs)
+indicates that the zone is in the process of rolling the
+keys. Only one of these fields should ever be non-zero at a
+<br>
+particular time. If both are zero, then no rollover
+operations are taking place.</p>
+
+<p style="margin-top: 1em">The ksk_rolldate and
+ksk_rollsecs fields indicate when KSK rollover started. If
+the values are a blank and zero, respectively, then the zone
+is not in KSK rollover.</p>
+
+<p style="margin-top: 1em">The zsk_rolldate and
+zsk_rollsecs fields indicate when ZSK rollover started. If
+the values are a blank and zero, respectively, then the zone
+is not in ZSK rollover.</p>
+
+<p style="margin-top: 1em">The Boolean display field
+indicates if blinkenlights should display information about
+this zone.</p>
+
+<p style="margin-top: 1em">The maxttl field contains the
+maximum TTL value from the zone file.</p>
+
+<p style="margin-top: 1em">The phasestart fields contains
+the date that the current rollover phase was entered.</p>
+
+<p style="margin-top: 1em">rollrec files also have the
+zsargs field that holds user-specified options for
+zonesigner. This field is set during rollerd execution when
+the administrator determines that some <br>
+zone fields should be modified. It is not an initial rollrec
+field and consequently cannot be specified by rollinit.</p>
+
+<p style="margin-top: 1em">The istrustanchor field
+specifies whether to roll the KSK keys in a manner compliant
+with any remote validating resolver using the KSK as a
+trust-anchor. If set to &quot;yes&quot; then 60 <br>
+days will be the minimum wait time during phase 3 of KSK
+rolling to ensure remote validators can properly follow the
+steps needed as specified by RFC5011. The 60-day default can
+<br>
+be changed via the holddowntime field.</p>
+
+<p style="margin-top: 1em">INFO ROLLRECS <br>
+Starting with DNSSEC-Tools version 1.15, each rollrec file
+should have an info rollrec. This special rollrec entry
+contains information about the rollrec file itself and does
+<br>
+not contain any zone information. Its contents should not be
+modified by anything but the DNSSEC-Tools utilities.</p>
+
+<p style="margin-top: 1em">ZONEFILE and KEYREC FIELDS <br>
+The zonefile and keyrec fields may be given by using the
+-zonefile and -keyrec options, or default values may be
+used.</p>
+
+<p style="margin-top: 1em">The default values use the
+rollrec&rsquo;s zone name, taken from the command line, as a
+base. .signed is appended to the zone name for the zone
+file; .krf is appended to the zone name <br>
+for the keyrec file.</p>
+
+<p style="margin-top: 1em">If -zonefile or -keyrec are
+specified, then the options values are used in one of two
+ways:</p>
+
+<p style="margin-top: 1em">1. A single zone name is given
+on the command line. <br>
+The option values for -zonefile and/or -keyrec are used for
+the actual rollrec fields.</p>
+
+<p style="margin-top: 1em">2. Multiple zone names are given
+on the command line. <br>
+The option values for -zonefile and/or -keyrec are used as
+templates for the actual rollrec fields. The option values
+must contain the string =. This string is replaced by <br>
+the zone whose rollrec is being created.</p>
+
+<p style="margin-top: 1em">See the EXAMPLES section for
+examples of how options are used by rollinit.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+rollinit may be given the following options:</p>
+
+<p style="margin-top: 1em">-rollrec rollrec-name <br>
+This specifies the name of the rollrec record. This value
+may contain spaces. If this option is not specified, it will
+be set to the same value as the zonename field. See <br>
+the ZONEFILE And KEYREC FIELDS and EXAMPLES sections for
+more details.</p>
+
+<p style="margin-top: 1em">-zonefile zonefile <br>
+This specifies the value of the zonefile field. See the
+ZONEFILE And KEYREC FIELDS and EXAMPLES sections for more
+details.</p>
+
+<p style="margin-top: 1em">-keyrec keyrec-file <br>
+This specifies the value of the keyrec field. See the
+ZONEFILE And KEYREC FIELDS and EXAMPLES sections for more
+details.</p>
+
+<p style="margin-top: 1em">-zg zonegroup <br>
+-zonegroup zonegroup <br>
+This specifies the value of the zonegroup field. This field
+is optional.</p>
+
+<p style="margin-top: 1em">-admin <br>
+This specifies the value of the administrator field. If it
+is not given, an administrator field will not be included
+for the record.</p>
+
+<p style="margin-top: 1em">-directory <br>
+This specifies the value of the directory field. If it is
+not given, a directory field will not be included for the
+record.</p>
+
+<p style="margin-top: 1em">-loglevel <br>
+This specifies the value of the loglevel field. If it is not
+given, a loglevel field will not be included for the
+record.</p>
+
+<p style="margin-top: 1em">-skip <br>
+By default, roll records are generated. If this option is
+given, then skip records will be generated instead.</p>
+
+<p style="margin-top: 1em">-out output-file <br>
+The new rollrec entries will be appended to output-file. The
+file will be created if it does not exist.</p>
+
+<p style="margin-top: 1em">If this option is not given, the
+new rollrec entries will be written to standard output.</p>
+
+<p style="margin-top: 1em">-help <br>
+Display a usage message.</p>
+
+<p style="margin-top: 1em">-Version <br>
+Display version information for rollinit and
+DNSSEC-Tools.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+The following options should make clear how rollinit deals
+with options and the new rollrecs. Example 1 will show the
+complete new rollrec record. For the sake of brevity, the
+<br>
+remaining examples will only show the newly created zonefile
+and keyrec records.</p>
+
+<p style="margin-top: 1em">An info rollrec is shown in the
+first example. In the interests of space, it is not included
+in the remaining examples.</p>
+
+<p style="margin-top: 1em">Example 1. One zone, no options
+<br>
+This example shows the rollrec generated by giving rollinit
+a single zone, without any options.</p>
+
+<p style="margin-top: 1em">$ rollinit example.com</p>
+
+<p style="margin-top: 1em">skip &quot;info rollrec&quot;
+<br>
+version &quot;2&quot;</p>
+
+<p style="margin-top: 1em">roll &quot;example.com&quot;
+<br>
+zonename &quot;example.com&quot; <br>
+zonefile &quot;example.com.signed&quot; <br>
+keyrec &quot;example.com.krf&quot; <br>
+kskphase &quot;0&quot; <br>
+zskphase &quot;0&quot; <br>
+ksk_rolldate &quot; &quot; <br>
+ksk_rollsecs &quot;0&quot; <br>
+zsk_rolldate &quot; &quot; <br>
+zsk_rollsecs &quot;0&quot; <br>
+maxttl &quot;0&quot; <br>
+display &quot;1&quot; <br>
+phasestart &quot;new&quot;</p>
+
+<p style="margin-top: 1em">Example 2. One zone, -zonefile
+option <br>
+This example shows the rollrec generated by giving rollinit
+a single zone, with the -zonefile option.</p>
+
+<p style="margin-top: 1em">$ rollinit -zonefile
+signed-example example.com <br>
+roll &quot;example.com&quot; <br>
+zonename &quot;example.com&quot; <br>
+zonefile &quot;signed-example&quot; <br>
+keyrec &quot;example.com.krf&quot;</p>
+
+<p style="margin-top: 1em">Example 3. One zone, -keyrec
+option <br>
+This example shows the rollrec generated by giving rollinit
+a single zone, with the -keyrec option.</p>
+
+<p style="margin-top: 1em">$ rollinit -keyrec x-rrf
+example.com <br>
+roll &quot;example.com&quot; <br>
+zonename &quot;example.com&quot; <br>
+zonefile &quot;example.com.signed&quot; <br>
+keyrec &quot;x-rrf&quot;</p>
+
+<p style="margin-top: 1em">Example 4. One zone, -zonefile
+and -keyrec options <br>
+This example shows the rollrec generated by giving rollinit
+a single zone, with the -zonefile and -keyrec options.</p>
+
+<p style="margin-top: 1em">$ rollinit -zonefile
+signed-example -keyrec example.rrf example.com <br>
+roll &quot;example.com&quot; <br>
+zonename &quot;example.com&quot; <br>
+zonefile &quot;signed-example&quot; <br>
+keyrec &quot;example.rrf&quot;</p>
+
+<p style="margin-top: 1em">Example 5. One zone, -skip
+option <br>
+This example shows the rollrec generated by giving rollinit
+a single zone, with the -zonefile and -keyrec options.</p>
+
+<p style="margin-top: 1em">$ rollinit -skip example.com
+<br>
+skip &quot;example.com&quot; <br>
+zonename &quot;example.com&quot; <br>
+zonefile &quot;example.com.signed&quot; <br>
+keyrec &quot;example.com.krf&quot;</p>
+
+<p style="margin-top: 1em">Example 6. One zone, -rollrec
+option <br>
+This example shows the rollrec generated by giving rollinit
+a single zone, with the -rollrec option.</p>
+
+<p style="margin-top: 1em">$ rollinit -rollrec test
+example.com <br>
+roll &quot;test&quot; <br>
+zonename &quot;example.com&quot; <br>
+zonefile &quot;example.com.signed&quot; <br>
+keyrec &quot;example.com.krf&quot;</p>
+
+<p style="margin-top: 1em">Example 7. Multiple zones, no
+options <br>
+This example shows the rollrecs generated by giving rollinit
+several zones, without any options.</p>
+
+<p style="margin-top: 1em">$ rollinit example1.com
+example2.com <br>
+roll &quot;example1.com&quot; <br>
+zonename &quot;example1.com&quot; <br>
+zonefile &quot;example1.com.signed&quot; <br>
+keyrec &quot;example1.com.krf&quot;</p>
+
+<p style="margin-top: 1em">roll &quot;example2.com&quot;
+<br>
+zonename &quot;example2.com&quot; <br>
+zonefile &quot;example2.com.signed&quot; <br>
+keyrec &quot;example2.com.krf&quot;</p>
+
+<p style="margin-top: 1em">Example 8. Multiple zones,
+-zonefile option <br>
+This example shows the rollrecs generated by giving rollinit
+several zones, with the -zonefile option.</p>
+
+<p style="margin-top: 1em">$ rollinit -zonefile =-signed
+example1.com example2.com <br>
+roll &quot;example1.com&quot; <br>
+zonename &quot;example1.com&quot; <br>
+zonefile &quot;example1.com-signed&quot; <br>
+keyrec &quot;example1.com.krf&quot;</p>
+
+<p style="margin-top: 1em">roll &quot;example2.com&quot;
+<br>
+zonename &quot;example2.com&quot; <br>
+zonefile &quot;example2.com-signed&quot; <br>
+keyrec &quot;example2.com.krf&quot;</p>
+
+<p style="margin-top: 1em">Example 9. Multiple zones,
+-keyrec option <br>
+This example shows the rollrecs generated by giving rollinit
+several zones, with the -keyrec option.</p>
+
+<p style="margin-top: 1em">$ rollinit -keyrec zone-=-keyrec
+example1.com example2.com <br>
+roll &quot;example1.com&quot; <br>
+zonename &quot;example1.com&quot; <br>
+zonefile &quot;example1.com.signed&quot; <br>
+keyrec &quot;zone-example1.com-keyrec&quot;</p>
+
+<p style="margin-top: 1em">roll &quot;example2.com&quot;
+<br>
+zonename &quot;example2.com&quot; <br>
+zonefile &quot;example2.com.signed&quot; <br>
+keyrec &quot;zone-example2.com-keyrec&quot;</p>
+
+<p style="margin-top: 1em">Example 10. Multiple zones,
+-zonefile and -keyrec options <br>
+This example shows the rollrecs generated by giving rollinit
+several zones, with the -zonefile and -keyrec options.</p>
+
+<p style="margin-top: 1em">$ rollinit -zonefile Z-= -keyrec
+=K example1.com example2.com <br>
+roll &quot;example1.com&quot; <br>
+zonename &quot;example1.com&quot; <br>
+zonefile &quot;Z-example1.com&quot; <br>
+keyrec &quot;example1.comK&quot;</p>
+
+<p style="margin-top: 1em">roll &quot;example2.com&quot;
+<br>
+zonename &quot;example2.com&quot; <br>
+zonefile &quot;Z-example2.com&quot; <br>
+keyrec &quot;example2.comK&quot;</p>
+
+<p style="margin-top: 1em">Example 11. Single zone,
+-zonefile and -keyrec options with template <br>
+This example shows the rollrec generated by giving rollinit
+a single zone, with the -zonefile and -keyrec options. The
+options use the multi-zone = template.</p>
+
+<p style="margin-top: 1em">$ rollinit -zonefile Z-= -keyrec
+=.K example.com <br>
+roll &quot;example.com&quot; <br>
+zonename &quot;example.com&quot; <br>
+zonefile &quot;Z-=&quot; <br>
+keyrec &quot;=.K&quot;</p>
+
+<p style="margin-top: 1em">This is probably not what is
+wanted, since it results in the zonefile and keyrec field
+values containing the =.</p>
+
+<p style="margin-top: 1em">Example 12. Multiple zones,
+-zonefile and -keyrec options without template <br>
+This example shows the rollrecs generated by giving rollinit
+several zones, with the -zonefile and -keyrec options. The
+options do not use the multi-zone = template.</p>
+
+<p style="margin-top: 1em">$ rollinit -zonefile ex.zone
+-keyrec ex.krf example1.com example2.com <br>
+roll &quot;example1.com&quot; <br>
+zonename &quot;example1.com&quot; <br>
+zonefile &quot;ex.zone&quot; <br>
+keyrec &quot;ex.krf&quot;</p>
+
+<p style="margin-top: 1em">roll &quot;example2.com&quot;
+<br>
+zonename &quot;example2.com&quot; <br>
+zonefile &quot;ex.zone&quot; <br>
+keyrec &quot;ex.krf&quot;</p>
+
+<p style="margin-top: 1em">This may not be what is wanted,
+since it results in the same zonefile and keyrec fields
+values for each rollrec.</p>
+
+<p style="margin-top: 1em">Example 13. Multiple zones,
+-rollrec option <br>
+This example shows the rollrecs generated by giving rollinit
+several zones, with the -rollrec option. The rollrec names
+include a space.</p>
+
+<p style="margin-top: 1em">$ rollinit -rollrec &quot;=
+entry&quot; example1.com example2.com <br>
+roll &quot;example1.com entry&quot; <br>
+zonename &quot;example1.com&quot; <br>
+zonefile &quot;example1.com.signed&quot; <br>
+keyrec &quot;example1.com.krf&quot;</p>
+
+<p style="margin-top: 1em">roll &quot;example2.com
+entry&quot; <br>
+zonename &quot;example2.com&quot; <br>
+zonefile &quot;example2.com.signed&quot; <br>
+keyrec &quot;example2.com.krf&quot;</p>
+
+<p style="margin-top: 1em">Example 14. Multiple zones, -zg
+option <br>
+This example shows the rollrec generated by giving rollinit
+a set of zones, with the -zg option.</p>
+
+<p style="margin-top: 1em">$ rollinit -zg &quot;example
+zones&quot; example1.com example2.com <br>
+roll &quot;example1.com&quot; <br>
+zonename &quot;example1.com&quot; <br>
+zonefile &quot;example1.com.signed&quot; <br>
+keyrec &quot;example1.com.krf&quot; <br>
+zonegroup &quot;example zones&quot;</p>
+
+<p style="margin-top: 1em">roll &quot;example2.com&quot;
+<br>
+zonename &quot;example2.com&quot; <br>
+zonefile &quot;example2.com.signed&quot; <br>
+keyrec &quot;example2.com.krf&quot; <br>
+zonegroup &quot;example zones&quot;</p>
+
+<p style="margin-top: 1em">Example 15. One zone, Two
+zonegroups <br>
+This example shows the rollrec generated by giving rollinit
+a set of two zonegroups for a single zone.</p>
+
+<p style="margin-top: 1em">$ rollinit -zg &quot;customers,
+paid up&quot; example.com <br>
+roll &quot;example1.com&quot; <br>
+zonename &quot;example.com&quot; <br>
+zonefile &quot;example.com.signed&quot; <br>
+keyrec &quot;example.com.krf&quot; <br>
+zonegroup &quot;customers, paid up&quot;</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright 2006-2014 SPARTA, Inc. All rights reserved. See
+the COPYING file included with the DNSSEC-Tools package for
+details.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Wayne Morrison, tewok@tislabs.com</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+lsroll(1), rollerd(8), rollchk(8), zonesigner(8)</p>
+
+
+<p style="margin-top: 1em">Net::DNS::SEC::Tools::keyrec.pm(3),
+Net::DNS::SEC::Tools::rollrec.pm(3)</p>
+
+<p style="margin-top: 1em">file-keyrec.pm(5),
+file-rollrec.pm(5)</p>
+
+<p style="margin-top: 1em">perl v5.24.0 2015-06-30
+ROLLINIT(1)</p>
+<hr>
+</body>
+</html>

@@ -1,0 +1,956 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:42:20 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>virt-p2v(1) Virtualization Support virt-p2v(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+virt-p2v - Convert a physical machine to use KVM</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+virt-p2v</p>
+
+<p style="margin-top: 1em">virt-p2v.iso</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+Virt-p2v converts a physical machine to run virtualized on
+KVM, managed by libvirt, OpenStack, oVirt, Red Hat
+Enterprise Virtualisation (RHEV), or one of the other
+targets <br>
+supported by virt-v2v(1).</p>
+
+<p style="margin-top: 1em">Normally you don&rsquo;t run the
+virt-p2v program directly. Instead you have to boot the
+physical machine using the bootable CD-ROM, ISO or PXE
+image. This bootable image contains <br>
+the virt-p2v binary and runs it automatically. Booting from
+a CD-ROM/etc is required because the disks which are being
+converted must be quiescent. It is not safe to try to <br>
+convert a running physical machine where other programs may
+be modifying the disk content at the same time.</p>
+
+<p style="margin-top: 1em">This manual page documents
+running the virt-p2v program. To create the bootable image
+you should look at virt-p2v-make-disk(1) or
+virt-p2v-make-kickstart(1).</p>
+
+<p style="margin-top: 1em">NETWORK SETUP <br>
+Virt-p2v runs on the physical machine which you want to
+convert. It has to talk to another server called the
+&quot;conversion server&quot; which must have virt-v2v(1)
+installed on it. It <br>
+always talks to the conversion server over SSH:</p>
+
+
+<p style="margin-top: 1em">&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc; virt-p2v &acirc; &acirc; virt-v2v &acirc; <br>
+&acirc; (physical &acirc; ssh connection &acirc; (conversion
+&acirc; <br>
+&acirc; server)
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&para;
+server) &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;</p>
+
+<p style="margin-top: 1em">The virt-v2v program on the
+conversion server does the actual conversion (physical to
+virtual, and virtual to virtual conversions are sufficiently
+similar that we use the same <br>
+program to do both).</p>
+
+<p style="margin-top: 1em">The SSH connection is always
+initiated from the physical server. All data is transferred
+over the SSH connection. In terms of firewall and network
+configuration, you only need <br>
+to ensure that the physical server has access to a port
+(usually TCP port 22) on the conversion server. Note that
+the physical machine may reconnect several times during the
+<br>
+conversion process.</p>
+
+<p style="margin-top: 1em">The reverse port forwarding
+feature of ssh (ie. &quot;ssh -R&quot;) is required by
+virt-p2v, and it will not work if this is disabled on the
+conversion server. (&quot;AllowTcpForwarding&quot; must <br>
+be &quot;yes&quot; in the sshd_config(5) file on the
+conversion server).</p>
+
+<p style="margin-top: 1em">The scp (secure copy) feature of
+ssh is required by virt-p2v so it can send over small files
+(this is not the method by which disks are copied).</p>
+
+<p style="margin-top: 1em">The conversion server does not
+need to be a physical machine. It could be a virtual
+machine, as long as it has sufficient memory and disk space
+to do the conversion, and as long <br>
+as the physical machine can connect directly to its SSH
+port. (See also &quot;RESOURCE REQUIREMENTS&quot; in
+virt-v2v(1)).</p>
+
+<p style="margin-top: 1em">Because all of the data on the
+physical server&rsquo;s hard drive(s) has to be copied over
+the network, the speed of conversion is largely determined
+by the speed of the network <br>
+between the two machines.</p>
+
+<p style="margin-top: 1em">GUI INTERACTIVE CONFIGURATION
+<br>
+When you start virt-p2v, you&rsquo;ll see a graphical
+configuration dialog that walks you through connection to
+the conversion server, asks for the password, which local
+hard disks you <br>
+want to convert, and other things like the name of the guest
+to create and the number of virtual CPUs to give it.</p>
+
+<p style="margin-top: 1em">SSH CONFIGURATION DIALOG <br>
+When virt-p2v starts up in GUI mode, the first dialog looks
+like this:</p>
+
+
+<p style="margin-top: 1em">&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc; virt-p2v &acirc; <br>
+&acirc; &acirc; <br>
+&acirc; Conversion server: [_______________________] :
+[22___] &acirc; <br>
+&acirc; &acirc; <br>
+&acirc; User name: [root_____________________________]
+&acirc; <br>
+&acirc; &acirc; <br>
+&acirc; Password: [_________________________________]
+&acirc; <br>
+&acirc; &acirc; <br>
+&acirc; SSH Identity URL:
+[_________________________________] &acirc; <br>
+&acirc; &acirc;</p>
+
+<p style="margin-top: 1em">In the fields above, you must
+enter the details of the conversion server: the hostname,
+SSH port number, remote user name, and either the password
+or SSH identity (private key) <br>
+URL. The conversion server must have an up to date version
+of virt-v2v.</p>
+
+<p style="margin-top: 1em">Normally you must log in to the
+conversion server as root, but if you check the following
+box:</p>
+
+<p style="margin-top: 1em">&acirc; &acirc; <br>
+&acirc; [ ] Use sudo when running virt-v2v &acirc; <br>
+&acirc; &acirc;</p>
+
+<p style="margin-top: 1em">then you can log in as another
+user, and virt-p2v will use the sudo(8) command to elevate
+privileges to root. Note that sudo must not require a
+password.</p>
+
+<p style="margin-top: 1em">It is also possible to run
+virt-v2v on the conversion server entirely as non-root, but
+output modes may be limited. Consult the virt-v2v(1) manual
+page for details.</p>
+
+<p style="margin-top: 1em">At the bottom of the dialog are
+these buttons:</p>
+
+<p style="margin-top: 1em">&acirc; &acirc; <br>
+&acirc; [ Test connection ] &acirc; <br>
+&acirc; &acirc; <br>
+&acirc; [ Configure network ] [ About virt-p2v ] [ Next ]
+&acirc; <br>
+&acirc; &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;</p>
+
+<p style="margin-top: 1em">You must press the &quot;Test
+connection&quot; button first to test the SSH connection to
+the conversion server. If that is successful (ie. you have
+supplied the correct server name, user <br>
+name, password, etc., and a suitable version of virt-v2v is
+available remotely) then press the &quot;Next&quot; button
+to move to the next dialog.</p>
+
+<p style="margin-top: 1em">You can use the &quot;Configure
+network&quot; button if you need to assign a static IP
+address to the physical machine, or use Wifi, bonding or
+other network features.</p>
+
+<p style="margin-top: 1em">DISK AND NETWORK CONFIGURATION
+DIALOG <br>
+The second configuration dialog lets you configure the
+details of conversion, including what to convert and where
+to send the guest.</p>
+
+<p style="margin-top: 1em">In the left hand column,
+starting at the top, the target properties let you select
+the name of the guest (ie. after conversion) and how many
+virtual CPUs and how much RAM to give <br>
+it. The defaults come from the physical machine, and you can
+usually leave them unchanged:</p>
+
+
+<p style="margin-top: 1em">&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc; &acirc; &acirc; &acirc; <br>
+&acirc; Target properties: <br>
+&acirc; <br>
+&acirc; Name: [hostname______________] <br>
+&acirc; <br>
+&acirc; # vCPUs: [4_____________________] <br>
+&acirc; <br>
+&acirc; Memory (MB): [16384_________________] <br>
+&acirc;</p>
+
+<p style="margin-top: 1em">The second panel on the left
+controls the virt-v2v output options. To understand these
+options it is a really good idea to read the virt-v2v(1)
+manual page. You can leave the <br>
+options at the default to create a guest as a disk image
+plus libvirt XML file located in /var/tmp on the conversion
+host. This is a good idea if you are a first-time virt-p2v
+<br>
+user.</p>
+
+<p style="margin-top: 1em">&acirc; <br>
+&acirc; Virt-v2v output options: <br>
+&acirc; <br>
+&acirc; Output to (-o): [local &acirc;&frac14;] <br>
+&acirc; <br>
+&acirc; Output conn. (-oc): [___________________] <br>
+&acirc; <br>
+&acirc; Output storage (-os): [/var/tmp___________] <br>
+&acirc; <br>
+&acirc; Output format (-of): [___________________] <br>
+&acirc; <br>
+&acirc; Output allocation (-oa): [sparse &acirc;&frac14;]
+<br>
+&acirc;</p>
+
+<p style="margin-top: 1em">All output options and paths are
+relative to the conversion server (not to the physical
+server).</p>
+
+<p style="margin-top: 1em">Finally in the left hand column
+is an information box giving the version of virt-p2v (on the
+physical server) and virt-v2v (on the conversion server).
+You should supply this <br>
+information when reporting bugs.</p>
+
+<p style="margin-top: 1em">In the right hand column are
+three panels which control what hard disks, removable media
+devices, and network interfaces, will be created in the
+output guest. Normally leaving <br>
+these at the default settings is fine.</p>
+
+<p style="margin-top: 1em">&acirc; &acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+Fixed hard disks &acirc; <br>
+&acirc; <br>
+Convert Device &acirc; <br>
+[&acirc;] sda &acirc; <br>
+1024G HITACHI &acirc; <br>
+s/n 12345 &acirc; <br>
+[&acirc;] sdb &acirc; <br>
+119G HITACHI &acirc; <br>
+s/n 12346 &acirc; <br>
+&acirc;</p>
+
+<p style="margin-top: 1em">Normally you would want to
+convert all hard disks. If you want virt-p2v to completely
+ignore a local hard disk, uncheck it. The hard disk that
+contains the operating system <br>
+must be selected. If a hard disk is part of a RAID array or
+LVM volume group (VG), then either all hard disks in that
+array/VG must be selected, or none of them.</p>
+
+<p style="margin-top: 1em">&acirc; <br>
+Removable media &acirc; <br>
+&acirc; <br>
+Convert Device &acirc; <br>
+[&acirc;] sr0 &acirc; <br>
+&acirc;</p>
+
+<p style="margin-top: 1em">If the physical machine has CD
+or DVD drives, then you can use the Removable media panel to
+create corresponding drives on the guest after conversion.
+Note that any data <br>
+CDs/DVDs which are mounted in the drives are not copied
+over.</p>
+
+<p style="margin-top: 1em">&acirc; <br>
+Network interfaces &acirc; <br>
+&acirc; <br>
+Convert Device Connect to ... | <br>
+[&acirc;] em1 [default_____________] &acirc; <br>
+[ ] wlp3s0 [default_____________] &acirc; <br>
+&acirc;</p>
+
+<p style="margin-top: 1em">In the Network interfaces panel,
+select the network interfaces that should be created in the
+guest after conversion. You can also connect these to target
+hypervisor networks <br>
+(for further information about this feature, see
+&quot;NETWORKS AND BRIDGES&quot; in virt-v2v(1)).</p>
+
+<p style="margin-top: 1em">On supported hardware,
+left-clicking on the device name (eg. &quot;em1&quot;)
+causes a light to start flashing on the physical interface,
+allowing the interface to be identified by the <br>
+operator.</p>
+
+<p style="margin-top: 1em">When you are ready to begin the
+conversion, press the &quot;Start conversion&quot;
+button:</p>
+
+<p style="margin-top: 1em">&acirc; <br>
+[ Back ] [ Start conversion ] &acirc; <br>
+&acirc; <br>
+&acirc; &acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;</p>
+
+<p style="margin-top: 1em">CONVERSION RUNNING DIALOG <br>
+When conversion is running you will see this dialog:</p>
+
+
+<p style="margin-top: 1em">&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc; virt-p2v &acirc; <br>
+&acirc; &acirc; <br>
+&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc; <br>
+&acirc; &acirc; &acirc;&sup2;&acirc; &acirc; <br>
+&acirc; &acirc; &acirc; &acirc; <br>
+&acirc; &acirc; &acirc; &acirc; <br>
+&acirc;&frac14; &acirc;&frac14; &acirc;&frac14;
+&acirc;&frac14; <br>
+&acirc; &acirc; &acirc; &acirc; <br>
+&acirc; &acirc; &acirc; &acirc; <br>
+&acirc; &acirc; &acirc;&frac14;&acirc; &acirc; <br>
+&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc; <br>
+&acirc; &acirc; <br>
+&acirc; Log files ... to /tmp/virt-p2v-xxx &acirc; <br>
+&acirc; &acirc; <br>
+&acirc; Doing conversion ... &acirc; <br>
+&acirc; &acirc; <br>
+&acirc; [ Cancel conversion ] &acirc; <br>
+&acirc; &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;</p>
+
+<p style="margin-top: 1em">In the main scrolling area you
+will see messages from the virt-v2v process.</p>
+
+<p style="margin-top: 1em">Below the main area, virt-p2v
+shows you the location of the directory on the conversion
+server that contains log files and other debugging
+information. Below that is the current <br>
+status and a button for cancelling conversion.</p>
+
+<p style="margin-top: 1em">Once conversion has finished,
+you should shut down the physical machine. If conversion is
+successful, you should never reboot it.</p>
+
+<p style="margin-top: 1em">KERNEL COMMAND LINE
+CONFIGURATION <br>
+If you don&rsquo;t want to configure things using the
+graphical UI, an alternative is to configure through the
+kernel command line. This is especially convenient if you
+are converting <br>
+a lot of physical machines which are booted using PXE.</p>
+
+<p style="margin-top: 1em">Where exactly you set command
+line arguments depends on your PXE implementation, but for
+pxelinux you put them in the &quot;APPEND&quot; field in the
+pxelinux.cfg file. For example:</p>
+
+<p style="margin-top: 1em">DEFAULT p2v <br>
+TIMEOUT 20 <br>
+PROMPT 0 <br>
+LABEL p2v <br>
+KERNEL vmlinuz0 <br>
+APPEND initrd=initrd0.img [....] p2v.server=conv.example.com
+p2v.password=secret p2v.o=libvirt</p>
+
+<p style="margin-top: 1em">You have to set some or all of
+the following command line arguments:</p>
+
+<p style="margin-top: 1em">p2v.server=SERVER <br>
+The name or IP address of the conversion server.</p>
+
+<p style="margin-top: 1em">This is always required if you
+are using the kernel configuration method. If virt-p2v does
+not find this on the kernel command line then it switches to
+the GUI (interactive) <br>
+configuration method.</p>
+
+<p style="margin-top: 1em">p2v.port=NN <br>
+The SSH port number on the conversion server (default:
+22).</p>
+
+<p style="margin-top: 1em">p2v.username=USERNAME <br>
+The SSH username that we log in as on the conversion server
+(default: &quot;root&quot;).</p>
+
+<p style="margin-top: 1em">p2v.password=PASSWORD <br>
+The SSH password that we use to log in to the conversion
+server.</p>
+
+<p style="margin-top: 1em">The default is to try with no
+password. If this fails then virt-p2v will ask the user to
+type the password (probably several times during
+conversion).</p>
+
+<p style="margin-top: 1em">This setting is ignored if
+&quot;p2v.identity&quot; is present.</p>
+
+<p style="margin-top: 1em">p2v.identity=URL <br>
+Provide a URL pointing to an SSH identity (private key)
+file. The URL is interpreted by curl(1) so any URL that curl
+supports can be used here, including &quot;https://&quot;
+and <br>
+&quot;file://&quot;. For more information on using SSH
+identities, see &quot;SSH IDENTITIES&quot; below.</p>
+
+<p style="margin-top: 1em">If &quot;p2v.identity&quot; is
+present, it overrides &quot;p2v.password&quot;. There is no
+fallback.</p>
+
+<p style="margin-top: 1em">p2v.sudo <br>
+Use &quot;p2v.sudo&quot; to tell virt-p2v to use sudo(8) to
+gain root privileges on the conversion server after logging
+in as a non-root user (default: do not use sudo).</p>
+
+<p style="margin-top: 1em">p2v.name=GUESTNAME <br>
+The name of the guest that is created. The default is to try
+to derive a name from the physical machine&rsquo;s hostname
+(if possible) else use a randomly generated name.</p>
+
+<p style="margin-top: 1em">p2v.vcpus=NN <br>
+The number of virtual CPUs to give to the guest. The default
+is to use the same as the number of physical CPUs.</p>
+
+<p style="margin-top: 1em">p2v.memory=NN(M|G) <br>
+The size of the guest memory. You must specify the unit as
+either megabytes or gigabytes by using (eg)
+&quot;p2v.memory=1024M&quot; or
+&quot;p2v.memory=1G&quot;.</p>
+
+<p style="margin-top: 1em">The default is to use the same
+amount of RAM as on the physical machine.</p>
+
+<p style="margin-top: 1em">p2v.disks=sdX,sdY,.. <br>
+A list of physical hard disks to convert, for example:</p>
+
+<p style="margin-top: 1em">p2v.disks=sda,sdc</p>
+
+<p style="margin-top: 1em">The default is to convert all
+local hard disks that are found.</p>
+
+<p style="margin-top: 1em">p2v.removable=srX,srY,.. <br>
+A list of removable media to convert. The default is to
+create virtual removable devices for every physical
+removable device found. Note that the content of removable
+media <br>
+is never copied over.</p>
+
+<p style="margin-top: 1em">p2v.interfaces=em1,.. <br>
+A list of network interfaces to convert. The default is to
+create virtual network interfaces for every physical network
+interface found.</p>
+
+
+<p style="margin-top: 1em">p2v.network=interface:target,...
+<br>
+Controls how network interfaces are connected to virtual
+networks on the target hypervisor. The default is to connect
+all network interfaces to the target &quot;default&quot;
+network.</p>
+
+<p style="margin-top: 1em">You give a comma-separated list
+of &quot;interface:target&quot; pairs, plus optionally a
+default target. For example:</p>
+
+<p style="margin-top: 1em">p2v.network=em1:rhevm</p>
+
+<p style="margin-top: 1em">maps interface &quot;em1&quot;
+to target network &quot;rhevm&quot;.</p>
+
+
+<p style="margin-top: 1em">p2v.network=em1:rhevm,em2:management,other</p>
+
+<p style="margin-top: 1em">maps interface &quot;em1&quot;
+to &quot;rhevm&quot;, and &quot;em2&quot; to
+&quot;management&quot;, and any other interface that is
+found to &quot;other&quot;.</p>
+
+<p style="margin-top: 1em">p2v.o=[libvirt|local|...] <br>
+Set the output mode. This is the same as the virt-v2v -o
+option. See &quot;OPTIONS&quot; in virt-v2v(1).</p>
+
+<p style="margin-top: 1em">If not specified, the default is
+&quot;local&quot;, and the converted guest is written to
+/var/tmp.</p>
+
+<p style="margin-top: 1em">p2v.oa=sparse|preallocated <br>
+Set the output allocation mode. This is the same as the
+virt-v2v -oa option. See &quot;OPTIONS&quot; in
+virt-v2v(1).</p>
+
+<p style="margin-top: 1em">p2v.oc=... <br>
+Set the output connection libvirt URI. This is the same as
+the virt-v2v -oc option. See &quot;OPTIONS&quot; in
+virt-v2v(1) and http://libvirt.org/uri.html</p>
+
+<p style="margin-top: 1em">p2v.of=raw|qcow2|... <br>
+Set the output format. This is the same as the virt-v2v -of
+option. See &quot;OPTIONS&quot; in virt-v2v(1).</p>
+
+<p style="margin-top: 1em">p2v.os=... <br>
+Set the output storage. This is the same as the virt-v2v -os
+option. See &quot;OPTIONS&quot; in virt-v2v(1).</p>
+
+<p style="margin-top: 1em">If not specified, the default is
+/var/tmp (on the conversion server).</p>
+
+<p style="margin-top: 1em">p2v.pre=COMMAND <br>
+p2v.pre=&quot;COMMAND ARG ...&quot; <br>
+Select a pre-conversion command to run. Any command or
+script can be specified here. If the command contains
+spaces, you must quote the whole command with double quotes.
+<br>
+The default is not to run any command.</p>
+
+<p style="margin-top: 1em">p2v.post=poweroff <br>
+p2v.post=reboot <br>
+p2v.post=COMMAND <br>
+p2v.post=&quot;COMMAND ARG ...&quot; <br>
+Select a post-conversion command to run if conversion is
+successful. This can be any command or script. If the
+command contains spaces, you must quote the whole command
+<br>
+with double quotes.</p>
+
+<p style="margin-top: 1em">If virt-p2v is running as root,
+and the command line was set from /proc/cmdline (not
+--cmdline), then the default is to run the poweroff(8)
+command. Otherwise the default is <br>
+not to run any command.</p>
+
+<p style="margin-top: 1em">p2v.fail=COMMAND <br>
+p2v.fail=&quot;COMMAND ARG ...&quot; <br>
+Select a post-conversion command to run if conversion fails.
+Any command or script can be specified here. If the command
+contains spaces, you must quote the whole command <br>
+with double quotes. The default is not to run any
+command.</p>
+
+<p style="margin-top: 1em">ip=dhcp <br>
+Use DHCP for configuring the network interface (this is the
+default).</p>
+
+<p style="margin-top: 1em">SSH IDENTITIES <br>
+As a somewhat more secure alternative to password
+authentication, you can use an SSH identity (private key)
+for authentication.</p>
+
+<p style="margin-top: 1em">First create a key pair. It must
+have an empty passphrase:</p>
+
+<p style="margin-top: 1em">ssh-keygen -t rsa -N
+&rsquo;&rsquo; -f id_rsa</p>
+
+<p style="margin-top: 1em">This creates a private key
+(&quot;id_rsa&quot;) and a public key
+(&quot;id_rsa.pub&quot;) pair.</p>
+
+<p style="margin-top: 1em">The public key should be
+appended to the &quot;authorized_keys&quot; file on the
+virt-v2v conversion server (usually to
+&quot;/root/.ssh/authorized_keys&quot;).</p>
+
+<p style="margin-top: 1em">For distributing the private
+key, there are four scenarios from least secure to most
+secure:</p>
+
+<p style="margin-top: 1em">1. Not using SSH identities at
+all, ie. password authentication.</p>
+
+<p style="margin-top: 1em">Anyone who can sniff the PXE
+boot parameters from the network or observe the password
+some other way can log in to the virt-v2v conversion
+server.</p>
+
+<p style="margin-top: 1em">2. SSH identity embedded in the
+virt-p2v ISO or disk image. In the GUI, use:</p>
+
+<p style="margin-top: 1em">&acirc; Password: [ &lt;leave
+this field blank&gt; ] &acirc; <br>
+&acirc; &acirc; <br>
+&acirc; SSH Identity URL:
+[file:///var/tmp/id_rsa_____________] &acirc;</p>
+
+<p style="margin-top: 1em">or on the kernel command
+line:</p>
+
+
+<p style="margin-top: 1em">p2v.identity=file:///var/tmp/id_rsa</p>
+
+<p style="margin-top: 1em">The SSH private key can still be
+sniffed from the network if using standard PXE.</p>
+
+<p style="margin-top: 1em">3. SSH identity downloaded from
+a website. In the GUI, use:</p>
+
+<p style="margin-top: 1em">&acirc; Password: [ &lt;leave
+this field blank&gt; ] &acirc; <br>
+&acirc; &acirc; <br>
+&acirc; SSH Identity URL:
+[https://internal.example.com/id_rsa] &acirc;</p>
+
+<p style="margin-top: 1em">or on the kernel command
+line:</p>
+
+
+<p style="margin-top: 1em">p2v.identity=https://internal.example.com/id_rsa</p>
+
+<p style="margin-top: 1em">Anyone could still download the
+private key and use it to log in to the virt-v2v conversion
+server, but you could provide some extra security by
+configuring the web server to <br>
+only allow connections from P2V machines.</p>
+
+<p style="margin-top: 1em">Note that ssh-keygen(1) creates
+the &quot;id_rsa&quot; (private key) file with mode 0600. If
+you simply copy the file to a webserver, the webserver will
+not serve it. It will reply <br>
+with &quot;403 Forbidden&quot; errors. You will need to
+change the mode of the file to make it publicly readable,
+for example by using:</p>
+
+<p style="margin-top: 1em">chmod 0644 id_rsa</p>
+
+<p style="margin-top: 1em">4. SSH identity embedded in the
+virt-p2v ISO or disk image (like 2.), and use of secure PXE,
+PXE over separate physical network, or sneakernet to
+distribute virt-p2v to the <br>
+physical machine.</p>
+
+<p style="margin-top: 1em">Both virt-p2v-make-disk(1) and
+virt-p2v-make-kickstart(1) have the same option
+--inject-ssh-identity for injecting the private key into the
+virt-p2v disk image / ISO. See also <br>
+the following manual sections:</p>
+
+<p style="margin-top: 1em">&quot;ADDING AN SSH
+IDENTITY&quot; in virt-p2v-make-disk(1)</p>
+
+<p style="margin-top: 1em">&quot;ADDING AN SSH
+IDENTITY&quot; in virt-p2v-make-kickstart(1)</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+--help <br>
+Display help.</p>
+
+<p style="margin-top: 1em">--cmdline=CMDLINE <br>
+This is used for debugging. Instead of parsing the kernel
+command line from /proc/cmdline, parse the string parameter
+&quot;CMDLINE&quot;.</p>
+
+<p style="margin-top: 1em">--colors <br>
+--colours <br>
+Use ANSI colour sequences to colourize messages. This is the
+default when the output is a tty. If the output of the
+program is redirected to a file, ANSI colour sequences <br>
+are disabled unless you use this option.</p>
+
+<p style="margin-top: 1em">--iso <br>
+This flag is passed to virt-p2v when it is launched inside
+the virt-p2v ISO environment, ie. when it is running on a
+real physical machine (and thus not when testing). It <br>
+enables various dangerous features such as the Reboot
+button.</p>
+
+<p style="margin-top: 1em">-v <br>
+--verbose <br>
+In libguestfs &acirc;&yen; 1.33.41, debugging is always
+enabled on the conversion server, and this option does
+nothing.</p>
+
+<p style="margin-top: 1em">-V <br>
+--version <br>
+Display version number and exit.</p>
+
+<p style="margin-top: 1em">HOW VIRT-P2V WORKS <br>
+Note this section is not normative. We may change how
+virt-p2v works at any time in the future.</p>
+
+<p style="margin-top: 1em">As described above, virt-p2v
+runs on a physical machine, interrogates the user or the
+kernel command line for configuration, and then establishes
+one or more ssh connections to <br>
+the virt-v2v conversion server. The ssh connections are
+interactive shell sessions to the remote host, but the
+commands sent are generated entirely by virt-p2v itself, not
+by <br>
+the user. For data transfer, virt-p2v will use the reverse
+port forward feature of ssh (ie. &quot;ssh -R&quot;).</p>
+
+<p style="margin-top: 1em">It will first make one or more
+test connections, which are used to query the remote version
+of virt-v2v and its features. The test connections are
+closed before conversion <br>
+begins.</p>
+
+
+<p style="margin-top: 1em">&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc; virt-p2v &acirc; &acirc; virt-v2v &acirc; <br>
+&acirc; (physical &acirc; control connection &acirc;
+(conversion &acirc; <br>
+&acirc; server)
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&para;
+server) &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;</p>
+
+<p style="margin-top: 1em">Once virt-p2v is ready to start
+conversion, it will open a single ssh control connection. It
+first sends a mkdir command to create a temporary directory
+on the conversion <br>
+server. The directory name is randomly chosen and is
+displayed in the GUI. It has the form:</p>
+
+
+<p style="margin-top: 1em">/tmp/virt-p2v-YYYYMMDD-XXXXXXXX</p>
+
+<p style="margin-top: 1em">where &quot;YYYYMMDD&quot; is
+the current date, and the X&rsquo;s are random
+characters.</p>
+
+<p style="margin-top: 1em">Into this directory are written
+various files which include:</p>
+
+<p style="margin-top: 1em">dmesg <br>
+(before conversion)</p>
+
+<p style="margin-top: 1em">The dmesg output from the
+physical machine. Useful for detecting problems such as
+missing device drivers or firmware on the virt-p2v ISO.</p>
+
+<p style="margin-top: 1em">name <br>
+(before conversion)</p>
+
+<p style="margin-top: 1em">The name (usually the hostname)
+of the physical machine.</p>
+
+<p style="margin-top: 1em">physical.xml <br>
+(before conversion)</p>
+
+<p style="margin-top: 1em">Libvirt XML describing the
+physical machine. It is used to pass data about the physical
+source host to virt-v2v(1) via the -i libvirtxml option.</p>
+
+<p style="margin-top: 1em">Note this is not
+&quot;real&quot; libvirt XML (and must never be loaded into
+libvirt, which would reject it anyhow). Also it is not the
+same as the libvirt XML which virt-v2v <br>
+generates in certain output modes.</p>
+
+<p style="margin-top: 1em">status <br>
+(after conversion)</p>
+
+<p style="margin-top: 1em">The final status of the
+conversion. 0 if the conversion was successful. Non-zero if
+the conversion failed.</p>
+
+<p style="margin-top: 1em">time <br>
+(before conversion)</p>
+
+<p style="margin-top: 1em">The start date/time of
+conversion.</p>
+
+<p style="margin-top: 1em">virt-v2v-conversion-log.txt <br>
+(during/after conversion)</p>
+
+<p style="margin-top: 1em">The conversion log. This is just
+the output of the virt-v2v command on the conversion server.
+If conversion fails, you should examine this log file, and
+you may be asked to <br>
+supply the complete, unedited log file in any bug reports or
+support tickets.</p>
+
+<p style="margin-top: 1em">virt-v2v-wrapper.sh <br>
+(during/after conversion)</p>
+
+<p style="margin-top: 1em">This is the wrapper script which
+is used when running virt-v2v. For interest only, do not
+attempt to run this script yourself.</p>
+
+<p style="margin-top: 1em">Before conversion actually
+begins, virt-p2v then makes one or more further ssh
+connections to the server for data transfer. The transfer
+protocol used currently is NBD (Network <br>
+Block Device), which is proxied over ssh. The server is
+qemu-nbd(1). There is one ssh connection per physical hard
+disk on the source machine (the common case &acirc; a single
+hard <br>
+disk &acirc; is shown below):</p>
+
+
+<p style="margin-top: 1em">&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc; virt-p2v &acirc; &acirc; virt-v2v &acirc; <br>
+&acirc; (physical &acirc; control connection &acirc;
+(conversion &acirc; <br>
+&acirc; server)
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&para;
+server) &acirc; <br>
+&acirc; &acirc; &acirc; &acirc; <br>
+&acirc; &acirc; data connection &acirc; &acirc; <br>
+&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&para;
+&acirc; <br>
+&acirc;qemu-nbd &acirc; &acirc;&acirc; &acirc;
+&acirc;&acirc;&acirc; &acirc; NBD &acirc; <br>
+&acirc;/dev/sda &acirc; &acirc; requests &acirc; <br>
+&acirc;&frac14; &acirc;&frac14; &acirc;&frac14;
+&acirc;&frac14; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;</p>
+
+<p style="margin-top: 1em">Although the ssh data connection
+is originated from the physical server and terminates on the
+conversion server, in fact NBD requests flow in the opposite
+direction. This is <br>
+because the reverse port forward feature of ssh (&quot;ssh
+-R&quot;) is used to open a port on the loopback interface
+of the conversion server which is proxied back by ssh to the
+qemu-nbd <br>
+server running on the physical machine. The effect is that
+virt-v2v via libguestfs can open nbd connections which
+directly read the hard disk(s) of the physical server.</p>
+
+<p style="margin-top: 1em">Two layers of protection are
+used to ensure that there are no writes to the hard disks:
+Firstly, the qemu-nbd -r (readonly) option is used. Secondly
+libguestfs creates an <br>
+overlay on top of the NBD connection which stores writes in
+a temporary file on the conversion file.</p>
+
+<p style="margin-top: 1em">The long
+&quot;virt-v2v&Acirc;&nbsp;-i&Acirc;&nbsp;libvirtxml&Acirc;&nbsp;physical.xml&Acirc;&nbsp;...&quot;
+command is wrapped inside a wrapper script and uploaded to
+the conversion server. The final step is to run this wrapper
+<br>
+script, in turn running the virt-v2v command. The virt-v2v
+command references the physical.xml file (see above), which
+in turn references the NBD listening port(s) of the data
+<br>
+connection(s).</p>
+
+<p style="margin-top: 1em">Output from the virt-v2v command
+(messages, debugging etc) is saved both in the log file on
+the conversion server. Only informational messages are sent
+back over the control <br>
+connection to be displayed in the graphical UI.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+virt-p2v-make-disk(1), virt-p2v-make-kickstart(1),
+virt-v2v(1), qemu-nbd(1), ssh(1), sshd(8), sshd_config(5),
+http://libguestfs.org/.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Matthew Booth</p>
+
+<p style="margin-top: 1em">John Eckersberg</p>
+
+<p style="margin-top: 1em">Richard W.M. Jones
+http://people.redhat.com/~rjones/</p>
+
+<p style="margin-top: 1em">Mike Latimer</p>
+
+<p style="margin-top: 1em">Pino Toscano</p>
+
+<p style="margin-top: 1em">Tingting Zheng</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright (C) 2009-2016 Red Hat Inc.</p>
+
+<p style="margin-top: 1em">LICENSE <br>
+This program is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public
+License as published by the Free Software Foundation; either
+<br>
+version 2 of the License, or (at your option) any later
+version.</p>
+
+<p style="margin-top: 1em">This program is distributed in
+the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR <br>
+PURPOSE. See the GNU General Public License for more
+details.</p>
+
+<p style="margin-top: 1em">You should have received a copy
+of the GNU General Public License along with this program;
+if not, write to the Free Software Foundation, Inc., 51
+Franklin Street, Fifth Floor, <br>
+Boston, MA 02110-1301 USA.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+To get a list of bugs against libguestfs, use this link:
+https://bugzilla.redhat.com/buglist.cgi?component=libguestfs&amp;product=Virtualization+Tools</p>
+
+<p style="margin-top: 1em">To report a new bug against
+libguestfs, use this link:
+https://bugzilla.redhat.com/enter_bug.cgi?component=libguestfs&amp;product=Virtualization+Tools</p>
+
+<p style="margin-top: 1em">When reporting a bug, please
+supply:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The version of
+libguestfs.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Where you got
+libguestfs (eg. which Linux distro, compiled from source,
+etc)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Describe the bug
+accurately and give a way to reproduce it.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Run
+libguestfs-test-tool(1) and paste the complete, unedited
+output into the bug report.</p>
+
+<p style="margin-top: 1em">libguestfs-1.32.7 2016-08-08
+virt-p2v(1)</p>
+<hr>
+</body>
+</html>

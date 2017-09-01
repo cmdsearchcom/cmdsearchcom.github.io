@@ -1,0 +1,178 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:11:25 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>GDNSD-PLUGIN-SIMPLEFO(8) gdnsd
+GDNSD-PLUGIN-SIMPLEFO(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+gdnsd-plugin-simplefo - gdnsd plugin for simple
+primary-&gt;secondary address failover</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+Example gdnsd config fragment using this plugin:</p>
+
+<p style="margin-top: 1em">plugins =&gt; { <br>
+simplefo =&gt; { <br>
+service_types =&gt; [ www ], <br>
+pubwww =&gt; { <br>
+primary =&gt; 192.0.2.1 <br>
+secondary =&gt; 192.0.2.100 <br>
+} <br>
+www6 =&gt; { <br>
+primary =&gt; 2001:DB8::1 <br>
+secondary =&gt; 2001:DB8::100 <br>
+} <br>
+mixed =&gt; { <br>
+service_types =&gt; [ www, xmpp ] <br>
+addrs_v4 =&gt; { <br>
+primary =&gt; 192.0.2.1 <br>
+secondary =&gt; 192.0.2.100 <br>
+} <br>
+addrs_v6 =&gt; { <br>
+service_types =&gt; up <br>
+primary =&gt; 2001:DB8::1 <br>
+secondary =&gt; 2001:DB8::100 <br>
+} <br>
+} <br>
+} <br>
+}</p>
+
+<p style="margin-top: 1em">Example zonefile RRs:</p>
+
+<p style="margin-top: 1em">www 180 DYNA simplefo!pubwww
+<br>
+www6 180 DYNA simplefo!www6 <br>
+mix 180 DYNA simplefo!mixed</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+gdnsd-plugin-simplefo is designed to do simple
+active/passive failover between one primary address and one
+secondary address. The status of the addresses are checked
+with <br>
+standard gdnsd &quot;service_types&quot; monitoring. If you
+need more than a simple two-address failover list, the
+&quot;metafo&quot; plugin is more appropriate.</p>
+
+<p style="margin-top: 1em">TOP-LEVEL PLUGIN CONFIG <br>
+At the top level of the plugin&rsquo;s configuration stanza,
+the special parameter &quot;service_types&quot; is
+supported. These sets the default per-resource
+&quot;service_types&quot; for all resources. <br>
+The default default &quot;service_types&quot; is &quot;[ up
+]&quot;, which simply sets them all &quot;UP&quot;
+statically.</p>
+
+<p style="margin-top: 1em">The rest of the hash entries at
+the top level are the names of the resources you define.
+Each resource gets a configuration hash of its own for
+containing resource-specific <br>
+address info.</p>
+
+<p style="margin-top: 1em">RESOURCE CONFIG <br>
+Within a resource, &quot;service_types&quot; is again
+supported, to set the monitored service type(s) for this
+specific resource.</p>
+
+<p style="margin-top: 1em">If &quot;addrs_v4&quot; is
+defined, it must be a hash containing two keys:
+&quot;primary&quot; and &quot;secondary&quot;, each of which
+has an IPv4 string address value.</p>
+
+<p style="margin-top: 1em">Similarly, if
+&quot;addrs_v6&quot; is defined, it must be a hash
+containing two keys: &quot;primary&quot; and
+&quot;secondary&quot;, each of which has an IPv6 string
+address value.</p>
+
+<p style="margin-top: 1em">If neither of those two
+sub-stanzas is defined, you must define a single pair of
+&quot;primary&quot; and &quot;secondary&quot; addresses for
+the whole resource. These can be of either address <br>
+family, so long as they are both the same family.</p>
+
+<p style="margin-top: 1em">When &quot;addrs_v4&quot; and/or
+&quot;addrs_v6&quot; are used, &quot;service_types&quot; can
+also be overridden within each, for different behavior
+per-address-family (e.g. force one protocol always <br>
+up/down).</p>
+
+<p style="margin-top: 1em">OPERATIONAL MECHANICS <br>
+For each address family for which you have supplied data,
+the following logic is applied independently:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; First, the worst
+monitored state of all &quot;service_types&quot; checks for
+the primary address is obtained. If this state is
+&quot;UP&quot;, the primary address is used.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If the primary
+address was &quot;DOWN&quot;, the secondary address is
+checked: If the secondary is &quot;UP&quot;, it will be
+used. If the secondary is also &quot;DOWN&quot;, then the
+primary is used.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; In any case
+other than the primary being exactly &quot;UP&quot;, the
+response RR-set TTL from the zonefile will be cut in half
+for both address families.</p>
+
+<p style="margin-top: 1em">If both &quot;primary&quot; and
+&quot;secondary&quot; were &quot;DOWN&quot; for either
+address family, this plugin will signal total resource
+failure to any upstream module (geoip or metafo). The
+cutting of <br>
+the TTL only happens once for all address RRs, even if both
+families had a non-&quot;UP&quot; primary.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+gdnsd.config(5), gdnsd.zonefile(5), gdnsd(8),
+gdnsd-plugin-multifo(8)</p>
+
+<p style="margin-top: 1em">The gdnsd manual.</p>
+
+<p style="margin-top: 1em">COPYRIGHT AND LICENSE <br>
+Copyright (c) 2012 Brandon L Black
+&lt;blblack@gmail.com&gt;</p>
+
+<p style="margin-top: 1em">This file is part of gdnsd.</p>
+
+<p style="margin-top: 1em">gdnsd is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License as published by the Free Software
+Foundation, either version 3 <br>
+of the License, or (at your option) any later version.</p>
+
+<p style="margin-top: 1em">gdnsd is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE. See <br>
+the GNU General Public License for more details.</p>
+
+<p style="margin-top: 1em">You should have received a copy
+of the GNU General Public License along with gdnsd. If not,
+see &lt;http://www.gnu.org/licenses/&gt;.</p>
+
+<p style="margin-top: 1em">gdnsd 2.2.4 2016-07-17
+GDNSD-PLUGIN-SIMPLEFO(8)</p>
+<hr>
+</body>
+</html>

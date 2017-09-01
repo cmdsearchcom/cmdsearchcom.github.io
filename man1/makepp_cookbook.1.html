@@ -1,0 +1,1274 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:23:45 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>MAKEPP_COOKBOOK(1) Makepp MAKEPP_COOKBOOK(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+makepp_cookbook -- The best way to set up makefiles for
+various situations</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+I discovered that practically no one ever reads a manual for
+a make tool, because frankly no one really is interested in
+the make process itself--we are only interested in <br>
+results. So this cookbook was put together in hopes that
+people will be able to get what they need quickly from the
+examples without wading through the manual. This shows howto
+<br>
+type questions, whereas installation instructions and
+stumbling blocks will be found in the frequently asked
+questions.</p>
+
+<p style="margin-top: 1em">Building libraries <br>
+Do you really need a library?</p>
+
+<p style="margin-top: 1em">I have seen a number of large
+programs which consist of a large number of modules, each of
+which lives in its own directory. Commonly, each directory
+is put into its own <br>
+library, and then the final program links with all of the
+libraries.</p>
+
+<p style="margin-top: 1em">In many cases, I think rather
+than use a library, there is a better approach. Libraries
+are not really the right solution if each module cannot or
+will not be reused in any <br>
+other program, because then you get all of the drawbacks of
+libraries and none of the advantages. Libraries are useful
+in the following cases:</p>
+
+<p style="margin-top: 1em">1. When you have a bunch of
+subroutines which have to be linked with several different
+programs, and no program actually uses 100% of the
+subroutines--each program uses a <br>
+different subset. In this case, it probably is a good idea
+to use a static library (a .a file, or an archive file).</p>
+
+<p style="margin-top: 1em">2. When you have a module which
+should be linked into several different programs, and you
+want to load it dynamically so each program doesn&rsquo;t
+have to have a separate copy of the <br>
+library. Dynamic libraries can save executable file space
+and sometimes enhance system performance because there is
+only one copy of the library loaded for all of the <br>
+different programs that use it.</p>
+
+<p style="margin-top: 1em">3. When your link time is
+prohibitively long, using shared libraries for large pieces
+of the program can significantly speed up the link.</p>
+
+<p style="margin-top: 1em">Using static libraries has one
+main disadvantage: on some systems (e.g. Linux), the order
+in which you link the libraries is critically important. The
+linker processes <br>
+libraries in the order specified on its command line. It
+grabs everything it thinks it needs from each library, then
+moves on to the next library. If some subsequent library
+<br>
+refers to a symbol which hasn&rsquo;t yet been incorporated
+from a previous library, the linker does not know to go back
+and grab it from the previous library. As a result, it can
+be <br>
+necessary to list the library multiple times on the linker
+command line. (I worked on a project where we had to repeat
+the whole list of libraries three times. This project is
+<br>
+what made me prefer the alternative approach suggested
+below, that of incremental linking.)</p>
+
+<p style="margin-top: 1em">Using dynamic libraries has
+several disadvantages. First, your program can be slightly
+slower to start up if the library isn&rsquo;t already being
+used by some other program, because <br>
+it has to be found and loaded. Second, it can be a real
+hassle to get all the dynamic libraries installed in the
+correct locations; you can&rsquo;t just copy the program
+executable, <br>
+you also have to make sure that you copy all of its
+libraries. Third, on some systems, it is difficult to debug
+code inside shared libraries because the debuggers do not
+support <br>
+them well.</p>
+
+<p style="margin-top: 1em">If your module will never be
+used in any other program, then there is little reason to
+use a library: you get all of the disadvantages of using
+libraries and none of the <br>
+advantages. The technique I prefer is to use incremental
+linking, where it is available.</p>
+
+<p style="margin-top: 1em">Here is how you can do this on
+Linux:</p>
+
+<p style="margin-top: 1em">my_module.o : $(filter_out
+my_module.o, $(wildcard *.o)) <br>
+ld -r -o $(output) $(inputs)</p>
+
+<p style="margin-top: 1em">What this will do is to create
+another .o file called my_module.o, which will consist of
+all of the .o files in this subdirectory. The linker will
+resolve as many of the <br>
+references as it can, and will leave the remaining
+references to be resolved in a subsequent stage of linking.
+At the top level, when you finally build your program,
+instead of <br>
+linking with libmy_module.a or libmy_module.so, you would
+simply link with my_module.o. When you link .o files, you
+don&rsquo;t have problems with order-dependency in the
+linker <br>
+command line.</p>
+
+<p style="margin-top: 1em">Letting makepp figure out which
+library modules are needed</p>
+
+<p style="margin-top: 1em">Even if you have a true library,
+where a given program needs only a few files from it (rather
+than every single module), makepp might be able to figure
+out which modules are <br>
+needed from the library and include only those in the build.
+This can save compilation time if you are developing the
+library along with a program, because you don&rsquo;t bother
+to <br>
+compile library modules that aren&rsquo;t needed for the
+particular program you are working on.</p>
+
+<p style="margin-top: 1em">If your library strictly
+observes the convention that all functions or classes
+declared in a file xyz.h are completely implemented in a
+source file that compiles to xyz.o (i.e., <br>
+you don&rsquo;t split up the implementation into xyz1.o and
+xyz2.o), then you can use the &quot;$(infer_objects)&quot;
+function to tell makepp to pull out only the relevant
+modules from the <br>
+library. This can work surprisingly well for libraries with
+even dozens of include files. Basically,
+&quot;$(infer_objects)&quot; examines the list of .h files
+that are included, and <br>
+looks for corresponding .o files. If you&rsquo;re rapidly
+developing a library and a program together, this can save
+compilation time, because you never bother to compile
+modules of <br>
+the library that the program doesn&rsquo;t use.</p>
+
+<p style="margin-top: 1em">Here&rsquo;s an example of the
+way I use it:</p>
+
+<p style="margin-top: 1em">my_program: $(infer_objects *.o,
+$(LIB1)/*.o $(LIB2)/*.o) <br>
+$(CXX) $(inputs) -o $(output) $(SYSTEM_LIBRARIES)</p>
+
+<p style="margin-top: 1em">The &quot;$(infer_objects
+)&quot; function returns its first argument (after doing
+wildcard expansion on it), and also looks through the list
+of files in its second argument, for files <br>
+whose name is the same as the name of any .h files included
+by any file in its first argument. If any such files are
+found, these are added to the list.</p>
+
+<p style="margin-top: 1em">Building a static library</p>
+
+<p style="margin-top: 1em">If you are sure you actually
+need a library and incremental linking isn&rsquo;t available
+or isn&rsquo;t what you want to do, there are a couple of
+ways to do it. First, here is an example <br>
+where all the files are explicitly listed:</p>
+
+<p style="margin-top: 1em">LIBRARY_FILES = a b c d e</p>
+
+<p style="margin-top: 1em">libmine.a: $(LIBRARY_FILES).o
+<br>
+&amp;rm -f $(output) <br>
+$(AR) cr $(output) $(inputs) <br>
+ranlib $(output) # May not be necessary, depending on your
+OS.</p>
+
+<p style="margin-top: 1em">The &amp;rm is makepp&rsquo;s
+builtin &quot;rm&quot; command. If you&rsquo;re used to
+writing makefiles, you may be a little suprised by this
+command; you may be used to something more like this:</p>
+
+<p style="margin-top: 1em">libmine.a: $(LIBRARY_FILES).o
+<br>
+$(AR) ru $@ $? # Not recommended!!!!!!! <br>
+ranlib $(output)</p>
+
+<p style="margin-top: 1em">where $? (also known as
+&quot;$(changed_inputs)&quot;) is an automatic variable that
+means any files which have changed since the last time the
+library was built, and $@ is roughly the <br>
+same as &quot;$(output)&quot;.</p>
+
+<p style="margin-top: 1em">This approach is not recommended
+for several reasons:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Suppose you
+remove a source file from the current directory. It&rsquo;s
+still in the library, because you didn&rsquo;t rebuild the
+library from scratch. As a result, anything that <br>
+links with this library will have the stale .o file, and
+that can screw up your builds. (I once got thoroughly
+confused by this when I was trying to remove dead code from
+a <br>
+project: I kept deleting files and it still linked, so I
+thought the code was dead. However, when someone else
+rebuilt the project from scratch, it didn&rsquo;t link any
+more! <br>
+The problem was that the old .o files were still in the
+archive.)</p>
+
+<p style="margin-top: 1em">Also, depending on your options
+to &quot;ar&quot; and your implementation of &quot;ar&quot;
+(e.g., if you use the &quot;q&quot; option instead of
+&quot;r&quot;), you can wind up having several versions of
+the same <br>
+.o inside the .a file. If the different versions define
+different globals, the linker may try to pull in both of
+them. This is probably a bad thing.</p>
+
+<p style="margin-top: 1em">This is why we first remove the
+library file, and create it from scratch. This will take
+slightly longer than just updating modules in a library, but
+not much longer; on a <br>
+modern computer, the amount of time consumed by the ar
+program is minuscule compared to what the C compiler takes
+up in a typical build, so it&rsquo;s just not worth worrying
+<br>
+about.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; One of the ways
+that makepp attempts to guarantee correct builds is that it
+will automatically rebuild if the command line to build a
+given target has changed. But using the <br>
+$? variable can cause problems, because each time the
+library is updated, the build command is different. (You can
+suppress this using &quot;:build_check ignore_action&quot;;
+see <br>
+makepp_build_check for details.)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Updating the
+archive rather than rebuilding it will make it impossible
+for makepp to put the file properly into a build cache (see
+makepp_build_cache for details).</p>
+
+<p style="margin-top: 1em">Sometimes you may find that
+listing all the files is a bit if a pain, especially if a
+project is undergoing rapid development and the list of
+files is constantly changing. It <br>
+may be easier to build the library using wildcards, like
+this:</p>
+
+<p style="margin-top: 1em">libmine.a: $(only_targets *.o)
+<br>
+&amp;rm $(output) <br>
+$(AR) cr $(output) $(inputs)</p>
+
+<p style="margin-top: 1em">This puts all the .o files in
+the current directory into the library. The wildcard matches
+any .o file which exists or can be built, so it will work
+even if the files don&rsquo;t <br>
+exist yet.</p>
+
+<p style="margin-top: 1em">The &quot;only_targets&quot;
+function is used to exclude .o files which don&rsquo;t have
+corresponding source files any more. Suppose you had a file
+called xyz.c that you used to put into your <br>
+library. This means that there&rsquo;s an xyz.o file lying
+around. Now you delete xyz.c because it&rsquo;s obsolete,
+but you forget to delete xyz.o. Without the
+&quot;only_targets&quot; function, <br>
+xyz.o would still be included in the list of .o files
+included in the library.</p>
+
+<p style="margin-top: 1em">Building a dynamic library</p>
+
+<p style="margin-top: 1em">The process of building dynamic
+libraries is entirely system dependent. I would highly
+recommend using libtool to build a dynamic library (see <br>
+&lt;http://www.gnu.org/software/libtool/&gt;), so you
+don&rsquo;t have to figure out how to do it on your
+platform, and so that your makefile will continue to work
+even when you switch to a <br>
+different OS. See the libtool documentation for details.
+Here&rsquo;s a sample Makefile:</p>
+
+<p style="margin-top: 1em">LIBTOOL := libtool</p>
+
+<p style="margin-top: 1em">libflick.la : $(only_targets
+*.lo) <br>
+$(LIBTOOL) --mode=link $(CC) $(inputs) -o $(output)</p>
+
+<p style="margin-top: 1em">%.lo : %.c <br>
+$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) $(INCLUDES) -c
+$(input) -o $(output)</p>
+
+<p style="margin-top: 1em">Building on several different
+machines or networks <br>
+One of the most annoying problems with makefiles is that
+they almost never work when you switch to a different
+machine or a different network. If your makefiles have to
+work on <br>
+every possible machine on the planet, then you probably need
+some sort of a configure script. But if you only have to
+work on a few different machines, there are several ways
+<br>
+you can approach this problem:</p>
+
+<p style="margin-top: 1em">Use a different include file in
+all the environments</p>
+
+<p style="margin-top: 1em">At the beginning of each
+makefile, you can include a line like this:</p>
+
+<p style="margin-top: 1em">include system_defs.mk</p>
+
+<p style="margin-top: 1em">The file system_defs.mk would
+normally be located in a different place for each
+environment. If you want your build directories to be
+identical on all machines, then put <br>
+system_defs.mk in a directory above the build directories,
+or else supply an include path to makepp using the
+&quot;-I&quot; command line option.</p>
+
+<p style="margin-top: 1em">This is usually kind of painful
+to do, but it works well if there are a huge number of
+differences.</p>
+
+<p style="margin-top: 1em">Use if statements</p>
+
+<p style="margin-top: 1em">This is the ugliest way to do
+it, but it will usually work.</p>
+
+<p style="margin-top: 1em">ifsys i386 <br>
+CC := gcc <br>
+else ifsys sun4u <br>
+CC := cc <br>
+else ifsys hpux11 <br>
+CC = c89 <br>
+endif</p>
+
+<p style="margin-top: 1em">If all you need to do is to find
+a few programs or libraries or include files in different
+places, there may be better ways (see below).</p>
+
+<p style="margin-top: 1em">find_program, first_available,
+findfile</p>
+
+<p style="margin-top: 1em">These functions can search
+various different directories in your system to find the
+appropriate files. This isn&rsquo;t as powerful as a
+configure script, of course, but I find it <br>
+useful. For example, I do the following:</p>
+
+<p style="margin-top: 1em">CXX ;= $(find_program g++ c++
+pg++ cxx CC aCC) <br>
+# Pick first C++ compiler which is available in PATH. <br>
+# (Incidentally, if you don&rsquo;t define CXX at all, this
+<br>
+# is the way it&rsquo;s defined.) <br>
+TCL_INCLUDE ;= -I$(dir_noslash $(findfile tcl.h,
+/usr/local/stow/tcl-8.4.5-nothread/include
+/usr/include/tcl8.4 /usr/include/tcl
+/net/na1/tcl8.4a3/include /net/na1/tcl8.4a3/include)) <br>
+# $(findfile ) looks for tcl.h in each of the indicated <br>
+# directories and returns the full path. This is then <br>
+# converted into a compilation option by stripping the <br>
+# filename (leaving the directory) and prefixing with -I.
+<br>
+%.o : %.cpp <br>
+$(CXX) $(CXXFLAGS) $(TCL_INCLUDE) $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">TCL_LIB ;= $((first_available
+<br>
+/usr/local/stow/tcl-8.4.5-nothread/lib/libtcl8.4.so <br>
+/usr/lib/libtcl8.4.so /usr/lib/libtcl.so <br>
+/net/na1/tcl8.4a3/lib/libtcl8.4.a <br>
+/net/na1/tcl8.4a3/lib/libtcl8.4.sl)) <br>
+# Find where the Tcl library is. This is then explicitly
+<br>
+# listed on the link command: <br>
+my_program : *.o <br>
+$(CXX) $(CXXFLAGS) $(inputs) -o $(output) $(TCL_LIB)</p>
+
+<p style="margin-top: 1em">Take advantage of Perl&rsquo;s
+config information</p>
+
+<p style="margin-top: 1em">The above techniques may not be
+sufficient if you need some additional information about
+your system, such as whether a long double exists, or what
+the byte order is. However, <br>
+perl has already computed these things, so you can just use
+its answers.</p>
+
+<p style="margin-top: 1em">Perl&rsquo;s autoconfigure
+script makes all of its configuration information available
+through the %Config hash. There&rsquo;s no syntax to access
+a Perl hash directly in makepp, but you <br>
+can drop into Perl and set scalar variables, which are
+directly accessible from makepp:</p>
+
+<p style="margin-top: 1em">perl_begin <br>
+# Fetch values out of the config hash. <br>
+use Config; <br>
+$CC = $Config{&rsquo;cc&rsquo;}; # C compiler that perl
+used; <br>
+$byteorder_flags =
+&quot;-DBYTEORDER=$Config{&rsquo;byteorder&rsquo;}&quot;;
+<br>
+$longdouble_defined = $Config{&rsquo;d_longdbl&rsquo;} eq
+&rsquo;define&rsquo;; <br>
+$CFLAGS_for_shared_libs = $Config{&rsquo;cccdlflags&rsquo;};
+<br>
+$LDFLAGS_for_shared_libs = $Config{&rsquo;ccdlflags&rsquo;};
+<br>
+perl_end</p>
+
+<p style="margin-top: 1em">Also, once you have done the
+&rsquo;use Config&rsquo;, you can use the &quot;$(perl
+)&quot; statement, like this:</p>
+
+<p style="margin-top: 1em">SHARED_LIB_EXTENSION := $(perl
+$Config{&rsquo;dlext&rsquo;})</p>
+
+<p style="margin-top: 1em">Type &quot;perldoc Config&quot;
+to see what information is available via the %Config
+hash.</p>
+
+<p style="margin-top: 1em">Perl&rsquo;s config is a good
+place to get things like information about integer types,
+byte order, and other things which usually require a
+separate config script to locate. Some of <br>
+its information that relates to the presence of things in
+the file system might not be valid. For example,
+$Config{&rsquo;cc&rsquo;} refers to the C compiler that perl
+was built with, which <br>
+might not be the same C compiler you want to use. In fact,
+it might not even exist on your system, since you probably
+installed Perl via a binary package.</p>
+
+<p style="margin-top: 1em">Tips for using wildcards <br>
+Matching all files except a certain subset</p>
+
+<p style="margin-top: 1em">Makepp&rsquo;s wildcards do not
+have any way at present of matching all files except a
+certain set, but you can do it with a combination of
+functions.</p>
+
+<p style="margin-top: 1em">For example, suppose you have a
+test program for each module in a library, but you
+don&rsquo;t want to include the test programs in the
+library. If all the test programs begin with <br>
+test, then you can exclude them like this:</p>
+
+<p style="margin-top: 1em">libproduction.a: $(filter_out
+test*, $(wildcard *.o))</p>
+
+<p style="margin-top: 1em">The &quot;$(filter )&quot; and
+&quot;$(filter_out )&quot; functions are a very powerful set
+of filters to do all kinds of set intersection and
+difference operations. For example,</p>
+
+<p style="margin-top: 1em">SUBDIRS ;= $(filter_out *test*
+*$(ARCH)*, $(shell find . -type d -print)) <br>
+# Returns all subdirectories that don&rsquo;t have <br>
+# &quot;test&quot; or $(ARCH) in them.</p>
+
+<p style="margin-top: 1em">$(filter $(patsubst
+test_dir/test_%.o, %.o, $(wildcard test_dir/*.o)),
+$(wildcard *.o)) <br>
+# Returns a list of .o files in the current <br>
+# directory for which there is a corresponding <br>
+# test_*.o file in the test_dir subdirectory. <br>
+$(filter_out $(patsubst man/man3/%.3, %.o, $(wildcard
+man/man3/*.3)), $(wildcard *.o)) <br>
+# Returns a list of .o files in the current <br>
+# directory for which there is not a manual page <br>
+# with the same filename in the man/man3 subdirectory.</p>
+
+<p style="margin-top: 1em">Using the &quot;$(only_targets
+)&quot; function to eliminate stale .o files</p>
+
+<p style="margin-top: 1em">Suppose you are building a
+program or a library with a build command like this:</p>
+
+<p style="margin-top: 1em">program: *.o <br>
+$(CC) $(inputs) -o $(output)</p>
+
+<p style="margin-top: 1em">Suppose you now delete a source
+file. If you forget to delete the corresponding .o file, it
+will still be linked in even though there is no way to build
+it any more. In the <br>
+future, makepp will probably recognize this situation
+automatically and exclude it from the wildcard list, but at
+present, you have to tell it to exclude it manually:</p>
+
+<p style="margin-top: 1em">program: $(only_targets *.o)
+<br>
+$(CC) $(inputs) -o $(outputs)</p>
+
+<p style="margin-top: 1em">Makepp does not know any way to
+build the stale .o file any more since its source file is
+gone, so the &quot;$(only_targets )&quot; function will
+exclude it from the dependency list.</p>
+
+<p style="margin-top: 1em">Tips for multiple directories
+<br>
+One of the main reasons for writing makepp was to simplify
+handling of multiple directories. Makepp is able to combine
+build commands from multiple makefiles, so it can properly
+<br>
+deal with a rule in one makefile that depends on a file
+which is built by a different makefile.</p>
+
+<p style="margin-top: 1em">What to do in place of recursive
+make</p>
+
+<p style="margin-top: 1em">Makepp supports recursive make
+for backward compatibility, but it is highly recommended
+that you not use it. If you don&rsquo;t know what it is,
+good.</p>
+
+<p style="margin-top: 1em">See &quot;Better system for
+hierarchical builds&quot; in makepp for details on why you
+don&rsquo;t want to use recursive make, or else search on
+the web for &quot;recursive make considered
+harmful&quot;.</p>
+
+<p style="margin-top: 1em">Instead of doing a recursive
+make to make the &quot;all&quot; target in every makefile,
+it is usually easier to let makepp figure out which targets
+will actually need to be built. <br>
+Furthermore, if you put all of your .o and library files in
+the same directory as the makefiles, then makepp will
+automatically figure out which makefiles are needed too--the
+<br>
+only thing that&rsquo;s needed is the have your top level
+make list the files that are needed for the final linking
+step. See the examples below.</p>
+
+<p style="margin-top: 1em">One makefile for each directory:
+with implicit loading</p>
+
+<p style="margin-top: 1em">The most common way to handle
+multiple directories is to put a makefile in each directory
+which describes how to build everything in or from that
+directory. If you put .o files <br>
+in the same directory as the source files, then implicit
+loading (see &quot;Implicit loading&quot; in
+makepp_build_algorithm) will automatically find all the
+makefiles. If you put your .o <br>
+files in a different directory (e.g., in an
+architecture-dependent subdirectory), then you will probably
+have to load all the relevant makefiles using the
+&quot;load_makefile&quot; <br>
+statement.</p>
+
+<p style="margin-top: 1em">Here is a sample top-level
+makefile for a directory hierarchy that uses implicit
+loading to build a program that consists of many shared
+libraries (but see &quot;Do you really need a <br>
+library?&quot; in makepp_cookbook, because making a program
+out of a bunch of shared libraries is not necessarily a good
+idea):</p>
+
+<p style="margin-top: 1em"># Top level makefile: <br>
+program : main.o **/*.la # Link in shared libraries from all
+subdirectories. <br>
+$(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(inputs) -o
+$(output) $(LIBS)</p>
+
+<p style="margin-top: 1em">That&rsquo;s pretty much all you
+need in the top level makefile. In each subdirectory, you
+would probably do something like this:</p>
+
+<p style="margin-top: 1em"># Makefile in each subdirectory:
+<br>
+include standard_defs.mk # Searches ., .., ../.., etc. until
+it <br>
+# finds the indicated include file. <br>
+# override some variable definitions here <br>
+SPECIAL_FLAGS := -do_something_different</p>
+
+<p style="margin-top: 1em">Each makefile can probably be
+pretty much the same if the commands to build the targets
+are quite similar.</p>
+
+<p style="margin-top: 1em">Finally, you would put the
+following into the standard_defs.mk file (which should
+probably be located in the top-level directory):</p>
+
+<p style="margin-top: 1em"># Common variable settings and
+build rules for all directories. <br>
+CFLAGS := -g -O2 <br>
+INCLUDE_DIR := $(find_upwards includes) <br>
+# Searches ., .., ../.., etc. for a file or <br>
+# directory called includes, so if you put <br>
+# all your include files in there, this will <br>
+# find them. <br>
+INCLUDES := -I$(INCLUDE_DIR)</p>
+
+<p style="margin-top: 1em">%.lo : %.c <br>
+$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) $(INCLUDES) -c
+$(input) -o $(output)</p>
+
+<p style="margin-top: 1em">lib$(relative_to ., ..).la:
+$(only_targets *.lo) <br>
+$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -o $(output)
+$(inputs) <br>
+# $(relative_to ., ..) returns the name of the current <br>
+# subdirectory relative to the upper level <br>
+# subdirectory. So if this makefile is xyz/Makefile, <br>
+# this rule will build xyz/libxyz.la.</p>
+
+<p style="margin-top: 1em"># Publish public include files
+into the top-level include directory: <br>
+$(INCLUDE_DIR)/public_%.h : public_%.h <br>
+:build_check symlnk <br>
+&amp;ln -fr $(input) $(output)</p>
+
+<p style="margin-top: 1em">One makefile for each directory:
+explicit loading</p>
+
+<p style="margin-top: 1em">If you want to put all of your
+.o files into an architecture-dependent subdirectory, then
+the above example should be modified to be something like
+this:</p>
+
+<p style="margin-top: 1em"># Top level makefile: <br>
+MAKEFILES := $(wildcard **/Makeppfile) # List of all
+subdirectories to <br>
+# get makefiles from.</p>
+
+<p style="margin-top: 1em">load_makefile $(MAKEFILES) #
+Load them all in.</p>
+
+<p style="margin-top: 1em">include standard_defs.mk # Get
+compile command for main.o.</p>
+
+<p style="margin-top: 1em">program : $(ARCH)/main.o
+*/**/$(ARCH)/*.la <br>
+$(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(inputs) -o
+$(output) $(LIBS) <br>
+# */**/$(ARCH) excludes the subdirectory <br>
+# $(ARCH), where we don&rsquo;t want to build <br>
+# a shared library.</p>
+
+<p style="margin-top: 1em">Each makefile would be exactly
+the same as before:</p>
+
+<p style="margin-top: 1em"># Makefile in each subdirectory:
+<br>
+include standard_defs.mk <br>
+# ... variable overrides here</p>
+
+<p style="margin-top: 1em">And finally, standard_defs.mk
+would contain something like the following:</p>
+
+<p style="margin-top: 1em"># Common variable settings and
+build rules for all directories. <br>
+ARCH ;= $(shell uname -s)-$(shell uname -m)-$(shell uname
+-r) <br>
+# Sometimes people use only $(shell uname -m), but <br>
+# this will be the same for FreeBSD and Linux on <br>
+# an x86. The -r is not really useful on Linux, <br>
+# but is important for other OSes: binaries for <br>
+# SunOS 5.8 typically won&rsquo;t run on SunOS 5.7. <br>
+&amp;mkdir -p $(ARCH) # Make sure the output directory
+exists. <br>
+CFLAGS := -g -O2 <br>
+INCLUDE_DIR := $(find_upwards includes) <br>
+# Searches ., .., ../.., etc. for a file or <br>
+# directory called includes, so if you put <br>
+# all your include files in there, this will <br>
+# find them. <br>
+INCLUDES := -I$(INCLUDE_DIR)</p>
+
+<p style="margin-top: 1em">$(ARCH)/%.lo : %.c <br>
+$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) $(INCLUDES) -c
+$(input) -o $(output)</p>
+
+<p style="margin-top: 1em">$(ARCH)/lib$(relative_to .,
+..).la: $(only_targets *.lo) <br>
+$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -o $(output)
+$(inputs) <br>
+# $(relative_to ., ..) returns the name of the current <br>
+# subdirectory relative to the upper level <br>
+# subdirectory. So if this makefile is xyz/Makefile, <br>
+# this rule will build xyz/$(ARCH)/libxyz.la.</p>
+
+<p style="margin-top: 1em"># Copy public include files into
+the top-level include directory: <br>
+$(INCLUDE_DIR)/public_%.h : public_%.h <br>
+&amp;cp $(input) $(output)</p>
+
+<p style="margin-top: 1em">Automatically making the
+makefiles</p>
+
+<p style="margin-top: 1em">If your makefiles are all
+extremely similar (as in the above example), you can tell
+Makepp to build them automatically if they don&rsquo;t
+exist. Just add the following to your top- <br>
+level makefile:</p>
+
+<p style="margin-top: 1em">SUBDIRS := $(filter_out
+unwanted_dir1 unwanted_dir2, $(wildcard */**)) <br>
+$(foreach)/Makeppfile: : foreach $(SUBDIRS) <br>
+&amp;echo &quot;include standard_defs.mk&quot; -o $(output)
+<br>
+&amp;echo &quot;_include additional_defs.mk&quot; -o
+&gt;&gt;$(output) <br>
+# If the file additional_defs.mk exists, then <br>
+# it will be included, but if it doesn&rsquo;t exist, <br>
+# the _include statement will be ignored.</p>
+
+<p style="margin-top: 1em">Now the makefiles themselves
+will be automatically built.</p>
+
+<p style="margin-top: 1em">One makefile only at the top
+level</p>
+
+<p style="margin-top: 1em">If all your makefiles are
+identical, you may ask: why should I have a makefile at each
+level? Why not put that all into the top-level makefile?</p>
+
+<p style="margin-top: 1em">Yes, this can be done. The main
+disadvantage is that it becomes harder to specify different
+build options for each subdirectory. A second disadvantage
+is that your makefile <br>
+will probably become a bit harder to read.</p>
+
+<p style="margin-top: 1em">Here&rsquo;s an example of doing
+just that:</p>
+
+<p style="margin-top: 1em"># Top-level makefile for
+directory hierarchy. Builds the program <br>
+# out of a set of shared libraries as an example. (See
+caveats above <br>
+# for why you might want to use incremental linking or some
+other <br>
+# approach rather than shared libraries.) <br>
+makepp_percent_subdirs := 1 # Allow % to match multiple
+directories. <br>
+SUBDIRS := $(filter_out *CVS* other-unwanted_dirs $(wildcard
+**)) <br>
+CFLAGS := -g -O2 <br>
+INCLUDES := -Iincludes</p>
+
+<p style="margin-top: 1em">%.lo: %.c <br>
+$(LIBTOOL) --mode=compile $(CC) $(INCLUDES) $(CFLAGS) -c
+$(input) -o $(output)</p>
+
+<p style="margin-top: 1em">$(foreach)/lib$(notdir
+$(foreach)).la: $(foreach)/*.lo : foreach $(SUBDIRS) <br>
+$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -o $(output)
+$(inputs) <br>
+# Rule to make all of the libraries.</p>
+
+<p style="margin-top: 1em">program : main.o **/*.la <br>
+$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -o $(output)
+$(inputs)</p>
+
+<p style="margin-top: 1em">includes/$(notdir $(foreach)) :
+$(foreach) : foreach **/public_*.h <br>
+&amp;cp $(input) $(output) <br>
+# Sample rule for copying the publically <br>
+# accessible .h files to the right place.</p>
+
+<p style="margin-top: 1em">A clean target</p>
+
+<p style="margin-top: 1em">Traditional makefiles contain a
+clean target, which allows removing everything that was
+built. There are three reasons why you should not do this
+with makepp:</p>
+
+<p style="margin-top: 1em">1. Makepp goes to great lengths
+to ensure a correct build. So the desperate &quot;I
+don&rsquo;t know what&rsquo;s wrong&quot;, making you want
+to start from scratch is a thing of the past.</p>
+
+<p style="margin-top: 1em">2. People will sometimes try to
+save time by doing two contradictory things at once:
+&quot;make clean all&quot;. This can confuse makepp&rsquo;s
+smart wildcard system, because it will first <br>
+get the facts before doing anything. Then comes the clean
+action, which does not tell makepp what it does (indeed it
+can&rsquo;t, because it undoes something -- the contrary of
+<br>
+what a build tool is for). Then comes &quot;all&quot;, but
+the up to date files, which where there, are mysteriously
+gone.</p>
+
+<p style="margin-top: 1em">3. There is the
+&quot;makeppclean&quot; command, which does the same thing,
+and more efficiently.</p>
+
+<p style="margin-top: 1em">Nevertheless we retain this
+historical section, as it does tell you something about the
+way makepp works: A phony target called &quot;clean&quot; is
+just a name for a set of commands to <br>
+remove all files that result from the make process. Usually
+a clean target looks something like this:</p>
+
+<p style="margin-top: 1em">$(phony clean): <br>
+&amp;rm -fm $(wildcard *.o .makepp_log) <br>
+# -m and .makepp_log gets rid of all of makepp&rsquo;s
+junk.</p>
+
+<p style="margin-top: 1em">Instead of explicitly listing
+the files you want to delete, you can also tell makepp to
+remove everything it knows how to build, like this:</p>
+
+<p style="margin-top: 1em">$(phony clean): <br>
+&amp;rm -fm .makepp_log $(only_targets *)</p>
+
+<p style="margin-top: 1em">This has the advantage that if
+any of your source files can be built from other files, they
+will be deleted too; on the other hand, stale .o files
+(files which used to be <br>
+buildable but whose source file has since been removed) will
+not be deleted.</p>
+
+<p style="margin-top: 1em">If you have a build that
+involves makefiles in several different directories, your
+top-level makefile may reference the &quot;clean&quot;
+target (or any other phony target) in a different <br>
+makefile:</p>
+
+<p style="margin-top: 1em"># Top-level makefile <br>
+SUBDIRS := sub1 sub2</p>
+
+<p style="margin-top: 1em"># build rules here</p>
+
+<p style="margin-top: 1em"># Clean up after the build: <br>
+$(phony clean): $(SUBDIRS)/clean <br>
+&amp;rm -fm .makepp_log $(only_targets *)</p>
+
+<p style="margin-top: 1em">Alternatively, you can put your
+&quot;clean&quot; target only in the top-level makefile, and
+have it process all of the directories, like this:</p>
+
+<p style="margin-top: 1em">$(phony clean): <br>
+&amp;rm -fm $(only_targets **/*)</p>
+
+<p style="margin-top: 1em">Using Qt&rsquo;s moc
+preprocessor <br>
+This example shows a makefile for a utility that uses
+Nokia&rsquo;s Qt GUI library (see
+&lt;http://qt.nokia.com&gt;). The only thing that&rsquo;s
+slightly unusual about this is that you must run <br>
+a preprocessor called &quot;moc&quot; on most &quot;.h&quot;
+files that contain widget definitions, but you don&rsquo;t
+want to run &quot;moc&quot; on any &quot;.h&quot; files that
+don&rsquo;t use the &quot;Q_OBJECT&quot; macro.</p>
+
+<p style="margin-top: 1em">Automatically determining which
+files need moc files</p>
+
+<p style="margin-top: 1em">You could, of course, just list
+all of the &quot;.h&quot; files that need to have
+&quot;moc&quot; run on them. If you&rsquo;re rapidly
+developing new widgets, however, it may be something of a
+nuisance <br>
+to keep updating the list in the makefile. You can get
+around the need to list the moc modules explicitly with
+something like this:</p>
+
+<p style="margin-top: 1em">MOC := $(QTDIR)/bin/moc <br>
+MODULES := whatever modules you happen to have in your
+program <br>
+MOC_MODULES := $(patsubst %.h, moc_%, $(&amp;grep -l
+/Q_OBJECT/ *.h)) <br>
+# Scans all the .h files for the Q_OBJECT macro.</p>
+
+<p style="margin-top: 1em">my_program: $(MODULES).o
+$(MOC_MODULES).o <br>
+$(CXX) $(inputs) -o $(output)</p>
+
+<p style="margin-top: 1em">moc_%.cxx: %.h # Makes the moc
+files from the .h files. <br>
+$(MOC) $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">%.o: %.cxx <br>
+$(CXX) $(CXXFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">This approach scans each of your
+.h files every time makepp is run, looking for the
+&quot;Q_OBJECT&quot; macro. This sounds expensive, but it
+probably won&rsquo;t take long at all. (The .h <br>
+files will all have to be loaded from disk anyway by the
+compilation process, so they will be cached.)</p>
+
+<p style="margin-top: 1em">#include the .moc file</p>
+
+<p style="margin-top: 1em">Another approach is to
+&quot;#include&quot; the output from the &quot;moc&quot;
+preprocessor in your widget implementation file. This means
+you have to remember to write the &quot;#include&quot;, but
+it has <br>
+the advantage that there are fewer modules to compile, and
+so compilation goes faster. (For most C++ compilation, the
+majority of the time is spent reading the header files, and
+<br>
+the output from the preprocessor needs to include almost as
+many files as your widget anyway.) For example:</p>
+
+<p style="margin-top: 1em">// my_widget.h <br>
+class MyWidget : public QWidget { <br>
+Q_OBJECT <br>
+// ... <br>
+}</p>
+
+<p style="margin-top: 1em">// my_widget.cpp</p>
+
+<p style="margin-top: 1em">#include &quot;my_widget.h&quot;
+<br>
+#include &quot;my_widget.moc&quot; // my_widget.moc is the
+output from the <br>
+// moc preprocessor. <br>
+// Other implementation things here. <br>
+MyWidget::MyWidget(QWidget * parent, const char * name) :
+<br>
+QWidget(parent, name) <br>
+{ <br>
+// ... <br>
+}</p>
+
+<p style="margin-top: 1em">Now you need to have a rule in
+your makefile to make all the &quot;.moc&quot; files, like
+this:</p>
+
+<p style="margin-top: 1em">MOC := $(QTDIR)/bin/moc <br>
+# Rule to make .moc files: <br>
+%.moc: %.h <br>
+$(MOC) $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">Makepp is smart enough to
+realize that it needs to make &quot;my_widget.moc&quot; if
+it doesn&rsquo;t already exist, or if it&rsquo;s out of
+date.</p>
+
+<p style="margin-top: 1em">This second approach is the one
+that I usually use because it speeds up compilation.</p>
+
+<p style="margin-top: 1em">Replacements for deprecated make
+idioms <br>
+MAKECMDGOALS</p>
+
+<p style="margin-top: 1em">Sometimes people have rules in
+their makefile depend on what target they are building,
+using the special variable &quot;MAKECMDGOALS&quot;. For
+example, one sometimes sees things like <br>
+this:</p>
+
+<p style="margin-top: 1em">ifneq ($(filter production,
+$(MAKECMDGOALS)),) <br>
+CFLAGS := -O2 <br>
+else <br>
+CFLAGS := -g <br>
+endif</p>
+
+<p style="margin-top: 1em">This will work fine with makepp.
+However, I recommend not to use &quot;MAKECMDGOALS&quot; for
+such cases (and so does the GNU make manual). You are better
+off putting your optimized and <br>
+debug-compiled .o files in separate directories, or giving
+them different prefixes or suffixes, or using repositories,
+to keep them separate.</p>
+
+<p style="margin-top: 1em">Probably the only time when you
+might actually want to reference &quot;MAKECMDGOALS&quot; is
+if it takes a long time to load your makefiles, and you
+don&rsquo;t need that for your &quot;clean&quot; target <br>
+(but you don&rsquo;t need a clean target). For example,</p>
+
+<p style="margin-top: 1em">ifneq ($(MAKECMDGOALS),clean)
+<br>
+load_makefile $(wildcard **/Makeppfile) <br>
+else <br>
+no_implicit_load . # Prevent automatic loading of any other
+makefiles. <br>
+endif</p>
+
+<p style="margin-top: 1em">$(phony clean): <br>
+&amp;rm -f $(wildcard **/*.o)</p>
+
+<p style="margin-top: 1em">Recursive make to build in
+different directories</p>
+
+<p style="margin-top: 1em">See &quot;Tips for multiple
+directories&quot; in makepp_cookbook.</p>
+
+<p style="margin-top: 1em">Recursive make to change value
+of a variable</p>
+
+<p style="margin-top: 1em">Some makefiles reinvoke
+themselves with a different value of a variable, e.g., the
+debug target in the following makefile fragment</p>
+
+<p style="margin-top: 1em">.PHONY: all debug</p>
+
+<p style="margin-top: 1em">optimized: <br>
+$(MAKE) program CFLAGS=-O2</p>
+
+<p style="margin-top: 1em">debug: <br>
+$(MAKE) program CFLAGS=-g</p>
+
+<p style="margin-top: 1em">program: a.o b.o <br>
+$(CC) $(CFLAGS) $^ -o $@</p>
+
+<p style="margin-top: 1em">%.o : %.c <br>
+$(CC) $(CFLAGS) -c $&lt; -o $@</p>
+
+<p style="margin-top: 1em">If the user types &quot;make
+debug&quot;, it builds the program in default mode with
+debug enabled instead of with optimization.</p>
+
+<p style="margin-top: 1em">A better way to do it is to
+build two different programs, with two different sets of
+object files, like this:</p>
+
+<p style="margin-top: 1em">CFLAGS := -O2 <br>
+DEBUG_FLAGS := -g <br>
+MODULES := a b</p>
+
+<p style="margin-top: 1em">program: $(MODULES).o <br>
+$(CC) $(CFLAGS) $(inputs) -o $(output)</p>
+
+<p style="margin-top: 1em">debug/program:
+debug/$(MODULES).o <br>
+$(CC) $(DEBUG_FLAGS) $(inputs) -o $(output)</p>
+
+<p style="margin-top: 1em">%.o : %.c <br>
+$(CC) $(CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">debug/%.o : %.c <br>
+$(CC) $(DEBUG_FLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">$(phony debug):
+debug/program</p>
+
+<p style="margin-top: 1em">The advantage of doing it this
+way is (a) you don&rsquo;t need to rebuild everything when
+you switch from debug to optimized and back again; (b)</p>
+
+<p style="margin-top: 1em">The above can be written
+somewhat more concisely using repositories. The following
+makefile is exactly equivalent:</p>
+
+<p style="margin-top: 1em">repository debug=. # Makes the
+debug subdirectory look like a copy of <br>
+# the current subdirectory. <br>
+load_makefile debug CFLAGS=-g <br>
+# Override CFLAGS when invoked in debug subdirectory <br>
+CFLAGS := -O2 # Value of CFLAGS when invoked in this
+subdirectory</p>
+
+<p style="margin-top: 1em">program: a.o b.o <br>
+$(CC) $(CFLAGS) $^ -o $@</p>
+
+<p style="margin-top: 1em">%.o : %.c <br>
+$(CC) $(CFLAGS) -c $&lt; -o $@</p>
+
+<p style="margin-top: 1em">$(phony debug): debug/program
+<br>
+# If user types &quot;makepp debug&quot;, builds <br>
+# debug/program instead of program.</p>
+
+<p style="margin-top: 1em">Miscellaneous tips <br>
+How do I build one part differently just once?</p>
+
+<p style="margin-top: 1em">Makepp makes this hard to do
+because the result is inconsistent with regard to the rules.
+But there are situations where you may need this, e.g. to
+compile just one module with <br>
+heavy debugging information. You can achieve this in two
+steps by first building the dependency separately, and then
+excluding it from the link phase:</p>
+
+<p style="margin-top: 1em">makepp DEBUG=3 buggy.o # Build
+it with other option. <br>
+makepp --dont-build=buggy.o buggy # Use it, despite
+&quot;wrong&quot; build option.</p>
+
+<p style="margin-top: 1em">How do I make sure my output
+directories exist?</p>
+
+<p style="margin-top: 1em">You can specify a rule to build
+the output directory, then make sure that each file that
+goes in the output directory depends on it. But it&rsquo;s
+usually easier to do something like <br>
+this:</p>
+
+<p style="margin-top: 1em"># The classical way <br>
+dummy := $(shell test -d $(OUTPUT_DIRECTORY) || mkdir -p
+$(OUTPUT_DIRECTORY)) <br>
+# This is usually easier than making all files depend on
+<br>
+# $(OUTPUT_DIRECTORY) and having a rule to make it. <br>
+# Note that you must use := instead of = to force it to <br>
+# execute immediately. <br>
+# An alternative approach: using Perl code, OUTPUT_DIRECTORY
+local var <br>
+perl_begin <br>
+-d $OUTPUT_DIRECTORY or mkdir $OUTPUT_DIRECTORY; <br>
+perl_end <br>
+# The modern way, does nothing for existing directories <br>
+&amp;mkdir -p $(OUTPUT_DIRECTORY)</p>
+
+<p style="margin-top: 1em">One of these statements should
+be near the top of your makefile, so they are executed
+before anything that could possibly need the directory.</p>
+
+<p style="margin-top: 1em">How do I force a command to
+execute on every build?</p>
+
+<p style="margin-top: 1em">The easiest way is not to use
+the rule mechanism at all, but simply to execute it, like
+this:</p>
+
+<p style="margin-top: 1em">dummy := $(shell date &gt;
+last_build_timestamp)</p>
+
+<p style="margin-top: 1em">Or put it in a perl block, like
+this:</p>
+
+<p style="margin-top: 1em">perl_begin <br>
+system(&quot;command to execute&quot;); <br>
+perl_end</p>
+
+<p style="margin-top: 1em">This approach has the
+disadvantage that it will be executed even if an unrelated
+target is being run.</p>
+
+<p style="margin-top: 1em">A second approach is to declare
+the file as a phony target, even if it is a real file. This
+will force makepp to reexecute the command to build it every
+time, but only if it <br>
+appears in the dependency list of some rule.</p>
+
+<p style="margin-top: 1em">How do I shorten the displayed
+build commands?</p>
+
+<p style="margin-top: 1em">Often there are so many options
+to compilation commands that what is displayed on the screen
+is unreadable. You can change what is displayed by
+suppressing display of the entire <br>
+command, and then explicitly print out the interesting part
+of the command. It&rsquo;s easy to print out only the
+relevant part of the command by using &quot;$(filter_out
+)&quot;, like this:</p>
+
+<p style="margin-top: 1em">ALL_CFLAGS = $(CFLAGS)
+$(INCLUDES) $(ADDL_CXX_FLAGS) $(DEBUG_FLAGS)</p>
+
+<p style="margin-top: 1em">%.o : %.c <br>
+@&amp;echo $(notdir $(CC)) ... $(filter_out -I*
+$(ADDL_CXX_FLAGS), $(ALL_CFLAGS)) -c $(input) <br>
+@$(CC) $(ALL_CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">(The &quot;@&quot; in front of
+the command suppresses printing out the command.)</p>
+
+<p style="margin-top: 1em">This will allow you to see most
+of the interesting options but won&rsquo;t display all of
+the include directories (of which there are often very
+many!). If the part you are interested <br>
+in is contiguous in your command, you can also use the
+&quot;print&quot; function (which adds a newline, so you
+don&rsquo;t want several of them):</p>
+
+<p style="margin-top: 1em">target: <br>
+@... $(print interesting part) ...</p>
+
+<p style="margin-top: 1em">How do I convert a file into
+dependencies?</p>
+
+<p style="margin-top: 1em">For some obscure file formats
+it&rsquo;s not worthwhile to implement a scanner. In one
+project we have xml files, say foobar.xml which contains the
+dependencies for foobar.out:</p>
+
+<p style="margin-top: 1em">&lt;files&gt; <br>
+&lt;file&gt;a&lt;/file&gt; <br>
+&lt;file&gt;b&lt;/file&gt; <br>
+&lt;file&gt;c&lt;/file&gt; <br>
+&lt;/files&gt;</p>
+
+<p style="margin-top: 1em">We decided to adhere to this
+simple layout, so we don&rsquo;t need to parse xml. With the
+builtin &amp;sed, here&rsquo;s what we do with three simple
+substitutions for the three kinds of lines:</p>
+
+<p style="margin-top: 1em">%.d: %.xml <br>
+&amp;sed &rsquo;s!&lt;files&gt;!$(stem).out: \! ||
+s!&lt;file&gt;(.+)&lt;/file&gt;!$$1 \! || s!&lt;/files&gt;!#
+Empty!&rsquo; $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">include foobar.d</p>
+
+<p style="margin-top: 1em">Attempting to include this,
+produces &quot;foobar.d&quot; first:</p>
+
+<p style="margin-top: 1em">foobar.out: a b c # Empty</p>
+
+<p style="margin-top: 1em">Empty (just a comment or really
+empty) line avoids having to worry about the trailing
+backslash. An alternative producing a multiline list is:</p>
+
+<p style="margin-top: 1em">%.d: %.xml <br>
+&amp;sed &rsquo;s!&lt;files&gt;!$(stem).out: ((! ||
+s!&lt;/files&gt;!))! || s!&lt;.+?&gt;!!g&rsquo; $(input) -o
+$(output)</p>
+
+<p style="margin-top: 1em">include foobar.d</p>
+
+<p style="margin-top: 1em">This produces an equivalent:</p>
+
+<p style="margin-top: 1em">foobar.out: $(( <br>
+a <br>
+b <br>
+c <br>
+))</p>
+
+<p style="margin-top: 1em">If you have more complex
+rewriting to do, define a function within the makefile or in
+a module which you include. E.g. undefining $_ will skip
+input lines:</p>
+
+<p style="margin-top: 1em">sub myfilter { <br>
+return undef $_ if /&lt;!--/; # skip comment lines <br>
+my $stem = f_stem; <br>
+s!&lt;files&gt;!$stem.out: || s!&lt;/files&gt;!))! ||
+s!&lt;.+?&gt;!!g; <br>
+}</p>
+
+<p style="margin-top: 1em">%.d: %.xml <br>
+&amp;sed &rsquo;s!&lt;files&gt;!$(stem).out: ((! ||
+s!&lt;/files&gt;!))! || s!&lt;.+?&gt;!!g&rsquo; $(input) -o
+$(output)</p>
+
+<p style="margin-top: 1em">include foobar.d</p>
+
+<p style="margin-top: 1em">perl v5.24.1 2016-11-28
+MAKEPP_COOKBOOK(1)</p>
+<hr>
+</body>
+</html>

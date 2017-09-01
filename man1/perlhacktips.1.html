@@ -1,0 +1,1689 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:30:55 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>PERLHACKTIPS(1) Perl Programmers Reference Guide
+PERLHACKTIPS(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+perlhacktips - Tips for Perl core C code hacking</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This document will help you learn the best way to go about
+hacking on the Perl core C code. It covers common problems,
+debugging, profiling, and more.</p>
+
+<p style="margin-top: 1em">If you haven&rsquo;t read
+perlhack and perlhacktut yet, you might want to do that
+first.</p>
+
+<p style="margin-top: 1em">COMMON PROBLEMS <br>
+Perl source plays by ANSI C89 rules: no C99 (or C++)
+extensions. In some cases we have to take pre-ANSI
+requirements into consideration. You don&rsquo;t care about
+some particular <br>
+platform having broken Perl? I hear there is still a strong
+demand for J2EE programmers.</p>
+
+<p style="margin-top: 1em">Perl environment problems <br>
+&Acirc;&middot; Not compiling with threading</p>
+
+<p style="margin-top: 1em">Compiling with threading
+(-Duseithreads) completely rewrites the function prototypes
+of Perl. You better try your changes with that. Related to
+this is the difference <br>
+between &quot;Perl_-less&quot; and &quot;Perl_-ly&quot;
+APIs, for example:</p>
+
+<p style="margin-top: 1em">Perl_sv_setiv(aTHX_ ...); <br>
+sv_setiv(...);</p>
+
+<p style="margin-top: 1em">The first one explicitly passes
+in the context, which is needed for e.g. threaded builds.
+The second one does that implicitly; do not get them mixed.
+If you are not passing <br>
+in a aTHX_, you will need to do a dTHX (or a dVAR) as the
+first thing in the function.</p>
+
+<p style="margin-top: 1em">See &quot;How multiple
+interpreters and concurrency are supported&quot; in perlguts
+for further discussion about context.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Not compiling
+with -DDEBUGGING</p>
+
+<p style="margin-top: 1em">The DEBUGGING define exposes
+more code to the compiler, therefore more ways for things to
+go wrong. You should try it.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Introducing
+(non-read-only) globals</p>
+
+<p style="margin-top: 1em">Do not introduce any modifiable
+globals, truly global or file static. They are bad form and
+complicate multithreading and other forms of concurrency.
+The right way is to <br>
+introduce them as new interpreter variables, see intrpvar.h
+(at the very end for binary compatibility).</p>
+
+<p style="margin-top: 1em">Introducing read-only (const)
+globals is okay, as long as you verify with e.g. &quot;nm
+libperl.a|egrep -v &rsquo; [TURtr] &rsquo;&quot; (if your
+&quot;nm&quot; has BSD-style output) that the data you added
+<br>
+really is read-only. (If it is, it shouldn&rsquo;t show up
+in the output of that command.)</p>
+
+<p style="margin-top: 1em">If you want to have static
+strings, make them constant:</p>
+
+<p style="margin-top: 1em">static const char etc[] =
+&quot;...&quot;;</p>
+
+<p style="margin-top: 1em">If you want to have arrays of
+constant strings, note carefully the right combination of
+&quot;const&quot;s:</p>
+
+<p style="margin-top: 1em">static const char * const
+yippee[] = <br>
+{&quot;hi&quot;, &quot;ho&quot;, &quot;silver&quot;};</p>
+
+<p style="margin-top: 1em">There is a way to completely
+hide any modifiable globals (they are all moved to heap),
+the compilation setting
+&quot;-DPERL_GLOBAL_STRUCT_PRIVATE&quot;. It is not normally
+used, but <br>
+can be used for testing, read more about it in
+&quot;Background and PERL_IMPLICIT_CONTEXT&quot; in
+perlguts.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Not exporting
+your new function</p>
+
+<p style="margin-top: 1em">Some platforms (Win32, AIX, VMS,
+OS/2, to name a few) require any function that is part of
+the public API (the shared Perl library) to be explicitly
+marked as exported. See <br>
+the discussion about embed.pl in perlguts.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Exporting your
+new function</p>
+
+<p style="margin-top: 1em">The new shiny result of either
+genuine new functionality or your arduous refactoring is now
+ready and correctly exported. So what could possibly go
+wrong?</p>
+
+<p style="margin-top: 1em">Maybe simply that your function
+did not need to be exported in the first place. Perl has a
+long and not so glorious history of exporting functions that
+it should not have.</p>
+
+<p style="margin-top: 1em">If the function is used only
+inside one source code file, make it static. See the
+discussion about embed.pl in perlguts.</p>
+
+<p style="margin-top: 1em">If the function is used across
+several files, but intended only for Perl&rsquo;s internal
+use (and this should be the common case), do not export it
+to the public API. See the <br>
+discussion about embed.pl in perlguts.</p>
+
+<p style="margin-top: 1em">Portability problems <br>
+The following are common causes of compilation and/or
+execution failures, not common to Perl as such. The C FAQ is
+good bedtime reading. Please test your changes with as many
+C <br>
+compilers and platforms as possible; we will, anyway, and
+it&rsquo;s nice to save oneself from public
+embarrassment.</p>
+
+<p style="margin-top: 1em">If using gcc, you can add the
+&quot;-std=c89&quot; option which will hopefully catch most
+of these unportabilities. (However it might also catch
+incompatibilities in your system&rsquo;s header <br>
+files.)</p>
+
+<p style="margin-top: 1em">Use the Configure
+&quot;-Dgccansipedantic&quot; flag to enable the gcc
+&quot;-ansi -pedantic&quot; flags which enforce stricter
+ANSI rules.</p>
+
+<p style="margin-top: 1em">If using the &quot;gcc
+-Wall&quot; note that not all the possible warnings (like
+&quot;-Wunitialized&quot;) are given unless you also compile
+with &quot;-O&quot;.</p>
+
+<p style="margin-top: 1em">Note that if using gcc, starting
+from Perl 5.9.5 the Perl core source code files (the ones at
+the top level of the source code distribution, but not e.g.
+the extensions under <br>
+ext/) are automatically compiled with as many as possible of
+the &quot;-std=c89&quot;, &quot;-ansi&quot;,
+&quot;-pedantic&quot;, and a selection of &quot;-W&quot;
+flags (see cflags.SH).</p>
+
+<p style="margin-top: 1em">Also study perlport carefully to
+avoid any bad assumptions about the operating system,
+filesystems, and so forth.</p>
+
+<p style="margin-top: 1em">You may once in a while try a
+&quot;make microperl&quot; to see whether we can still
+compile Perl with just the bare minimum of interfaces. (See
+README.micro.)</p>
+
+<p style="margin-top: 1em">Do not assume an operating
+system indicates a certain compiler.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Casting pointers
+to integers or casting integers to pointers</p>
+
+<p style="margin-top: 1em">void castaway(U8* p) <br>
+{ <br>
+IV i = p;</p>
+
+<p style="margin-top: 1em">or</p>
+
+<p style="margin-top: 1em">void castaway(U8* p) <br>
+{ <br>
+IV i = (IV)p;</p>
+
+<p style="margin-top: 1em">Both are bad, and broken, and
+unportable. Use the PTR2IV() macro that does it right.
+(Likewise, there are PTR2UV(), PTR2NV(), INT2PTR(), and
+NUM2PTR().)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Casting between
+data function pointers and data pointers</p>
+
+<p style="margin-top: 1em">Technically speaking casting
+between function pointers and data pointers is unportable
+and undefined, but practically speaking it seems to work,
+but you should use the <br>
+FPTR2DPTR() and DPTR2FPTR() macros. Sometimes you can also
+play games with unions.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Assuming
+sizeof(int) == sizeof(long)</p>
+
+<p style="margin-top: 1em">There are platforms where longs
+are 64 bits, and platforms where ints are 64 bits, and while
+we are out to shock you, even platforms where shorts are 64
+bits. This is all <br>
+legal according to the C standard. (In other words,
+&quot;long long&quot; is not a portable way to specify 64
+bits, and &quot;long long&quot; is not even guaranteed to be
+any wider than &quot;long&quot;.)</p>
+
+<p style="margin-top: 1em">Instead, use the definitions IV,
+UV, IVSIZE, I32SIZE, and so forth. Avoid things like I32
+because they are not guaranteed to be exactly 32 bits, they
+are at least 32 bits, <br>
+nor are they guaranteed to be int or long. If you really
+explicitly need 64-bit variables, use I64 and U64, but only
+if guarded by HAS_QUAD.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Assuming one can
+dereference any type of pointer for any type of data</p>
+
+<p style="margin-top: 1em">char *p = ...; <br>
+long pony = *p; /* BAD */</p>
+
+<p style="margin-top: 1em">Many platforms, quite rightly
+so, will give you a core dump instead of a pony if the p
+happens not to be correctly aligned.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Lvalue casts</p>
+
+<p style="margin-top: 1em">(int)*p = ...; /* BAD */</p>
+
+<p style="margin-top: 1em">Simply not portable. Get your
+lvalue to be of the right type, or maybe use temporary
+variables, or dirty tricks with unions.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Assume anything
+about structs (especially the ones you don&rsquo;t control,
+like the ones coming from the system headers)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; That a certain
+field exists in a struct</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; That no other
+fields exist besides the ones you know of</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; That a field is
+of certain signedness, sizeof, or type</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; That the fields
+are in a certain order</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; While C
+guarantees the ordering specified in the struct definition,
+between different platforms the definitions might differ</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; That the
+sizeof(struct) or the alignments are the same everywhere</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; There might be
+padding bytes between the fields to align the fields - the
+bytes can be anything</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Structs are
+required to be aligned to the maximum alignment required by
+the fields - which for native types is for usually
+equivalent to sizeof() of the field</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Assuming the
+character set is ASCIIish</p>
+
+<p style="margin-top: 1em">Perl can compile and run under
+EBCDIC platforms. See perlebcdic. This is transparent for
+the most part, but because the character sets differ, you
+shouldn&rsquo;t use numeric <br>
+(decimal, octal, nor hex) constants to refer to characters.
+You can safely say &rsquo;A&rsquo;, but not 0x41. You can
+safely say &rsquo;0, but not 12. If a character
+doesn&rsquo;t have a trivial <br>
+input form, you can create a #define for it in both
+&quot;utfebcdic.h&quot; and &quot;utf8.h&quot;, so that it
+resolves to different values depending on the character set
+being used. (There are <br>
+three different EBCDIC character sets defined in
+&quot;utfebcdic.h&quot;, so it might be best to insert the
+#define three times in that file.)</p>
+
+<p style="margin-top: 1em">Also, the range &rsquo;A&rsquo;
+- &rsquo;Z&rsquo; in ASCII is an unbroken sequence of 26
+upper case alphabetic characters. That is not true in
+EBCDIC. Nor for &rsquo;a&rsquo; to &rsquo;z&rsquo;. But
+&rsquo;0&rsquo; - &rsquo;9&rsquo; is an <br>
+unbroken range in both systems. Don&rsquo;t assume anything
+about other ranges.</p>
+
+<p style="margin-top: 1em">Many of the comments in the
+existing code ignore the possibility of EBCDIC, and may be
+wrong therefore, even if the code works. This is actually a
+tribute to the successful <br>
+transparent insertion of being able to handle EBCDIC without
+having to change pre-existing code.</p>
+
+<p style="margin-top: 1em">UTF-8 and UTF-EBCDIC are two
+different encodings used to represent Unicode code points as
+sequences of bytes. Macros with the same names (but
+different definitions) in <br>
+&quot;utf8.h&quot; and &quot;utfebcdic.h&quot; are used to
+allow the calling code to think that there is only one such
+encoding. This is almost always referred to as
+&quot;utf8&quot;, but it means the <br>
+EBCDIC version as well. Again, comments in the code may well
+be wrong even if the code itself is right. For example, the
+concept of &quot;invariant characters&quot; differs between
+<br>
+ASCII and EBCDIC. On ASCII platforms, only characters that
+do not have the high-order bit set (i.e. whose ordinals are
+strict ASCII, 0 - 127) are invariant, and the <br>
+documentation and comments in the code may assume that,
+often referring to something like, say, &quot;hibit&quot;.
+The situation differs and is not so simple on EBCDIC
+machines, but as <br>
+long as the code itself uses the
+&quot;NATIVE_IS_INVARIANT()&quot; macro appropriately, it
+works, even if the comments are wrong.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Assuming the
+character set is just ASCII</p>
+
+<p style="margin-top: 1em">ASCII is a 7 bit encoding, but
+bytes have 8 bits in them. The 128 extra characters have
+different meanings depending on the locale. Absent a locale,
+currently these extra <br>
+characters are generally considered to be unassigned, and
+this has presented some problems. This is being changed
+starting in 5.12 so that these characters will be considered
+<br>
+to be Latin-1 (ISO-8859-1).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Mixing #define
+and #ifdef</p>
+
+<p style="margin-top: 1em">#define BURGLE(x) ... #ifdef
+BURGLE_OLD_STYLE /* BAD */ <br>
+... do it the old way ... #else <br>
+... do it the new way ... #endif</p>
+
+<p style="margin-top: 1em">You cannot portably
+&quot;stack&quot; cpp directives. For example in the above
+you need two separate BURGLE() #defines, one for each #ifdef
+branch.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Adding
+non-comment stuff after #endif or #else</p>
+
+<p style="margin-top: 1em">#ifdef SNOSH <br>
+... <br>
+#else !SNOSH /* BAD */ <br>
+... <br>
+#endif SNOSH /* BAD */</p>
+
+<p style="margin-top: 1em">The #endif and #else cannot
+portably have anything non-comment after them. If you want
+to document what is going (which is a good idea especially
+if the branches are long), <br>
+use (C) comments:</p>
+
+<p style="margin-top: 1em">#ifdef SNOSH <br>
+... <br>
+#else /* !SNOSH */ <br>
+... <br>
+#endif /* SNOSH */</p>
+
+<p style="margin-top: 1em">The gcc option
+&quot;-Wendif-labels&quot; warns about the bad variant (by
+default on starting from Perl 5.9.4).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Having a comma
+after the last element of an enum list</p>
+
+<p style="margin-top: 1em">enum color { <br>
+CERULEAN, <br>
+CHARTREUSE, <br>
+CINNABAR, /* BAD */ <br>
+};</p>
+
+<p style="margin-top: 1em">is not portable. Leave out the
+last comma.</p>
+
+<p style="margin-top: 1em">Also note that whether enums are
+implicitly morphable to ints varies between compilers, you
+might need to (int).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Using
+//-comments</p>
+
+<p style="margin-top: 1em">// This function bamfoodles the
+zorklator. /* BAD */</p>
+
+<p style="margin-top: 1em">That is C99 or C++. Perl is C89.
+Using the //-comments is silently allowed by many C
+compilers but cranking up the ANSI C89 strictness (which we
+like to do) causes the <br>
+compilation to fail.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Mixing
+declarations and code</p>
+
+<p style="margin-top: 1em">void zorklator() <br>
+{ <br>
+int n = 3; <br>
+set_zorkmids(n); /* BAD */ <br>
+int q = 4;</p>
+
+<p style="margin-top: 1em">That is C99 or C++. Some C
+compilers allow that, but you shouldn&rsquo;t.</p>
+
+<p style="margin-top: 1em">The gcc option
+&quot;-Wdeclaration-after-statements&quot; scans for such
+problems (by default on starting from Perl 5.9.4).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Introducing
+variables inside for()</p>
+
+<p style="margin-top: 1em">for(int i = ...; ...; ...) { /*
+BAD */</p>
+
+<p style="margin-top: 1em">That is C99 or C++. While it
+would indeed be awfully nice to have that also in C89, to
+limit the scope of the loop variable, alas, we cannot.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Mixing signed
+char pointers with unsigned char pointers</p>
+
+<p style="margin-top: 1em">int foo(char *s) { ... } <br>
+... <br>
+unsigned char *t = ...; /* Or U8* t = ... */ <br>
+foo(t); /* BAD */</p>
+
+<p style="margin-top: 1em">While this is legal practice, it
+is certainly dubious, and downright fatal in at least one
+platform: for example VMS cc considers this a fatal error.
+One cause for people <br>
+often making this mistake is that a &quot;naked char&quot;
+and therefore dereferencing a &quot;naked char pointer&quot;
+have an undefined signedness: it depends on the compiler and
+the flags of <br>
+the compiler and the underlying platform whether the result
+is signed or unsigned. For this very same reason using a
+&rsquo;char&rsquo; as an array index is bad.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Macros that have
+string constants and their arguments as substrings of the
+string constants</p>
+
+<p style="margin-top: 1em">#define FOO(n)
+printf(&quot;number = %d0, n) /* BAD */ <br>
+FOO(10);</p>
+
+<p style="margin-top: 1em">Pre-ANSI semantics for that was
+equivalent to</p>
+
+<p style="margin-top: 1em">printf(&quot;10umber =
+%d10&quot;);</p>
+
+<p style="margin-top: 1em">which is probably not what you
+were expecting. Unfortunately at least one reasonably common
+and modern C compiler does &quot;real backward
+compatibility&quot; here, in AIX that is what <br>
+still happens even though the rest of the AIX compiler is
+very happily C89.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Using printf
+formats for non-basic C types</p>
+
+<p style="margin-top: 1em">IV i = ...; <br>
+printf(&quot;i = %d0, i); /* BAD */</p>
+
+<p style="margin-top: 1em">While this might by accident
+work in some platform (where IV happens to be an
+&quot;int&quot;), in general it cannot. IV might be
+something larger. Even worse the situation is with <br>
+more specific types (defined by Perl&rsquo;s configuration
+step in config.h):</p>
+
+<p style="margin-top: 1em">Uid_t who = ...; <br>
+printf(&quot;who = %d0, who); /* BAD */</p>
+
+<p style="margin-top: 1em">The problem here is that Uid_t
+might be not only not &quot;int&quot;-wide but it might also
+be unsigned, in which case large uids would be printed as
+negative values.</p>
+
+<p style="margin-top: 1em">There is no simple solution to
+this because of printf()&rsquo;s limited intelligence, but
+for many types the right format is available as with either
+&rsquo;f&rsquo; or &rsquo;_f&rsquo; suffix, for <br>
+example:</p>
+
+<p style="margin-top: 1em">IVdf /* IV in decimal */ <br>
+UVxf /* UV is hexadecimal */</p>
+
+<p style="margin-top: 1em">printf(&quot;i =
+%&quot;IVdf&quot;0, i); /* The IVdf is a string constant.
+*/</p>
+
+<p style="margin-top: 1em">Uid_t_f /* Uid_t in decimal
+*/</p>
+
+<p style="margin-top: 1em">printf(&quot;who =
+%&quot;Uid_t_f&quot;0, who);</p>
+
+<p style="margin-top: 1em">Or you can try casting to a
+&quot;wide enough&quot; type:</p>
+
+<p style="margin-top: 1em">printf(&quot;i =
+%&quot;IVdf&quot;0,
+(IV)something_very_small_and_signed);</p>
+
+<p style="margin-top: 1em">Also remember that the %p format
+really does require a void pointer:</p>
+
+<p style="margin-top: 1em">U8* p = ...; <br>
+printf(&quot;p = %p0, (void*)p);</p>
+
+<p style="margin-top: 1em">The gcc option
+&quot;-Wformat&quot; scans for such problems.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Blindly using
+variadic macros</p>
+
+<p style="margin-top: 1em">gcc has had them for a while
+with its own syntax, and C99 brought them with a
+standardized syntax. Don&rsquo;t use the former, and use the
+latter only if the <br>
+HAS_C99_VARIADIC_MACROS is defined.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Blindly passing
+va_list</p>
+
+<p style="margin-top: 1em">Not all platforms support
+passing va_list to further varargs (stdarg) functions. The
+right thing to do is to copy the va_list using the
+Perl_va_copy() if the NEED_VA_COPY is <br>
+defined.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Using gcc
+statement expressions</p>
+
+<p style="margin-top: 1em">val = ({...;...;...}); /* BAD
+*/</p>
+
+<p style="margin-top: 1em">While a nice extension,
+it&rsquo;s not portable. The Perl code does admittedly use
+them if available to gain some extra speed (essentially as a
+funky form of inlining), but you <br>
+shouldn&rsquo;t.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Binding together
+several statements in a macro</p>
+
+<p style="margin-top: 1em">Use the macros STMT_START and
+STMT_END.</p>
+
+<p style="margin-top: 1em">STMT_START { <br>
+... <br>
+} STMT_END</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Testing for
+operating systems or versions when should be testing for
+features</p>
+
+<p style="margin-top: 1em">#ifdef __FOONIX__ /* BAD */ <br>
+foo = quux(); <br>
+#endif</p>
+
+<p style="margin-top: 1em">Unless you know with 100%
+certainty that quux() is only ever available for the
+&quot;Foonix&quot; operating system and that is available
+and correctly working for all past, present, <br>
+and future versions of &quot;Foonix&quot;, the above is very
+wrong. This is more correct (though still not perfect,
+because the below is a compile-time check):</p>
+
+<p style="margin-top: 1em">#ifdef HAS_QUUX <br>
+foo = quux(); <br>
+#endif</p>
+
+<p style="margin-top: 1em">How does the HAS_QUUX become
+defined where it needs to be? Well, if Foonix happens to be
+Unixy enough to be able to run the Configure script, and
+Configure has been taught <br>
+about detecting and testing quux(), the HAS_QUUX will be
+correctly defined. In other platforms, the corresponding
+configuration step will hopefully do the same.</p>
+
+<p style="margin-top: 1em">In a pinch, if you cannot wait
+for Configure to be educated, or if you have a good hunch of
+where quux() might be available, you can temporarily try the
+following:</p>
+
+<p style="margin-top: 1em">#if (defined(__FOONIX__) ||
+defined(__BARNIX__)) <br>
+# define HAS_QUUX <br>
+#endif</p>
+
+<p style="margin-top: 1em">...</p>
+
+<p style="margin-top: 1em">#ifdef HAS_QUUX <br>
+foo = quux(); <br>
+#endif</p>
+
+<p style="margin-top: 1em">But in any case, try to keep the
+features and operating systems separate.</p>
+
+<p style="margin-top: 1em">Problematic System Interfaces
+<br>
+&Acirc;&middot; malloc(0), realloc(0), calloc(0, 0) are
+non-portable. To be portable allocate at least one byte. (In
+general you should rarely need to work at this low level,
+but instead use <br>
+the various malloc wrappers.)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; snprintf() - the
+return type is unportable. Use my_snprintf() instead.</p>
+
+<p style="margin-top: 1em">Security problems <br>
+Last but not least, here are various tips for safer
+coding.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Do not use
+gets()</p>
+
+<p style="margin-top: 1em">Or we will publicly ridicule
+you. Seriously.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Do not use
+strcpy() or strcat() or strncpy() or strncat()</p>
+
+<p style="margin-top: 1em">Use my_strlcpy() and
+my_strlcat() instead: they either use the native
+implementation, or Perl&rsquo;s own implementation (borrowed
+from the public domain implementation of INN).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Do not use
+sprintf() or vsprintf()</p>
+
+<p style="margin-top: 1em">If you really want just plain
+byte strings, use my_snprintf() and my_vsnprintf() instead,
+which will try to use snprintf() and vsnprintf() if those
+safer APIs are available. <br>
+If you want something fancier than a plain byte string, use
+SVs and Perl_sv_catpvf().</p>
+
+<p style="margin-top: 1em">DEBUGGING <br>
+You can compile a special debugging version of Perl, which
+allows you to use the &quot;-D&quot; option of Perl to tell
+more about what Perl is doing. But sometimes there is no
+alternative <br>
+than to dive in with a debugger, either to see the stack
+trace of a core dump (very useful in a bug report), or
+trying to figure out what went wrong before the core dump
+<br>
+happened, or how did we end up having wrong or unexpected
+results.</p>
+
+<p style="margin-top: 1em">Poking at Perl <br>
+To really poke around with Perl, you&rsquo;ll probably want
+to build Perl for debugging, like this:</p>
+
+<p style="margin-top: 1em">./Configure -d -D optimize=-g
+<br>
+make</p>
+
+<p style="margin-top: 1em">&quot;-g&quot; is a flag to the
+C compiler to have it produce debugging information which
+will allow us to step through a running program, and to see
+in which C function we are at (without <br>
+the debugging information we might see only the numerical
+addresses of the functions, which is not very helpful).</p>
+
+<p style="margin-top: 1em">Configure will also turn on the
+&quot;DEBUGGING&quot; compilation symbol which enables all
+the internal debugging code in Perl. There are a whole bunch
+of things you can debug with this: <br>
+perlrun lists them all, and the best way to find out about
+them is to play about with them. The most useful options are
+probably</p>
+
+<p style="margin-top: 1em">l Context (loop) stack
+processing <br>
+t Trace execution <br>
+o Method and overloading resolution <br>
+c String/numeric conversions</p>
+
+<p style="margin-top: 1em">Some of the functionality of the
+debugging code can be achieved using XS modules.</p>
+
+<p style="margin-top: 1em">-Dr =&gt; use re
+&rsquo;debug&rsquo; <br>
+-Dx =&gt; use O &rsquo;Debug&rsquo;</p>
+
+<p style="margin-top: 1em">Using a source-level debugger
+<br>
+If the debugging output of &quot;-D&quot; doesn&rsquo;t help
+you, it&rsquo;s time to step through perl&rsquo;s execution
+with a source-level debugger.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; We&rsquo;ll use
+&quot;gdb&quot; for our examples here; the principles will
+apply to any debugger (many vendors call their debugger
+&quot;dbx&quot;), but check the manual of the one
+you&rsquo;re using.</p>
+
+<p style="margin-top: 1em">To fire up the debugger,
+type</p>
+
+<p style="margin-top: 1em">gdb ./perl</p>
+
+<p style="margin-top: 1em">Or if you have a core dump:</p>
+
+<p style="margin-top: 1em">gdb ./perl core</p>
+
+<p style="margin-top: 1em">You&rsquo;ll want to do that in
+your Perl source tree so the debugger can read the source
+code. You should see the copyright message, followed by the
+prompt.</p>
+
+<p style="margin-top: 1em">(gdb)</p>
+
+<p style="margin-top: 1em">&quot;help&quot; will get you
+into the documentation, but here are the most useful
+commands:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; run [args]</p>
+
+<p style="margin-top: 1em">Run the program with the given
+arguments.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; break
+function_name</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; break
+source.c:xxx</p>
+
+<p style="margin-top: 1em">Tells the debugger that
+we&rsquo;ll want to pause execution when we reach either the
+named function (but see &quot;Internal Functions&quot; in
+perlguts!) or the given line in the named source <br>
+file.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; step</p>
+
+<p style="margin-top: 1em">Steps through the program a line
+at a time.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; next</p>
+
+<p style="margin-top: 1em">Steps through the program a line
+at a time, without descending into functions.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; continue</p>
+
+<p style="margin-top: 1em">Run until the next
+breakpoint.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; finish</p>
+
+<p style="margin-top: 1em">Run until the end of the current
+function, then stop again.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&rsquo;enter&rsquo;</p>
+
+<p style="margin-top: 1em">Just pressing Enter will do the
+most recent operation again - it&rsquo;s a blessing when
+stepping through miles of source code.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; print</p>
+
+<p style="margin-top: 1em">Execute the given C code and
+print its results. WARNING: Perl makes heavy use of macros,
+and gdb does not necessarily support macros (see later
+&quot;gdb macro support&quot;). You&rsquo;ll <br>
+have to substitute them yourself, or to invoke cpp on the
+source code files (see &quot;The .i Targets&quot;) So, for
+instance, you can&rsquo;t say</p>
+
+<p style="margin-top: 1em">print SvPV_nolen(sv)</p>
+
+<p style="margin-top: 1em">but you have to say</p>
+
+<p style="margin-top: 1em">print Perl_sv_2pv_nolen(sv)</p>
+
+<p style="margin-top: 1em">You may find it helpful to have
+a &quot;macro dictionary&quot;, which you can produce by
+saying &quot;cpp -dM perl.c | sort&quot;. Even then, cpp
+won&rsquo;t recursively apply those macros for you.</p>
+
+<p style="margin-top: 1em">gdb macro support <br>
+Recent versions of gdb have fairly good macro support, but
+in order to use it you&rsquo;ll need to compile perl with
+macro definitions included in the debugging information.
+Using gcc <br>
+version 3.1, this means configuring with
+&quot;-Doptimize=-g3&quot;. Other compilers might use a
+different switch (if they support debugging macros at
+all).</p>
+
+<p style="margin-top: 1em">Dumping Perl Data Structures
+<br>
+One way to get around this macro hell is to use the dumping
+functions in dump.c; these work a little like an internal
+Devel::Peek, but they also cover OPs and other structures
+<br>
+that you can&rsquo;t get at from Perl. Let&rsquo;s take an
+example. We&rsquo;ll use the &quot;$a = $b + $c&quot; we
+used before, but give it a bit of context: &quot;$b =
+&quot;6XXXX&quot;; $c = 2.3;&quot;. Where&rsquo;s a good
+<br>
+place to stop and poke around?</p>
+
+<p style="margin-top: 1em">What about &quot;pp_add&quot;,
+the function we examined earlier to implement the
+&quot;+&quot; operator:</p>
+
+<p style="margin-top: 1em">(gdb) break Perl_pp_add <br>
+Breakpoint 1 at 0x46249f: file pp_hot.c, line 309.</p>
+
+<p style="margin-top: 1em">Notice we use
+&quot;Perl_pp_add&quot; and not &quot;pp_add&quot; - see
+&quot;Internal Functions&quot; in perlguts. With the
+breakpoint in place, we can run our program:</p>
+
+<p style="margin-top: 1em">(gdb) run -e &rsquo;$b =
+&quot;6XXXX&quot;; $c = 2.3; $a = $b + $c&rsquo;</p>
+
+<p style="margin-top: 1em">Lots of junk will go past as gdb
+reads in the relevant source files and libraries, and
+then:</p>
+
+<p style="margin-top: 1em">Breakpoint 1, Perl_pp_add () at
+pp_hot.c:309 <br>
+309 dSP; dATARGET; tryAMAGICbin(add,opASSIGN); <br>
+(gdb) step <br>
+311 dPOPTOPnnrl_ul; <br>
+(gdb)</p>
+
+<p style="margin-top: 1em">We looked at this bit of code
+before, and we said that &quot;dPOPTOPnnrl_ul&quot; arranges
+for two &quot;NV&quot;s to be placed into &quot;left&quot;
+and &quot;right&quot; - let&rsquo;s slightly expand it:</p>
+
+<p style="margin-top: 1em">#define dPOPTOPnnrl_ul NV right
+= POPn; SV *leftsv = TOPs; NV left = USE_LEFT(leftsv) ?
+SvNV(leftsv) : 0.0</p>
+
+<p style="margin-top: 1em">&quot;POPn&quot; takes the SV
+from the top of the stack and obtains its NV either directly
+(if &quot;SvNOK&quot; is set) or by calling the
+&quot;sv_2nv&quot; function. &quot;TOPs&quot; takes the next
+SV from the top of <br>
+the stack - yes, &quot;POPn&quot; uses &quot;TOPs&quot; -
+but doesn&rsquo;t remove it. We then use &quot;SvNV&quot; to
+get the NV from &quot;leftsv&quot; in the same way as before
+- yes, &quot;POPn&quot; uses &quot;SvNV&quot;.</p>
+
+<p style="margin-top: 1em">Since we don&rsquo;t have an NV
+for $b, we&rsquo;ll have to use &quot;sv_2nv&quot; to
+convert it. If we step again, we&rsquo;ll find ourselves
+there:</p>
+
+<p style="margin-top: 1em">Perl_sv_2nv (sv=0xa0675d0) at
+sv.c:1669 <br>
+1669 if (!sv) <br>
+(gdb)</p>
+
+<p style="margin-top: 1em">We can now use
+&quot;Perl_sv_dump&quot; to investigate the SV:</p>
+
+<p style="margin-top: 1em">SV = PV(0xa057cc0) at 0xa0675d0
+<br>
+REFCNT = 1 <br>
+FLAGS = (POK,pPOK) <br>
+PV = 0xa06a510 &quot;6XXXX&quot; <br>
+CUR = 5 <br>
+LEN = 6 <br>
+$1 = void</p>
+
+<p style="margin-top: 1em">We know we&rsquo;re going to get
+6 from this, so let&rsquo;s finish the subroutine:</p>
+
+<p style="margin-top: 1em">(gdb) finish <br>
+Run till exit from #0 Perl_sv_2nv (sv=0xa0675d0) at
+sv.c:1671 <br>
+0x462669 in Perl_pp_add () at pp_hot.c:311 <br>
+311 dPOPTOPnnrl_ul;</p>
+
+<p style="margin-top: 1em">We can also dump out this op:
+the current op is always stored in &quot;PL_op&quot;, and we
+can dump it with &quot;Perl_op_dump&quot;. This&rsquo;ll
+give us similar output to B::Debug.</p>
+
+<p style="margin-top: 1em">{ <br>
+13 TYPE = add ===&gt; 14 <br>
+TARG = 1 <br>
+FLAGS = (SCALAR,KIDS) <br>
+{ <br>
+TYPE = null ===&gt; (12) <br>
+(was rv2sv) <br>
+FLAGS = (SCALAR,KIDS) <br>
+{ <br>
+11 TYPE = gvsv ===&gt; 12 <br>
+FLAGS = (SCALAR) <br>
+GV = main::b <br>
+} <br>
+}</p>
+
+<p style="margin-top: 1em"># finish this later #</p>
+
+<p style="margin-top: 1em">SOURCE CODE STATIC ANALYSIS <br>
+Various tools exist for analysing C source code statically,
+as opposed to dynamically, that is, without executing the
+code. It is possible to detect resource leaks, undefined
+<br>
+behaviour, type mismatches, portability problems, code paths
+that would cause illegal memory accesses, and other similar
+problems by just parsing the C code and looking at the <br>
+resulting graph, what does it tell about the execution and
+data flows. As a matter of fact, this is exactly how C
+compilers know to give warnings about dubious code.</p>
+
+<p style="margin-top: 1em">lint, splint <br>
+The good old C code quality inspector, &quot;lint&quot;, is
+available in several platforms, but please be aware that
+there are several different implementations of it by
+different vendors, <br>
+which means that the flags are not identical across
+different platforms.</p>
+
+<p style="margin-top: 1em">There is a lint variant called
+&quot;splint&quot; (Secure Programming Lint) available from
+http://www.splint.org/ that should compile on any Unix-like
+platform.</p>
+
+<p style="margin-top: 1em">There are &quot;lint&quot; and
+&lt;splint&gt; targets in Makefile, but you may have to
+diddle with the flags (see above).</p>
+
+<p style="margin-top: 1em">Coverity <br>
+Coverity (http://www.coverity.com/) is a product similar to
+lint and as a testbed for their product they periodically
+check several open source projects, and they give out <br>
+accounts to open source developers to the defect
+databases.</p>
+
+<p style="margin-top: 1em">cpd (cut-and-paste detector)
+<br>
+The cpd tool detects cut-and-paste coding. If one instance
+of the cut-and-pasted code changes, all the other spots
+should probably be changed, too. Therefore such code should
+<br>
+probably be turned into a subroutine or a macro.</p>
+
+<p style="margin-top: 1em">cpd
+(http://pmd.sourceforge.net/cpd.html) is part of the pmd
+project (http://pmd.sourceforge.net/). pmd was originally
+written for static analysis of Java code, but later the cpd
+<br>
+part of it was extended to parse also C and C++.</p>
+
+<p style="margin-top: 1em">Download the pmd-bin-X.Y.zip ()
+from the SourceForge site, extract the pmd-X.Y.jar from it,
+and then run that on source code thusly:</p>
+
+<p style="margin-top: 1em">java -cp pmd-X.Y.jar
+net.sourceforge.pmd.cpd.CPD --minimum-tokens 100 --files
+/some/where/src --language c &gt; cpd.txt</p>
+
+<p style="margin-top: 1em">You may run into memory limits,
+in which case you should use the -Xmx option:</p>
+
+<p style="margin-top: 1em">java -Xmx512M ...</p>
+
+<p style="margin-top: 1em">gcc warnings <br>
+Though much can be written about the inconsistency and
+coverage problems of gcc warnings (like &quot;-Wall&quot;
+not meaning &quot;all the warnings&quot;, or some common
+portability problems not <br>
+being covered by &quot;-Wall&quot;, or &quot;-ansi&quot; and
+&quot;-pedantic&quot; both being a poorly defined collection
+of warnings, and so forth), gcc is still a useful tool in
+keeping our coding nose <br>
+clean.</p>
+
+<p style="margin-top: 1em">The &quot;-Wall&quot; is by
+default on.</p>
+
+<p style="margin-top: 1em">The &quot;-ansi&quot; (and its
+sidekick, &quot;-pedantic&quot;) would be nice to be on
+always, but unfortunately they are not safe on all
+platforms, they can for example cause fatal conflicts with
+<br>
+the system headers (Solaris being a prime example). If
+Configure &quot;-Dgccansipedantic&quot; is used, the
+&quot;cflags&quot; frontend selects &quot;-ansi
+-pedantic&quot; for the platforms where they are <br>
+known to be safe.</p>
+
+<p style="margin-top: 1em">Starting from Perl 5.9.4 the
+following extra flags are added:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&quot;-Wendif-labels&quot;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&quot;-Wextra&quot;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&quot;-Wdeclaration-after-statement&quot;</p>
+
+<p style="margin-top: 1em">The following flags would be
+nice to have but they would first need their own Augean
+stablemaster:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&quot;-Wpointer-arith&quot;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&quot;-Wshadow&quot;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&quot;-Wstrict-prototypes&quot;</p>
+
+<p style="margin-top: 1em">The &quot;-Wtraditional&quot; is
+another example of the annoying tendency of gcc to bundle a
+lot of warnings under one switch (it would be impossible to
+deploy in practice because it would <br>
+complain a lot) but it does contain some warnings that would
+be beneficial to have available on their own, such as the
+warning about string constants inside macros containing the
+<br>
+macro arguments: this behaved differently pre-ANSI than it
+does in ANSI, and some C compilers are still in transition,
+AIX being an example.</p>
+
+<p style="margin-top: 1em">Warnings of other C compilers
+<br>
+Other C compilers (yes, there are other C compilers than
+gcc) often have their &quot;strict ANSI&quot; or
+&quot;strict ANSI with some portability extensions&quot;
+modes on, like for example the Sun <br>
+Workshop has its &quot;-Xa&quot; mode on (though
+implicitly), or the DEC (these days, HP...) has its
+&quot;-std1&quot; mode on.</p>
+
+<p style="margin-top: 1em">MEMORY DEBUGGERS <br>
+NOTE 1: Running under memory debuggers such as Purify,
+valgrind, or Third Degree greatly slows down the execution:
+seconds become minutes, minutes become hours. For example as
+of <br>
+Perl 5.8.1, the ext/Encode/t/Unicode.t takes extraordinarily
+long to complete under e.g. Purify, Third Degree, and
+valgrind. Under valgrind it takes more than six hours, even
+on <br>
+a snappy computer. The said test must be doing something
+that is quite unfriendly for memory debuggers. If you
+don&rsquo;t feel like waiting, that you can simply kill away
+the perl <br>
+process.</p>
+
+<p style="margin-top: 1em">NOTE 2: To minimize the number
+of memory leak false alarms (see
+&quot;PERL_DESTRUCT_LEVEL&quot; for more information), you
+have to set the environment variable PERL_DESTRUCT_LEVEL to
+2.</p>
+
+<p style="margin-top: 1em">For csh-like shells:</p>
+
+<p style="margin-top: 1em">setenv PERL_DESTRUCT_LEVEL 2</p>
+
+<p style="margin-top: 1em">For Bourne-type shells:</p>
+
+<p style="margin-top: 1em">PERL_DESTRUCT_LEVEL=2 <br>
+export PERL_DESTRUCT_LEVEL</p>
+
+<p style="margin-top: 1em">In Unixy environments you can
+also use the &quot;env&quot; command:</p>
+
+<p style="margin-top: 1em">env PERL_DESTRUCT_LEVEL=2
+valgrind ./perl -Ilib ...</p>
+
+<p style="margin-top: 1em">NOTE 3: There are known memory
+leaks when there are compile-time errors within eval or
+require, seeing &quot;S_doeval&quot; in the call stack is a
+good sign of these. Fixing these leaks is <br>
+non-trivial, unfortunately, but they must be fixed
+eventually.</p>
+
+<p style="margin-top: 1em">NOTE 4: DynaLoader will not
+clean up after itself completely unless Perl is built with
+the Configure option
+&quot;-Accflags=-DDL_UNLOAD_ALL_AT_EXIT&quot;.</p>
+
+<p style="margin-top: 1em">Rational Software&rsquo;s Purify
+<br>
+Purify is a commercial tool that is helpful in identifying
+memory overruns, wild pointers, memory leaks and other such
+badness. Perl must be compiled in a specific way for <br>
+optimal testing with Purify. Purify is available under
+Windows NT, Solaris, HP-UX, SGI, and Siemens Unix.</p>
+
+<p style="margin-top: 1em">Purify on Unix</p>
+
+<p style="margin-top: 1em">On Unix, Purify creates a new
+Perl binary. To get the most benefit out of Purify, you
+should create the perl to Purify using:</p>
+
+<p style="margin-top: 1em">sh Configure -Accflags=-DPURIFY
+-Doptimize=&rsquo;-g&rsquo; -Uusemymalloc
+-Dusemultiplicity</p>
+
+<p style="margin-top: 1em">where these arguments mean:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+-Accflags=-DPURIFY</p>
+
+<p style="margin-top: 1em">Disables Perl&rsquo;s arena
+memory allocation functions, as well as forcing use of
+memory allocation functions derived from the system
+malloc.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+-Doptimize=&rsquo;-g&rsquo;</p>
+
+<p style="margin-top: 1em">Adds debugging information so
+that you see the exact source statements where the problem
+occurs. Without this flag, all you will see is the source
+filename of where the error <br>
+occurred.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+-Uusemymalloc</p>
+
+<p style="margin-top: 1em">Disable Perl&rsquo;s malloc so
+that Purify can more closely monitor allocations and leaks.
+Using Perl&rsquo;s malloc will make Purify report most leaks
+in the &quot;potential&quot; leaks category.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+-Dusemultiplicity</p>
+
+<p style="margin-top: 1em">Enabling the multiplicity option
+allows perl to clean up thoroughly when the interpreter
+shuts down, which reduces the number of bogus leak reports
+from Purify.</p>
+
+<p style="margin-top: 1em">Once you&rsquo;ve compiled a
+perl suitable for Purify&rsquo;ing, then you can just:</p>
+
+<p style="margin-top: 1em">make pureperl</p>
+
+<p style="margin-top: 1em">which creates a binary named
+&rsquo;pureperl&rsquo; that has been Purify&rsquo;ed. This
+binary is used in place of the standard &rsquo;perl&rsquo;
+binary when you want to debug Perl memory problems.</p>
+
+<p style="margin-top: 1em">As an example, to show any
+memory leaks produced during the standard Perl testset you
+would create and run the Purify&rsquo;ed perl as:</p>
+
+<p style="margin-top: 1em">make pureperl <br>
+cd t <br>
+../pureperl -I../lib harness</p>
+
+<p style="margin-top: 1em">which would run Perl on test.pl
+and report any memory problems.</p>
+
+<p style="margin-top: 1em">Purify outputs messages in
+&quot;Viewer&quot; windows by default. If you don&rsquo;t
+have a windowing environment or if you simply want the
+Purify output to unobtrusively go to a log file <br>
+instead of to the interactive window, use these following
+options to output to the log file &quot;perl.log&quot;:</p>
+
+<p style="margin-top: 1em">setenv PURIFYOPTIONS
+&quot;-chain-length=25 -windows=no -log-file=perl.log
+-append-logfile=yes&quot;</p>
+
+<p style="margin-top: 1em">If you plan to use the
+&quot;Viewer&quot; windows, then you only need this
+option:</p>
+
+<p style="margin-top: 1em">setenv PURIFYOPTIONS
+&quot;-chain-length=25&quot;</p>
+
+<p style="margin-top: 1em">In Bourne-type shells:</p>
+
+<p style="margin-top: 1em">PURIFYOPTIONS=&quot;...&quot;
+<br>
+export PURIFYOPTIONS</p>
+
+<p style="margin-top: 1em">or if you have the
+&quot;env&quot; utility:</p>
+
+<p style="margin-top: 1em">env
+PURIFYOPTIONS=&quot;...&quot; ../pureperl ...</p>
+
+<p style="margin-top: 1em">Purify on NT</p>
+
+<p style="margin-top: 1em">Purify on Windows NT instruments
+the Perl binary &rsquo;perl.exe&rsquo; on the fly. <br>
+There are several options in the makefile you should change
+to get the most use out of Purify:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; DEFINES</p>
+
+<p style="margin-top: 1em">You should add -DPURIFY to the
+DEFINES line so the DEFINES line looks something like:</p>
+
+<p style="margin-top: 1em">DEFINES = -DWIN32 -D_CONSOLE
+-DNO_STRICT $(CRYPT_FLAG) -DPURIFY=1</p>
+
+<p style="margin-top: 1em">to disable Perl&rsquo;s arena
+memory allocation functions, as well as to force use of
+memory allocation functions derived from the system
+malloc.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; USE_MULTI =
+define</p>
+
+<p style="margin-top: 1em">Enabling the multiplicity option
+allows perl to clean up thoroughly when the interpreter
+shuts down, which reduces the number of bogus leak reports
+from Purify.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; #PERL_MALLOC =
+define</p>
+
+<p style="margin-top: 1em">Disable Perl&rsquo;s malloc so
+that Purify can more closely monitor allocations and leaks.
+Using Perl&rsquo;s malloc will make Purify report most leaks
+in the &quot;potential&quot; leaks category.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; CFG = Debug</p>
+
+<p style="margin-top: 1em">Adds debugging information so
+that you see the exact source statements where the problem
+occurs. Without this flag, all you will see is the source
+filename of where the error <br>
+occurred.</p>
+
+<p style="margin-top: 1em">As an example, to show any
+memory leaks produced during the standard Perl testset you
+would create and run Purify as:</p>
+
+<p style="margin-top: 1em">cd win32 <br>
+make <br>
+cd ../t <br>
+purify ../perl -I../lib harness</p>
+
+<p style="margin-top: 1em">which would instrument Perl in
+memory, run Perl on test.pl, then finally report any memory
+problems.</p>
+
+<p style="margin-top: 1em">valgrind <br>
+The excellent valgrind tool can be used to find out both
+memory leaks and illegal memory accesses. As of version
+3.3.0, Valgrind only supports Linux on x86, x86-64 and
+PowerPC <br>
+and Darwin (OS X) on x86 and x86-64). The special
+&quot;test.valgrind&quot; target can be used to run the
+tests under valgrind. Found errors and memory leaks are
+logged in files named <br>
+testfile.valgrind.</p>
+
+<p style="margin-top: 1em">Valgrind also provides a
+cachegrind tool, invoked on perl as:</p>
+
+<p style="margin-top: 1em">VG_OPTS=--tool=cachegrind make
+test.valgrind</p>
+
+<p style="margin-top: 1em">As system libraries (most
+notably glibc) are also triggering errors, valgrind allows
+to suppress such errors using suppression files. The default
+suppression file that comes with <br>
+valgrind already catches a lot of them. Some additional
+suppressions are defined in t/perl.supp.</p>
+
+<p style="margin-top: 1em">To get valgrind and for more
+information see</p>
+
+<p style="margin-top: 1em">http://valgrind.org/</p>
+
+<p style="margin-top: 1em">PROFILING <br>
+Depending on your platform there are various ways of
+profiling Perl.</p>
+
+<p style="margin-top: 1em">There are two commonly used
+techniques of profiling executables: statistical
+time-sampling and basic-block counting.</p>
+
+<p style="margin-top: 1em">The first method takes
+periodically samples of the CPU program counter, and since
+the program counter can be correlated with the code
+generated for functions, we get a <br>
+statistical view of in which functions the program is
+spending its time. The caveats are that very small/fast
+functions have lower probability of showing up in the
+profile, and <br>
+that periodically interrupting the program (this is usually
+done rather frequently, in the scale of milliseconds)
+imposes an additional overhead that may skew the results.
+The <br>
+first problem can be alleviated by running the code for
+longer (in general this is a good idea for profiling), the
+second problem is usually kept in guard by the profiling
+tools <br>
+themselves.</p>
+
+<p style="margin-top: 1em">The second method divides up the
+generated code into basic blocks. Basic blocks are sections
+of code that are entered only in the beginning and exited
+only at the end. For <br>
+example, a conditional jump starts a basic block. Basic
+block profiling usually works by instrumenting the code by
+adding enter basic block #nnnn book-keeping code to the <br>
+generated code. During the execution of the code the basic
+block counters are then updated appropriately. The caveat is
+that the added extra code can skew the results: again, the
+<br>
+profiling tools usually try to factor their own effects out
+of the results.</p>
+
+<p style="margin-top: 1em">Gprof Profiling <br>
+gprof is a profiling tool available in many Unix platforms,
+it uses statistical time-sampling.</p>
+
+<p style="margin-top: 1em">You can build a profiled version
+of perl called &quot;perl.gprof&quot; by invoking the make
+target &quot;perl.gprof&quot; (What is required is that Perl
+must be compiled using the &quot;-pg&quot; flag, you <br>
+may need to re-Configure). Running the profiled version of
+Perl will create an output file called gmon.out is created
+which contains the profiling data collected during the <br>
+execution.</p>
+
+<p style="margin-top: 1em">The gprof tool can then display
+the collected data in various ways. Usually gprof
+understands the following options:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; -a</p>
+
+<p style="margin-top: 1em">Suppress statically defined
+functions from the profile.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; -b</p>
+
+<p style="margin-top: 1em">Suppress the verbose
+descriptions in the profile.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; -e routine</p>
+
+<p style="margin-top: 1em">Exclude the given routine and
+its descendants from the profile.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; -f routine</p>
+
+<p style="margin-top: 1em">Display only the given routine
+and its descendants in the profile.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; -s</p>
+
+<p style="margin-top: 1em">Generate a summary file called
+gmon.sum which then may be given to subsequent gprof runs to
+accumulate data over several runs.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; -z</p>
+
+<p style="margin-top: 1em">Display routines that have zero
+usage.</p>
+
+<p style="margin-top: 1em">For more detailed explanation of
+the available commands and output formats, see your own
+local documentation of gprof.</p>
+
+<p style="margin-top: 1em">quick hint:</p>
+
+<p style="margin-top: 1em">$ sh Configure -des -Dusedevel
+-Doptimize=&rsquo;-pg&rsquo; &amp;&amp; make perl.gprof <br>
+$ ./perl.gprof someprog # creates gmon.out in current
+directory <br>
+$ gprof ./perl.gprof &gt; out <br>
+$ view out</p>
+
+<p style="margin-top: 1em">GCC gcov Profiling <br>
+Starting from GCC 3.0 basic block profiling is officially
+available for the GNU CC.</p>
+
+<p style="margin-top: 1em">You can build a profiled version
+of perl called perl.gcov by invoking the make target
+&quot;perl.gcov&quot; (what is required that Perl must be
+compiled using gcc with the flags <br>
+&quot;-fprofile-arcs -ftest-coverage&quot;, you may need to
+re-Configure).</p>
+
+<p style="margin-top: 1em">Running the profiled version of
+Perl will cause profile output to be generated. For each
+source file an accompanying &quot;.da&quot; file will be
+created.</p>
+
+<p style="margin-top: 1em">To display the results you use
+the &quot;gcov&quot; utility (which should be installed if
+you have gcc 3.0 or newer installed). gcov is run on source
+code files, like this</p>
+
+<p style="margin-top: 1em">gcov sv.c</p>
+
+<p style="margin-top: 1em">which will cause sv.c.gcov to be
+created. The .gcov files contain the source code annotated
+with relative frequencies of execution indicated by
+&quot;#&quot; markers.</p>
+
+<p style="margin-top: 1em">Useful options of gcov include
+&quot;-b&quot; which will summarise the basic block, branch,
+and function call coverage, and &quot;-c&quot; which instead
+of relative frequencies will use the actual <br>
+counts. For more information on the use of gcov and basic
+block profiling with gcc, see the latest GNU CC manual, as
+of GCC 3.0 see</p>
+
+
+<p style="margin-top: 1em">http://gcc.gnu.org/onlinedocs/gcc-3.0/gcc.html</p>
+
+<p style="margin-top: 1em">and its section titled &quot;8.
+gcov: a Test Coverage Program&quot;</p>
+
+
+<p style="margin-top: 1em">http://gcc.gnu.org/onlinedocs/gcc-3.0/gcc_8.html#SEC132</p>
+
+<p style="margin-top: 1em">quick hint:</p>
+
+<p style="margin-top: 1em">$ sh Configure -des -Dusedevel
+-Doptimize=&rsquo;-g&rsquo; -Accflags=&rsquo;-fprofile-arcs
+-ftest-coverage&rsquo; -Aldflags=&rsquo;-fprofile-arcs
+-ftest-coverage&rsquo; &amp;&amp; make perl.gcov <br>
+$ rm -f regexec.c.gcov regexec.gcda <br>
+$ ./perl.gcov <br>
+$ gcov regexec.c <br>
+$ view regexec.c.gcov</p>
+
+<p style="margin-top: 1em">MISCELLANEOUS TRICKS <br>
+PERL_DESTRUCT_LEVEL <br>
+If you want to run any of the tests yourself manually using
+e.g. valgrind, or the pureperl or perl.third executables,
+please note that by default perl does not explicitly <br>
+cleanup all the memory it has allocated (such as global
+memory arenas) but instead lets the exit() of the whole
+program &quot;take care&quot; of such allocations, also
+known as &quot;global <br>
+destruction of objects&quot;.</p>
+
+<p style="margin-top: 1em">There is a way to tell perl to
+do complete cleanup: set the environment variable
+PERL_DESTRUCT_LEVEL to a non-zero value. The t/TEST wrapper
+does set this to 2, and this is what <br>
+you need to do too, if you don&rsquo;t want to see the
+&quot;global leaks&quot;: For example, for
+&quot;third-degreed&quot; Perl:</p>
+
+<p style="margin-top: 1em">env PERL_DESTRUCT_LEVEL=2
+./perl.third -Ilib t/foo/bar.t</p>
+
+<p style="margin-top: 1em">(Note: the mod_perl apache
+module uses also this environment variable for its own
+purposes and extended its semantics. Refer to the mod_perl
+documentation for more information. <br>
+Also, spawned threads do the equivalent of setting this
+variable to the value 1.)</p>
+
+<p style="margin-top: 1em">If, at the end of a run you get
+the message N scalars leaked, you can recompile with
+&quot;-DDEBUG_LEAKING_SCALARS&quot;, which will cause the
+addresses of all those leaked SVs to be <br>
+dumped along with details as to where each SV was originally
+allocated. This information is also displayed by
+Devel::Peek. Note that the extra details recorded with each
+SV <br>
+increases memory usage, so it shouldn&rsquo;t be used in
+production environments. It also converts
+&quot;new_SV()&quot; from a macro into a real function, so
+you can use your favourite debugger <br>
+to discover where those pesky SVs were allocated.</p>
+
+<p style="margin-top: 1em">If you see that you&rsquo;re
+leaking memory at runtime, but neither valgrind nor
+&quot;-DDEBUG_LEAKING_SCALARS&quot; will find anything,
+you&rsquo;re probably leaking SVs that are still reachable
+and <br>
+will be properly cleaned up during destruction of the
+interpreter. In such cases, using the &quot;-Dm&quot; switch
+can point you to the source of the leak. If the executable
+was built with <br>
+&quot;-DDEBUG_LEAKING_SCALARS&quot;, &quot;-Dm&quot; will
+output SV allocations in addition to memory allocations.
+Each SV allocation has a distinct serial number that will be
+written on creation <br>
+and destruction of the SV. So if you&rsquo;re executing the
+leaking code in a loop, you need to look for SVs that are
+created, but never destroyed between each cycle. If such an
+SV is <br>
+found, set a conditional breakpoint within
+&quot;new_SV()&quot; and make it break only when
+&quot;PL_sv_serial&quot; is equal to the serial number of
+the leaking SV. Then you will catch the <br>
+interpreter in exactly the state where the leaking SV is
+allocated, which is sufficient in many cases to find the
+source of the leak.</p>
+
+<p style="margin-top: 1em">As &quot;-Dm&quot; is using the
+PerlIO layer for output, it will by itself allocate quite a
+bunch of SVs, which are hidden to avoid recursion. You can
+bypass the PerlIO layer if you use <br>
+the SV logging provided by &quot;-DPERL_MEM_LOG&quot;
+instead.</p>
+
+<p style="margin-top: 1em">PERL_MEM_LOG <br>
+If compiled with &quot;-DPERL_MEM_LOG&quot;, both memory and
+SV allocations go through logging functions, which is handy
+for breakpoint setting.</p>
+
+<p style="margin-top: 1em">Unless
+&quot;-DPERL_MEM_LOG_NOIMPL&quot; is also compiled, the
+logging functions read $ENV{PERL_MEM_LOG} to determine
+whether to log the event, and if so how:</p>
+
+<p style="margin-top: 1em">$ENV{PERL_MEM_LOG} =~ /m/ Log
+all memory ops <br>
+$ENV{PERL_MEM_LOG} =~ /s/ Log all SV ops <br>
+$ENV{PERL_MEM_LOG} =~ /t/ include timestamp in Log <br>
+$ENV{PERL_MEM_LOG} =~ /^(+)/ write to FD given (default is
+2)</p>
+
+<p style="margin-top: 1em">Memory logging is somewhat
+similar to &quot;-Dm&quot; but is independent of
+&quot;-DDEBUGGING&quot;, and at a higher level; all uses of
+Newx(), Renew(), and Safefree() are logged with the
+caller&rsquo;s <br>
+source code file and line number (and C function name, if
+supported by the C compiler). In contrast, &quot;-Dm&quot;
+is directly at the point of &quot;malloc()&quot;. SV logging
+is similar.</p>
+
+<p style="margin-top: 1em">Since the logging doesn&rsquo;t
+use PerlIO, all SV allocations are logged and no extra SV
+allocations are introduced by enabling the logging. If
+compiled with <br>
+&quot;-DDEBUG_LEAKING_SCALARS&quot;, the serial number for
+each SV allocation is also logged.</p>
+
+<p style="margin-top: 1em">DDD over gdb <br>
+Those debugging perl with the DDD frontend over gdb may find
+the following useful:</p>
+
+<p style="margin-top: 1em">You can extend the data
+conversion shortcuts menu, so for example you can display an
+SV&rsquo;s IV value with one click, without doing any
+typing. To do that simply edit ~/.ddd/init <br>
+file and add after:</p>
+
+<p style="margin-top: 1em">! Display shortcuts. <br>
+Ddd*gdbDisplayShortcuts: /t () // Convert to Bin /d () //
+Convert to Dec /x () // Convert to Hex /o () // Convert to
+Oct( <br>
+the following two lines:</p>
+
+<p style="margin-top: 1em">((XPV*) (())-&gt;sv_any
+)-&gt;xpv_pv // 2pvx ((XPVIV*) (())-&gt;sv_any )-&gt;xiv_iv
+// 2ivx</p>
+
+<p style="margin-top: 1em">so now you can do ivx and pvx
+lookups or you can plug there the sv_peek
+&quot;conversion&quot;:</p>
+
+<p style="margin-top: 1em">Perl_sv_peek(my_perl, (SV*)())
+// sv_peek</p>
+
+<p style="margin-top: 1em">(The my_perl is for threaded
+builds.) Just remember that every line, but the last one,
+should end with <br>
+Alternatively edit the init file interactively via: 3rd
+mouse button -&gt; New Display -&gt; Edit Menu</p>
+
+<p style="margin-top: 1em">Note: you can define up to 20
+conversion shortcuts in the gdb section.</p>
+
+<p style="margin-top: 1em">Poison <br>
+If you see in a debugger a memory area mysteriously full of
+0xABABABAB or 0xEFEFEFEF, you may be seeing the effect of
+the Poison() macros, see perlclib.</p>
+
+<p style="margin-top: 1em">Read-only optrees <br>
+Under ithreads the optree is read only. If you want to
+enforce this, to check for write accesses from buggy code,
+compile with &quot;-DPL_OP_SLAB_ALLOC&quot; to enable the OP
+slab <br>
+allocator and &quot;-DPERL_DEBUG_READONLY_OPS&quot; to
+enable code that allocates op memory via &quot;mmap&quot;,
+and sets it read-only at run time. Any write access to an op
+results in a &quot;SIGBUS&quot; <br>
+and abort.</p>
+
+<p style="margin-top: 1em">This code is intended for
+development only, and may not be portable even to all Unix
+variants. Also, it is an 80% solution, in that it
+isn&rsquo;t able to make all ops read only. <br>
+Specifically it</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; 1</p>
+
+<p style="margin-top: 1em">Only sets read-only on all slabs
+of ops at &quot;CHECK&quot; time, hence ops allocated later
+via &quot;require&quot; or &quot;eval&quot; will be
+re-write</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; 2</p>
+
+<p style="margin-top: 1em">Turns an entire slab of ops
+read-write if the refcount of any op in the slab needs to be
+decreased.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; 3</p>
+
+<p style="margin-top: 1em">Turns an entire slab of ops
+read-write if any op from the slab is freed.</p>
+
+<p style="margin-top: 1em">It&rsquo;s not possible to turn
+the slabs to read-only after an action requiring read-write
+access, as either can happen during op tree building time,
+so there may still be legitimate <br>
+write access.</p>
+
+<p style="margin-top: 1em">However, as an 80% solution it
+is still effective, as currently it catches a write access
+during the generation of Config.pm, which means that we
+can&rsquo;t yet build perl with this <br>
+enabled.</p>
+
+<p style="margin-top: 1em">The .i Targets <br>
+You can expand the macros in a foo.c file by saying</p>
+
+<p style="margin-top: 1em">make foo.i</p>
+
+<p style="margin-top: 1em">which will expand the macros
+using cpp. Don&rsquo;t be scared by the results.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+This document was originally written by Nathan Torkington,
+and is maintained by the perl5-porters mailing list.</p>
+
+<p style="margin-top: 1em">perl v5.16.3 2013-03-04
+PERLHACKTIPS(1)</p>
+<hr>
+</body>
+</html>

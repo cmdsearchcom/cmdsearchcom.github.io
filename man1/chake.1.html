@@ -1,0 +1,402 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 15:58:09 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>CHAKE(1) CHAKE(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+chake - serverless configuration with chef</p>
+
+<p style="margin-top: 1em">INTRODUCTION <br>
+chake is a tool that helps you manage multiple hosts with,
+without the need for a chef server. Configuration is managed
+in a local directory, which should probably be under <br>
+version control with git(1) or anything else. Configuration
+is usually deployed via rsync over SSH, and applied by
+invoking chef-solo(1) over SSH on each host.</p>
+
+<p style="margin-top: 1em">CREATING THE REPOSITORY <br>
+$ chake init <br>
+[create] nodes.yaml <br>
+[ mkdir] nodes.d/ <br>
+[create] config.rb <br>
+[ mkdir] config/roles <br>
+[ mkdir] cookbooks/basics/recipes/ <br>
+[create] cookbooks/basics/recipes/default.rb <br>
+[create] Rakefile</p>
+
+<p style="margin-top: 1em">A brief explanation of the
+created files:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; nodes.yaml:
+where you will list the hosts you will be managing, and what
+recipes to apply to each of them.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; nodes.d: a
+directory with multiple files in the same format as
+nodes.yaml. All files matching *.yaml in it will be added to
+the list of nodes.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; config.rb:
+contains the chef-solo configuration. You can modify it, but
+usually you won&acirc;t need to.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; config/roles:
+directory is where you can put your role definitions.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; cookbooks:
+directory where you will store your cookbooks. A sample
+cookbook called &quot;basics&quot; is created, but feel free
+to remove it and add actual cookbooks.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Rakefile:
+Contains just the require &rsquo;chake&rsquo; line. You can
+augment it with other tasks specific to your
+intrastructure.</p>
+
+<p style="margin-top: 1em">After the repository is created,
+you can call either chake or rake, as they are completely
+equivalent.</p>
+
+<p style="margin-top: 1em">MANAGING NODES <br>
+Just after you created your repository, the contents of
+nodes.yaml is the following:</p>
+
+<p style="margin-top: 1em">host1.mycompany.com: <br>
+run_list: <br>
+- recipe[basics]</p>
+
+<p style="margin-top: 1em">You can list your hosts with
+rake nodes:</p>
+
+<p style="margin-top: 1em">$ rake nodes <br>
+host1.mycompany.com ssh</p>
+
+<p style="margin-top: 1em">To add more nodes, just append
+to nodes.yaml:</p>
+
+<p style="margin-top: 1em">host1.mycompany.com: <br>
+run_list: <br>
+- recipe[basics] <br>
+host2.mycompany.com: <br>
+run_list: <br>
+- recipes[basics]</p>
+
+<p style="margin-top: 1em">And chake now knows about your
+new node:</p>
+
+<p style="margin-top: 1em">$ rake nodes <br>
+host1.mycompany.com ssh <br>
+host2.mycompany.com ssh</p>
+
+<p style="margin-top: 1em">PREPARINGS NODES TO BE MANAGED
+<br>
+Nodes have very few initial requirements to be managed with
+chake:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The node must be
+accessible via SSH.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The user you
+connect to the node must either be root, or be allowed to
+run sudo (in which case sudo must be installed).</p>
+
+<p style="margin-top: 1em">A note on password prompts:
+every time chake calls ssh on a node, you may be required to
+type in your password; every time chake calls sudo on the
+node, you may be require to <br>
+type in your password. For managing one or two nodes this is
+probably fine, but for larger numbers of nodes it is not
+practical. To avoid password prompts, you can:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Configure SSH
+key-based authentication. This is more secure than using
+passwords. While you are at it, you also probably want
+disable password authentication completely, and <br>
+only allow key-based authentication</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Configure
+passwordless sudo access for the user you use to connect to
+your nodes.</p>
+
+<p style="margin-top: 1em">CHECKING CONNECTIVITY AND
+INITIAL HOST SETUP <br>
+To check whether hosts are correcly configured, you can use
+the check task:</p>
+
+<p style="margin-top: 1em">$ rake check</p>
+
+<p style="margin-top: 1em">That will run the the sudo true
+command on each host. If that pass without you having to
+passwords, you are sure that</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; you have SSH
+access to each host; and</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; the user you are
+connecting as has password-less sudo correctly setup.</p>
+
+<p style="margin-top: 1em">$ rake check</p>
+
+<p style="margin-top: 1em">APPLYING COOKBOOKS <br>
+Note that by default all tasks that apply to all hosts will
+run in parallel, using rake&acirc;s support for multitasks.
+If for some reason you need to prevent that, you can pass
+-j1 <br>
+(or --jobs=1&lsquo;) in the rake invocation. Note that by
+default rake will only run N+4 tasks in parallel, where N is
+the number of cores on the machine you are running it. If
+you <br>
+have more than N+4 hosts and want all of them to be handled
+in parallel, you might want o pass -j (or --jobs), without
+any number, as the last argument; with that rake will have
+<br>
+no limit on the number of tasks to perform in parallel.</p>
+
+<p style="margin-top: 1em">To apply the configuration to
+all nodes, run</p>
+
+<p style="margin-top: 1em">$ rake converge</p>
+
+<p style="margin-top: 1em">To apply the configuration to a
+single node, run</p>
+
+<p style="margin-top: 1em">$ rake converge:$NODE</p>
+
+<p style="margin-top: 1em">To apply a single recipe on all
+nodes, run</p>
+
+<p style="margin-top: 1em">$ rake apply[myrecipe]</p>
+
+<p style="margin-top: 1em">To apply a single recipe on a
+specific node, run</p>
+
+<p style="margin-top: 1em">$ rake apply:$NODE[myrecipe]</p>
+
+<p style="margin-top: 1em">If you don&acirc;t inform a
+recipe in the command line, you will be prompted for
+one.</p>
+
+<p style="margin-top: 1em">To run a shell command on all
+nodes, run</p>
+
+<p style="margin-top: 1em">$ rake run[command]</p>
+
+<p style="margin-top: 1em">If the command you want to run
+contains spaces, or other characters that are special do the
+shell, you have to quote them.</p>
+
+<p style="margin-top: 1em">To run a shell command on a
+specific node, run</p>
+
+<p style="margin-top: 1em">$ rake run:$NODE[command]</p>
+
+<p style="margin-top: 1em">If you don&acirc;t inform a
+command in the command line, you will be prompted for
+one.</p>
+
+<p style="margin-top: 1em">To check the existing tasks,
+run</p>
+
+<p style="margin-top: 1em">$ rake -T</p>
+
+<p style="margin-top: 1em">WRITING COOKBOOKS <br>
+Since chake is actually a wrapper for Chef Solo, you should
+read the [chef
+documentation](&lt;https://docs.chef.io/&gt;). In special,
+look at the [Chef Solo Documentation](&lt;https:// <br>
+docs.chef.io/chef_solo.html&gt;).</p>
+
+<p style="margin-top: 1em">THE NODE BOOTSTRAPPING PROCESS
+<br>
+When chake acts on a node for the first time, it has to
+bootstrap it. The bootstrapping process includes doing the
+following:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; installing chef
+and rsync</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; disabling the
+chef client daemon</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; setting up the
+hostname</p>
+
+<p style="margin-top: 1em">NODE URLS <br>
+The keys in the hash that is represented in nodes.yaml is a
+node URL. All components of the URL but the hostname are
+optional, so just listing hostnames is the simplest form of
+<br>
+specifying your nodes. Here are all the components of the
+node URLs:</p>
+
+
+<p style="margin-top: 1em">[backend://][username@]hostname[:port][/path]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; backend: backend
+to use to connect to the host. ssh or local (default:
+ssh)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; username: user
+name to connect with (default: the username on your local
+workstation)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; hostname: the
+hostname to connect to (default: none)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; port: port
+number to connect to (default: 22)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; /path: where to
+store the cookbooks at the node (default:
+/var/tmp/chef.$USERNAME)</p>
+
+<p style="margin-top: 1em">EXTRA FEATURES # HOOKS <br>
+You can define rake tasks that will be executed before
+bootstrapping nodes, before uploading configuration
+management content to nodes, and before converging. To do
+this, you <br>
+just need to enhance the corresponding tasks:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+bootstrap_common: executed before bootstrapping nodes (even
+if nodes have already been bootstrapped)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; upload_common:
+executed before uploading content to the node</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; converge_common:
+executed before converging (i.e. running chef)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; connect_common:
+executed before doing any action that connects to any of the
+hosts. This can be used for example to generate a ssh
+configuration file based on the contents of <br>
+the nodes definition files.</p>
+
+<p style="margin-top: 1em">Example:</p>
+
+<p style="margin-top: 1em">task :bootstrap_common do <br>
+sh &rsquo;./scripts/pre-bootstrap-checks&rsquo; <br>
+end</p>
+
+<p style="margin-top: 1em"># ENCRYPTED FILES <br>
+Any files ending matching .gpg and .asc will be decrypted
+with GnuPG before being sent to the node. You can use them
+to store passwords and other sensitive information (SSL
+keys, <br>
+etc) in the repository together with the rest of the
+configuration.</p>
+
+<p style="margin-top: 1em"># REPOSITORY-LOCAL SSH
+CONFIGURATION <br>
+If you need special SSH configuration parameters, you can
+create a file called .ssh_config (or whatever file name you
+have in the $CHAKE_SSH_CONFIG environment variable, see <br>
+below for details) in at the root of your repository, and
+chake will use it when calling ssh.</p>
+
+<p style="margin-top: 1em"># LOGGING IN TO A HOST <br>
+To easily login to one of your host, just run rake
+login:$HOSTNAME. This will automatically use the
+repository-local SSH configuration as above so you
+don&acirc;t have to type -F <br>
+.ssh_config all the time.</p>
+
+<p style="margin-top: 1em"># RUNNING ALL SSH INVOCATIONS
+WITH SOME PREFIX COMMAND <br>
+Some times, you will also want or need to prefix your SSH
+invocations with some prefix command in order to e.g. tunnel
+it through some central exit node. You can do this by <br>
+setting $CHAKE_SSH_PREFIX on your environment. Example:</p>
+
+<p style="margin-top: 1em">CHAKE_SSH_PREFIX=tsocks rake
+converge</p>
+
+<p style="margin-top: 1em">The above will make all SSH
+invocations to all hosts be called as tsocks ssh [...]</p>
+
+<p style="margin-top: 1em"># CONVERGING LOCAL HOST <br>
+If you want to manage your local workstation with chake, you
+can declare a local node like this in nodes.yaml:</p>
+
+<p style="margin-top: 1em">local://thunderbolt: <br>
+run_list: <br>
+- role[workstation]</p>
+
+<p style="margin-top: 1em">To apply the configuration to
+the local host, you can use the conventional rake
+converge:thunderbolt, or the special target rake local.</p>
+
+<p style="margin-top: 1em">When converging all nodes, chake
+will skip nodes that are declared with the local:// backend
+and whose hostname does not match the hostname in the
+declaration. For example:</p>
+
+<p style="margin-top: 1em">local://desktop: <br>
+run_list: <br>
+- role[workstation] <br>
+local://laptop: <br>
+run_list: <br>
+- role[workstation]</p>
+
+<p style="margin-top: 1em">When you run rake converge on
+desktop, laptop will be skipped, and vice-versa.</p>
+
+<p style="margin-top: 1em">ENVIRONMENT VARIABLES <br>
+&Acirc;&middot; $CHAKE_SSH_CONFIG: Local SSH configuration
+file. Defaults to .ssh_config.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+$CHAKE_SSH_PREFIX: Command to prefix SSH (and rsync over
+SSH) calls with.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+$CHAKE_RSYNC_OPTIONS: extra options to pass to rsync. Useful
+to e.g. exclude large files from being upload to each
+server.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; $CHAKE_NODES:
+File containing the list of servers to be managed. Default:
+nodes.yaml.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; $CHAKE_NODES_D:
+Directory containing node definition files servers to be
+managed. Default: nodes.d.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; $CHAKE_TMPDIR:
+Directory used to store temporary cache files. Default:
+tmp/chake.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+$CHAKE_CHEF_CONFIG: Chef configuration file, relative to the
+root of the repository. Default: config.rb.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+&Acirc;&middot; rake(1), chef-solo(1)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Chef
+documentation: &lt;https://docs.chef.io/&gt;</p>
+
+<p style="margin-top: 1em">2016-10-28 CHAKE(1)</p>
+<hr>
+</body>
+</html>

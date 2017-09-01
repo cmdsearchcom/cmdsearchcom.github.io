@@ -1,0 +1,172 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:00:26 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>cook_rsh(1) General Commands Manual cook_rsh(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+cook_rsh - load balancing rsh</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+cook_rsh [ option... ] architecture command [ argument... ]
+<br>
+cook_rsh -Help</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+The cook_rsh program is a wrapper around rsh(1) which does
+simple load balancing. It obtains its load information by
+running the rup(1) command, and selects the most suitable
+<br>
+host hased on the architecture you specify, and the least
+load of all hosts of that architecture.</p>
+
+<p style="margin-top: 1em">The first command line argument
+is the architecture name which is used to get the list of
+possible hosts. From that list the rup(1) command is run to
+determine the host with the <br>
+lowest load, which is in turn used as the first argument of
+the eventual rsh(1) command.</p>
+
+<p style="margin-top: 1em">COOKBOOKS <br>
+In order to make use of this program, somewhere in your
+cookbook, you need to add a line which reads <br>
+parallel_rsh = &quot;cook_rsh&quot;; <br>
+If the host chosen is the same as the caller (build host)
+then this program just exec the command skipping the rsh. So
+it costs nothing to use this in a one machine network!</p>
+
+<p style="margin-top: 1em">For each recipe you want
+distributed to a remote host, you need to add a host-binding
+attribute to. Typical usage is where you have a
+muti-architecture build. <br>
+%1/%0%.o: %0%.c <br>
+host-binding %1 { <br>
+cc -o [target] -c [resolve %0%.c]; } <br>
+In the recipe given here, each architecture has its object
+files placed into a separate architecture-specific directory
+tree. The architecture name (%1) is used in the host- <br>
+binding, so that the compiles may be load-balanced to all
+machines of that architecture.</p>
+
+<p style="margin-top: 1em">If you need a command to run on
+a specific host (say, because that&rsquo;s where a specific
+application license resides), then simply use the host name
+in the host-binding attribute, <br>
+rather than an architecture name.</p>
+
+<p style="margin-top: 1em">DEFINING THE CLASSES <br>
+The /host_lists.pl file is expected to exist, and to contain
+variable definitions used to determine if hosts are members
+of particular architectures.</p>
+
+<p style="margin-top: 1em">The /host_lists.pl file defines
+a perl HOL &quot;hash of lists&quot; The hash is %ArchNames
+and it maps names of architectures as user want to see them,
+to list references as the actual <br>
+lists are stored.</p>
+
+<p style="margin-top: 1em">The names of each architecture
+could be any form you wish but the convention is to use the
+GNUish names such as &quot;sparc-sun-solaris2.8&quot;.</p>
+
+<p style="margin-top: 1em">For each architecture, define
+one or more lists of machines according to what function
+each machine set may do. This can be as simple or as
+elaborate as required. The form of <br>
+the list variable name can be any valid perl identifier but
+may as well be like the architecture name with dash changed
+to underbar and dot removed, and the type added. For <br>
+example one might define solaris hosts as: <br>
+@sparc_sun_solaris28_hosts = ( <br>
+&quot;mickey&quot;, &quot;minny&quot;, &quot;scrooge&quot;
+); <br>
+And linux hosts as: <br>
+@i386_linux22_hosts = ( <br>
+&quot;goofy&quot;, &quot;scrooge&quot; );</p>
+
+<p style="margin-top: 1em">If there is a need to define
+different sets of machines for different types of jobs then
+add a suffix to the names in the host-binding directive on
+each of the recipes, and <br>
+lists here with the same suffix.</p>
+
+<p style="margin-top: 1em">The hash to map argument names
+to lists is defined like: <br>
+%ArchNames = ( <br>
+&quot;sparc-solaris2.8&quot;, =&gt; @sparc_solaris28_hosts,
+<br>
+&quot;i586-unknown-linux22&quot;, =&gt; @i386_linux22_hosts,
+);</p>
+
+<p style="margin-top: 1em">Of course if users have
+differing opinions as to what the architecture names should
+look like, you can define &quot;alias&quot; mappings as
+well. <br>
+&quot;sun4-SunOS-5.8&quot;, =&gt; @sparc_solaris28_hosts,
+<br>
+Or maybe the level is of no importance, then define <br>
+&quot;sparc-solaris&quot;, =&gt; @sparc_solaris28_hosts,
+<br>
+&quot;sparc-solaris2.7&quot;, =&gt; @sparc_solaris28_hosts,
+<br>
+Also, this list isn&rsquo;t allowed to be empty.</p>
+
+<p style="margin-top: 1em">And finally, curtesy of Perl,
+the last line of the file must read <br>
+1; for obscure and magical reasons.</p>
+
+<p style="margin-top: 1em">SYSLOG LOGGING <br>
+Typical commands seen during a build would look like <br>
+sh -c &rsquo;cd /aegis/dd/gumby2.2.C079 &amp;&amp; &nbsp;sh
+-ce /aegis/dd/gumby2.2.C079/.6.1; &nbsp;echo $? &gt;
+/aegis/dd/gumby2.2.C079/.6.2&rsquo; <br>
+So we can extract the project/ change from the command quite
+easily and logging it via syslog would be a trivial
+addition.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+This command is not usually given any options.</p>
+
+<p style="margin-top: 1em">-h Help - show usage info</p>
+
+<p style="margin-top: 1em">-vP Verbose - report choice</p>
+
+<p style="margin-top: 1em">-Tn Trace value for testing</p>
+
+<p style="margin-top: 1em">FILES <br>
+/exclude.hosts <br>
+This file is used to list those host which must not be used
+by this script. Simply list excuded hosts, one hostname per
+line. If the file is absent, all hosts reported <br>
+by rup(1) may be used.</p>
+
+<p style="margin-top: 1em">/host_lists.pl <br>
+This file defines the classes of hosts for each
+architecture.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Jerry Pendergraft &lt;jerry@endocardial.com&gt;</p>
+
+<p style="margin-top: 1em">Reference Manual Cook
+cook_rsh(1)</p>
+<hr>
+</body>
+</html>

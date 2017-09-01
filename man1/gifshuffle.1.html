@@ -1,0 +1,208 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:13:01 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>gifshuffle(1) General Commands Manual gifshuffle(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+gifshuffle - GIF colourmap steganography program</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+gifshuffle [ -CQS1 ] [ -p passwd ] [ -f file | -m message ]
+[ infile.gif [ outfile.gif ]]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+gifshuffle is a program for concealing messages in GIF
+images by shuffling the colourmap. A shuffled image is
+visibly indistinguishable from the original. gifshuffle
+works with <br>
+all GIF images, including those with transparency and
+animation.</p>
+
+<p style="margin-top: 1em">Consider a pack of 52 cards.
+There are 52 factorial ways to sort the pack, which means
+that any particular ordering of the cards can represent a
+number in the range [0, 52!-1]. <br>
+In other words, given n cards, you can store approximately
+log2(n!) bits of information based on their ordering.</p>
+
+<p style="margin-top: 1em">GIF images contain a colourmap
+with up to 256 entries, resulting in a maximum storage
+capacity of 1675 bits. The image itself consists of a
+compressed array of indices into this <br>
+colourmap. To conceal a message within a GIF image the
+following steps take place.</p>
+
+<p style="margin-top: 1em">1. Start with the message you
+want to conceal, specified on the command line or in a file.
+Optionally compress and/or encrypt this message. You are
+then left with a sequence <br>
+of 1&rsquo;s and 0&rsquo;s.</p>
+
+<p style="margin-top: 1em">2. Prepend a 1 to this sequence,
+giving you a binary number m (probably quite large).</p>
+
+<p style="margin-top: 1em">3. Next take a look at the GIF
+image that you want to conceal the message in. Count the
+number of unique colours in the image, and call the value n.
+If m &gt; n!-1 then the <br>
+message is too large, and the procedure will be aborted.</p>
+
+<p style="margin-top: 1em">4. The colours in the colourmap
+are first sorted into their &quot;natural&quot; order
+(except when encryption is being used - see details below).
+Each RGB colour is assigned the value <br>
+(red * 65536 + green * 256 + blue), and the colours are
+sorted according to these values. Any duplicate colours are
+removed.</p>
+
+<p style="margin-top: 1em">5. Iterate i through the values
+1 .. n. Each colour i-1 is allocated a target position (m
+mod i), then m is divided by i.</p>
+
+<p style="margin-top: 1em">6. Each colour is then in turn
+inserted into a new colourmap at its target position.
+Colours previously occupying the target position and above
+are moved up one place.</p>
+
+<p style="margin-top: 1em">7. If the size of the colourmap
+is greater than the number of unique colours, then the
+colourmap will be padded with the last colour from the
+original colourmap.</p>
+
+<p style="margin-top: 1em">8. The image component of the
+GIF is then uncompressed, the colour indices are re-mapped
+to the new colourmap, and the image is re-compressed. For
+animated GIFs this is <br>
+repeated for each image.</p>
+
+<p style="margin-top: 1em">Extracting a hidden message
+follows a similar procedure, but in reverse. The ordering of
+the colourmap is used to construct a binary number, which is
+then optionally decrypted <br>
+and uncompressed before being output.</p>
+
+<p style="margin-top: 1em">gifshuffle provides rudimentary
+compression, using Huffman tables optimised for English
+text. However, if the data is not text, or if there is a lot
+of data, the use of the <br>
+built-in compression is not recommended, since an external
+compression program such as compress or gzip will do a much
+better job.</p>
+
+<p style="margin-top: 1em">Encryption is also provided,
+using the ICE encryption algorithm in 1-bit cipher-feedback
+(CFB) mode to encrypt the data (after compression). Because
+of ICE&rsquo;s arbitrary key size, <br>
+passwords of any length up to 1170 characters are supported
+(since only 7 bits of each character are used, this means
+keys up to 1024-bytes are supported).</p>
+
+<p style="margin-top: 1em">As of gifshuffle 2.0 encryption
+is also applied to the ordering of the colours in the
+colourmap. Instead of using their &quot;natural&quot;
+ordering, the ordering of their encrypted hash <br>
+is used. This has the benefit of making colourmaps look
+random even when there is only a small message concealed. To
+disable this feature (which is incompatible with version 1
+of <br>
+gifshuffle) use the -1 option.</p>
+
+<p style="margin-top: 1em">If a message string or message
+file are specified on the command-line, gifshuffle will
+attempt to conceal the message in the file infile.gif if
+specified, or standard input oth&acirc; <br>
+erwise. The resulting file will be written to outfile.gif if
+specified, or standard output if not.</p>
+
+<p style="margin-top: 1em">If no message string is
+provided, gifshuffle attempts to extract a message from the
+input file. The result is written to the output file or
+standard output.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-C Compress the data if concealing, or uncompress it if
+extracting.</p>
+
+<p style="margin-top: 1em">-Q Quiet mode. If not set, the
+program reports statistics such as compression percentages
+and amount of available storage space used.</p>
+
+<p style="margin-top: 1em">-S Report on the amount of space
+available for hidden message in the GIF colourmap. This is
+calculated from the number of unique colours in the
+image.</p>
+
+<p style="margin-top: 1em">-1 Retain compatibility with
+version 1 of gifshuffle by ordering colours using their
+&quot;natural&quot; ordering, rather than their encrypted
+ordering. This is only relevant if a <br>
+password is specified.</p>
+
+<p style="margin-top: 1em">-p password <br>
+If this is set, the data will be encrypted with this
+password during concealment, or decrypted during
+extraction.</p>
+
+<p style="margin-top: 1em">-f message-file <br>
+The contents of this file will be concealed in the input GIF
+image.</p>
+
+<p style="margin-top: 1em">-m message-string <br>
+The contents of this string will be concealed in the input
+GIF image. Note that, unless a newline is somehow included
+in the string, a newline will not be printed when <br>
+the message is extracted.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+The following command will conceal the message &quot;Meet me
+at 6&quot; in the file infile.gif, with compression, and
+encrypted with the password &quot;hello world&quot;. The
+resulting text will be <br>
+stored in outfile.gif.</p>
+
+<p style="margin-top: 1em">gifshuffle -C -m &quot;Meet me
+at 6&quot; -p &quot;hello world&quot; infile.gif
+outfile.gif</p>
+
+<p style="margin-top: 1em">To extract the message, the
+command would be</p>
+
+<p style="margin-top: 1em">gifshuffle -C -p &quot;hello
+world&quot; outfile.gif</p>
+
+<p style="margin-top: 1em">Note that the resulting message
+will not be terminated by a newline.</p>
+
+<p style="margin-top: 1em">The storage capacity of a file
+can be determined with the -S option.</p>
+
+<p style="margin-top: 1em">gifshuffle -S infile.gif</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+This application was written by Matthew Kwan, who can be
+reached at mkwan@darkside.com.au</p>
+
+<p style="margin-top: 1em">Version 2.0 5 Jan 2003
+gifshuffle(1)</p>
+<hr>
+</body>
+</html>

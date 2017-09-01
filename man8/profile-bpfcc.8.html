@@ -1,0 +1,220 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:14:52 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>profile(8) System Manager&rsquo;s Manual profile(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+profile - Profile CPU usage by sampling stack traces. Uses
+Linux eBPF/bcc.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+profile [-adfh] [-p PID] [-U | -k] [-F FREQUENCY]
+[--stack-storage-size COUNT] [-S FRAMES] [duration]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This is a CPU profiler. It works by taking samples of stack
+traces at timed intervals. It will help you understand and
+quantify CPU usage: which code is executing, and by how <br>
+much, including both user-level and kernel code.</p>
+
+<p style="margin-top: 1em">By default this samples at 49
+Hertz (samples per second), across all CPUs. This frequency
+can be tuned using a command line option. The reason for 49,
+and not 50, is to avoid <br>
+lock-step sampling.</p>
+
+<p style="margin-top: 1em">This is also an efficient
+profiler, as stack traces are frequency counted in kernel
+context, rather than passing each stack to user space for
+frequency counting there. Only the <br>
+unique stacks and counts are passed to user space at the end
+of the profile, greatly reducing the kernel&lt;-&gt;user
+transfer.</p>
+
+<p style="margin-top: 1em">Note: if another perf-based
+sampling session is active, the output may become polluted
+with their events. On older kernels, the ouptut may also
+become polluted with tracing ses&acirc; <br>
+sions (when the kprobe is used instead of the tracepoint).
+This may be filtered in a future version if it becomes a
+problem.</p>
+
+<p style="margin-top: 1em">REQUIREMENTS <br>
+CONFIG_BPF and bcc.</p>
+
+<p style="margin-top: 1em">This also requires Linux 4.6+
+(BPF_MAP_TYPE_STACK_TRACE support), and the
+perf:perf_hrtimer tracepoint (currently a kernel patch). If
+the latter is unavailable, this will try to <br>
+use kprobes as a fallback (of perf_misc_flags()), which may
+work or may not, depending on your kernel build. If the
+kprobe doesn&rsquo;t work, this tool will either error on
+instrumen&acirc; <br>
+tation, or, instrument successfully but generate no
+output.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-h Print usage message.</p>
+
+<p style="margin-top: 1em">-p PID Trace this process ID
+only (filtered in-kernel). Without this, all CPUs are
+profiled.</p>
+
+<p style="margin-top: 1em">-F frequency <br>
+Frequency to sample stacks (default 49).</p>
+
+<p style="margin-top: 1em">-f Print output in folded stack
+format.</p>
+
+<p style="margin-top: 1em">-d Include an output delimiter
+between kernel and user stacks (either &quot;--&quot;, or,
+in folded mode, &quot;-&quot;).</p>
+
+<p style="margin-top: 1em">-U Show stacks from user space
+only (no kernel space stacks).</p>
+
+<p style="margin-top: 1em">-K Show stacks from kernel space
+only (no user space stacks).</p>
+
+<p style="margin-top: 1em">--stack-storage-size COUNT <br>
+The maximum number of unique stack traces that the kernel
+will count (default 2048). If the sampled count exceeds
+this, a warning will be printed.</p>
+
+<p style="margin-top: 1em">-S FRAMES <br>
+A fixed number of kernel frames to skip. By default, extra
+registers are recorded so that the interrupt framework stack
+can be identified and excluded from the output. If <br>
+this isn&rsquo;t working on your architecture, or, if
+you&rsquo;d like to improve performance a tiny amount, then
+you can specify a fixed count to skip. Note for debugging
+that the IP <br>
+address is printed as the first frame, followed by the
+captured stack.</p>
+
+<p style="margin-top: 1em">duration <br>
+Duration to trace, in seconds.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+Profile (sample) stack traces system-wide at 49 Hertz
+(samples per second) until Ctrl-C: <br>
+# profile</p>
+
+<p style="margin-top: 1em">Profile for 5 seconds only: <br>
+# profile 5</p>
+
+<p style="margin-top: 1em">Profile at 99 Hertz for 5
+seconds only: <br>
+# profile -F 99 5</p>
+
+<p style="margin-top: 1em">Profile PID 181 only: <br>
+# profile -p 181</p>
+
+<p style="margin-top: 1em">Profile for 5 seconds and output
+in folded stack format (suitable as input for flame graphs),
+including a delimiter between kernel and user stacks: <br>
+# profile -df 5</p>
+
+<p style="margin-top: 1em">Profile kernel stacks only: <br>
+# profile -K</p>
+
+<p style="margin-top: 1em">DEBUGGING <br>
+See &quot;[unknown]&quot; frames with bogus addresses? This
+can happen for different reasons. Your best approach is to
+get Linux perf to work first, and then to try this tool. Eg,
+&quot;perf <br>
+record -F 49 -a -g -- sleep 1; perf script&quot;, and to
+check for unknown frames there.</p>
+
+<p style="margin-top: 1em">The most common reason for
+&quot;[unknown]&quot; frames is that the target software has
+not been compiled with frame pointers, and so we can&rsquo;t
+use that simple method for walking the stack. <br>
+The fix in that case is to use software that does have frame
+pointers, eg, gcc -fno-omit-frame-pointer, or Java&rsquo;s
+-XX:+PreserveFramePointer.</p>
+
+<p style="margin-top: 1em">Another reason for
+&quot;[unknown]&quot; frames is JIT compilers, which
+don&rsquo;t use a traditional symbol table. The fix in that
+case is to populate a /tmp/perf-PID.map file with the
+symbols, <br>
+which this tool should read. How you do this depends on the
+runtime (Java, Node.js).</p>
+
+<p style="margin-top: 1em">If you seem to have unrelated
+samples in the output, check for other sampling or tracing
+tools that may be running. The current version of this tool
+can include their events if <br>
+profiling happened concurrently. Those samples may be
+filtered in a future version.</p>
+
+<p style="margin-top: 1em">OVERHEAD <br>
+This is an efficient profiler, as stack traces are frequency
+counted in kernel context, and only the unique stacks and
+their counts are passed to user space. Contrast this with
+<br>
+the current &quot;perf record -F 99 -a&quot; method of
+profiling, which writes each sample to user space (via a
+ring buffer), and then to the file system (perf.data), which
+must be post- <br>
+processed.</p>
+
+<p style="margin-top: 1em">This uses perf_event_open to
+setup a timer which is instrumented by BPF, and for
+efficiency it does not initialize the perf ring buffer, so
+the redundant perf samples are not <br>
+collected.</p>
+
+<p style="margin-top: 1em">It&rsquo;s expected that the
+overhead while sampling at 49 Hertz (the default), across
+all CPUs, should be negligible. If you increase the sample
+rate, the overhead might begin to be <br>
+measurable.</p>
+
+<p style="margin-top: 1em">SOURCE <br>
+This is from bcc.</p>
+
+
+<p style="margin-top: 1em">https://github.com/iovisor/bcc</p>
+
+<p style="margin-top: 1em">Also look in the bcc
+distribution for a companion _examples.txt file containing
+example usage, output, and commentary for this tool.</p>
+
+<p style="margin-top: 1em">OS <br>
+Linux</p>
+
+<p style="margin-top: 1em">STABILITY <br>
+Unstable - in development.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Brendan Gregg</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+offcputime(8)</p>
+
+<p style="margin-top: 1em">USER COMMANDS 2016-07-17
+profile(8)</p>
+<hr>
+</body>
+</html>

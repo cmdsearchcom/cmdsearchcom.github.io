@@ -1,0 +1,1004 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:26:42 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>MYSQLRPLADMIN(1) MySQL Utilities MYSQLRPLADMIN(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+mysqlrpladmin - Administration utility for MySQL
+replication</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+mysqlrpladmin [options]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This utility permits users to perform administrative actions
+on a replication topology consisting of a master and its
+slaves. The utility is designed to make it easy to recover
+<br>
+from planned maintenance of the master, or from an event
+that takes the master offline unexpectedly.</p>
+
+<p style="margin-top: 1em">The act of taking the master
+offline intentionally and switching control to another slave
+is called switchover. In this case, there is no loss of
+transactions as the master is <br>
+locked and all slaves are allowed to catch up to the master.
+Once the slaves have read all events from the master, the
+master is shutdown and control switched to a slave (in this
+<br>
+case called a candidate slave).</p>
+
+<p style="margin-top: 1em">Recovering from the loss of a
+downed master is more traumatic and since there is no way to
+know what transactions the master may have failed to send,
+the new master (called a <br>
+candidate slave) must be the slave that is most up-to-date.
+How this is determined depends on the version of the server
+(see below). However, it can result in the loss of some <br>
+transactions that were executed on the downed master but not
+sent. The utility accepts a list of slaves to be considered
+the candidate slave. If no slave is found to meet the <br>
+requirements, the operation will search the list of known
+slaves.</p>
+
+<p style="margin-top: 1em">The utility also provides a
+number of useful commands for managing a replication
+topology including the following.</p>
+
+<p style="margin-top: 1em">elect This command is available
+to only those servers supporting global transaction
+identifiers (GTIDs), perform best slave election and report
+best slave to use in the event a <br>
+switchover or failover is required. Best slave election is
+simply the first slave to meet the prerequisites. GTIDs are
+supported in version 5.6.5 and higher. This command <br>
+requires the options --master and either --slaves or
+--discover-slaves-login.</p>
+
+<p style="margin-top: 1em">failover This command is
+available to only those servers supporting GTIDs. Conduct
+failover to the best slave. The command will test each
+candidate slave listed for the <br>
+prerequisites. Once a candidate slave is elected, it is made
+a slave of each of the other slaves thereby collecting any
+transactions executed on other slaves but not the <br>
+candidate. In this way, the candidate becomes the most
+up-to-date slave. This command requires the --slaves option.
+The --discover-slaves-login option is not allowed because,
+for <br>
+failover, the master is presumed to be offline or otherwise
+unreachable (so there is no way to discover the slaves). The
+--master option is ignored for this command.</p>
+
+<p style="margin-top: 1em">gtid This command is available
+to only those servers supporting GTIDs. It displays the
+contents of the GTID variables, @@GLOBAL.GTID_EXECUTED,
+@@GLOBAL.GTID_PURGED, and <br>
+@@GLOBAL.GTID_OWNED. The command also displays universally
+unique identifiers (UUIDs) for all servers. This command
+requires one of the following combinations: --master and
+<br>
+--slaves, or --master and --discover-slaves-login.</p>
+
+<p style="margin-top: 1em">health Display the replication
+health of the topology. By default, this includes the host
+name, port, role (MASTER or SLAVE) of the server, state of
+the server (UP = is <br>
+connected, WARN = not connected but can ping, DOWN = not
+connected and cannot ping), the GTID_MODE, and health state.
+This command can be run with the following combination of
+<br>
+options:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --master and
+--slaves</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --master and
+--discover-slaves-login</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --slaves</p>
+
+<p style="margin-top: 1em">Note <br>
+The health column will display &quot;no master
+specified&quot; when generating a health report for a
+collection of slaves and no --master option specified.</p>
+
+<p style="margin-top: 1em">The master health state is based
+on the following; if GTID_MODE=ON, the server must have
+binary log enabled, and there must exist a user with the
+REPLICATE SLAVE privilege.</p>
+
+<p style="margin-top: 1em">The slave health state is based
+on the following; the IO_THREAD and SQL_THREADS must be
+running, it must be connected to the master, there are no
+errors, the slave delay for <br>
+non-gtid enabled scenarios is not more than the threshold
+provided by the --max-position and the slave is reading the
+correct master log file, and slave delay is not more than
+<br>
+the --seconds-behind threshold option.</p>
+
+<p style="margin-top: 1em">reset Execute the STOP SLAVE and
+RESET SLAVE commands on all slaves. This command requires
+the --slaves option. The --discover-slaves-login option is
+not allowed because it might <br>
+not provide the expected result, excluding slaves with the
+IO thread stopped. Optionally, the --master option can also
+be used and in this case the utility will perform an <br>
+additional check to verify if the specified slaves are
+associated (replication is configured) to the given
+master.</p>
+
+<p style="margin-top: 1em">start Execute the START SLAVE
+command on all slaves. This command requires the --slaves
+option. The --discover-slaves-login option is not allowed
+because it might not provide the <br>
+expected result, excluding slaves with the IO thread
+stopped. Optionally, the --master option can also be used
+and in this case the utility will perform an additional
+check to <br>
+verify if the specified slaves are associated (replication
+is configured) to the given master.</p>
+
+<p style="margin-top: 1em">stop Execute the STOP SLAVE
+command on all slaves. This command requires the --slaves
+option. The --discover-slaves-login option is not allowed
+because it might not provide the <br>
+expected result, excluding slaves with the IO thread
+stopped. Optionally, the --master option can also be used
+and in this case the utility will perform an additional
+check to <br>
+verify if the specified slaves are associated (replication
+is configured) to the given master.</p>
+
+<p style="margin-top: 1em">switchover Perform slave
+promotion to a specified candidate slave as designated by
+the --new-master option. This command is available for both
+gtid-enabled servers and <br>
+non-gtid-enabled scenarios. This command requires one of the
+following combinations:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --master,
+--new-master and --slaves</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --master,
+--new-master and --discover-slaves-login</p>
+
+<p style="margin-top: 1em">Detection of a downed master is
+performed as follows. If the connection to the master is
+lost, wait --ping seconds and check again. If the master
+connection is lost and the <br>
+master cannot be pinged or reconnected, the failover event
+occurs.</p>
+
+<p style="margin-top: 1em">For all commands that require
+specifying multiple servers, the options require a
+comma-separated list of connection parameters in the
+following form (where the password, port, <br>
+and socket are optional).:</p>
+
+
+<p style="margin-top: 1em">&lt;*user*&gt;[:&lt;*passwd*&gt;]@&lt;*host*&gt;[:&lt;*port*&gt;][:&lt;*socket*&gt;]
+or <br>
+
+&lt;*login-path*&gt;[:&lt;*port*&gt;][:&lt;*socket*&gt;]</p>
+
+<p style="margin-top: 1em">The utility permits users to
+discover slaves connected to the master. In order to use the
+discover slaves feature, all slaves must use the
+--report-host and --report-port startup <br>
+variables to specify the correct hostname and ip port of the
+slave. If these are missing or report the incorrect
+information, the slaves health may not be reported correctly
+or <br>
+the slave may not be listed at all. The &rsquo;discover
+slaves&rsquo; feature ignores any slaves it cannot connect
+to, or if the IO thread stopped (it is not connected to the
+master).</p>
+
+<p style="margin-top: 1em">The utility permits the user to
+demote a master to a slave during the switchover operation.
+The --demote-master option tells the utility to, once the
+new master is established, <br>
+make the old master a slave of the new master. This permits
+rotation of the master role among a set of servers.</p>
+
+<p style="margin-top: 1em">The utility permits the user to
+specify an external script to execute before and after the
+switchover and failover commands. The user can specify these
+with the --exec-before and <br>
+--exec-after options. The return code of the script is used
+to determine success thus each script must report 0
+(success) to be considered successful. If a script returns a
+value <br>
+other than 0, the result code is presented in an error
+message.</p>
+
+<p style="margin-top: 1em">The utility permits the user to
+log all actions taken during the commands. The --log option
+requires a valid path and file name of the file to use for
+logging operations. The log <br>
+is active only when this option is specified. The option
+--log-age specifies the age in days that log entries are
+kept. The default is seven (7) days. Older entries are <br>
+automatically deleted from the log file (but only if the
+--log option is specified).</p>
+
+<p style="margin-top: 1em">The format of the log file
+includes the date and time of the event, the level of the
+event (informational - INFO, warning - WARN, error - ERROR,
+critical failure - CRITICAL), and <br>
+the message reported by the utility.</p>
+
+<p style="margin-top: 1em">The utility has a number of
+options each explained in more detail below. Some of the
+options are specific to certain commands. Warning messages
+are issued whenever an option is <br>
+used that does not apply to the command requested. A brief
+overview of each command and its options is presented in the
+following paragraphs.</p>
+
+<p style="margin-top: 1em">The start, stop, and reset
+commands require the --slaves option to list all of the
+slaves in the topology. Optionally, the --master option can
+be specified for the utility to <br>
+check if the specified slaves are associated to the given
+master before executing the command, making sure that the
+command is only applied to slaves connected to the right
+<br>
+replication master.</p>
+
+<p style="margin-top: 1em">The options required for the
+elect, health and gtid commands include the --master option
+to specify the existing master, and either the --slaves
+option to list all of the slaves <br>
+in the topology or the --discover-slaves-login option to
+provide the user name and password to discover any slaves in
+the topology that are registered and connected to the <br>
+master.</p>
+
+<p style="margin-top: 1em">The options required for
+switchover include the --master option to specify the
+existing master, the --new-master option to specify the
+candidate slave (the slave to become the <br>
+new master), and either the --slaves option to list the
+considered slaves in the topology or the
+--discover-slaves-login option to provide the user name and
+password to discover <br>
+any slaves in the topology that are registered and connected
+to the master.</p>
+
+<p style="margin-top: 1em">The failover command requires
+only the --slaves option to explicitly list all of the
+slaves in the topology because it is expected that the
+master is down when this command is <br>
+used.</p>
+
+<p style="margin-top: 1em">Note <br>
+The option to pass in --slaves without also passing in
+--master was added in MySQL Utilities 1.6.0.</p>
+
+<p style="margin-top: 1em">Use the --verbose option to see
+additional information in the health report and additional
+messages during switchover or failover. OPTIONS.PP
+mysqlrpladmin accepts the following <br>
+command-line options:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --help</p>
+
+<p style="margin-top: 1em">Display a help message and
+exit.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --license</p>
+
+<p style="margin-top: 1em">Display license information and
+exit.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--candidates=&lt;candidate slave connections&gt;</p>
+
+<p style="margin-top: 1em">Connection information for
+candidate slave servers for failover. Valid only with
+failover command. List multiple slaves in comma-separated
+list.</p>
+
+<p style="margin-top: 1em">To connect to a server, it is
+necessary to specify connection parameters such as user
+name, host name, password, and either a port or socket.
+MySQL Utilities provides a <br>
+number of ways to provide this information. All of the
+methods require specifying your choice via a command-line
+option such as --server, --master, --slave, etc. The methods
+<br>
+include the following in order of most secure to least
+secure.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Use login-paths
+from your .mylogin.cnf file (encrypted, not visible).
+Example :
+&lt;login-path&gt;[:&lt;port&gt;][:&lt;socket&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Use a
+configuration file (unencrypted, not visible) Note:
+available in release-1.5.0. Example :
+&lt;configuration-file-path&gt;[:&lt;section&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Specify the data
+on the command-line (unencrypted, visible). Example :
+&lt;user&gt;[:&lt;passwd&gt;]@&lt;host&gt;[:&lt;port&gt;][:&lt;socket&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--demote-master</p>
+
+<p style="margin-top: 1em">Make master a slave after
+switchover.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--discover-slaves-login=&lt;slave_login&gt;</p>
+
+<p style="margin-top: 1em">At startup, query master for all
+registered slaves and use the user name and password
+specified to connect. Supply the user and password in the
+form &lt;user&gt;[:&lt;passwd&gt;] or <br>
+&lt;login-path&gt;. For example, --discover=joe:secret will
+use &rsquo;joe&rsquo; as the user and &rsquo;secret&rsquo;
+as the password for each discovered slave.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--exec-after=&lt;script&gt;</p>
+
+<p style="margin-top: 1em">Name of script to execute after
+failover or switchover. Script name may include the
+path.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--exec-before=&lt;script&gt;</p>
+
+<p style="margin-top: 1em">Name of script to execute before
+failover or switchover. Script name may include the
+path.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --force</p>
+
+<p style="margin-top: 1em">Ignore prerequisite checks or
+any inconsistencies found, such as errant transactions on
+the slaves or SQL thread errors, thus forcing the execution
+of the specified command. <br>
+This option need to be used carefully as it will not solve
+any detected issue, but only ignores them and displays a
+warning message.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--format=&lt;format&gt;, -f &lt;format&gt;</p>
+
+<p style="margin-top: 1em">Display the replication health
+output in either grid (default), tab, csv, or vertical
+format.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--log=&lt;log_file&gt;</p>
+
+<p style="margin-top: 1em">Specify a log file to use for
+logging messages</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--log-age=&lt;days&gt;</p>
+
+<p style="margin-top: 1em">Specify maximum age of log
+entries in days. Entries older than this will be purged on
+startup. Default = 7 days.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--master=&lt;connection&gt;</p>
+
+<p style="margin-top: 1em">Connection information for the
+master server.</p>
+
+<p style="margin-top: 1em">To connect to a server, it is
+necessary to specify connection parameters such as user
+name, host name, password, and either a port or socket.
+MySQL Utilities provides a <br>
+number of ways to provide this information. All of the
+methods require specifying your choice via a command-line
+option such as --server, --master, --slave, etc. The methods
+<br>
+include the following in order of most secure to least
+secure.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Use login-paths
+from your .mylogin.cnf file (encrypted, not visible).
+Example :
+&lt;login-path&gt;[:&lt;port&gt;][:&lt;socket&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Use a
+configuration file (unencrypted, not visible) Note:
+available in release-1.5.0. Example :
+&lt;configuration-file-path&gt;[:&lt;section&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Specify the data
+on the command-line (unencrypted, visible). Example :
+&lt;user&gt;[:&lt;passwd&gt;]@&lt;host&gt;[:&lt;port&gt;][:&lt;socket&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--max-position=&lt;position&gt;</p>
+
+<p style="margin-top: 1em">Used to detect slave delay. The
+maximum difference between the master&rsquo;s log position
+and the slave&rsquo;s reported read position of the master.
+A value greater than this means the <br>
+slave is too far behind the master. Default = 0.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--new-master=&lt;connection&gt;</p>
+
+<p style="margin-top: 1em">Connection information for the
+slave to be used to replace the master for switchover. Valid
+only with switchover command.</p>
+
+<p style="margin-top: 1em">To connect to a server, it is
+necessary to specify connection parameters such as user
+name, host name, password, and either a port or socket.
+MySQL Utilities provides a <br>
+number of ways to provide this information. All of the
+methods require specifying your choice via a command-line
+option such as --server, --master, --slave, etc. The methods
+<br>
+include the following in order of most secure to least
+secure.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Use login-paths
+from your .mylogin.cnf file (encrypted, not visible).
+Example :
+&lt;login-path&gt;[:&lt;port&gt;][:&lt;socket&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Use a
+configuration file (unencrypted, not visible) Note:
+available in release-1.5.0. Example :
+&lt;configuration-file-path&gt;[:&lt;section&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Specify the data
+on the command-line (unencrypted, visible). Example :
+&lt;user&gt;[:&lt;passwd&gt;]@&lt;host&gt;[:&lt;port&gt;][:&lt;socket&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --no-health</p>
+
+<p style="margin-top: 1em">Turn off health report after
+switchover or failover.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--ping=&lt;number&gt;</p>
+
+<p style="margin-top: 1em">Number of ping attempts for
+detecting downed server. Note: on some platforms this is the
+same as number of seconds to wait for ping to return. This
+value is also used to <br>
+check down status of master. Failover will wait ping seconds
+to check master response. If no response, failover event
+occurs.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --quiet, -q</p>
+
+<p style="margin-top: 1em">Turn off all messages for quiet
+execution.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--rpl-user=&lt;replication_user&gt;</p>
+
+<p style="margin-top: 1em">The user and password for the
+replication user requirement, in the format:
+&lt;user&gt;[:&lt;password&gt;] or &lt;login-path&gt;. E.g.
+rpl:passwd Default = None.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--script-threshold=&lt;return_code&gt;</p>
+
+<p style="margin-top: 1em">Value for external scripts to
+trigger aborting the operation if result is greater than or
+equal to the threshold.</p>
+
+<p style="margin-top: 1em">Default = None (no threshold
+checking).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--seconds-behind=&lt;seconds&gt;</p>
+
+<p style="margin-top: 1em">Used to detect slave delay. The
+maximum number of seconds behind the master permitted before
+slave is considered behind the master. Default = 0.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--slaves=&lt;slave connections&gt;</p>
+
+<p style="margin-top: 1em">Connection information for slave
+servers. List multiple slaves in comma-separated list. The
+list will be evaluated literally whereby each server is
+considered a slave to the <br>
+master listed regardless if they are a slave of the
+master.</p>
+
+<p style="margin-top: 1em">To connect to a server, it is
+necessary to specify connection parameters such as user
+name, host name, password, and either a port or socket.
+MySQL Utilities provides a <br>
+number of ways to provide this information. All of the
+methods require specifying your choice via a command-line
+option such as --server, --master, --slave, etc. The methods
+<br>
+include the following in order of most secure to least
+secure.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Use login-paths
+from your .mylogin.cnf file (encrypted, not visible).
+Example :
+&lt;login-path&gt;[:&lt;port&gt;][:&lt;socket&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Use a
+configuration file (unencrypted, not visible) Note:
+available in release-1.5.0. Example :
+&lt;configuration-file-path&gt;[:&lt;section&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Specify the data
+on the command-line (unencrypted, visible). Example :
+&lt;user&gt;[:&lt;passwd&gt;]@&lt;host&gt;[:&lt;port&gt;][:&lt;socket&gt;]</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --ssl-ca</p>
+
+<p style="margin-top: 1em">The path to a file that contains
+a list of trusted SSL CAs.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --ssl-cert</p>
+
+<p style="margin-top: 1em">The name of the SSL certificate
+file to use for establishing a secure connection.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --ssl-cert</p>
+
+<p style="margin-top: 1em">The name of the SSL key file to
+use for establishing a secure connection.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --ssl</p>
+
+<p style="margin-top: 1em">Specifies if the server
+connection requires use of SSL. If an encrypted connection
+cannot be established, the connection attempt fails. Default
+setting is 0 (SSL not <br>
+required).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--timeout=&lt;seconds&gt;</p>
+
+<p style="margin-top: 1em">Maximum timeout in seconds to
+wait for each replication command to complete. For example,
+timeout for slave waiting to catch up to master. Default =
+300 seconds.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --verbose,
+-v</p>
+
+<p style="margin-top: 1em">Specify how much information to
+display. Use this option multiple times to increase the
+amount of information. For example, -v = verbose, -vv = more
+verbose, -vvv = debug.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --version</p>
+
+<p style="margin-top: 1em">Display version information and
+exit. <br>
+NOTES.PP The login user must have the appropriate
+permissions to execute SHOW SLAVE STATUS, SHOW MASTER
+STATUS, and SHOW VARIABLES on the appropriate servers as
+well as grant the <br>
+REPLICATE SLAVE privilege. The utility checks permissions
+for the master, slaves, and candidates at startup.</p>
+
+<p style="margin-top: 1em">Mixing IP and hostnames is not
+recommended. The replication-specific utilities will attempt
+to compare hostnames and IP addresses as aliases for
+checking slave connectivity to <br>
+the master. However, if your installation does not support
+reverse name lookup, the comparison could fail. Without the
+ability to do a reverse name lookup, the replication <br>
+utilities could report a false negative that the slave is
+(not) connected to the master.</p>
+
+<p style="margin-top: 1em">For example, if you setup
+replication using &quot;MASTER_HOST=ubuntu.net&quot; on the
+slave and later connect to the slave with mysqlrplcheck and
+have the master specified as <br>
+&quot;--master=192.168.0.6&quot; using the valid IP address
+for &quot;ubuntu.net&quot;, you must have the ability to do
+a reverse name lookup to compare the IP (192.168.0.6) and
+the hostname <br>
+(ubuntu.net) to determine if they are the same machine.</p>
+
+<p style="margin-top: 1em">Similarly, if you use localhost
+to connect to the master, the health report may not show all
+of the slaves. It is best to use the actual hostname of the
+master when connecting or <br>
+setting up replication.</p>
+
+<p style="margin-top: 1em">If the user does not specify the
+--rpl-user and the user has specified the switchover or
+failover command, the utility will check to see if the
+slaves are using <br>
+--master-info-repository=TABLE. If they are not, the utility
+will stop with an error.</p>
+
+<p style="margin-top: 1em">All the commands require either
+the --slaves or --discover-slaves-login option but both
+cannot be used at the same time. In fact, some commands only
+allow the use of the --slaves <br>
+option which is safer to specify the list slaves, because
+--discover-slaves-login might not provide an up to date list
+of available slaves.</p>
+
+<p style="margin-top: 1em">The path to the MySQL client
+tools should be included in the PATH environment variable in
+order to use the authentication mechanism with login-paths.
+This will allow the utility <br>
+to use the my_print_defaults tools which is required to read
+the login-path values from the login configuration file
+(.mylogin.cnf). EXAMPLES.PP To perform best slave election
+<br>
+for a topology with GTID_MODE=ON (server version 5.6.5 or
+higher) where all slaves are specified with the --slaves
+option, run the following command.:</p>
+
+<p style="margin-top: 1em">shell&gt; mysqlrpladmin
+--master=root@localhost:3331
+--slaves=root@localhost:3332,root@localhost:3333,root@localhost:3334
+elect <br>
+# Electing candidate slave from known slaves. <br>
+# Best slave found is located on localhost:3332. <br>
+# ...done.</p>
+
+<p style="margin-top: 1em">To perform best slave election
+supplying a candidate list, use the following command.:</p>
+
+<p style="margin-top: 1em">shell&gt; mysqlrpladmin
+--master=root@localhost:3331
+--slaves=root@localhost:3332,root@localhost:3333,root@localhost:3334
+--candidates=root@localhost:3333,root@localhost:3334 elect
+<br>
+# Electing candidate slave from candidate list then slaves
+list. <br>
+# Best slave found is located on localhost:3332. <br>
+# ...done.</p>
+
+<p style="margin-top: 1em">To perform failover after a
+master has failed, use the following command.:</p>
+
+<p style="margin-top: 1em">shell&gt; mysqlrpladmin
+--slaves=root@localhost:3332,root@localhost:3333,root@localhost:3334
+--candidates=root@localhost:3333,root@localhost:3334
+failover <br>
+# Performing failover. <br>
+# Candidate slave localhost:3333 will become the new master.
+<br>
+# Preparing candidate for failover. <br>
+# Creating replication user if it does not exist. <br>
+# Stopping slaves. <br>
+# Performing STOP on all slaves. <br>
+# Switching slaves to new master. <br>
+# Starting slaves. <br>
+# Performing START on all slaves. <br>
+# Checking slaves for errors. <br>
+# Failover complete. <br>
+# ...done.</p>
+
+<p style="margin-top: 1em">To see the replication health of
+a topology with GTID_MODE=ON (server version 5.6.5 or
+higher) and discover all slaves attached to the master, run
+the following command. We use <br>
+the result of the failover command above.:</p>
+
+<p style="margin-top: 1em">shell&gt; mysqlrpladmin
+--master=root@localhost:3333
+--slaves=root@localhost:3332,root@localhost:3334 health <br>
+# Getting health for master: localhost:3333. <br>
+# <br>
+# Replication Topology Health: <br>
+
++------------+-------+---------+--------+------------+---------+
+<br>
+| host | port | role | state | gtid_mode | health | <br>
+
++------------+-------+---------+--------+------------+---------+
+<br>
+| localhost | 3333 | MASTER | UP | ON | OK | <br>
+| localhost | 3332 | SLAVE | UP | ON | OK | <br>
+| localhost | 3334 | SLAVE | UP | ON | OK | <br>
+
++------------+-------+---------+--------+------------+---------+
+<br>
+# ...done.</p>
+
+<p style="margin-top: 1em">To view a detailed replication
+health report but with all of the replication health checks
+revealed, use the --verbose option as shown below. In this
+example, we use vertical <br>
+format to make viewing easier.:</p>
+
+<p style="margin-top: 1em">shell&gt; mysqlrpladmin
+--master=root@localhost:3331
+--slaves=root@localhost:3332,root@localhost:3333,root@localhost:3334
+--verbose health <br>
+# Getting health for master: localhost:3331. <br>
+# Attempting to contact localhost ... Success <br>
+# Attempting to contact localhost ... Success <br>
+# Attempting to contact localhost ... Success <br>
+# Attempting to contact localhost ... Success <br>
+# <br>
+# Replication Topology Health: <br>
+************************* 1. row *************************
+<br>
+host: localhost <br>
+port: 3331 <br>
+role: MASTER <br>
+state: UP <br>
+gtid_mode: ON <br>
+health: OK <br>
+version: 5.6.5-m8-debug-log <br>
+master_log_file: mysql-bin.000001 <br>
+master_log_pos: 571 <br>
+IO_Thread: <br>
+SQL_Thread: <br>
+Secs_Behind: <br>
+Remaining_Delay: <br>
+IO_Error_Num: <br>
+IO_Error: <br>
+************************* 2. row *************************
+<br>
+host: localhost <br>
+port: 3332 <br>
+role: SLAVE <br>
+state: UP <br>
+gtid_mode: ON <br>
+health: OK <br>
+version: 5.6.5-m8-debug-log <br>
+master_log_file: mysql-bin.000001 <br>
+master_log_pos: 571 <br>
+IO_Thread: Yes <br>
+SQL_Thread: Yes <br>
+Secs_Behind: 0 <br>
+Remaining_Delay: No <br>
+IO_Error_Num: 0 <br>
+IO_Error: <br>
+************************* 3. row *************************
+<br>
+host: localhost <br>
+port: 3333 <br>
+role: SLAVE <br>
+state: UP <br>
+gtid_mode: ON <br>
+health: OK <br>
+version: 5.6.5-m8-debug-log <br>
+master_log_file: mysql-bin.000001 <br>
+master_log_pos: 571 <br>
+IO_Thread: Yes <br>
+SQL_Thread: Yes <br>
+Secs_Behind: 0 <br>
+Remaining_Delay: No <br>
+IO_Error_Num: 0 <br>
+IO_Error: <br>
+************************* 4. row *************************
+<br>
+host: localhost <br>
+port: 3334 <br>
+role: SLAVE <br>
+state: UP <br>
+gtid_mode: ON <br>
+health: OK <br>
+version: 5.6.5-m8-debug-log <br>
+master_log_file: mysql-bin.000001 <br>
+master_log_pos: 571 <br>
+IO_Thread: Yes <br>
+SQL_Thread: Yes <br>
+Secs_Behind: 0 <br>
+Remaining_Delay: No <br>
+IO_Error_Num: 0 <br>
+IO_Error: <br>
+4 rows. <br>
+# ...done.</p>
+
+<p style="margin-top: 1em">To run the same failover command
+above, but specify a log file, use the following
+command.:</p>
+
+<p style="margin-top: 1em">shell&gt; mysqlrpladmin
+--slaves=root@localhost:3332,root@localhost:3333,root@localhost:3334
+--candidates=root@localhost:3333,root@localhost:3334
+--log=test_log.txt failover <br>
+# Performing failover. <br>
+# Candidate slave localhost:3333 will become the new master.
+<br>
+# Preparing candidate for failover. <br>
+# Creating replication user if it does not exist. <br>
+# Stopping slaves. <br>
+# Performing STOP on all slaves. <br>
+# Switching slaves to new master. <br>
+# Starting slaves. <br>
+# Performing START on all slaves. <br>
+# Checking slaves for errors. <br>
+# Failover complete. <br>
+# ...done.</p>
+
+<p style="margin-top: 1em">After this command, the log file
+will contain entries like the following:</p>
+
+<p style="margin-top: 1em">2012-03-19 14:44:17 PM INFO
+Executing failover command... <br>
+2012-03-19 14:44:17 PM INFO Performing failover. <br>
+2012-03-19 14:44:17 PM INFO Candidate slave localhost:3333
+will become the new master. <br>
+2012-03-19 14:44:17 PM INFO Preparing candidate for
+failover. <br>
+2012-03-19 14:44:19 PM INFO Creating replication user if it
+does not exist. <br>
+2012-03-19 14:44:19 PM INFO Stopping slaves. <br>
+2012-03-19 14:44:19 PM INFO Performing STOP on all slaves.
+<br>
+2012-03-19 14:44:19 PM INFO Switching slaves to new master.
+<br>
+2012-03-19 14:44:20 PM INFO Starting slaves. <br>
+2012-03-19 14:44:20 PM INFO Performing START on all slaves.
+<br>
+2012-03-19 14:44:20 PM INFO Checking slaves for errors. <br>
+2012-03-19 14:44:21 PM INFO Failover complete. <br>
+2012-03-19 14:44:21 PM INFO ...done.</p>
+
+<p style="margin-top: 1em">To perform switchover and demote
+the current master to a slave, use the following
+command.:</p>
+
+<p style="margin-top: 1em">shell&gt; mysqlrpladmin
+--master=root@localhost:3331
+--slaves=root@localhost:3332,root@localhost:3333,root@localhost:3334
+--new-master=root@localhost:3332 --demote-master switchover
+<br>
+# Performing switchover from master at localhost:3331 to
+slave at localhost:3332. <br>
+# Checking candidate slave prerequisites. <br>
+# Waiting for slaves to catch up to old master. <br>
+# Stopping slaves. <br>
+# Performing STOP on all slaves. <br>
+# Demoting old master to be a slave to the new master. <br>
+# Switching slaves to new master. <br>
+# Starting all slaves. <br>
+# Performing START on all slaves. <br>
+# Checking slaves for errors. <br>
+# Switchover complete. <br>
+# ...done.</p>
+
+<p style="margin-top: 1em">If the replication health report
+is generated on the topology following the above command, it
+will display the old master as a slave as shown below.:</p>
+
+<p style="margin-top: 1em"># Replication Topology Health:
+<br>
+
++------------+-------+---------+--------+------------+---------+
+<br>
+| host | port | role | state | gtid_mode | health | <br>
+
++------------+-------+---------+--------+------------+---------+
+<br>
+| localhost | 3332 | MASTER | UP | ON | OK | <br>
+| localhost | 3331 | SLAVE | UP | ON | OK | <br>
+| localhost | 3333 | SLAVE | UP | ON | OK | <br>
+| localhost | 3334 | SLAVE | UP | ON | OK | <br>
+
++------------+-------+---------+--------+------------+---------+</p>
+
+<p style="margin-top: 1em">You can use the discover slaves
+feature, if and only if all slaves report their host and
+port to the master. A sample command to generate a
+replication health report with <br>
+discovery is shown below. Note that the option
+--discover-slaves-login cannot be used in conjunction with
+the --slaves option.:</p>
+
+<p style="margin-top: 1em">shell&gt; mysqlrpladmin
+--master=root@localhost:3332 --discover-slaves-login=root
+health <br>
+# Discovering slaves for master at localhost:3332 <br>
+# Discovering slave at localhost:3331 <br>
+# Found slave: localhost:3331 <br>
+# Discovering slave at localhost:3333 <br>
+# Found slave: localhost:3333 <br>
+# Discovering slave at localhost:3334 <br>
+# Found slave: localhost:3334 <br>
+# Checking privileges. <br>
+# <br>
+# Replication Topology Health: <br>
+
++------------+-------+---------+--------+------------+---------+
+<br>
+| host | port | role | state | gtid_mode | health | <br>
+
++------------+-------+---------+--------+------------+---------+
+<br>
+| localhost | 3332 | MASTER | UP | ON | OK | <br>
+| localhost | 3331 | SLAVE | UP | ON | OK | <br>
+| localhost | 3333 | SLAVE | UP | ON | OK | <br>
+| localhost | 3334 | SLAVE | UP | ON | OK | <br>
+
++------------+-------+---------+--------+------------+---------+
+<br>
+# ...done.</p>
+
+<p style="margin-top: 1em">PERMISSIONS REQUIRED.PP The
+users on the master need the following privileges: SELECT
+and INSERT privileges on mysql database, REPLICATION SLAVE,
+REPLICATION CLIENT and GRANT <br>
+OPTION. The slave users need the SUPER privilege. The repl
+user, used as the argument for the --rpl-user option, is
+either created automatically or if it exists, it needs the
+<br>
+REPLICATION SLAVE privilege.</p>
+
+<p style="margin-top: 1em">To run the mysqlrpladmin utility
+with the health command, the account used on the master
+needs an extra SUPER privilege.</p>
+
+<p style="margin-top: 1em">As for the switchover command
+all the users need the following privileges: SUPER, GRANT
+OPTION, SELECT, RELOAD, DROP, CREATE and REPLICATION
+SLAVE</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright &Acirc;&copy; 2006, 2015, Oracle and/or its
+affiliates. All rights reserved.</p>
+
+<p style="margin-top: 1em">This documentation is free
+software; you can redistribute it and/or modify it only
+under the terms of the GNU General Public License as
+published by the Free Software Foundation; <br>
+version 2 of the License.</p>
+
+<p style="margin-top: 1em">This documentation is
+distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR <br>
+PURPOSE. See the GNU General Public License for more
+details.</p>
+
+<p style="margin-top: 1em">You should have received a copy
+of the GNU General Public License along with the program; if
+not, write to the Free Software Foundation, Inc., 51
+Franklin Street, Fifth Floor, <br>
+Boston, MA 02110-1301 USA or see
+http://www.gnu.org/licenses/.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+For more information, please refer to the MySQL Utilities
+and Fabric documentation, which is available online at
+http://dev.mysql.com/doc/index-utils-fabric.html</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Oracle Corporation (http://dev.mysql.com/).</p>
+
+<p style="margin-top: 1em">MySQL 1.5.6 09/15/2015
+MYSQLRPLADMIN(1)</p>
+<hr>
+</body>
+</html>

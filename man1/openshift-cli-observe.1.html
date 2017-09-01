@@ -1,0 +1,338 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:29:00 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>OPENSHIFT CLI(1) June 2016 OPENSHIFT CLI(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+openshift cli observe - Observe changes to resources and
+react to them (experimental)</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+openshift cli observe [OPTIONS]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+Observe changes to resources and take action on them</p>
+
+<p style="margin-top: 1em">This command assists in building
+scripted reactions to changes that occur in Kubernetes or
+OpenShift resources. This is frequently referred to as a
+&rsquo;controller&rsquo; in Kubernetes and <br>
+acts to ensure particular conditions are maintained. On
+startup, observe will list all of the resources of a
+particular type and execute the provided script on each one.
+Observe <br>
+watches the server for changes, and will reexecute the
+script for each update.</p>
+
+<p style="margin-top: 1em">Observe works best for problems
+of the form &quot;for every resource X, make sure Y is
+true&quot;. Some examples of ways observe can be used
+include:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Ensure every
+namespace has a quota or limit range object</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Ensure every
+service is registered in DNS by making calls to a DNS
+API</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Send an email
+alert whenever a node reports &rsquo;NotReady&rsquo;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Watch for the
+&rsquo;FailedScheduling&rsquo; event and write an IRC
+message</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Dynamically
+provision persistent volumes when a new PVC is created</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Delete pods that
+have reached successful completion after a period of
+time.</p>
+
+<p style="margin-top: 1em">The simplest pattern is
+maintaining an invariant on an object - for instance,
+&quot;every namespace should have an annotation that
+indicates its owner&quot;. If the object is deleted no <br>
+reaction is necessary. A variation on that pattern is
+creating another object: &quot;every namespace should have a
+quota object based on the resources allowed for an
+owner&quot;.</p>
+
+<p style="margin-top: 1em">$ cat set_owner.sh <br>
+#!/bin/sh <br>
+if [[ &quot;$(openshift cli get namespace &quot;$1&quot;
+--template=&rsquo;{{ .metadata.annotations.owner
+}}&rsquo;)&quot; == &quot;&quot; ]]; then <br>
+openshift cli annotate namespace &quot;$1&quot; owner=bob
+<br>
+fi</p>
+
+<p style="margin-top: 1em">$ openshift cli observe
+namespaces -- ./set_owner.sh</p>
+
+<p style="margin-top: 1em">The set _owner.sh script is
+invoked with a single argument (the namespace name) for each
+namespace. This simple script ensures that any user without
+the &quot;owner&quot; annotation gets <br>
+one set, but preserves any existing value.</p>
+
+<p style="margin-top: 1em">The next common of controller
+pattern is provisioning - making changes in an external
+system to match the state of a Kubernetes resource. These
+scripts need to account for dele&acirc; <br>
+tions that may take place while the observe command is not
+running. You can provide the list of known objects via the
+--names command, which should return a newline-delimited
+<br>
+list of names or namespace/name pairs. Your command will be
+invoked whenever observe checks the latest state on the
+server - any resources returned by --names that are not
+found <br>
+on the server will be passed to your --delete command.</p>
+
+<p style="margin-top: 1em">For example, you may wish to
+ensure that every node that is added to Kubernetes is added
+to your cluster inventory along with its IP:</p>
+
+<p style="margin-top: 1em">$ cat add_to_inventory.sh <br>
+#!/bin/sh <br>
+echo &quot;$1 $2&quot; &gt;&gt; inventory <br>
+sort -u inventory -o inventory</p>
+
+<p style="margin-top: 1em">$ cat remove_from_inventory.sh
+<br>
+#!/bin/sh <br>
+grep -vE &quot;^$1 &quot; inventory &gt; /tmp/newinventory
+<br>
+mv -f /tmp/newinventory inventory</p>
+
+<p style="margin-top: 1em">$ cat known_nodes.sh <br>
+#!/bin/sh <br>
+touch inventory <br>
+cut -f 1-1 -d &rsquo; &rsquo; inventory</p>
+
+<p style="margin-top: 1em">$ openshift cli observe nodes -a
+&rsquo;{ .status.addresses[0].address }&rsquo; --names
+./known_nodes.sh --delete ./remove_from_inventory.sh --
+./add_to_inventory.sh</p>
+
+<p style="margin-top: 1em">If you stop the observe command
+and then delete a node, when you launch observe again the
+contents of inventory will be compared to the list of nodes
+from the server, and any <br>
+node in the inventory file that no longer exists will
+trigger a call to remove from inventory.sh with the name of
+the node.</p>
+
+<p style="margin-top: 1em">Important: when handling
+deletes, the previous state of the object may not be
+available and only the name/namespace of the object will be
+passed to your --delete command as <br>
+arguments (all custom arguments are omitted).</p>
+
+<p style="margin-top: 1em">More complicated interactions
+build on the two examples above - your inventory script
+could make a call to allocate storage on your infrastructure
+as a service, or register node <br>
+names in DNS, or set complex firewalls. The more complex
+your integration, the more important it is to record enough
+data in the remote system that you can identify when <br>
+resources on either side are deleted.</p>
+
+<p style="margin-top: 1em">Experimental: This command is
+under active development and may change without notice.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+--all-namespaces=false <br>
+If true, list the requested object(s) across all projects.
+Project in current context is ignored.</p>
+
+<p style="margin-top: 1em">-a, --argument=&quot;&quot; <br>
+Template for the arguments to be passed to each command in
+the format defined by --output.</p>
+
+<p style="margin-top: 1em">-d, --delete=&quot;&quot; <br>
+A command to run when resources are deleted. Specify
+multiple times to add arguments.</p>
+
+<p style="margin-top: 1em">--exit-after=0 <br>
+Exit with status code 0 after the provided duration,
+optional.</p>
+
+
+<p style="margin-top: 1em">--listen-addr=&quot;:11251&quot;
+<br>
+The name of an interface to listen on to expose metrics and
+health checking.</p>
+
+<p style="margin-top: 1em">--maximum-errors=20 <br>
+Exit after this many errors have been detected with. May be
+set to -1 for no maximum.</p>
+
+<p style="margin-top: 1em">--names=&quot;&quot; <br>
+A command that will list all of the currently known names,
+optional. Specify multiple times to add arguments. Use to
+get notifications when objects are deleted.</p>
+
+<p style="margin-top: 1em">--no-headers=false <br>
+If true, skip printing information about each event prior to
+executing the command.</p>
+
+<p style="margin-top: 1em">--object-env-var=&quot;&quot;
+<br>
+The name of an env var to serialize the object to when
+calling the command, optional.</p>
+
+<p style="margin-top: 1em">--once=false <br>
+If true, exit with a status code 0 after all current objects
+have been processed.</p>
+
+<p style="margin-top: 1em">--output=&quot;jsonpath&quot;
+<br>
+Controls the template type used for the --argument flags.
+Supported values are gotemplate and jsonpath.</p>
+
+<p style="margin-top: 1em">--print-metrics-on-exit=false
+<br>
+If true, on exit write all metrics to stdout.</p>
+
+<p style="margin-top: 1em">--resync-period=0 <br>
+When non-zero, periodically reprocess every item from the
+server as a Sync event. Use to ensure external systems are
+kept up to date. Requires --names</p>
+
+<p style="margin-top: 1em">--retry-count=2 <br>
+The number of times to retry a failing command before
+continuing.</p>
+
+<p style="margin-top: 1em">--retry-on-exit-code=0 <br>
+If any command returns this exit code, retry up to
+--retry-count times.</p>
+
+<p style="margin-top: 1em">--strict-templates=false <br>
+If true return an error on any field or map key that is not
+missing in a template.</p>
+
+<p style="margin-top: 1em">--type-env-var=&quot;&quot; <br>
+The name of an env var to set with the type of event
+received (&rsquo;Sync&rsquo;, &rsquo;Updated&rsquo;,
+&rsquo;Deleted&rsquo;, &rsquo;Added&rsquo;) to the reaction
+command or --delete.</p>
+
+<p style="margin-top: 1em">OPTIONS INHERITED FROM PARENT
+COMMANDS <br>
+--api-version=&quot;&quot; <br>
+DEPRECATED: The API version to use when talking to the
+server</p>
+
+<p style="margin-top: 1em">--as=&quot;&quot; <br>
+Username to impersonate for the operation</p>
+
+
+<p style="margin-top: 1em">--azure-container-registry-config=&quot;&quot;
+<br>
+Path to the file container Azure container registry
+configuration information.</p>
+
+
+<p style="margin-top: 1em">--certificate-authority=&quot;&quot;
+<br>
+Path to a cert. file for the certificate authority</p>
+
+
+<p style="margin-top: 1em">--client-certificate=&quot;&quot;
+<br>
+Path to a client certificate file for TLS</p>
+
+<p style="margin-top: 1em">--client-key=&quot;&quot; <br>
+Path to a client key file for TLS</p>
+
+<p style="margin-top: 1em">--cluster=&quot;&quot; <br>
+The name of the kubeconfig cluster to use</p>
+
+<p style="margin-top: 1em">--config=&quot;&quot; <br>
+Path to the config file to use for CLI requests.</p>
+
+<p style="margin-top: 1em">--context=&quot;&quot; <br>
+The name of the kubeconfig context to use</p>
+
+<p style="margin-top: 1em">--google-json-key=&quot;&quot;
+<br>
+The Google Cloud Platform Service Account JSON Key to use
+for authentication.</p>
+
+
+<p style="margin-top: 1em">--insecure-skip-tls-verify=false
+<br>
+If true, the server&rsquo;s certificate will not be checked
+for validity. This will make your HTTPS connections
+insecure</p>
+
+<p style="margin-top: 1em">--log-flush-frequency=0 <br>
+Maximum number of seconds between log flushes</p>
+
+<p style="margin-top: 1em">--match-server-version=false
+<br>
+Require server version to match client version</p>
+
+<p style="margin-top: 1em">-n, --namespace=&quot;&quot;
+<br>
+If present, the namespace scope for this CLI request</p>
+
+<p style="margin-top: 1em">--request-timeout=&quot;0&quot;
+<br>
+The length of time to wait before giving up on a single
+server request. Non-zero values should contain a
+corresponding time unit (e.g. 1s, 2m, 3h). A value of zero
+means <br>
+don&rsquo;t timeout requests.</p>
+
+<p style="margin-top: 1em">--server=&quot;&quot; <br>
+The address and port of the Kubernetes API server</p>
+
+<p style="margin-top: 1em">--token=&quot;&quot; <br>
+Bearer token for authentication to the API server</p>
+
+<p style="margin-top: 1em">--user=&quot;&quot; <br>
+The name of the kubeconfig user to use</p>
+
+<p style="margin-top: 1em">EXAMPLE <br>
+# Observe changes to services <br>
+openshift cli observe services</p>
+
+<p style="margin-top: 1em"># Observe changes to services,
+including the clusterIP and invoke a script for each <br>
+openshift cli observe services -a &rsquo;{ .spec.clusterIP
+}&rsquo; -- register_dns.sh</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+openshift-cli(1),</p>
+
+<p style="margin-top: 1em">HISTORY <br>
+June 2016, Ported from the Kubernetes man-doc generator</p>
+
+<p style="margin-top: 1em">Openshift Openshift CLI User
+Manuals OPENSHIFT CLI(1)</p>
+<hr>
+</body>
+</html>

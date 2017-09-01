@@ -1,0 +1,726 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 15:59:37 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>CNTLM(1) Accelerating NTLM/NTLMv2 Authentication Proxy
+CNTLM(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+cntlm - authenticating HTTP(S) proxy with TCP/IP tunneling
+and acceleration</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+cntlm [ -AaBcDdFfgHhILlMPprSsTUuvw ] [ host1 port1 |
+host1:port1 ] ... hostN portN</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+Cntlm is an NTLM/NTLM SR/NTLMv2 authenticating HTTP proxy.
+It stands between your applications and the corporate proxy,
+adding NTLM authentication on-the-fly. You can specify <br>
+several &quot;parent&quot; proxies and Cntlm will try one
+after another until one works. All auth&rsquo;d connections
+are cached and reused to achieve high efficiency. Just point
+your apps proxy <br>
+settings at Cntlm, fill in cntlm.conf (cntlm.ini) and
+you&rsquo;re ready to do. This is useful on Windows, but
+essential for non-Microsoft OS&rsquo;s. Proxy IP addresses
+can be specified via <br>
+CLI (host1:port1 to hostN:portN) or the configuration
+file.</p>
+
+<p style="margin-top: 1em">Another option is to have cntlm
+authenticate your local web connections without any parent
+proxies. It can work in a stand-alone mode, just like Squid
+or ISA. By default, all <br>
+requests are forwarded to parent proxies, but the user can
+set a &quot;NoProxy&quot; list, a list of URL matching
+wild-card patterns, that route between direct and forward
+modes. Cntlm can <br>
+also recognize when all your corporate proxies are
+unavailable and switch to stand-alone mode automatically
+(and then back again). Aside from WWW and PROXY
+authentication, cntlm <br>
+provides a useful feature enabling users migrate their
+laptops between work and home without changing proxy
+settings in their applications (using cntlm all the time).
+Cntlm also <br>
+integrates transparent TCP/IP port forwarding (tunneling).
+Each tunnel opens a new listening socket on local machine
+and and forwards all connections to the target host behind
+<br>
+the parent proxy. Instead of these SSH-like tunnels, user
+can also choose a limited SOCKS5 interface.</p>
+
+<p style="margin-top: 1em">Core cntlm function had been
+similar to the late NTLMAPS, but today, cntlm has evolved
+way beyond anything any other application of this type can
+offer. The feature list below <br>
+speaks for itself. Cntlm has many security/privacy features
+like NTLMv2 support and password protection - it is possible
+to substitute password hashes (which can be obtained <br>
+using -H) in place of the actual password or to enter the
+password interactively (on start-up or via &quot;basic&quot;
+HTTP auth translation). If plaintext password is used, it is
+automat&acirc; <br>
+ically hashed during the startup and all traces of it are
+removed from the process memory.</p>
+
+<p style="margin-top: 1em">In addition to minimal use of
+system resources, cntlm achieves higher throughput on a
+given link. By caching authenticated connections, it acts as
+an HTTP accelerator; This way, <br>
+the 5-way auth handshake for each connection is
+transparently eliminated, providing immediate access most of
+the time. Cntlm never caches a request/reply body in memory,
+in fact, <br>
+no traffic is generated except for the exchange of auth
+headers until the client &lt;-&gt; server connection is
+fully negotiated. Only then real data transfer takes place.
+Cntlm is <br>
+written in optimized C and easily achieves fifteen times
+faster responses than others.</p>
+
+<p style="margin-top: 1em">An example of cntlm compared to
+NTLMAPS: cntlm gave avg 76 kB/s with peak CPU usage of 0.3%
+whereas with NTLMAPS it was avg 48 kB/s with peak CPU at 98%
+(Pentium M 1.8 GHz). The <br>
+extreme difference in resource usage is one of many
+important benefits for laptop use. Peak memory consumption
+(several complex sites, 50 paralell connections/threads;
+values are <br>
+in KiB):</p>
+
+<p style="margin-top: 1em">VSZ RSS CMD <br>
+3204 1436 ./cntlm -f -c ./cntlm.conf -P pid <br>
+411604 6264 /usr/share/ntlmaps/main.py -c
+/etc/ntlmaps/server.cfg</p>
+
+<p style="margin-top: 1em">Inherent part of the development
+is profiling and memory management screening using Valgrind.
+The source distribution contains a file called valgrind.txt,
+where you can see the <br>
+report confirming zero leaks, no access to unallocated
+memory, no usage of uninitialized data - all traced down to
+each instruction emulated in Valgrind&rsquo;s virtual CPU
+during a <br>
+typical production lifetime of the proxy.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+Most options can be pre-set in a configuration file.
+Specifying an option more than once is not an error, but
+cntlm ignores all occurences except the last one. This does
+not <br>
+apply to options like -L, each of which creates a new
+instance of some feature. Cntlm can be built with a
+hardcoded configuration file (e.g. /etc/cntlm.conf), which
+is always <br>
+loaded, if possible. See -c option on how to override some
+or all of its settings.</p>
+
+<p style="margin-top: 1em">Use -h to see available options
+with short description.</p>
+
+<p style="margin-top: 1em">-A IP/mask (Allow) <br>
+Allow ACL rule. Together with -D (Deny) they are the two
+rules allowed in ACL policy. It is more usual to have this
+in a configuration file, but Cntlm follows the premise <br>
+that you can do the same on the command-line as you can
+using the config file. When Cntlm receives a connection
+request, it decides whether to allow or deny it. All ACL
+<br>
+rules are stored in a list in the same order as specified.
+Cntlm then walks the list and the first IP/mask rule that
+matches the request source address is applied. The <br>
+mask can be any number from 0 to 32, where 32 is the default
+(that is exact IP match). This notation is also known as
+CIDR. If you want to match everything, use 0/0 or an <br>
+asterix. ACLs on the command-line take precedence over those
+in the config file. In such case, you will see info about
+that in the log (among the list of unused options). <br>
+There you can also see warnings about possibly incorrect
+subnet spec, that&rsquo;s when the IP part has more bits
+than you declare by mask (e.g. 10.20.30.40/24 should be <br>
+10.20.30.0/24).</p>
+
+<p style="margin-top: 1em">-a NTLMv2 | NTLM2SR | NT | NTLM
+| LM (Auth) <br>
+Authentication type. NTLM(v2) comprises of one or two hashed
+responses, NT and LM or NTLM2SR or NTv2 and LMv2, which are
+computed from the password hash. Each response <br>
+uses a different hashing algorithm; as new response types
+were invented, stronger algorithms were used. When you first
+install cntlm, find the strongest one which works <br>
+for you (preferably using -M). Above they are listed from
+strongest to weakest. Very old servers or dedicated HW
+proxies might be unable to process anything but LM. If <br>
+none of those work, see compatibility flags option -F or
+submit a Support Request.</p>
+
+<p style="margin-top: 1em">IMPORTANT: Although NTLMv2 is
+not widely adopted (i.e. enforced), it is supported on all
+Windows since NT 4.0 SP4. That&rsquo;s for a very long time!
+I strongly suggest you use <br>
+it to protect your credentials on-line. You should also
+replace plaintext Password options with hashed
+Pass[NTLMv2|NT|LM] equivalents. NTLMv2 is the most and
+possibly the <br>
+only secure authentication of the NTLM family.</p>
+
+<p style="margin-top: 1em">-B (NTLMToBasic) <br>
+This option enables &quot;NTLM-to-basic&quot;, which allows
+you to use one cntlm for multiple users. Please note that
+all security of NTLM is lost this way. Basic auth uses just
+a <br>
+simple encoding algorithm to &quot;hide&quot; your
+credentials and it is moderately easy to sniff them.</p>
+
+<p style="margin-top: 1em">IMPORTANT: HTTP protocol
+obviously has means to negotiate authorization before
+letting you through, but TCP/IP doesn&rsquo;t (i.e. open
+port is open port). If you use NTLM-to- <br>
+basic and DON&rsquo;T specify some username/password in the
+configuration file, you are bound to loose tunneling
+features, because cntlm alone won&rsquo;t know your
+credentials.</p>
+
+<p style="margin-top: 1em">Because NTLM identification has
+at least three parts (username, password, domain) and the
+basic authentication provides fields for only two (username,
+password), you have <br>
+to smuggle the domain part somewhere. You can set the Domain
+config/cmd-line parameter, which will then be used for all
+users, who don&rsquo;t specify their domain as a part of
+<br>
+the username. To do that and override the global domain
+setting, use this instead of plain username in the password
+dialog: &quot;domainsername&quot;.</p>
+
+<p style="margin-top: 1em">-c &lt;filename&gt; <br>
+Configuration file. Command-line options, if used, override
+its single options or are added at the top of the list for
+multi options (tunnels, parent proxies, etc) with <br>
+the exception of ACLs, which are completely overridden. Use
+/dev/null to disable any config file.</p>
+
+<p style="margin-top: 1em">-D IP/mask (Deny) <br>
+Deny ACL rule. See option -A above.</p>
+
+<p style="margin-top: 1em">-d &lt;domain&gt; (Domain) <br>
+The domain or workgroup of the proxy account. This value can
+also be specified as a part of the username with -u.</p>
+
+<p style="margin-top: 1em">-F &lt;flags&gt; (Flags) <br>
+NTLM authentication flags. This option is rater delicate and
+I do not recommend to change the default built-in values
+unless you had no success with parent proxy auth and <br>
+tried magic autodetection (-M) and all possible values for
+the Auth option (-a). Remember that each NT/LM hash
+combination requires different flags. This option is sort of
+<br>
+a complete &quot;manual override&quot; and you&rsquo;ll have
+to deal with it yourself.</p>
+
+<p style="margin-top: 1em">-f Run in console as a
+foreground job, do not fork into background. In this mode,
+all syslog messages will be echoed to the console (on
+platforms which support syslog <br>
+LOG_PERROR option). Though cntlm is primarily designed as a
+classic UNIX daemon with syslogd logging, it provides
+detailed verbose mode without detaching from the
+control&acirc; <br>
+ling terminal; see -v. In any case, all error and diagnostic
+messages are always sent to the system logger.</p>
+
+<p style="margin-top: 1em">-G &lt;pattern&gt;
+(ISAScannerAgent) <br>
+User-Agent matching (case insensitive) for trans-isa-scan
+plugin (see -S for explanation). Positive match identifies
+requests (applications) for which the plugin should be <br>
+enabled without considering the size of the download (see
+-S). You can use shell wildcard characters, namely
+&quot;*&quot;, &quot;?&quot; and &quot;[]&quot;. If used
+without -S or ISAScannerSize, the <br>
+max_size_in_kb is internally set to infinity, so the plugin
+will be active ONLY for selected User-Agents, regardless of
+download size.</p>
+
+<p style="margin-top: 1em">-g (Gateway) <br>
+Gateway mode, cntlm listens on all network interfaces.
+Default is to bind just loopback. That way, only local
+processes can connect to cntlm. In the gateway mode though,
+<br>
+cntlm listens on all interfaces and is accessible to other
+machines on the network. Please note that with this option
+the command-line order matters when specifying proxy <br>
+or tunnel local (listening) ports. Those positioned before
+it will bind only loopback; those after will be public. <br>
+IMPORTANT: All of the above applies only to local ports for
+which you didn&rsquo;t specify any source address. If you
+did, cntlm tries to bind the given port only on the
+speci&acirc; <br>
+fied interface (or rather IP address).</p>
+
+<p style="margin-top: 1em">-H Use this option to get hashes
+for password-less configuration. In this mode, cntlm prints
+the results and exits. You can just copy &amp; paste right
+into the config file. You <br>
+ought to use this option with explicit -u and -d, because
+some hashes include the username and domain name in the
+calculation. Do see -a for security recommendations.</p>
+
+<p style="margin-top: 1em">-h Display help (available
+options with a short description) and exit.</p>
+
+<p style="margin-top: 1em">-I Interactive password prompt.
+Any password settings from the command line or config file
+is ignored and a password prompt is issued. Use this option
+only from shell.</p>
+
+<p style="margin-top: 1em">-L
+[&lt;saddr&gt;:]&lt;lport&gt;:&lt;rhost&gt;:&lt;rport&gt;
+(Tunnel) <br>
+Tunnel definition. The syntax is the same as in
+OpenSSH&rsquo;s local forwarding (-L), with a new optional
+prefix, saddr - the source IP address to bind the lport to.
+Cntlm will <br>
+listen for incoming connections on the local port lport,
+forwarding every new connection through the parent proxy to
+the rhost:rport (authenticating on the go). This <br>
+option can be used multiple times for unlimited number of
+tunnels, with or without the saddr option. See -g for the
+details concerning local port binding when saddr is not <br>
+used.</p>
+
+<p style="margin-top: 1em">Please note that many corporate
+proxies do not allow connections to ports other than 443
+(https), but if you run your target service on this port,
+you should be safe. Con&acirc; <br>
+nect to HTTPS is &quot;always&quot; allowed, otherwise
+nobody would be able to browse https:// sites. In any case,
+first try if you can establish a connection through the
+tunnel, <br>
+before you rely on it. This feature does the same job as
+tools like corkscrew(1), but instead of communicating over a
+terminal, cntlm keeps it TCP/IP.</p>
+
+<p style="margin-top: 1em">-l [&lt;saddr&gt;:]&lt;lport&gt;
+(Listen) <br>
+Local port for the cntlm proxy service. Use the number you
+have chosen here and the hostname of the machine running
+cntlm (possibly localhost) as proxy settings in your <br>
+browser and/or the environment. Most applications (including
+console) support the notion of proxy to connect to other
+hosts. On POSIX, set the following variables to use <br>
+e.g. wget(1) without any trouble (fill in the actual address
+of cntlm):</p>
+
+<p style="margin-top: 1em">$ export
+ftp_proxy=http://localhost:3128 <br>
+$ export http_proxy=$ftp_proxy <br>
+$ export https_proxy=$ftp_proxy</p>
+
+<p style="margin-top: 1em">You can choose to run the proxy
+service on more than one port, in such case just use this
+option as many times as necessary. But unlike tunnel
+definition, cntlm fails to <br>
+start if it cannot bind all of the proxy service ports.
+Proxy service port can also be bound selectively. Use saddr
+to pick source IP address to bind the lport to. This <br>
+allows you, for example, to run the service on different
+ports for subnet A and B and make it invisible for subnet C.
+See -g for the details concerning local port binding <br>
+when saddr is not used.</p>
+
+<p style="margin-top: 1em">-M &lt;testurl&gt; <br>
+Run magic NTLM dialect detection. In this mode, cntlm tries
+some known working presets against your proxy. Probe
+requests are made for the specified testurl, with the <br>
+strongest hashes going first. When finished, settings for
+the most secure setup are printed. Although the detection
+will tell you which and how to use Auth, Flags and <br>
+password-hash options, you have to configure at least your
+credentials and proxy address first. You can use -I to enter
+your password interactively.</p>
+
+<p style="margin-top: 1em">-N
+&lt;pattern1&gt;[,&lt;patternN] (NoProxy) <br>
+Avoid parent proxy for these host names. All matching
+URL&rsquo;s will be proxied directly by cntlm as a
+stand-alone proxy. Cntlm supports WWW authentication in this
+mode, thus <br>
+allowing you to access local intranet sites with corporate
+NTLM authentication. Hopefully, you won&rsquo;t need that
+virtualized MSIE any more. :)</p>
+
+<p style="margin-top: 1em">-O
+[&lt;saddr&gt;:]&lt;port_number&gt; (SOCKS5Proxy) <br>
+Enable SOCKS5 proxy and make it listen on local port
+port_number (source IP spec is also possible, as with all
+options). By default, there will be no restrictions as to
+<br>
+who can use this service. Some clients don&rsquo;t even
+support SOCKS5 authentication (e.g. almost all browsers). If
+you wish to enforce authentication, use -R or its equivalent
+<br>
+option, SOCKS5User. As with port tunneling, it is up to the
+parent proxy whether it will allow connection to any
+requested host:port. This feature can be used with <br>
+tsocks(1) to make most TCP/IP applications go thru the proxy
+rather than directly (only outgoing connections will work,
+obviously). To make apps work without DNS server, <br>
+it is important that they don&rsquo;t resolve themselves,
+but using SOCKS. E.g. Firefox has this option available
+through URI &quot;about:config&quot;, key name net&acirc;
+<br>
+work.proxy.socks_remote_dns, which must be set to true.
+Proxy-unaware tsocksified apps, will have to be configured
+using IP addresses to prevent them from DNS resolving.</p>
+
+<p style="margin-top: 1em">-P &lt;pidfile&gt; <br>
+Create a PID file pidfile upon startup. If the specified
+file exists, it is truncated and overwritten. This option is
+intended for use with start-stop-daemon(8) and other <br>
+servicing mechanisms. Please note that the PID file is
+created AFTER the process drops its privileges and forks.
+When the daemon finishes cleanly, the file is removed.</p>
+
+<p style="margin-top: 1em">-p &lt;password&gt; (Password,
+PassNT, ...) <br>
+Proxy account password. Cntlm deletes the password from the
+memory, to make it invisible in /proc or with inspection
+tools like ps(1), but the preferable way of setting <br>
+password is the configuration file. To that end, you can use
+Password option (for plaintext, human readable format), or
+&quot;encrypt&quot; your password via -H and then use
+Pass&acirc; <br>
+NTLMv2, PassNT and/or PassLM.</p>
+
+<p style="margin-top: 1em">-R
+&lt;username&gt;:&lt;password&gt; (SOCKS5User) <br>
+If SOCKS5 proxy is enabled, this option can make it
+accessible only to those who have been authorized. It can be
+used several times, to create a whole list of accounts <br>
+(allowed user:pass combinations).</p>
+
+<p style="margin-top: 1em">-S &lt;max_size_in_kb&gt;
+(ISAScannerSize) <br>
+Enables the plugin for transparent handling of the dreaded
+ISA AV scanner, which returns an interactive HTTP page
+(displaying the scanning progress) instead of the <br>
+file/data you&rsquo;ve requested, every time it feels like
+scanning the contents. This presumptuous behavior breaks
+every automated downloader, updater and basically EVERY <br>
+application relying on downloads (e.g. wget, apt-get).</p>
+
+<p style="margin-top: 1em">The parameter max_size_in_kb
+allows you to choose maximum download size you wish to
+handle by the plugin (see below why you might want that). If
+the file size is bigger <br>
+than this, cntlm forwards you the interactive page,
+effectively disabling the plugin for that download. Zero
+means no limit. Use -G/ISAScannerAgent to identify
+applica&acirc; <br>
+tions for which max_size_in_kb should be ignored (forcing
+the plugin). It works by matching User-Agent header and is
+necessary for e.g. wget, apt-get and yum, which would <br>
+fail if the response is some HTTP page instead of requested
+data.</p>
+
+<p style="margin-top: 1em">How it works: the client asks
+for a file, cntlm detects ISA&rsquo;s bullshit response and
+waits for the secret link to ISA&rsquo;s cache, which comes
+no sooner than the file is down&acirc; <br>
+loaded and scanned by ISA. Only then can cntlm make the
+second request for the real file and forward it along with
+correct headers to the client. The client doesn&rsquo;t
+time&acirc; <br>
+out while waiting for it, b/c cntlm is periodically sending
+an extra &quot;keepalive&quot; header, but the user might
+get nervous not seeing the progress bar move. It&rsquo;s of
+course <br>
+purely psychological matter, there&rsquo;s no difference if
+cntlm or your browser requests the scanned file - you must
+wait for ISA to do it&rsquo;s job and download then. You
+just <br>
+expect to see some progress indicator move, which is all
+what the ISA&rsquo;s page does: it shows HTML countdown.</p>
+
+<p style="margin-top: 1em">If the plugin cannot parse the
+interactive page for some reason (unknown formatting, etc.),
+it quits and the page is forwarded to you - it&rsquo;s never
+&quot;lost&quot;.</p>
+
+<p style="margin-top: 1em">The keepalive header is called
+ISA-Scanner and shows ISA&rsquo;s progress, e.g.:</p>
+
+<p style="margin-top: 1em">HTTP/1.1 200 OK <br>
+ISA-Scanner: 1000 of 10000 <br>
+ISA-Scanner: 2000 of 10000 <br>
+...</p>
+
+<p style="margin-top: 1em">-r &quot;&lt;name&gt;:
+&lt;value&gt;&quot; (Header) <br>
+Header substitution. Every client&rsquo;s request will be
+processed and any headers defined using -r or in the
+configuration file will be added to it. In case the header
+is <br>
+already present, its value will be replaced.</p>
+
+<p style="margin-top: 1em">-s Serializes all requests by
+not using concurrent threads for proxy (tunneling still
+works in parallel). This has a horrible impact on
+performance and is available only for <br>
+debugging purposes. When used with -v, it yields nice
+sequential debug log, where requests take turns.</p>
+
+<p style="margin-top: 1em">-T &lt;filename&gt; <br>
+Used in combination with -v to save the debug output into a
+trace file. It should be placed as the first parameter on
+the command line. To prevent data loss, it never <br>
+overwrites an existing file. You have to pick a unique name
+or manually delete the old file.</p>
+
+<p style="margin-top: 1em">-U &lt;uid&gt; <br>
+When executed as root, do the stuff that needs such
+permissions (read config, bind ports, etc.) and then
+immediately drop privileges and change to uid. This
+parameter can <br>
+be either number or system username. If you use a number,
+both uid and gid of the process will be set to this value;
+if you specify a username, uid and gid will be set <br>
+according to that user&rsquo;s uid and primary gid as
+defined in /etc/passwd. You should use the latter, possibly
+using a dedicated cntlm account. As with any daemon, you are
+<br>
+strongly advised to run cntlm under a non-privileged
+account.</p>
+
+<p style="margin-top: 1em">-u &lt;user&gt;[@&lt;domain&gt;]
+(Username) <br>
+Proxy account/user name. Domain can be be entered as
+well.</p>
+
+<p style="margin-top: 1em">-v Print debugging information.
+Automatically enables (-f).</p>
+
+<p style="margin-top: 1em">-w &lt;workstation&gt;
+(Workstation) <br>
+Workstation NetBIOS name. Do not use full qualified domain
+name (FQDN) here. Just the first part. If not specified,
+cntlm tries to get the system hostname and if that <br>
+fails, uses &quot;cntlm&quot; - it&rsquo;s because some
+proxies require this field non-empty.</p>
+
+<p style="margin-top: 1em">CONFIGURATION <br>
+Configuration file is basically an INI file, except there
+are no &quot;=&quot; between keys and values. It comprises
+of whitespace delimited keyword and value pairs. Apart from
+that, there <br>
+are sections as well, they have the usual
+&quot;[section_name]&quot; syntax. Comment begins with a
+hash &quot;#&quot; or a semicolon &quot;;&quot; and can be
+anywhere in the file. Everything after the mark <br>
+up until EOL is a comment. Values can contain any
+characters, including whitespace. You can use double quotes
+around the value to set a string containing special
+characters like <br>
+spaces, pound signs, etc. No escape sequences are allowed in
+quoted strings.</p>
+
+<p style="margin-top: 1em">There are two types of keywords,
+local and global. Local options specify authentication
+details per domain (or location). Global keywords apply to
+all sections and proxies. They <br>
+should be placed before all sections, but it&rsquo;s not
+necessary. They are: Allow, Deny, Gateway, Listen,
+SOCKS5Proxy, SOCKS5User, NTLMToBasic, Tunnel.</p>
+
+<p style="margin-top: 1em">All available keywords are
+listed here, full descriptions are in the OPTIONS
+section:</p>
+
+<p style="margin-top: 1em">Allow &lt;IP&gt;[/&lt;mask&gt;]
+<br>
+ACL allow rule, see -A.</p>
+
+<p style="margin-top: 1em">Auth NTLMv2 | NTLM2SR | NT |
+NTLM | LM <br>
+Select any possible combination of NTLM hashes using a
+single parameter.</p>
+
+<p style="margin-top: 1em">Deny &lt;IP&gt;[/&lt;mask&gt;]
+<br>
+ACL deny rule, see -A.</p>
+
+<p style="margin-top: 1em">Domain &lt;domain_name&gt; <br>
+Proxy account domain/workgroup name.</p>
+
+<p style="margin-top: 1em">Flags &lt;flags&gt; <br>
+NTLM authentication flags. See -F for details.</p>
+
+<p style="margin-top: 1em">Gateway yes|no <br>
+Gateway mode. In the configuration file, order doesn&rsquo;t
+matter. Gateway mode applies the same to all tunnels.</p>
+
+<p style="margin-top: 1em">Header &lt;headername: value&gt;
+<br>
+Header substitution. See -r for details and remember, no
+quoting.</p>
+
+<p style="margin-top: 1em">ISAScannerAgent &lt;pattern&gt;
+<br>
+Wildcard-enabled (*, ?, []) case insensitive User-Agent
+string matching for the trans-isa-plugin. If you don&rsquo;t
+define ISAScannerSize, it is internally set to infinity,
+<br>
+i.e. disabling the plugin for all downloads except those
+agent-matched ones. See -G.</p>
+
+<p style="margin-top: 1em">ISAScannerSize
+&lt;max_size_in_kb&gt; <br>
+Enable trans-isa-scan plugin. See -S for more.</p>
+
+<p style="margin-top: 1em">Listen
+[&lt;saddr&gt;:]&lt;port_number&gt; <br>
+Local port number for the cntlm&rsquo;s proxy service. See
+-l for more.</p>
+
+<p style="margin-top: 1em">Password &lt;password&gt; <br>
+Proxy account password. As with any other option, the value
+(password) can be enclosed in double quotes (&quot;) in case
+it contains special characters like spaces, pound <br>
+signs, etc.</p>
+
+<p style="margin-top: 1em">PassNTLMv2, PassNT, PassLM
+&lt;password&gt; <br>
+Hashes of the proxy account password (see -H and -a). When
+you want to use hashes in the config (instead of plaintext
+password), each Auth settings requires different <br>
+options:</p>
+
+<p style="margin-top: 1em">Settings | Requires <br>
+-------------+----------------- <br>
+Auth NTLMv2 | PassNTLMv2 <br>
+Auth NTLM2SR | PassNT <br>
+Auth NT | PassNT <br>
+Auth NTLM | PassNT + PassLM <br>
+Auth LM | PassLM</p>
+
+<p style="margin-top: 1em">Proxy &lt;host:port&gt; <br>
+Parent proxy, which requires authentication. The same as
+proxy on the command-line, can be used more than once to
+specify an arbitrary number of proxies. Should one proxy
+<br>
+fail, cntlm automatically moves on to the next one. The
+connect request fails only if the whole list of proxies is
+scanned and (for each request) and found to be invalid. <br>
+Command-line takes precedence over the configuration
+file.</p>
+
+<p style="margin-top: 1em">NoProxy &lt;pattern1&gt;,
+&lt;pattern2&gt;, ... <br>
+Avoid parent proxy for these host names. All matching
+URL&rsquo;s will be proxied directly by cntlm as a
+stand-alone proxy. Cntlm supports WWW authentication in this
+mode, thus <br>
+allowing you to access local intranet sites with corporate
+NTLM authentication. Hopefully, you won&rsquo;t need that
+virtualized MSIE any more. :) See -N for more.</p>
+
+<p style="margin-top: 1em">SOCKS5Proxy
+[&lt;saddr&gt;:]&lt;lport&gt; <br>
+Enable SOCKS5 proxy. See -O for more.</p>
+
+<p style="margin-top: 1em">SOCKS5User
+&lt;username&gt;:&lt;password&gt; <br>
+Create a new SOCKS5 proxy account. See -R for more.</p>
+
+<p style="margin-top: 1em">NTLMToBasic yes|no <br>
+Enable/disable NTLM-to-basic authenticatoin. See -B for
+more.</p>
+
+<p style="margin-top: 1em">Tunnel
+[&lt;saddr&gt;:]&lt;lport&gt;:&lt;rhost&gt;:&lt;rport&gt;
+<br>
+Tunnel definition. See -L for more.</p>
+
+<p style="margin-top: 1em">Username <br>
+Proxy account name, without the possibility to include
+domain name (&rsquo;at&rsquo; sign is interpreted
+literally).</p>
+
+<p style="margin-top: 1em">Workstation &lt;hostname&gt;
+<br>
+The hostname of your workstation.</p>
+
+<p style="margin-top: 1em">FILES <br>
+The optional location of the configuration file is defined
+in the Makefile, with the default for 1) deb/rpm package, 2)
+traditional &quot;make; make install&quot; and 3) Windows
+installer, <br>
+respectively, being:</p>
+
+<p style="margin-top: 1em">1) /etc/cntlm.conf <br>
+2) /usr/local/etc/cntlm.conf <br>
+3) %PROGRAMFILES%ntlm.ini</p>
+
+<p style="margin-top: 1em">PORTING <br>
+Cntlm is being used on many platforms, little and big endian
+machines, so users should not have any problems with
+compilation. Nowadays, cntlm is a standard tool in most
+Linux <br>
+distributions and there are various repositories for other
+UNIX-like systems. Personally, I release Debian Linux (deb),
+RedHat Linux (rpm) and Windows (exe) binaries, but most <br>
+people get cntlm from their OS distributor.</p>
+
+<p style="margin-top: 1em">For compilation details, see
+README in the source distribution. Porting to any POSIX
+conforming OS shouldn&rsquo;t be more than a matter of a
+Makefile rearrangement. Cntlm uses <br>
+strictly POSIX.1-2001 interfaces with ISO C99 libc and is
+also compliant with SUSv3. Since version 0.33, cntlm
+supports Windows using a POSIX emulation layer called
+Cygwin.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+To report a bug, enable the debug output, save it to a file
+and submit on-line along with a detailed description of the
+problem and how to reproduce it. Visit the home page for
+<br>
+more.</p>
+
+<p style="margin-top: 1em">cntlm -T cntlmtrace.log -v -s
+... the rest ...</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Written by David Kubicek &lt;dave (o) awk.cz&gt; <br>
+Homepage: http://cntlm.sourceforge.net/</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright &Acirc;&copy; 2007-2010 David Kubicek <br>
+Cntlm uses DES, MD4, MD5 and HMAC-MD5 routines from gnulib
+and Base64 routines from mutt(1).</p>
+
+<p style="margin-top: 1em">cntlm 0.90 Nov 2010 CNTLM(1)</p>
+<hr>
+</body>
+</html>

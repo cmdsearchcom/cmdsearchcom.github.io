@@ -1,0 +1,683 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:02:06 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>DAEMON.C(1) User Commands DAEMON.C(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+daemon - turns other processes into daemons</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+usage: daemon [options] [--] [cmd arg...] <br>
+options:</p>
+
+<p style="margin-top: 1em">-h, --help - Print a help
+message then exit <br>
+-V, --version - Print a version message then exit <br>
+-v, --verbose[=level] - Set the verbosity level <br>
+-d, --debug[=level] - Set the debugging level</p>
+
+<p style="margin-top: 1em">-C, --config=path - Specify the
+system configuration file <br>
+-N, --noconfig - Bypass the system configuration file <br>
+-n, --name=name - Guarantee a single named instance <br>
+-X, --command=cmd - Specify the client command as an option
+<br>
+-P, --pidfiles=/dir - Override standard pidfile location
+<br>
+-F, --pidfile=/path - Override standard pidfile name and
+location</p>
+
+<p style="margin-top: 1em">-u, --user=user[:[group]] - Run
+the client as user[:group] <br>
+-R, --chroot=path - Run the client with path as root <br>
+-D, --chdir=path - Run the client in directory path <br>
+-m, --umask=umask - Run the client with the given umask <br>
+-e, --env=&quot;var=val&quot; - Set a client environment
+variable <br>
+-i, --inherit - Inherit environment variables <br>
+-U, --unsafe - Allow execution of unsafe executable <br>
+-S, --safe - Deny execution of unsafe executable <br>
+-c, --core - Allow core file generation</p>
+
+<p style="margin-top: 1em">-r, --respawn - Respawn the
+client when it terminates <br>
+-a, --acceptable=# - Minimum acceptable client duration
+(seconds) <br>
+-A, --attempts=# - Respawn # times on error before delay
+<br>
+-L, --delay=# - Delay between spawn attempt bursts (seconds)
+<br>
+-M, --limit=# - Maximum number of spawn attempt bursts <br>
+--idiot - Idiot mode (trust root with the above)</p>
+
+<p style="margin-top: 1em">-f, --foreground - Run the
+client in the foreground <br>
+-p, --pty[=noecho] - Allocate a pseudo terminal for the
+client</p>
+
+<p style="margin-top: 1em">-l, --errlog=spec - Send
+daemon&rsquo;s error output to syslog or file <br>
+-b, --dbglog=spec - Send daemon&rsquo;s debug output to
+syslog or file <br>
+-o, --output=spec - Send client&rsquo;s output to syslog or
+file <br>
+-O, --stdout=spec - Send client&rsquo;s stdout to syslog or
+file <br>
+-E, --stderr=spec - Send client&rsquo;s stderr to syslog or
+file</p>
+
+<p style="margin-top: 1em">--running - Check if a named
+daemon is running <br>
+--restart - Restart a named daemon client <br>
+--stop - Terminate a named daemon process</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+daemon(1) turns other processes into daemons. There are many
+tasks that need to be performed to correctly set up a daemon
+process. This can be tedious. daemon performs these <br>
+tasks for other processes.</p>
+
+<p style="margin-top: 1em">The preparatory tasks that
+daemon performs for other processes are:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; First revoke any
+setuid or setgid privileges that daemon may have been
+installed with (by system administrators who laugh in the
+face of danger).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Process command
+line options.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Change the root
+directory if the --chroot option was supplied.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Change the
+process uid and gid if the --user option was supplied. Only
+root can use this option. Note that the uid of daemon itself
+is changed, rather than just changing the <br>
+uid of the client process.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Read the system
+configuration file (/etc/daemon.conf by default, or
+specified by the --config option) unless the --noconfig
+option was supplied. Then read the user&rsquo;s <br>
+configuration file (~/.daemonrc), if any. Generic options
+are processed first, then options specific to the daemon
+with the given name. Note: The root directory and the user
+<br>
+must be set before access to the configuration file can be
+attempted so neither --chroot nor --user options may appear
+in the configuration file.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Disable core
+file generation to prevent leaking sensitive information in
+daemons run by root (unless the --core option was
+supplied).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Become a daemon
+process:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If daemon was
+not invoked by init(8) or inetd(8):</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Background the
+process to lose process group leadership.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Start a new
+process session.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Under SVR4,
+background the process again to lose process session
+leadership. This prevents the process from ever gaining a
+controlling terminal. This only happens <br>
+when SVR4 is defined and NO_EXTRA_SVR4_FORK is not defined
+when libslack(3) is compiled. Before doing this, ignore
+SIGHUP because when the session leader terminates, <br>
+all processes in the foreground process group are sent a
+SIGHUP signal (apparently). Note that this code may not
+execute (e.g. when started by init(8) or inetd(8) or <br>
+when either SVR4 was not defined or NO_EXTRA_SVR4_FORK was
+defined when libslack(3) was compiled). This means that the
+client can&rsquo;t make any assumptions about the <br>
+SIGHUP handler.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Change directory
+to the root directory so as not to hamper umounts.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Clear the umask
+to enable explicit file creation modes.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Close all open
+file descriptors. If daemon was invoked by inetd(8), stdin,
+stdout and stderr are left open since they are open to a
+socket.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Open stdin,
+stdout and stderr to /dev/null in case something requires
+them to be open. Of course, this is not done if daemon was
+invoked by inetd(8).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If the --name
+option was supplied, create and lock a file containing the
+process id of the daemon process. The presence of this
+locked file prevents two instances of a <br>
+daemon with the same name from running at the same time. The
+standard location of the pidfile is /var/run for root or
+/tmp for ordinary users. If the --pidfiles option <br>
+was supplied, its argument specifies the directory in which
+the pidfile will be placed. If the --pidfile option was
+supplied, its argument specifies the name of the <br>
+pidfile and the directory in which it will be placed.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If the --umask
+option was supplied, set the umask to its argument.
+Otherwise, set the umask to 022 to prevent clients from
+accidentally creating group or world writable <br>
+files.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Set the current
+directory if the --chdir option was supplied.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Spawn the client
+command and wait for it to terminate. The client command may
+be specified as command line arguments or as the argument of
+the --command option. If both the <br>
+--command option and command line arguments are present, the
+client command is the result of appending the command line
+arguments to the argument of the --command option.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If the --syslog,
+--outlog and/or --errlog options were supplied, the
+client&rsquo;s standard output and/or standard error are
+captured by daemon and sent to the respective syslog <br>
+destinations.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; When the client
+terminates, daemon respawns it if the --respawn option was
+supplied. If the client ran for less than 300 seconds (or
+the value of the --acceptable option), <br>
+then daemon sees this as an error. It will attempt to
+restart the client up to five times (or the value of the
+--attempts option) before waiting for 300 seconds (or the
+value <br>
+of the --delay option). This gives the administrator the
+chance to correct whatever is preventing the client from
+running without overloading system resources. If the --limit
+<br>
+option was supplied, daemon terminates after the specified
+number of spawn attempt bursts. The default is zero which
+means never give up, never surrender.</p>
+
+<p style="margin-top: 1em">When the client terminates and
+the --respawn option wasn&rsquo;t supplied, daemon
+terminates.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If daemon
+receives a SIGTERM signal, it propagates the signal to the
+client and then terminates.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If daemon
+receives a SIGUSR1 signal (from another invocation of daemon
+supplied with the --restart option), it sends a SIGTERM
+signal to the client. If started with the <br>
+--respawn option, the client process will be restarted after
+it is killed by the SIGTERM signal.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If the
+--foreground option was supplied, the client process is run
+as a foreground process and is not turned into a daemon. If
+daemon is connected to a terminal, so will the <br>
+client process. If daemon is not connected to a terminal but
+the client needs to be connected to a terminal, use the
+--pty option.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-h, --help <br>
+Display a help message and exit.</p>
+
+<p style="margin-top: 1em">-V, --version <br>
+Display a version message and exit.</p>
+
+<p style="margin-top: 1em">-v[level], --verbose[=level]
+<br>
+Set the message verbosity level to level (or 1 if level is
+not supplied). daemon does not have any verbose messages so
+this has no effect unless the --running option is <br>
+supplied.</p>
+
+<p style="margin-top: 1em">-d[level], --debug[=level] <br>
+Set the debug message level to level (or 1 if level is not
+supplied). Level 1 traces high level function calls. Level 2
+traces lower level function calls and shows <br>
+configuration information. Level 3 adds environment
+variables. Level 9 adds every return value from select(2) to
+the output. Debug messages are sent to the destination <br>
+specified by the --dbglog option (by default, the syslog(3)
+facility, daemon.debug).</p>
+
+<p style="margin-top: 1em">-C path, --config=path <br>
+Specify the configuration file to use. By default,
+/etc/daemon.conf is the configuration file if it exists and
+is not group or world writable and does not exist in a group
+or <br>
+world writable directory. The configuration file lets you
+predefine options that apply to all clients and to
+specifically named clients.</p>
+
+<p style="margin-top: 1em">-N, --noconfig <br>
+Bypass the system configuration file, /etc/daemon.conf. Only
+the user&rsquo;s ~/.daemonrc configuration file will be read
+(if it exists).</p>
+
+<p style="margin-top: 1em">-n name, --name=name <br>
+Create and lock a pid file (/var/run/name.pid), ensuring
+that only one daemon with the given name is active at the
+same time.</p>
+
+<p style="margin-top: 1em">-X cmd, --command=cmd <br>
+Specify the client command as an option. If a command is
+specified along with its name in the configuration file,
+then daemons can be started merely by mentioning their
+name:</p>
+
+<p style="margin-top: 1em">daemon --name ftumpch</p>
+
+<p style="margin-top: 1em">Note: Specifying the client
+command in the configuration file means that no shell
+features are available (i.e. no meta characters).</p>
+
+<p style="margin-top: 1em">-P /dir, --pidfiles=/dir <br>
+Override the standard pidfile location. The standard pidfile
+location is user dependent: root&rsquo;s pidfiles live in
+/var/run. Normal users&rsquo; pidfiles live in /tmp. This
+option <br>
+can only be used with the --name option. Use this option if
+these locations are unacceptable but make sure you
+don&rsquo;t forget where you put your pidfiles. This option
+is best <br>
+used in configuration files or in shell scripts, not on the
+command line.</p>
+
+<p style="margin-top: 1em">-F /path, --pidfile=/path <br>
+Override the standard pidfile name and location. The
+standard pidfile location is described immediately above.
+The standard pidfile name is the argument of the --name
+option <br>
+followed by .pid. Use this option if the standard pidfile
+name and location are unacceptable but make sure you
+don&rsquo;t forget where you put your pidfile. This option
+should <br>
+only be used in configuration files or in shell scripts, not
+on the command line.</p>
+
+<p style="margin-top: 1em">-u user[:[group]],
+--user=user[:[group]] <br>
+Run the client as a different user (and group). This only
+works for root. If the argument includes a :group specifier,
+daemon will assume the specified group and no other. <br>
+Otherwise, daemon will assume all groups that the specified
+user is in. For backwards compatibility, &quot;.&quot; may
+be used instead of &quot;:&quot; to separate the user and
+group but since <br>
+&quot;.&quot; may appear in user and group names,
+ambiguities can arise such as using --user=u.g with users u
+and u.g and group g. With such an ambiguity, daemon will
+assume the user u <br>
+and group g. Use --user=u.g: instead for the other
+interpretation.</p>
+
+<p style="margin-top: 1em">-R path, --chroot=path <br>
+Change the root directory to path before running the client.
+On some systems, only root can do this. Note that the path
+to the client program and to the configuration file <br>
+(if any) must be relative to the new root path.</p>
+
+<p style="margin-top: 1em">-D path, --chdir=path <br>
+Change the directory to path before running the client.</p>
+
+<p style="margin-top: 1em">-m umask, --umask=umask <br>
+Change the umask to umask before running the client. umask
+must be a valid octal mode. The default umask is 022.</p>
+
+<p style="margin-top: 1em">-e var=val, --env=var=val <br>
+Set an environment variable for the client process. This
+option can be used any number of times. If it is used, only
+the supplied environment variables are passed to the <br>
+client process. Otherwise, the client process inherits the
+current set of environment variables.</p>
+
+<p style="margin-top: 1em">-i, --inherit <br>
+Explicitly inherit environment variables. This is only
+needed when the --env option is used. When this option is
+used, the --env option adds to the inherited environment,
+<br>
+rather than replacing it.</p>
+
+<p style="margin-top: 1em">-U, --unsafe <br>
+Allow reading an unsafe configuration file and execution of
+an unsafe executable. A configuration file or executable is
+unsafe if it is group or world writable or is in a <br>
+directory that is group or world writable (following
+symbolic links). If an executable is a script interpreted by
+another executable, then it is considered unsafe if the <br>
+interpreter is unsafe. If the interpreter is /usr/bin/env
+(with an argument that is a command name to be searched for
+in $PATH), then that command must be safe. By default, <br>
+daemon(1) will refuse to read an unsafe configuration file
+or to execute an unsafe executable when run by root. This
+option overrides that behaviour and hence should never be
+<br>
+used.</p>
+
+<p style="margin-top: 1em">-S, --safe <br>
+Deny reading an unsafe configuration file and execution of
+an unsafe executable. By default, daemon(1) will allow
+reading an unsafe configuration file and execution of an
+<br>
+unsafe executable when run by ordinary users. This option
+overrides that behaviour.</p>
+
+<p style="margin-top: 1em">-c, --core <br>
+Allow the client to create a core file. This should only be
+used for debugging as it could lead to security holes in
+daemons run by root.</p>
+
+<p style="margin-top: 1em">-r, --respawn <br>
+Respawn the client when it terminates.</p>
+
+<p style="margin-top: 1em">-a #, --acceptable=# <br>
+Specify the minimum acceptable duration in seconds of a
+client process. The default value is 300 seconds. It cannot
+be set to less than 10 seconds except by root when used in
+<br>
+conjunction with the --idiot option. This option can only be
+used with the --respawn option.</p>
+
+<p style="margin-top: 1em">less than this, it is considered
+to have failed.</p>
+
+<p style="margin-top: 1em">-A #, --attempts=# <br>
+Number of attempts to spawn before delaying. The default
+value is 5. It cannot be set to more than 100 attempts
+except by root when used in conjunction with the --idiot
+<br>
+option. This option can only be used with the --respawn
+option.</p>
+
+<p style="margin-top: 1em">-L #, --delay=# <br>
+Delay in seconds between each burst of spawn attempts. The
+default value is 300 seconds. It cannot be set to less than
+10 seconds except by root when used in conjunction with <br>
+the --idiot option. This option can only be used with the
+--respawn option.</p>
+
+<p style="margin-top: 1em">-M #, ---limit=# <br>
+Limit the number of spawn attempt bursts. The default value
+is zero which means no limit. This option can only be used
+with the --respawn option.</p>
+
+<p style="margin-top: 1em">--idiot <br>
+Turn on idiot mode in which daemon will not enforce the
+minimum or maximum values normally imposed on the
+--acceptable, --attempts and --delay option arguments. The
+--idiot <br>
+option must appear before any of these options. Only the
+root user may use this option because it can turn a slight
+misconfiguration into a lot of wasted CPU effort and log
+<br>
+messages.</p>
+
+<p style="margin-top: 1em">-f, --foreground <br>
+Run the client in the foreground. The client is not turned
+into a daemon.</p>
+
+<p style="margin-top: 1em">-p[noecho], --pty[=noecho] <br>
+Connect the client to a pseudo terminal. This option can
+only be used with the --foreground option. This is the
+default when the --foreground option is supplied and
+daemon&rsquo;s <br>
+standard input is connected to a terminal. This option is
+only necessary when the client process must be connected to
+a controlling terminal but daemon itself has been run <br>
+without a controlling terminal (e.g. from cron(8) or a
+pipeline).</p>
+
+<p style="margin-top: 1em">If the noecho argument is
+supplied with this option, the client&rsquo;s side of the
+pseudo terminal will be set to noecho mode. Use this only if
+there really is a terminal involved <br>
+and input is being echoed twice.</p>
+
+<p style="margin-top: 1em">-l spec, --errlog=spec <br>
+Send daemon&rsquo;s standard output and error to the syslog
+destination or file specified by spec. If spec is of the
+form &quot;facility.priority&quot;, then output is sent to
+syslog(3). <br>
+Otherwise, output is appended to the file whose path is
+given in spec. By default, output is sent to daemon.err.</p>
+
+<p style="margin-top: 1em">-b spec, --dbglog=spec <br>
+Send daemon&rsquo;s debug output to the syslog destination
+or file specified by spec. If spec is of the form
+&quot;facility.priority&quot;, then output is sent to
+syslog(3). Otherwise, <br>
+output is appended to the file whose path is given in spec.
+By default, output is sent to daemon.debug.</p>
+
+<p style="margin-top: 1em">-o spec, --output=spec <br>
+Capture the client&rsquo;s standard output and error and
+send it to the syslog destination or file specified by spec.
+If spec is of the form &quot;facility.priority&quot;, then
+output is <br>
+sent to syslog(3). Otherwise, output is appended to the file
+whose path is given in spec. By default, output is discarded
+unless the --foreground option is present. In this <br>
+case, the client&rsquo;s stdout and stderr are propagated to
+daemon&rsquo;s stdout and stderr respectively.</p>
+
+<p style="margin-top: 1em">-O spec, --stdout=spec <br>
+Capture the client&rsquo;s standard output and send it to
+the syslog destination or file specified by spec. If spec is
+of the form &quot;facility.priority&quot;, then output is
+sent to <br>
+syslog(3). Otherwise, stdout is appended to the file whose
+path is given in spec. By default, stdout is discarded
+unless the --foreground option is present, in which case,
+<br>
+the client&rsquo;s stdout is propagated to daemon&rsquo;s
+stdout.</p>
+
+<p style="margin-top: 1em">-E spec, --stderr=spec <br>
+Capture the client&rsquo;s standard error and send it to the
+syslog destination specified by spec. If spec is of the form
+&quot;facility.priority&quot;, then stderr is sent to
+syslog(3). <br>
+Otherwise, stderr is appended to the file whose path is
+given in spec. By default, stderr is discarded unless the
+--foreground option is present, in this case, the
+client&rsquo;s <br>
+stderr is propagated to daemon&rsquo;s stderr.</p>
+
+<p style="margin-top: 1em">--running <br>
+Check whether or not a named daemon is running, then exit(3)
+with EXIT_SUCCESS if the named daemon is running or
+EXIT_FAILURE if it isn&rsquo;t. If the --verbose option is
+<br>
+supplied, print a message before exiting. This option can
+only be used with the --name option. Note that the --chroot,
+--user, --name, --pidfiles and --pidfile (and possibly <br>
+--config) options must be the same as for the target daemon.
+Note that the --running option must appear before any
+--pidfile or --pidfiles option when checking if another <br>
+user&rsquo;s daemon is running otherwise you might get an
+error about the pidfile directory not being writable.</p>
+
+<p style="margin-top: 1em">--restart <br>
+Instruct a named daemon to terminate and restart its client
+process. This option can only be used with the --name
+option. Note that the --chroot, --user, --name, --pidfiles
+<br>
+and --pidfile (and possibly --config) options must be the
+same as for the target daemon.</p>
+
+<p style="margin-top: 1em">--stop <br>
+Stop a named daemon then exit(3). This option can only be
+used with the --name option. Note that the --chroot, --user,
+--name, --pidfiles and --pidfile (and possibly <br>
+--config) options must be the same as for the target
+daemon.</p>
+
+<p style="margin-top: 1em">As with all other programs, a --
+argument signifies the end of options. Any options that
+appear on the command line after -- are part of the client
+command.</p>
+
+<p style="margin-top: 1em">FILES <br>
+/etc/daemon.conf, ~/.daemonrc - define default options</p>
+
+<p style="margin-top: 1em">Each line of the configuration
+file consists of a client name or &rsquo;*&rsquo;, followed
+by whitespace, followed by a comma separated list of
+options. Blank lines and comments (&rsquo;#&rsquo; to end
+<br>
+of the line) are ignored. Lines may be continued with a
+&rsquo;&acute; character at the end of the line.</p>
+
+<p style="margin-top: 1em">For example:</p>
+
+<p style="margin-top: 1em">*
+errlog=daemon.err,output=local0.err,core <br>
+test1 syslog=local0.debug,debug=9,verbose=9,respawn <br>
+test2 syslog=local0.debug,debug=9,verbose=9,respawn</p>
+
+<p style="margin-top: 1em">The command line options are
+processed first to look for a --config option. If no
+--config option was supplied, the default file,
+/etc/daemon.conf, is used. If the user has their <br>
+own configuration file (~/.daemonrc) it is also used. If the
+configuration files contain any generic (&rsquo;*&rsquo;)
+entries, their options are applied in order of appearance.
+If the <br>
+--name option was supplied and the configuration files
+contain any entries with the given name, their options are
+then applied in order of appearance. Finally, the command
+line <br>
+options are applied again. This ensures that any generic
+options apply to all clients by default. Client specific
+options override generic options. User options override
+system <br>
+wide options. Command line options override everything
+else.</p>
+
+<p style="margin-top: 1em">Note that the configuration
+files are not opened and read until after any --chroot
+and/or --user command line options are processed. This means
+that the configuration file paths <br>
+and the client&rsquo;s file path must be relative to the
+--chroot argument. It also means that the configuration
+files and the client executable must be readable/executable
+by the user <br>
+specified by the --user argument. It also means that the
+--chroot and --user options must not appear in the
+configuration file. Also note that the --name must not
+appear in the <br>
+configuration file either.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+If you specify (in a configuration file) that all clients
+allow core file generation, there is no way to countermand
+that for any client (without using an alternative <br>
+configuration file). So don&rsquo;t do that. The same
+applies to respawning and foreground.</p>
+
+<p style="margin-top: 1em">It is possible for the client
+process to obtain a controlling terminal under BSD. If
+anything calls open(2) on a terminal device without the
+O_NOCTTY flag, the process doing so <br>
+will obtain a controlling terminal and then be susceptible
+to unintended termination by a SIGHUP.</p>
+
+<p style="margin-top: 1em">Clients run in the foreground
+with a pseudo terminal don&rsquo;t respond to job control
+(i.e. suspending with Control-Z doesn&rsquo;t work). This is
+because the client belongs to an orphaned <br>
+process group (it starts in its own process session) so the
+kernel won&rsquo;t send it SIGSTOP signals. However, if the
+client is a shell that supports job control, it&rsquo;s
+subprocesses <br>
+can be suspended.</p>
+
+<p style="margin-top: 1em">Clients can only be restarted if
+they were started with the --respawn option. Using --restart
+on a non-respawning daemon client is equivalent to using
+--stop.</p>
+
+<p style="margin-top: 1em">MAILING LISTS <br>
+The following mailing lists exist for daemon related
+discussion:</p>
+
+<p style="margin-top: 1em">daemon-announce@libslack.org -
+Announcements <br>
+daemon-users@libslack.org - User forum <br>
+daemon-dev@libslack.org - Development forum</p>
+
+<p style="margin-top: 1em">To subscribe to any of these
+mailing lists, send a mail message to
+listname-request@libslack.org with subscribe as the message
+body. e.g.</p>
+
+<p style="margin-top: 1em">$ echo subscribe | mail
+daemon-announce-request@libslack.org <br>
+$ echo subscribe | mail daemon-users-request@libslack.org
+<br>
+$ echo subscribe | mail daemon-dev-request@libslack.org</p>
+
+<p style="margin-top: 1em">Or you can send a mail message
+to majordomo@libslack.org with subscribe listname in the
+message body. This way, you can subscribe to multiple lists
+at the same time. e.g.</p>
+
+<p style="margin-top: 1em">$ mail majordomo@libslack.org
+<br>
+subscribe daemon-announce <br>
+subscribe daemon-users <br>
+subscribe daemon-dev <br>
+.</p>
+
+<p style="margin-top: 1em">A digest version of each mailing
+list is also available. Subscribe to digests as above but
+append -digest to the listname.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+libslack(3), daemon(3), coproc(3), pseudo(3), init(8),
+inetd(8), fork(2), umask(2), setsid(2), chdir(2), chroot(2),
+setrlimit(2), setgid(2), setuid(2), setgroups(2), <br>
+initgroups(3), syslog(3), kill(2)</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+20100612 raf &lt;raf@raf.org&gt;</p>
+
+<p style="margin-top: 1em">perl v5.10.1 2010-06-13
+DAEMON.C(1)</p>
+<hr>
+</body>
+</html>

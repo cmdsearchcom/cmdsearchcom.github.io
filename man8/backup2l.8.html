@@ -1,0 +1,467 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:08:51 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>BACKUP2L(8) System Manager&rsquo;s Manual
+BACKUP2L(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+backup2l - low-maintenance backup/restore tool</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+backup2l [ -c conffile ] [ -t backup-ID ] command</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+backup2l is a tool for generating, maintaining and restoring
+backups on a mountable file system (e. g. hard disk). The
+main design goals are low maintenance effort, efficiency,
+<br>
+transparency and robustness. It features differential
+backups at multiple hierarchical levels and provides
+rollback functionality.</p>
+
+<p style="margin-top: 1em">All control files are stored
+together with the archives on the backup device, and their
+contents are mostly self-explaining. Hence, in the case of
+an emergency, a user does not <br>
+only have to rely on the restore functionality of backup2l,
+but can - if necessary - browse the files and extract
+archives manually.</p>
+
+<p style="margin-top: 1em">An open driver architecture
+allows one to use virtually any archiving program as a
+backend. Built-in drivers support .tar.gz, .tar.bz2, or
+.afioz files. Further drivers can be <br>
+added by the user. When restoring data, an appropriate
+driver is selected automatically for each archive depending
+on the suffix of the archive file.</p>
+
+<p style="margin-top: 1em">The method of hierarchical
+differential backups is a generalization to the concept of
+the &quot;daily&quot;, &quot;weekly&quot; and
+&quot;monthly&quot; backups. Each backup has a level and a
+serial number. <br>
+Maximum-level backups are comparable with daily differential
+backups, level-0 backups are full backups. For example, let
+MAX_LEVEL be 4 and MAX_PER_LEVEL be 5. After 5 level-4 <br>
+backups (e. g. after 5 days), a new level-3 backup is made.
+After 5 level-3 backups (and 5*5 at level-4), a new level-2
+backup is made, and so on. Each differential backup
+con&acirc; <br>
+tains the changes towards the previous backup of the same or
+a lower level.</p>
+
+<p style="margin-top: 1em">This scheme allows one to
+efficiently generate small incremental backups at short
+intervals. At the same time, the total number of archives
+that have to be stored (or processed <br>
+in the case of a restore) only increases logarithmically
+with the number of backups since the last full backup.
+Time-consuming full backups are only sparsely needed. In the
+<br>
+example above, a new full backup is only necessary after 780
+(=5^4+5^3+5*5+5) days, while only at most 20 (=4*5) archives
+have to be processed.</p>
+
+<p style="margin-top: 1em">For backup2l, each backup
+archive is identified by its backup ID (BID). The number of
+digits determines the level. Level-0 (full) backups have a
+1-digit BID, level-n backups have <br>
+a BID of n+1 digits. The last digit is a serial number, the
+prefix identifies the lower-level backups on which a given
+backup is based on. For example, the archive 235 contains
+<br>
+the differences towards archive 234, and to restore the file
+system state of the time it was generated, the full backup
+2, the level-1 backups 21, 22, 23 and the level-2 backups
+<br>
+231, ..., 235 have to be processed. All serial numbers are
+between 1 and 9, a zero in the BID indicates that no archive
+of the respective level is contained in the chain. For <br>
+example, the level-3 backup 1201 is immediately based on the
+level-1 backup 12.</p>
+
+<p style="margin-top: 1em">For deciding whether a file is
+new or modified, backup2l looks at its name, modification
+time, size, ownership and permissions. Unlike other backup
+tools, the i-node is not con&acirc; <br>
+sidered in order to avoid problems with non-Unix file
+systems like FAT32.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-c, --conf conffile <br>
+This argument specifies the configuration file (default:
+etc/backup2l.conf).</p>
+
+<p style="margin-top: 1em">-t, --time BID <br>
+If present, this option selects a certain backup for the
+--locate and --restore commands. E. g., the latter will
+restore files and directories exactly as they were on the
+<br>
+system at the time when the specified backup was made. If
+not present, the latest available backup is selected.</p>
+
+<p style="margin-top: 1em">COMMANDS <br>
+-h, --help <br>
+Display the usage info.</p>
+
+<p style="margin-top: 1em">-e, --estimate [ level ] <br>
+Prints the number of files, estimated amount of data and
+other information on the backup that would be generated
+next. No backup archives are actually created or removed.
+<br>
+If specified, the parameter level overrides the MAX_LEVEL
+setting.</p>
+
+<p style="margin-top: 1em">-b, --backup [ level ] <br>
+Creates a new backup and removes old archives based on the
+given configuration file. If specified, the parameter level
+overrides the MAX_LEVEL setting. This is useful e. <br>
+g. shortly before or after major changes are performed with
+the file system. In this case, a lower level should be
+specified in order to avoid that a large number of files
+<br>
+are backed up multiple times again.</p>
+
+<p style="margin-top: 1em">-s, --get-summary <br>
+Shows a table describing each backup (date, size, files,
+...) and the file system usage of the backup device.</p>
+
+<p style="margin-top: 1em">-a, --get-available [ pattern
+list ] <br>
+Shows all files removed and added for all backups. A
+&rsquo;+&rsquo; in the output indicates that the file is new
+and thus contained in the archive file. A &rsquo;-&rsquo;
+indicates that the file <br>
+has been removed (or replaced). If one or several patterns
+are supplied, grep(1) is used to filter the list. All status
+messages go to stderr, so that the generated file <br>
+list can easily be redirected.</p>
+
+<p style="margin-top: 1em">Note: The search pattern is not
+just applied to the file names, but to the whole entry in
+the .list.gz file. This allows one to not only search for
+file names but also for <br>
+other attributes like ownership, modification time etc. . In
+order to apply a search pattern to file names only, precede
+it by &quot;&lt;space&gt;/.*&quot;.</p>
+
+<p style="margin-top: 1em">-l, --locate [ pattern list ]
+<br>
+Shows most recent backup location for active files. If one
+or several patterns are supplied, grep(1) is used to filter
+the list in the same way as for --get-available (see <br>
+above) . All status messages go to stderr, so that the
+generated file list can easily be redirected.</p>
+
+<p style="margin-top: 1em">Active files are files that have
+been on the system at the time of the selected backup, which
+is either the latest backup or the one specified by --time
+(see above). Files <br>
+that were removed at that time but are still stored in some
+later archive will not be shown.</p>
+
+<p style="margin-top: 1em">Altogether, this command tells
+you, which files have to be extracted from which archive in
+order to restore the state of the system at the time of the
+selected backup.</p>
+
+<p style="margin-top: 1em">-r, --restore [ pattern list ]
+<br>
+Performs the same steps like --locate and then restores the
+respective files. All files are restored relative to the
+current directory. They can be restored to their orig&acirc;
+<br>
+inal location by cd&rsquo;ing into / before, but this is not
+recommended.</p>
+
+<p style="margin-top: 1em">-p, --purge BID list <br>
+Removes the specified backup archive(s) and all depending
+backups.</p>
+
+<p style="margin-top: 1em">-m, --make-check [ BID list ]
+<br>
+Creates (a) check file(s) for the specified archive(s) using
+md5sum(1). If no BID is specified, check files are created
+wherever missing.</p>
+
+<p style="margin-top: 1em">-v, --verify [ BID list ] <br>
+Verifies the specified backup archive(s). If no BID is
+specified, all existing archives are checked. If a check
+file exists, this allows one a comprehensive test
+includ&acirc; <br>
+ing e. g. media failures. If the check file is missing, only
+the existence of all files and the immediate base archive
+are verified.</p>
+
+<p style="margin-top: 1em">-x, --extract capacity max-free
+BID-list <br>
+Split and collect files to be stored on removable media (e.
+g. CDs). capacity is the medium capacity in MB. max-free is
+the maximum amount of empty space on each medium <br>
+(except for the last one, of course). BID-list specifies the
+archives and may contain wildcards, e. g.: 1
+&rsquo;2*&rsquo;. The operation generates enumbered
+subdirectories repre&acirc; <br>
+senting the media contents. Some more files are generated
+that may be useful, e. g. to print labels.</p>
+
+<p style="margin-top: 1em">While guaranteeing a minimum
+waste of max-free MB per medium, the collection procedure
+preserves the ordering of files and keeps all control files
+of an archive always <br>
+together on the same medium. Large archive files are split
+into multiple files with serial numbers appended to their
+names.</p>
+
+<p style="margin-top: 1em">The operation is interactive.
+Just run it and look what it is about to do. If that is not
+what you want, you can stop it.</p>
+
+<p style="margin-top: 1em">CONFIGURATION <br>
+In the configuration file (/etc/backup2l.conf by default),
+the following variables have to be set, following the
+bash(1) syntax:</p>
+
+<p style="margin-top: 1em">FOR_VERSION=version <br>
+Defines the backup2l version for which the configuration
+file is written. This way, future versions can automatically
+print a warning if the syntax has changed.</p>
+
+<p style="margin-top: 1em">SRCLIST=( source list ) <br>
+This is a blank-separated list of all top-level directories
+to make backups of. Directory names with spaces have to be
+quoted, e. g.: SRCLIST=(&quot;/my dir&quot; /another/dir).
+<br>
+The last elements of the list may be options for find(1),
+for example -xdev in order to skip subdirs on other file
+systems like /dev or /proc.</p>
+
+<p style="margin-top: 1em">SKIPCOND=( find condition ) <br>
+Files for which this condition is &rsquo;true&rsquo; are not
+considered for backup. See find(1) for information on how to
+formulate possible conditions. Special characters
+(&quot;(&quot;, <br>
+&quot;)&quot;, &quot;!&quot;, ...) must be quoted by a
+leading backslash (&quot; &quot;&quot;, &quot; &quot;, ...).
+An empty condition (i. e. if you do not want any files to be
+skipped) must be specified as <br>
+&quot;( -false )&quot;.</p>
+
+<p style="margin-top: 1em">[
+BACKUP_DEV=&quot;mount_point&quot; ] <br>
+If defined, backup2l mounts the backup device before any
+operation. Afterwards, it is unmounted unless it was already
+mounted before.</p>
+
+<p style="margin-top: 1em">BACKUP_DIR=&quot;backup
+dir&quot; <br>
+Destination directory for backup files. This must be
+different from MOUNT_POINT, i. e. a subdirectory on the
+device.</p>
+
+<p style="margin-top: 1em">VOLNAME=&quot;volname&quot; <br>
+This is a common prefix for all backup and control files.
+Multiple backup volumes are possible if for each volume a
+separate configuration file is written.</p>
+
+<p style="margin-top: 1em">MAX_LEVEL=max_level <br>
+Maximum backup level. Possible values are 1..9.</p>
+
+<p style="margin-top: 1em">MAX_PER_LEVEL=max_per_level <br>
+Number of differential backups per level. Possible values
+are 1..9.</p>
+
+<p style="margin-top: 1em">MAX_FULL=max_full <br>
+Number of full backups kept. Possible values are 1..8.</p>
+
+<p style="margin-top: 1em">GENERATIONS=generations <br>
+Number of backup generations to keep for each non-zero
+level. Old backups are automatically removed as long as at
+least GENERATIONS * MAX_PER_LEVEL backups for the
+respec&acirc; <br>
+tive level remain.</p>
+
+<p style="margin-top: 1em">For example, with MAX_LEVEL=3,
+MAX_PER_LEVEL=5, GENERATIONS=2 it is always possible to
+access the last 10 level-3 (e. g. daily) backups, the last
+10 level-2 backups (e. g. <br>
+5, 10, 15, ..., 50 days old), and so on.</p>
+
+<p style="margin-top: 1em">PRE_BACKUP () { do something }
+<br>
+This function is called before writing the backup. It can be
+used to dump some important system information, e. g. the
+HD&rsquo;s partition table, to a file which is then backed
+<br>
+up.</p>
+
+<p style="margin-top: 1em">POST_BACKUP () { do something }
+<br>
+This function is called after writing the backup. Together
+with PRE_BACKUP it can be used to stop and restart e. g.
+database or mail services which may frequently alter <br>
+some files that have to be backed up.</p>
+
+<p style="margin-top: 1em">[ AUTORUN=1 ] <br>
+If set to 1, backup2l performs the --backup operation when
+invoked without arguments. Otherwise, the usage information
+is shown.</p>
+
+<p style="margin-top: 1em">[ SIZE_UNITS= B | K | M | G ]
+<br>
+Sets the units for archive sizes in summary listings to
+bytes, KB, MB, or GB. If unset, a user-readable format is
+chosen automatically. If set, the units are the same for
+<br>
+the whole table, which may be even more user-friendly.</p>
+
+<p style="margin-top: 1em">[ CREATE_DRIVER=&quot;archive
+driver&quot; ] <br>
+Selects an archive driver for creating backups. An archive
+driver is responsible for managing backup files. If unset,
+the default driver &quot;DRIVER_TAR_GZ&quot; is used. The
+<br>
+--help operation lists all available drivers. More drivers
+can be defined in the configuration file (see below).</p>
+
+<p style="margin-top: 1em">[
+USER_DRIVER_LIST=&quot;user-defined drivers&quot; ] <br>
+Declares additional, user-defined archive drivers which are
+implemented in the configuration file. The sample
+configuration file contains a commented example. Read it in
+<br>
+order to learn how to implement your own driver.</p>
+
+<p style="margin-top: 1em">FILES <br>
+/etc/backup2l.conf <br>
+Configuration file.</p>
+
+<p style="margin-top: 1em">VOLNAME.BID.tar.gz,
+VOLNAME.BID.afioz, ... <br>
+Archive files.</p>
+
+<p style="margin-top: 1em">VOLNAME.BID.list.gz <br>
+List of all active files when the backup was made. Each file
+is preceded with its size, modification time, and other
+information.</p>
+
+<p style="margin-top: 1em">VOLNAME.BID.new.gz <br>
+List of all new ore modified files when the backup was made
+(pathnames only). Unless an error occurred, this list
+reflects the contents of the archive.</p>
+
+<p style="margin-top: 1em">VOLNAME.BID.obsolete.gz <br>
+List of all obsolete files when the backup was made
+(pathnames only).</p>
+
+<p style="margin-top: 1em">VOLNAME.BID.skipped.gz <br>
+Complete list of all files that were skipped according to
+SKIPMASK.</p>
+
+<p style="margin-top: 1em">VOLNAME.BID.error.gz <br>
+This file is generated by comparing the .new.gz file with
+the actual archive contents using diff(1). If the error file
+is non-empty, something may have gone wrong.</p>
+
+<p style="margin-top: 1em">VOLNAME.BID.check <br>
+MD5 check sums of all files of the present archive and the
+.list.gz file of the base archive. This file is optional and
+may be used by the --verify operation.</p>
+
+<p style="margin-top: 1em">INVOCATION BY CRON <br>
+backup2l is designed to be run autonomously as a cron job.
+If the variable AUTORUN is set, it generates a backup if
+invoked without any parameters, and you can simply create a
+<br>
+symlink, e. g. by:</p>
+
+<p style="margin-top: 1em">ln -s &lsquo;which
+backup2l&lsquo; /etc/cron.daily/zz-backup2l</p>
+
+<p style="margin-top: 1em">The &quot;zz-&quot; prefix
+causes the backup job to be the last one executed, so that
+other jobs are not delayed if the backup takes somewhat
+longer. The status output is e-mailed to root <br>
+by the cron daemon.</p>
+
+<p style="margin-top: 1em">MANIPULATING FILES AND
+CONFIGURATIONS <br>
+backup2l has been designed to be robust with respect to
+errors and configuration changes. If the backup process is
+interrupted, e. g. because of a shutdown while it is
+running, <br>
+no serious data corruption can occur. Some temporary files
+may remain which are cleaned up during the next run. If file
+is changed during the backup generation, it may not be <br>
+contained in the current backup. However, it is guaranteed
+that it is considered modified during the next backup.</p>
+
+<p style="margin-top: 1em">In order to save disk space, e.
+g. after some archives have been copied to external media,
+archive files (.tar.gz or .afioz, for example) can safely be
+removed from the backup <br>
+directory. As long as all control files are kept, backup2l
+retains full functionality as far as possible. The --restore
+command prompts for eventually missing archive files for
+<br>
+the respective request (and only those). The --extract
+command completely ignores all backups with missing archive
+files.</p>
+
+<p style="margin-top: 1em">The configuration, especially
+the settings for MAX_LEVEL, MAX_PER_LEVEL, MAX_FULL and the
+specification of source files, can be arbitrarily changed
+without having to expect data <br>
+corruption. backup2l will gracefully adapt the new settings
+during the next run.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+After a restore operation, the modification time of
+directories is equal to the restoration time while for files
+it is equal to the original modification time.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+backup2l was written by Gundolf Kiefer &lt;gundolfk at
+web.de&gt;.</p>
+
+<p style="margin-top: 1em">This program is free software;
+you can redistribute it and/or modify it under the terms of
+the GNU General Public License as published by the Free
+Software Foundation, either <br>
+version 2 of the License, or (at your option) any later
+version.</p>
+
+<p style="margin-top: 1em">This program is distributed in
+the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PUR&acirc; <br>
+POSE. See the GNU General Public License for more
+details.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+tar(1), afio(1), find(1), grep(1), md5sum(1)</p>
+
+<p style="margin-top: 1em">backup2l v1.6 April 17, 2016
+BACKUP2L(8)</p>
+<hr>
+</body>
+</html>

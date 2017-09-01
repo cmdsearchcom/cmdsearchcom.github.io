@@ -1,0 +1,406 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 15:56:34 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>btyacc(1) General Commands Manual btyacc(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+btyacc &acirc; an LALR(1) parser generator with support for
+backtracking</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+btyacc [-b prefix] [-d] [-DNAME ...] [-E] [-l] [-r] [-S
+x.ske] [-t] [-v] filename.y</p>
+
+<p style="margin-top: 1em">Description <br>
+btyacc is a modified version of byacc (Berkeley YACC), which
+in turn is a public domain version of the original AT&amp;T
+YACC parser generator.</p>
+
+<p style="margin-top: 1em">btyacc reads the grammar
+specification in the file filename.y and generates an LR(1)
+parser for it. The parser consists of a set of LALR(1)
+parsing tables and a driver routine <br>
+written in the C programming language. btyacc normally
+writes the parse tables and the driver routine to the file
+prefix.tab.c, where prefix defaults to &lsquo;y&rsquo;.</p>
+
+<p style="margin-top: 1em">For a detailed description of
+the format of a grammar specification, and an excellent
+tutorial on how to use YACC-like tools, see the info manual
+for GNU bison. btyacc-specific <br>
+extensions are explained below.</p>
+
+<p style="margin-top: 1em">Note: The parser skeleton
+supplied by btyacc&rsquo;s upstream author only compiles as
+C++. Use the skeleton /usr/doc/btyacc/examples/btyacc-c.ske
+to generate a parser that compiles <br>
+both as C and C++. (Unfortunately, this alternative skeleton
+does not currently check malloc() return values.)</p>
+
+<p style="margin-top: 1em">Options <br>
+-b prefix Change the prefix prepended to the output file
+names to the string denoted by prefix. The default prefix is
+the character &lsquo;y&rsquo;.</p>
+
+<p style="margin-top: 1em">-d Create a header file called
+prefix.tab.h along with prefix.tab.c, containing the symbol
+definitions and a declaration for YYSTYPE and yylval.</p>
+
+<p style="margin-top: 1em">-DNAME Define the btyacc
+preprocessor variable NAME, for use with %ifdef NAME
+directives in the grammar file.</p>
+
+<p style="margin-top: 1em">-E Print the preprocessed
+grammar to standard output.</p>
+
+<p style="margin-top: 1em">-l Do not insert #line
+directives into the generated parser code.</p>
+
+<p style="margin-top: 1em">-r Write the parser code and the
+associated tables to different files. Whereas the tables can
+be found in prefix.tab.c as before, the code now gets
+written to pre&acirc; <br>
+fix.code.c.</p>
+
+<p style="margin-top: 1em">-S x.ske Select a different
+parser skeleton. The default skeleton is hardwired into the
+program, but a copy can be found in the file
+btyaccpa.ske.</p>
+
+<p style="margin-top: 1em">-t Cause debugging code to be
+compiled into the generated parser.</p>
+
+<p style="margin-top: 1em">-v Write a human-readable
+description of the generated parser to y.output. It includes
+parser states, actions for a look-ahead token and
+information about any conflicts.</p>
+
+<p style="margin-top: 1em">BTYACC extensions <br>
+Backtracking support <br>
+Whenever a btyacc generated parser runs into a shift-reduce
+or reduce-reduce error in the parse table, it remembers the
+current parse point (stack and input stream state), and <br>
+goes into trial parse mode. It then continues parsing,
+ignoring most rule actions. If it runs into an error (either
+through the parse table or through an action calling
+YYERROR), <br>
+it backtracks to the most recent conflict point and tries a
+different alternative. If it finds a successful path
+(reaches the end of the input or an action calls YYVALID),
+it <br>
+backtracks to the point where it first entered trial parse
+mode, and continues with a full parse (executing all
+actions), following the path of the successful trial.</p>
+
+<p style="margin-top: 1em">Actions in btyacc come in two
+flavors: {} actions, which are only executed when not in
+trial mode, and [] actions, which are executed regardless of
+mode.</p>
+
+<p style="margin-top: 1em">Example: In YACC grammars for C,
+a standard hack known as the &quot;lexer feedback hack&quot;
+is used to find typedef names. The lexer uses semantic
+information to decide if any given <br>
+identifier is a typedef name or not and returns a special
+token. With btyacc, you no longer need to do this; the lexer
+should just always return an identifier. The btyacc grammar
+<br>
+then needs a rule of the form:</p>
+
+<p style="margin-top: 1em">typename: ID [ if
+(!IsTypeName(LookupId($1))) YYERROR; ]</p>
+
+<p style="margin-top: 1em">However, note that adding
+backtracking rules slows down the parser. In practice, you
+should try to restrict the number of conflicts in the
+grammar to what is absolutely neces&acirc; <br>
+sary. Consider using the &quot;lexer feedback hack&quot; if
+it is a clean solution, and reserve backtracking for a few
+special cases.</p>
+
+<p style="margin-top: 1em">btyacc runs its trials using the
+rule &quot;try shifting first, then try reducing in the
+order that the conflicting rules appear in the input
+file&quot;. This means you can implement <br>
+semantic disambiguation rules like, for example: (1) If it
+looks like a declaration it is, otherwise (2) If it looks
+like an expression it is, otherwise (3) it is a syntax error
+<br>
+[Ellis &amp; Stroustrup, Annotated C++ Reference Manual,
+p93]. To achieve this, put all the rules for declarations
+before the rules for expressions in the grammar file.</p>
+
+<p style="margin-top: 1em">Backtracking is only triggered
+when the parse hits a shift/reduce or reduce/reduce conflict
+in the table. If you have no conflicts in your grammar,
+there is no extra cost, other <br>
+than some extra code which will never be invoked.</p>
+
+<p style="margin-top: 1em">Currently, the generated parser
+performs no pruning of alternate parsing paths. To avoid an
+exponential explosion of possible paths (and parsing time),
+you need to manually tell <br>
+the parser when it can throw away saved paths using the
+YYVALID statement. In practice, this turns out to be fairly
+easy to do. For example, a C++ parser can just contain <br>
+[YYVALID;] after every complete declaration and statement
+rule, resulting in the backtracking state being pruned after
+seeing a &lsquo;;&rsquo; or &lsquo;}&rsquo; - there will
+never be a situation in <br>
+which it is useful to backtrack past either of these.</p>
+
+<p style="margin-top: 1em">Improved token position handling
+<br>
+Compilers often need to build ASTs (abstract syntax trees)
+such that every node in a tree can relate to the parsed
+program source it came from. The YYPOSN mechanism sup&acirc;
+<br>
+ported by btyacc helps you in automating the text position
+computation and in assigning the computed text positions to
+the AST nodes.</p>
+
+<p style="margin-top: 1em">In standard YACCs every token
+and every non-terminal has an YYSTYPE semantic value
+attached to it. With btyacc, every token and every
+non-terminal also has an YYPOSN text posi&acirc; <br>
+tion attached to it. YYPOSN is a user-defined type.</p>
+
+<p style="margin-top: 1em">btyacc maintains a stack of text
+position values in the same way that it maintains a stack of
+semantic values. To make use of the text position feature,
+you need to #define the <br>
+following:</p>
+
+<p style="margin-top: 1em">YYPOSN Preprocessor symbol for
+the C/C++ type of the text position attached to every token
+and non-terminal.</p>
+
+<p style="margin-top: 1em">yyposn Global variable of type
+YYPOSN. The lexer must assign the text position of the
+returned token to yyposn, just like it assigns the semantic
+value of the returned token <br>
+to yylval.</p>
+
+<p style="margin-top: 1em">YYREDUCEPOSNFUNC <br>
+Preprocessor symbol for a function that is called
+immediately after the regular grammar rule reduction has
+been performed, to reduce text positions located on the <br>
+stack.</p>
+
+<p style="margin-top: 1em">Typically, this function
+extracts text positions from the right-hand side rule
+components and either assigns them to the returned $$
+structure/tree or, if no $$ value <br>
+is returned, puts them into the ret text position where it
+will be picked up by other rules later. Its prototype
+is:</p>
+
+<p style="margin-top: 1em">void ReducePosn( <br>
+YYPOSN&amp; ret, <br>
+YYPOSN* term_posns, <br>
+YYSTYPE* term_vals, <br>
+int term_no, <br>
+int stk_pos, <br>
+int yychar, <br>
+YYPOSN&amp; yyposn, <br>
+UserType extra);</p>
+
+<p style="margin-top: 1em">ret Reference to the text
+position returned by the rule. You must overwrite this with
+the computed text position that the rule yields, analogous
+to the $$ semantic <br>
+value.</p>
+
+<p style="margin-top: 1em">term_posns <br>
+Array of the right-hand side rule components&rsquo; YYPOSN
+text positions, analogous to $1, $2, ..., $N for the
+semantic values.</p>
+
+<p style="margin-top: 1em">term_vals Array of the
+right-hand side rule components&rsquo; YYSTYPE values. These
+are the $1, ..., $N themselves.</p>
+
+<p style="margin-top: 1em">term_no Number of components in
+the right hand side of the reduced rule, i.e. the size of
+the term_posns and term_vals arrays. Also equal to N in $1,
+..., $N.</p>
+
+<p style="margin-top: 1em">stk_pos YYSTYPE/YYPOSN stack
+position before the reduction.</p>
+
+<p style="margin-top: 1em">yychar Lookahead token that
+immediately follows the reduced right hand side
+components.</p>
+
+<p style="margin-top: 1em">yyposn YYPOSN of the token that
+immediately follows the reduced right hand side
+components.</p>
+
+<p style="margin-top: 1em">extra User-defined extra
+argument passed to ReducePosn.</p>
+
+<p style="margin-top: 1em">YYREDUCEPOSNFUNCARG <br>
+Extra argument passed to the ReducePosn function. This
+argument can be any variable defined in btyaccpa.ske.</p>
+
+<p style="margin-top: 1em">Token deallocation during error
+recovery <br>
+For most YACC-like parser generators, the action of the
+generated parser upon encountering a parse error is to throw
+away semantic values and input tokens until a rule
+containing <br>
+the special non-terminal error can be matched. Discarding of
+tokens is simply performed by overwriting variables and
+array entries of type YYSTYPE with new values.</p>
+
+<p style="margin-top: 1em">Unfortunately, this approach
+leads to a memory leak if YYSTYPE is a pointer type. btyacc
+allows you to supply functions for cleaning up the semantic
+and text position values, by <br>
+#defineing the following symbols in the preamble of your
+grammar file:</p>
+
+<p style="margin-top: 1em">YYDELETEVAL <br>
+Preprocessor symbol for a function to call before the
+semantic value of a token or non-terminal is discarded.</p>
+
+<p style="margin-top: 1em">YYDELETEPOSN <br>
+Preprocessor symbol for a function to call before the text
+position of a token or non-terminal is discarded.</p>
+
+<p style="margin-top: 1em">Both functions are called with
+two arguments. The first argument of type YYSTYPE or YYPOSN
+is the value that will be discarded. The second argument is
+of type int and is one of <br>
+three values:</p>
+
+<p style="margin-top: 1em">0 discarding input token</p>
+
+<p style="margin-top: 1em">1 discarding state on stack</p>
+
+<p style="margin-top: 1em">2 cleaning up stack when
+aborting</p>
+
+<p style="margin-top: 1em">Detailed syntax error reporting
+<br>
+If you #define the preprocessor variable YYERROR_DETAILED in
+your grammar file, you must also define the following error
+processing function:</p>
+
+<p style="margin-top: 1em">void yyerror_detailed( <br>
+char* text, <br>
+int errt, <br>
+YYSTYPE&amp; <br>
+errt_value, <br>
+YYPOSN&amp; errt_posn);</p>
+
+<p style="margin-top: 1em">text error message</p>
+
+<p style="margin-top: 1em">errt code of the token that
+caused the error</p>
+
+<p style="margin-top: 1em">errt_value <br>
+value of the token that caused the error</p>
+
+<p style="margin-top: 1em">errt_posn text position of token
+that caused error</p>
+
+<p style="margin-top: 1em">Preprocessor directives <br>
+btyacc supports defining symbols and acting on them with
+conditional directives inside grammar files, not unlike the
+C preprocessor.</p>
+
+<p style="margin-top: 1em">%define NAME <br>
+Define the preprocessor symbol NAME. Equivalent to the
+command line switch -DNAME.</p>
+
+<p style="margin-top: 1em">%ifdef NAME <br>
+If preprocessor variable NAME is defined, process the text
+from this %ifdef to the closing %endif, otherwise skip
+it.</p>
+
+<p style="margin-top: 1em">%endif Closing directive for
+%ifdef. %ifdefs cannot be nested.</p>
+
+<p style="margin-top: 1em">%include FILENAME <br>
+Process contents of the file named FILENAME. Only one
+nesting level of %include is allowed.</p>
+
+<p style="margin-top: 1em">%ident STRING <br>
+Insert an &lsquo;#ident STRING&rsquo; directive into the
+output file. STRING must be a string constant enclosed in
+&quot;&quot;.</p>
+
+<p style="margin-top: 1em">Inherited attributes <br>
+Inherited attributes are undocumented. (See the README and
+the btyacc source code for a little information.) If you
+work out how they work, contact me at
+&lt;atterer@debian.org&gt;!</p>
+
+<p style="margin-top: 1em">Bugs <br>
+The worst-case complexity of parsing is exponential for any
+grammar which allows backtracking to take place. In other
+words, a btyacc-generated parser constitutes a denial-of-
+<br>
+service bug if used in applications where an attacker is
+able to supply specially crafted data as input to the
+parser. (For all &quot;regular&quot; input data, the
+potentially exponential <br>
+complexity is not normally an issue.)</p>
+
+<p style="margin-top: 1em">bison&rsquo;s %expect directive
+is not supported.</p>
+
+<p style="margin-top: 1em">There is no %else and %ifndef.
+%ifdefs and %includes cannot be nested.</p>
+
+<p style="margin-top: 1em">Authors <br>
+Robert Corbett &lt;robert.corbett@eng.sun.com&gt; /
+&lt;corbett@berkeley.edu&gt; was one of the original authors
+of Berkeley byacc. Chris Dodd &lt;chrisd@reservoir.com&gt;
+had the brilliant idea <br>
+of adding backtracking capabilities, and is responsible for
+the initial backtracking changes. Vadim Maslov
+&lt;vadik@siber.com&gt; further improved the code.</p>
+
+<p style="margin-top: 1em">This documenation was written by
+Richard Atterer &lt;atterer@debian.org&gt; for the Debian
+GNU/Linux distribution, but is donated to the public domain
+and may thus be used freely for <br>
+any purpose.</p>
+
+<p style="margin-top: 1em">Files <br>
+/usr/doc/btyacc/examples/btyaccpa.ske</p>
+
+
+<p style="margin-top: 1em">/usr/doc/btyacc/examples/btyacc-c.ske</p>
+
+<p style="margin-top: 1em">/usr/doc/btyacc/README</p>
+
+<p style="margin-top: 1em">See also <br>
+bison(1) (or &lsquo;info bison&rsquo;), byacc(1), yacc(1),
+antlr(1)</p>
+ 
+<p style="margin-top: 1em">btyacc(1)</p>
+<hr>
+</body>
+</html>

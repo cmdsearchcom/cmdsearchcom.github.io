@@ -1,0 +1,260 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:09:32 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>CKPASSWD(8) InterNetNews Documentation CKPASSWD(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+ckpasswd - nnrpd password authenticator</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+ckpasswd [-gs] [-d database] [-f filename] [-u username -p
+password]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+ckpasswd is the basic password authenticator for nnrpd,
+suitable for being run from an auth stanza in readers.conf.
+See readers.conf(5) for more information on how to configure
+<br>
+an nnrpd authenticator.</p>
+
+<p style="margin-top: 1em">ckpasswd accepts a username and
+password from nnrpd and tells nnrpd(8) whether that&rsquo;s
+the correct password for that username. By default, when
+given no arguments, it tries to <br>
+check the password using PAM if support for PAM was found
+when INN was built. Failing that, it tries to check the
+password against the password field returned by getpwnam(3).
+<br>
+Note that these days most systems no longer make real
+passwords available via getpwnam(3) (some still do if and
+only if the program calling getpwnam(3) is running as
+root).</p>
+
+<p style="margin-top: 1em">When using PAM, ckpasswd
+identifies itself as &quot;nnrpd&quot;, not as
+&quot;ckpasswd&quot;, and the PAM configuration must be set
+up accordingly. The details of PAM configuration are
+different on <br>
+different operating systems (and even different Linux
+distributions); see EXAMPLES below for help getting started,
+and look for a pam(7) or pam.conf(4) manual page on your
+<br>
+system.</p>
+
+<p style="margin-top: 1em">When using any method other than
+PAM, ckpasswd expects all passwords to be stored encrypted
+by the system crypt(3) function and calls crypt(3) on the
+supplied password before <br>
+comparing it to the expected password. If you&rsquo;re using
+a different password hash scheme (like MD5), you must use
+PAM.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-d database <br>
+Read passwords from a database (ndbm, gdbm or dbm format
+depending on what your system has) rather than by using
+getpwnam(3). ckpasswd expects database.dir and database.pag
+<br>
+to exist and to be a database keyed by username with the
+encrypted passwords as the values.</p>
+
+<p style="margin-top: 1em">While INN doesn&rsquo;t come
+with a program intended specifically to create such
+databases, on most systems it&rsquo;s fairly easy to write a
+Perl script to do so. Something like:</p>
+
+<p style="margin-top: 1em">#!/usr/bin/perl <br>
+use NDBM_File; <br>
+use Fcntl; <br>
+tie (%db, &rsquo;NDBM_File&rsquo;,
+&rsquo;/path/to/database&rsquo;, O_RDWR|O_CREAT, 0640) <br>
+or die &quot;Cannot open /path/to/database: $!0; <br>
+$| = 1; <br>
+print &quot;Username: &quot;; <br>
+my $user = &lt;STDIN&gt;; <br>
+chomp $user; <br>
+print &quot;Password: &quot;; <br>
+my $passwd = &lt;STDIN&gt;; <br>
+chomp $passwd; <br>
+my @alphabet = (&rsquo;.&rsquo;, &rsquo;/&rsquo;, 0..9,
+&rsquo;A&rsquo;..&rsquo;Z&rsquo;,
+&rsquo;a&rsquo;..&rsquo;z&rsquo;); <br>
+my $salt = join &rsquo;&rsquo;, @alphabet[rand 64, rand 64];
+<br>
+$db{$user} = crypt ($passwd, $salt); <br>
+untie %db;</p>
+
+<p style="margin-top: 1em">Note that this will echo back
+the password when typed; there are obvious improvements that
+could be made to this, but it should be a reasonable start.
+Sometimes a program <br>
+like this will be available with the name dbmpasswd.</p>
+
+<p style="margin-top: 1em">This option will not be
+available on systems without ndbm, gdbm or dbm
+libraries.</p>
+
+<p style="margin-top: 1em">-f filename <br>
+Read passwords from the given file rather than using
+getpwnam(3). The file is expected to be formatted like a
+system password file, at least vaguely. That means each line
+<br>
+should look something like:</p>
+
+<p style="margin-top: 1em">username:pdIh9NCNslkq6</p>
+
+<p style="margin-top: 1em">(and each line may have an
+additional colon after the encrypted password and additional
+data; that data will be ignored by ckpasswd). Lines starting
+with a number sign (&quot;#&quot;) <br>
+are ignored. INN does not come with a utility to create the
+encrypted passwords, but htpasswd (which comes with Apache)
+can do so and it&rsquo;s a quick job with Perl (see the <br>
+example script under -d, or also below). If using
+Apache&rsquo;s htpasswd program, be sure to give it the -d
+option so that it will use crypt(3).</p>
+
+<p style="margin-top: 1em">A line in filename for the user
+&quot;user&quot; with the password &quot;pass&quot; would be
+&quot;user:LIfOpbjNaEQYE&quot; as obtained by the following
+command:</p>
+
+<p style="margin-top: 1em">% htpasswd -nbd user pass <br>
+user:LIfOpbjNaEQYE</p>
+
+<p style="margin-top: 1em">In case htpasswd is not
+installed or if you do not want to depend on it, another
+command involving Perl does a similar job:</p>
+
+<p style="margin-top: 1em">% perl -e &rsquo;print
+&quot;user:&quot;.crypt(&quot;pass&quot;,
+&quot;LI&quot;).&quot;0;&rsquo; <br>
+user:LIfOpbjNaEQYE</p>
+
+<p style="margin-top: 1em">-g Attempt to look up system
+group corresponding to username and return a string like
+&quot;user@group&quot; to be matched against in
+readers.conf. This option is incompatible with the <br>
+-d and -f options.</p>
+
+<p style="margin-top: 1em">-p password <br>
+Use password as the password for authentication rather than
+reading a password using the nnrpd authenticator protocol.
+This option is useful only for testing your <br>
+authentication system (particularly since it involves
+putting a password on the command line), and does not work
+when ckpasswd is run by nnrpd. If this option is given, -u
+<br>
+must also be given.</p>
+
+<p style="margin-top: 1em">-s Check passwords against the
+result of getspnam(3) instead of getpwnam(3). This function,
+on those systems that supports it, reads from /etc/shadow or
+similar more restricted <br>
+files. If you want to check passwords supplied to nnrpd(8)
+against system account passwords, you will probably have to
+use this option on most systems.</p>
+
+<p style="margin-top: 1em">Most systems require special
+privileges to call getspnam(3), so in order to use this
+option you may need to make ckpasswd setgid to some group
+(like group &quot;shadow&quot;) or even <br>
+setuid root. ckpasswd has not been specifically audited for
+such uses! It is, however, a very small program that you
+should be able to check by hand for security.</p>
+
+<p style="margin-top: 1em">This configuration is not
+recommended if it can be avoided, for serious security
+reasons. See &quot;SECURITY CONSIDERATIONS&quot; in
+readers.conf(5) for discussion.</p>
+
+<p style="margin-top: 1em">-u username <br>
+Authenticate as username. This option is useful only for
+testing (so that you can test your authentication system
+easily) and does not work when ckpasswd is run by nnrpd.
+<br>
+If this option is given, -p must also be given.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+See readers.conf(5) for examples of nnrpd(8) authentication
+configuration that uses ckpasswd to check passwords.</p>
+
+<p style="margin-top: 1em">An example PAM configuration for
+/etc/pam.conf that tells ckpasswd to check usernames and
+passwords against system accounts is:</p>
+
+<p style="margin-top: 1em">nnrpd auth required pam_unix.so
+<br>
+nnrpd account required pam_unix.so</p>
+
+<p style="margin-top: 1em">Your system may want you to
+instead create a file named nnrpd in /etc/pam.d with lines
+like:</p>
+
+<p style="margin-top: 1em">auth required pam_unix.so <br>
+account required pam_unix.so</p>
+
+<p style="margin-top: 1em">This is only the simplest
+configuration. You may be able to include common shared
+files, and you may want to stack other modules, either to
+allow different authentication <br>
+methods or to apply restrictions like lists of users who
+can&rsquo;t authenticate using ckpasswd. The best guide is
+the documentation for your system and the other PAM
+configurations <br>
+you&rsquo;re already using.</p>
+
+<p style="margin-top: 1em">To test to make sure that
+ckpasswd is working correctly, you can run it manually and
+then give it the username (prefixed with
+&quot;ClientAuthname:&quot;) and password (prefixed with
+<br>
+&quot;ClientPassword:&quot;) on standard input. For
+example:</p>
+
+<p style="margin-top: 1em">(echo &rsquo;ClientAuthname:
+test&rsquo; ; echo &rsquo;ClientPassword: testing&rsquo;) |
+ckpasswd -f /path/to/passwd/file</p>
+
+<p style="margin-top: 1em">will check a username of
+&quot;test&quot; and a password of &quot;testing&quot;
+against the username and passwords stored in
+/path/to/passwd/file. On success, ckpasswd will print
+&quot;User:test&quot; and <br>
+exit with status 0. On failure, it will print some sort of
+error message and exit a non-zero status.</p>
+
+<p style="margin-top: 1em">HISTORY <br>
+Written by Russ Allbery &lt;eagle@eyrie.org&gt; for
+InterNetNews.</p>
+
+<p style="margin-top: 1em">$Id: ckpasswd.pod 9937
+2015-09-02 12:44:39Z iulius $</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+crypt(3), nnrpd(8), pam(7), readers.conf(5).</p>
+
+<p style="margin-top: 1em">INN 2.6.1 2015-09-12
+CKPASSWD(8)</p>
+<hr>
+</body>
+</html>

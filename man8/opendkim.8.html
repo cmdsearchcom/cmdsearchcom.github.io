@@ -1,0 +1,652 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:14:07 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>opendkim(8) System Manager&rsquo;s Manual
+opendkim(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+opendkim - DKIM signing and verifying filter for MTAs</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+opendkim [-A] [-b modes] [-c canon] [-d domain[,...]] [-D]
+[-e name] [-f] [-F time] [-k keyfile] [-l] [-L min] [-n] [-o
+hdrlist] [-p socketspec] [-P pidfile] [-Q] [-r] [-s <br>
+selector] [-S signalg] [-t testfiles] [-T secs] [-u
+userid[:group]] [-v] [-V] [-W] [-x configfile] [-X]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+opendkim implements the DKIM standard for signing and
+verifying e-mail messages on a per-domain basis.</p>
+
+<p style="margin-top: 1em">opendkim uses the milter
+interface, originally distributed as part of version 8.11 of
+sendmail(8), to provide DKIM signing and/or verifying
+service for mail transiting a milter- <br>
+aware MTA.</p>
+
+<p style="margin-top: 1em">Most, if not all, of the command
+line options listed below can also be set using a
+configuration file. See the -x option for details.</p>
+
+<p style="margin-top: 1em">DATA SETS <br>
+Many of the command line and configuration file parameters
+will refer to a &quot;dataset&quot; as their values. This
+refers to a string that either contains the list of
+desirable values, <br>
+or to a file that contains them, or (if enabled at compile
+time) a database containing the data.</p>
+
+<p style="margin-top: 1em">Some data sets require that the
+value contain more than one entry. How this is done depends
+on which data set type is used.</p>
+
+<p style="margin-top: 1em">Which type is used depends on
+the format of the specification string. Note that not all of
+these are necessarily supported for all installations; most
+of them depend on the <br>
+availability of a particular third-party library at compile
+time.</p>
+
+<p style="margin-top: 1em">In particular:</p>
+
+<p style="margin-top: 1em">a) If the string begins with
+&quot;file:&quot;, then the remainder of the string is
+presumed to refer to a flat file that contains elements of
+the data set, one per line. If a line <br>
+contains whitespace-separated values, then the line is
+presumed to define a key and its corresponding value. Blank
+lines are ignored, and the hash (&quot;#&quot;) character
+denotes <br>
+the start of a comment. If a value contains multiple
+entries, the entries should be separated by colons.</p>
+
+<p style="margin-top: 1em">b) If the string begins with
+&quot;refile:&quot;, then the remainder of the string is
+presumed to specify a file that contains a set of patterns,
+one per line, and their associated <br>
+values. The pattern is taken as the start of the line to the
+first whitespace, and the portion after that whitespace is
+taken as the value to be used when that pattern is <br>
+matched. Patterns are simple wildcard patterns, matching all
+text except that the asterisk (&quot;*&quot;) character is
+considered a wildcard. If a value contains multiple <br>
+entries, the entries should be separated by colons.</p>
+
+<p style="margin-top: 1em">c) If the string begins with
+&quot;db:&quot; and the program was compiled with Sleepycat
+DB support, then the remainder of the string is presumed to
+identify a Sleepycat database con&acirc; <br>
+taining keys and corresponding values. These may be used
+only to test for membership in the data set, or for storing
+keys and corresponding values. If a value contains <br>
+multiple entries, the entries should be separated by
+colons.</p>
+
+<p style="margin-top: 1em">d) If the string begins with
+&quot;dsn:&quot; and the OpenDKIM library was compiled to
+support that database type, then the remainder of the string
+is a Data Store Name describing the <br>
+type, location parameters and access credentials for an ODBC
+or SQL database. The DSN is of the form:</p>
+
+
+<p style="margin-top: 1em">backend://[user[:pwd]@][port+]host/dbase[/key=value[?...]]</p>
+
+<p style="margin-top: 1em">where backend is the name of a
+supported backend database mechanism (e.g.
+&quot;mysql&quot;), user and password are optional login
+credentials for the database, port and host <br>
+describe the destination of a TCP connection to connect to
+that database, dbase is the name of the database to be
+accessed, and the key=value pairs must specify at least <br>
+&quot;table&quot;, &quot;keycol&quot; and
+&quot;datacol&quot; values specifying the name of the table,
+the name of the column to consider as the key, and the
+name(s) of the column(s) to be considered <br>
+as the values (separated by commas). For example (all in one
+line):</p>
+
+
+<p style="margin-top: 1em">mysql:://dbuser:dbpass@3306+dbhost/odkim/table=macros
+<br>
+?keycol=host?datacol=v1,v2</p>
+
+<p style="margin-top: 1em">defines a MySQL database
+listening at port 3306 on host &quot;dbhost&quot;; the
+userid &quot;dbuser&quot; and password &quot;dbpass&quot;
+should be used to access the database; the database name is
+<br>
+&quot;odkim&quot;, and the data are in columns
+&quot;host&quot; (the keys) and &quot;v1&quot; and
+&quot;v2&quot; (the values) inside table &quot;macros&quot;.
+This example would thus return two values when a match is
+<br>
+found.</p>
+
+<p style="margin-top: 1em">The key may also include a
+&quot;filter&quot; value which will be included in all
+generated SQL as an AND clause after the WHERE clause that
+declares the search criteria. For exam&acirc; <br>
+ple, given the above DSN specification with an additional
+&quot;filter&quot; value of &quot;ID &gt; 1000&quot;, the
+generated SQL for a query for &quot;foo&quot; would look
+like so:</p>
+
+<p style="margin-top: 1em">SELECT v1,v2 FROM macros WHERE
+host = &rsquo;foo&rsquo; AND ID &gt; 1000</p>
+
+<p style="margin-top: 1em">No value within the DSN may
+contain any of the six punctuation characters
+(&quot;:&quot;, &quot;/&quot;, &quot;@&quot;, &quot;+&quot;,
+&quot;?&quot; and &quot;=&quot;) used to delimit portions of
+the DSN. To include such charac&acirc; <br>
+ters within a value, encode them in quoted-printable style
+(e.g., &quot;=20&quot; will be translated into a single
+space character). Encoding of spaces is also advised.</p>
+
+<p style="margin-top: 1em">e) If the string begins with
+&quot;ldap:&quot;, &quot;ldaps:&quot; or &quot;ldapi:&quot;,
+it is presumed to be a space-separated set of one or more
+LDAP URLs that identify a set of servers to be queried. <br>
+The first one should be a full RFC4516 LDAP URL indicating a
+base DN template and optional scope, filter and attribute
+names to use in queries. When constructing a DN <br>
+template or filter, the special tokens &quot;$d&quot; and
+&quot;$D&quot; are replaced with the key being queried and
+the key broken into components, separated at &quot;.&quot;
+characters, each compo&acirc; <br>
+nent preceded by &quot;dc=&quot; and followed by
+&quot;,&quot; (so &quot;example.com&quot; would become
+&quot;dc=example,dc=com&quot;). If a data set requires
+multiple values to be returned, the appropriate <br>
+attribute names should be given in the correct order to
+satisfy such requests.</p>
+
+<p style="margin-top: 1em">f) If the string begins with
+&quot;lua:&quot;, it is presumed to refer to a file that
+contains a Lua script to be executed whenever a query is
+performed. The key for the query is <br>
+placed in a global variable called &quot;query&quot;, which
+the called script can then access. The script may return any
+number of values as required for the type of query being
+<br>
+performed.</p>
+
+<p style="margin-top: 1em">g) If the string begins with
+&quot;memcache:&quot;, it is presumed to refer to a memory
+cache database provided by memcached. The remainder of the
+string is a comma-separated list of <br>
+hosts to which query attempts should be made, each
+optionally followed by &quot;:&quot; and a port number; that
+list must be followed by a slash (&quot;/&quot;) character
+and a string that <br>
+will be used to prefix queries send to the cache. For
+example:</p>
+
+
+<p style="margin-top: 1em">memcache:localhost,otherhost/keyname</p>
+
+<p style="margin-top: 1em">This would use either
+&quot;localhost&quot; or &quot;otherhost&quot; to conduct
+queries, and all strings sent to the dataset will be
+prefixed with &quot;keyname:&quot;.</p>
+
+<p style="margin-top: 1em">h) If the string contains none
+of these prefixes but ends with &quot;.db&quot;, it is
+presumed to be a Sleepycat DB as described above (if support
+for same is compiled in).</p>
+
+<p style="margin-top: 1em">i) If the string contains none
+of these prefixes but starts with a slash (&quot;/&quot;)
+character, it is presumed to be a flat file as described
+above.</p>
+
+<p style="margin-top: 1em">j) If the string begins with
+&quot;csl:&quot;, the string is treated as a comma-separated
+list as described in m) below.</p>
+
+<p style="margin-top: 1em">k) If the string begins with
+&quot;erlang:&quot;, it is presumed to refer to a function
+called to be made to the specified distributed Erlang
+node(s). The specification is of the form</p>
+
+
+<p style="margin-top: 1em">erlang:node@host[,...]:cookie:module:function</p>
+
+<p style="margin-top: 1em">where node[,...] is a list of
+comma-separated erlang nodes, cookie is the cookie for the
+known nodes of the distributed Erlang setup, module is the
+name of the Erlang <br>
+module where the function to be called resides, function is
+the name of the Erlang function to be called. For example,
+(all in one line):</p>
+
+
+<p style="margin-top: 1em">erlang:mynode@myhost,myothernode@myotherhost:
+<br>
+chocolate:dkim:lookup</p>
+
+<p style="margin-top: 1em">will join the distributed Erlang
+setup connecting to either &quot;mynode@myhost&quot; or
+&quot;myothernode@myotherhost&quot; (connections to nodes
+are tried in order) using &quot;chocolate&quot; as the <br>
+cookie, and use the function &quot;dkim:lookup/1&quot; for
+lookups.</p>
+
+<p style="margin-top: 1em">l) If the string begins with
+&quot;mdb:&quot;, it refers to a directory that contains a
+memory database, as provided by libmdb from OpenLDAP.</p>
+
+<p style="margin-top: 1em">m) In any other case, the string
+is presumed to be a comma-separated list. Elements in the
+list are either simple data elements that are part of the
+set or, in the case of <br>
+an entry of the form &quot;x=y&quot;, are stored as
+key-value pairs as described above.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-A Automatically re-start on failures. Use with caution; if
+the filter fails instantly after it starts, this can cause a
+tight fork(2) loop. This can be mitigated using <br>
+some values in the configuration file to limit restarting.
+See opendkim.conf(5).</p>
+
+<p style="margin-top: 1em">-b modes <br>
+Selects operating modes. modes is a concatenation of
+characters that indicate which mode(s) of operation are
+desired. Valid modes are s (signer) and v (verifier). The
+<br>
+default is sv except in test mode (see -t below) in which
+case the default is v.</p>
+
+<p style="margin-top: 1em">-c canon <br>
+Selects the canonicalization method(s) to be used when
+signing messages. When verifying, the message&rsquo;s
+DKIM-Signature: header specifies the canonicalization
+method. The <br>
+recognized values are relaxed and simple as defined by the
+DKIM specification. The default is simple. The value may
+include two different canonicalizations separated by <br>
+a slash (&quot;/&quot;) character, in which case the first
+will be applied to the headers and the second to the
+body.</p>
+
+<p style="margin-top: 1em">-d dataset <br>
+A set of domains whose mail should be signed by this filter.
+Mail from other domains will be verified rather than being
+signed.</p>
+
+<p style="margin-top: 1em">-D Sign subdomains of those
+listed by the -d option as well as the actual domains.</p>
+
+<p style="margin-top: 1em">-e name <br>
+Extracts the value of name from the configuration file (if
+any).</p>
+
+<p style="margin-top: 1em">-f Normally opendkim forks and
+exits immediately, leaving the service running in the
+background. This flag suppresses that behaviour so that it
+runs in the foreground.</p>
+
+<p style="margin-top: 1em">-F time <br>
+Specifies a fixed time to use when generating signatures.
+Ignored unless also used in conjunction with -t (see below).
+The time must be expressed in the usual UNIX <br>
+time_t (seconds since epoch) format.</p>
+
+<p style="margin-top: 1em">-k keyfile <br>
+Gives the location of a PEM-formatted private key to be used
+for signing all messages. Ignored if a configuration file is
+referenced that defines a KeyTable.</p>
+
+<p style="margin-top: 1em">-l Log via calls to syslog(3)
+any interesting activity.</p>
+
+<p style="margin-top: 1em">-L min[%+] <br>
+Instructs the verification code to fail messages for which a
+partial signature was received. There are three possible
+formats: min indicating at least min bytes of the <br>
+message must be signed (or if the message is smaller than
+min then all of it must be signed); min% requiring that at
+least min percent of the received message must be <br>
+signed; and min+ meaning there may be no more than min bytes
+of unsigned data appended to the message for it to be
+considered valid.</p>
+
+<p style="margin-top: 1em">-n Parse the configuration file
+and command line arguments, reporting any errors found, and
+then exit. The exit value will be 0 if the filter would
+start up without com&acirc; <br>
+plaint, or non-zero otherwise.</p>
+
+<p style="margin-top: 1em">-o dataset <br>
+Specifies a list of headers that should be omitted when
+generating signatures. If an entry in the list names any
+header which is mandated by the DKIM specification, the <br>
+entry is ignored. A set of headers is listed in the DKIM
+specification as &quot;SHOULD NOT&quot; be signed; the
+default list for this parameter contains those headers
+(Return-Path, <br>
+Received, Comments, Keywords, Bcc, Resent-Bcc and
+DKIM-Signature). To omit no headers, simply use the string
+&quot;-&quot; (or any string that will match no
+headers).</p>
+
+<p style="margin-top: 1em">-p socketspec <br>
+Specifies the socket that should be established by the
+filter to receive connections from sendmail(8) in order to
+provide service. socketspec is in one of two forms: <br>
+local:path which creates a UNIX domain socket at the
+specified path, or inet:port[@host] or inet6:port[@host]
+which creates a TCP socket on the specified port using the
+<br>
+requested protocol family. If the host is not given as
+either a hostname or an IP address, the socket will be
+listening on all interfaces. A literal IP address must be
+<br>
+enclosed in square brackets. If neither socket type is
+specified, local is assumed, meaning the parameter is
+interpreted as a path at which the socket should be created.
+<br>
+This parameter is mandatory either here or in the
+configuration file.</p>
+
+<p style="margin-top: 1em">-P pidfile <br>
+Specifies a file into which the filter should write its
+process ID at startup.</p>
+
+<p style="margin-top: 1em">-Q Query test mode. The filter
+will read two lines from standard input, one containing a
+database description to be opened and one containing a
+string of the form &quot;q/n&quot; <br>
+where &quot;q&quot; is the query to be performed and
+&quot;n&quot; is the number of fields to be retrieved.</p>
+
+<p style="margin-top: 1em">-r Checks all messages for
+compliance with RFC5322 header count requirements.
+Non-compliant messages are rejected.</p>
+
+<p style="margin-top: 1em">-s selector <br>
+Defines the name of the selector to be used when signing
+messages. See the DKIM specification for details.</p>
+
+<p style="margin-top: 1em">-S signalg <br>
+Selects the signing algorithm to use when generating
+signatures. Use &rsquo;opendkim -V&rsquo; to see the list of
+supported algorithms. The default is rsa-sha256 if it is
+available, <br>
+otherwise it will be rsa-sha1.</p>
+
+<p style="margin-top: 1em">-t testfiles <br>
+Evaluates (verifies) one or more RFC5322-formatted message
+found in testfiles and exits. The value of testfiles should
+be a comma-separated list of one or more filenames, <br>
+one of which may be &quot;-&quot; if the message should be
+read from standard input.</p>
+
+<p style="margin-top: 1em">-T secs <br>
+Sets the DNS timeout in seconds. A value of 0 causes an
+infinite wait. The default is 5. Ignored if not using an
+asynchronous resolver package. See also the NOTES sec&acirc;
+<br>
+tion below.</p>
+
+<p style="margin-top: 1em">-u userid[:group] <br>
+Attempts to be come the specified userid before starting
+operations. The process will be assigned all of the groups
+and primary group ID of the named userid unless an <br>
+alternate group is specified. See the FILE PERMISSIONS
+section for more information.</p>
+
+<p style="margin-top: 1em">-v Increase verbose output
+during test mode (see -t above). May be specified more than
+once to request increasing amounts of output.</p>
+
+<p style="margin-top: 1em">-V Print the version number and
+supported canonicalization and signature algorithms, and
+then exit without doing anything else.</p>
+
+<p style="margin-top: 1em">-W If logging is enabled (see -l
+above), issues very detailed logging about the logic behind
+the filter&rsquo;s decision to either sign a message or
+verify it. The &quot;W&quot; stands for <br>
+&quot;Why?!&quot; since the logic behind the decision is
+non-trivial and can be confusing to administrators not
+familiar with its operation. A description of how the
+decision is <br>
+made can be found in the OPERATION section of this document.
+This causes a large increase in the amount of log data
+generated for each message, so it should be limited to <br>
+debugging use and not enabled for general operation.</p>
+
+<p style="margin-top: 1em">-x configfile <br>
+Read the named configuration file. See the opendkim.conf(5)
+man page for details. Values in the configuration file are
+overridden when their equivalents are provided on <br>
+the command line until a configuration reload occurs. The
+OPERATION section describes how reloads are triggered. The
+default is to read a configuration file from <br>
+/etc/opendkim.conf if one exists, or otherwise to apply
+defaults to all values.</p>
+
+<p style="margin-top: 1em">-X Tolerates configuration file
+items that have been internally marked as
+&quot;deprecated&quot;. Normally when a configuration file
+item is removed from the package, it is flagged in <br>
+this way for at least one full release cycle. The presence
+of a deprecated configuration file item typically causes the
+filter to return an error and refuse to start. <br>
+Setting this flag will allow the filter to start and a
+warning is logged. In some future release when the item is
+removed completely, a different error results, and it <br>
+will not be possible to start the filter. Use of this flag
+is NOT RECOMMENDED; it could effectively hide a major
+configuration change with serious security implications.</p>
+
+<p style="margin-top: 1em">OPERATION <br>
+A message will be verified unless it conforms to the signing
+criteria, which are: (1) the domain on the From: address (if
+present) must be listed by the -d command line switch or
+<br>
+the Domain configuration file setting, and (2) (a) the
+client connecting to the MTA must have authenticated, or (b)
+the client connecting to the MTA must be listed in the file
+<br>
+referenced by the InternalHosts configuration file setting
+(or be in the default list for that option), or (c) the
+client must be connected to a daemon port named by the MTAs
+<br>
+configuration file setting, or (d) the MTA must have set one
+or more macros matching the criteria set by the MacroList
+configuration file setting.</p>
+
+<p style="margin-top: 1em">For (a) above, the test is
+whether or not the MTA macro &quot;{auth_type}&quot; is set
+and contains any non-empty value. This means the MTA must
+pass the value of that macro to the filter <br>
+before or during the end-of-header (EOH) phase in order for
+its value to be tested. Check your MTA&rsquo;s configuration
+documentation for details.</p>
+
+<p style="margin-top: 1em">For (1) above, other header
+fields may be selected using the SenderHeaders configuration
+file setting. See opendkim.conf(5) for more information.</p>
+
+<p style="margin-top: 1em">When signing a message, a
+DKIM-Signature: header will be prepended to the message. The
+signature is computed using the private key provided. You
+must be running a version of <br>
+sendmail(8) recent enough to be able to do header prepend
+operations (8.13.0 or later).</p>
+
+<p style="margin-top: 1em">When verifying a message, an
+Authentication-Results: header will be prepended to indicate
+the presence of a signature and whether or not it could be
+validated against the body of <br>
+the message using the public key advertised by the
+sender&rsquo;s nameserver. The value of this header can be
+used by mail user agents to sort or discard messages that
+were not signed <br>
+or could not be verified.</p>
+
+<p style="margin-top: 1em">Upon receiving SIGUSR1, if the
+filter was started with a configuration file, it will be
+re-read and the new values used. Note that any command line
+overrides provided at startup <br>
+time will be lost when this is done. Also, the following
+configuration file values (and their corresponding command
+line items, if any) are not reloaded through this process:
+<br>
+AutoRestart (-A), AutoRestartCount, AutoRestartRate,
+Background, MilterDebug, PidFile (-P), POPDBFile, Quarantine
+(-q), QueryCache, Socket (-p), StrictTestMode,
+TestPublicKeys, <br>
+UMask, UserID (-u). The filter does not automatically check
+the configuration file for changes and reload.</p>
+
+<p style="margin-top: 1em">MTA MACROS <br>
+opendkim makes use of three MTA-provided macros, plus any
+demanded by configuration. The basic three are:
+&quot;i&quot; (the envelope ID, also known as the job ID or
+the queue ID), which <br>
+is used for logging; &quot;daemon_name&quot; (the symbolic
+name given to the MTA instance that accepted the
+connection), which is used when performing tests against any
+&quot;MTAs&quot; setting <br>
+used; and &quot;auth_type&quot;, which is used to determine
+whether or not the SMTP client authenticated to the MTA. If
+the MTA does not provide them to opendkim then it is not
+able to <br>
+apply their corresponding tests or do useful logging.
+Consult your MTA documentation to determine how to adjust
+your its configuration if some or all of these are not
+available.</p>
+
+<p style="margin-top: 1em">FILE PERMISSIONS <br>
+When the filter is started as the superuser and the UserID
+(-u) setting is used, the filter gives up its root
+privileges by changing to the specified user after the
+following <br>
+steps are taken: (1) the configuration file (if any) is
+loaded; (2) if the KeyFile (-k) setting is used, that key is
+loaded into memory; (3) all data sets in the configuration
+<br>
+file are opened, and those that are based on flat files are
+also read into memory; and (4) if ChangeRootDirectory is
+set, the process root is changed to that directory. This
+<br>
+means on configuration reload, the filter will not be
+accessing these files or the configuration file as the
+superuser (and possibly from a different root), and any key
+files <br>
+referenced by the KeyTable will also be accessed by the new
+user.</p>
+
+<p style="margin-top: 1em">Thus, keys referenced by the
+KeyTable must always be accessible for read by the
+unprivileged user. Also, run-time reloads are not possible
+if any of the other files will not be <br>
+readable by the unprivileged user.</p>
+
+<p style="margin-top: 1em">ENVIRONMENT <br>
+The following environment variable(s) can be used to adjust
+the behaviour of this filter:</p>
+
+<p style="margin-top: 1em">DKIM_TMPDIR <br>
+The directory to use when creating temporary files. The
+default is /tmp.</p>
+
+<p style="margin-top: 1em">NOTES <br>
+When using DNS timeouts (see the -T option above), be sure
+not to use a timeout that is larger than the timeout being
+used for interaction between sendmail and the filter.
+Oth&acirc; <br>
+erwise, the MTA could abort a message while waiting for a
+reply from the filter, which in turn is still waiting for a
+DNS reply.</p>
+
+<p style="margin-top: 1em">The POP authentication database
+is expected to be a Sleepycat DB file (formerly known as a
+Berkeley DB) in hash format with keys containing the IP
+address in text form without a <br>
+terminating NULL. The values of these records are not
+checked; only the existence of such records is of interest.
+The filter will attempt to establish a shared lock on the
+<br>
+database before reading from it, so any programs which write
+to the database should keep their lock use to a minimum or
+else this filter will appear to hang while waiting for the
+<br>
+lock operation to complete.</p>
+
+<p style="margin-top: 1em">Features that involve
+specification of IPv4 addresses or CIDR blocks will use the
+inet_addr(3) function to parse that information. Users
+should be familiar with the way that <br>
+function handles the non-trivial cases (for example,
+&quot;192.0.2/24&quot; and &quot;192.0.2.0/24&quot; are not
+the same thing).</p>
+
+<p style="margin-top: 1em">EXIT STATUS <br>
+Filter exit status codes are selected according to
+sysexits(3).</p>
+
+<p style="margin-top: 1em">HISTORY <br>
+DKIM is an amalgam of Yahoo!&rsquo;s DomainKeys proposal,
+and Cisco&rsquo;s Internet Identified Mail (IIM)
+proposal.</p>
+
+<p style="margin-top: 1em">VERSION <br>
+This man page covers version 2.11.0 of opendkim.</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright (c) 2005-2008, Sendmail, Inc. and its suppliers.
+All rights reserved.</p>
+
+<p style="margin-top: 1em">Copyright (c) 2009-2013, 2015,
+The Trusted Domain Project. All rights reserved.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+opendkim.conf(5), sendmail(8)</p>
+
+<p style="margin-top: 1em">Sendmail Operations Guide</p>
+
+<p style="margin-top: 1em">RFC5321 - Simple Mail Transfer
+Protocol</p>
+
+<p style="margin-top: 1em">RFC5322 - Internet Messages</p>
+
+<p style="margin-top: 1em">RFC5451 - Message Header Field
+for Indicating Message Authentication Status</p>
+
+<p style="margin-top: 1em">RFC6008 - Authentication-Results
+Registration for Differentiating among Cryptographic
+Results</p>
+
+<p style="margin-top: 1em">RFC6376 - DomainKeys Identified
+Mail</p>
+
+<p style="margin-top: 1em">The Trusted Domain Project
+opendkim(8)</p>
+<hr>
+</body>
+</html>

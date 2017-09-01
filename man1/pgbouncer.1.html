@@ -1,0 +1,579 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:31:24 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>PGBOUNCER(1) Databases PGBOUNCER(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+pgbouncer - lightweight connection pooler for PostgreSQL</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+pgbouncer [-d][-R][-v][-u user] &lt;pgbouncer.ini&gt; <br>
+pgbouncer -V|-h</p>
+
+<p style="margin-top: 1em">On Windows computers, the
+options are:</p>
+
+<p style="margin-top: 1em">pgbouncer.exe [-v][-u user]
+&lt;pgbouncer.ini&gt; <br>
+pgbouncer.exe -V|-h</p>
+
+<p style="margin-top: 1em">Additional options for setting
+up a Windows service:</p>
+
+<p style="margin-top: 1em">pgbouncer.exe --regservice
+&lt;pgbouncer.ini&gt; <br>
+pgbouncer.exe --unregservice &lt;pgbouncer.ini&gt;</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+pgbouncer is a PostgreSQL connection pooler. Any target
+application can be connected to pgbouncer as if it were a
+PostgreSQL server, and pgbouncer will create a connection to
+the <br>
+actual server, or it will reuse one of its existing
+connections.</p>
+
+<p style="margin-top: 1em">The aim of pgbouncer is to lower
+the performance impact of opening new connections to
+PostgreSQL.</p>
+
+<p style="margin-top: 1em">In order not to compromise
+transaction semantics for connection pooling, pgbouncer
+supports several types of pooling when rotating
+connections:</p>
+
+<p style="margin-top: 1em">Session pooling <br>
+Most polite method. When client connects, a server
+connection will be assigned to it for the whole duration the
+client stays connected. When the client disconnects, the
+<br>
+server connection will be put back into the pool. This is
+the default method.</p>
+
+<p style="margin-top: 1em">Transaction pooling <br>
+A server connection is assigned to client only during a
+transaction. When PgBouncer notices that transaction is
+over, the server connection will be put back into the <br>
+pool.</p>
+
+<p style="margin-top: 1em">Statement pooling <br>
+Most aggressive method. The server connection will be put
+back into pool immediately after a query completes.
+Multi-statement transactions are disallowed in this mode as
+<br>
+they would break.</p>
+
+<p style="margin-top: 1em">The administration interface of
+pgbouncer consists of some new SHOW commands available when
+connected to a special &rsquo;virtual&rsquo; database
+pgbouncer.</p>
+
+<p style="margin-top: 1em">QUICK-START <br>
+Basic setup and usage as following.</p>
+
+<p style="margin-top: 1em">1. Create a pgbouncer.ini file.
+Details in pgbouncer(5). Simple example:</p>
+
+<p style="margin-top: 1em">[databases] <br>
+template1 = host=127.0.0.1 port=5432 dbname=template1</p>
+
+<p style="margin-top: 1em">[pgbouncer] <br>
+listen_port = 6543 <br>
+listen_addr = 127.0.0.1 <br>
+auth_type = md5 <br>
+auth_file = users.txt <br>
+logfile = pgbouncer.log <br>
+pidfile = pgbouncer.pid <br>
+admin_users = someuser</p>
+
+<p style="margin-top: 1em">2. Create users.txt file that
+contains users allowed in:</p>
+
+<p style="margin-top: 1em">&quot;someuser&quot;
+&quot;same_password_as_in_server&quot;</p>
+
+<p style="margin-top: 1em">3. Launch pgbouncer:</p>
+
+<p style="margin-top: 1em">$ pgbouncer -d pgbouncer.ini</p>
+
+<p style="margin-top: 1em">4. Have your application (or the
+psql client) connect to pgbouncer instead of directly to
+PostgreSQL server:</p>
+
+<p style="margin-top: 1em">$ psql -p 6543 -U someuser
+template1</p>
+
+<p style="margin-top: 1em">5. Manage pgbouncer by
+connecting to the special administration database pgbouncer
+and issuing show help; to begin:</p>
+
+<p style="margin-top: 1em">$ psql -p 6543 -U someuser
+pgbouncer <br>
+pgbouncer=# show help; <br>
+NOTICE: Console usage <br>
+DETAIL: <br>
+SHOW
+[HELP|CONFIG|DATABASES|FDS|POOLS|CLIENTS|SERVERS|SOCKETS|LISTS|VERSION]
+<br>
+SET key = arg <br>
+RELOAD <br>
+PAUSE <br>
+SUSPEND <br>
+RESUME <br>
+SHUTDOWN</p>
+
+<p style="margin-top: 1em">6. If you made changes to the
+pgbouncer.ini file, you can reload it with:</p>
+
+<p style="margin-top: 1em">pgbouncer=# RELOAD;</p>
+
+<p style="margin-top: 1em">COMMAND LINE SWITCHES <br>
+-d Run in background. Without it the process will run in
+foreground. Note: Does not work on Windows, pgbouncer need
+to run as service there.</p>
+
+<p style="margin-top: 1em">-R Do an online restart. That
+means connecting to the running process, loading the open
+sockets from it, and then using them. If there is no active
+process, boot normally. <br>
+Note: Works only if OS supports Unix sockets and the
+unix_socket_dir is not disabled in config. Does not work on
+Windows machines. Does not work with TLS connections, <br>
+they are dropped.</p>
+
+<p style="margin-top: 1em">-u user <br>
+Switch to the given user on startup.</p>
+
+<p style="margin-top: 1em">-v Increase verbosity. Can be
+used multiple times.</p>
+
+<p style="margin-top: 1em">-q Be quiet - do not log to
+stdout. Note this does not affect logging verbosity, only
+that stdout is not to be used. For use in init.d
+scripts.</p>
+
+<p style="margin-top: 1em">-V Show version.</p>
+
+<p style="margin-top: 1em">-h Show short help.</p>
+
+<p style="margin-top: 1em">--regservice <br>
+Win32: Register pgbouncer to run as Windows service. The
+service_name config parameter value is used as name to
+register under.</p>
+
+<p style="margin-top: 1em">--unregservice <br>
+Win32: Unregister Windows service.</p>
+
+<p style="margin-top: 1em">ADMIN CONSOLE <br>
+The console is available by connecting as normal to the
+database pgbouncer:</p>
+
+<p style="margin-top: 1em">$ psql -p 6543 pgbouncer</p>
+
+<p style="margin-top: 1em">Only users listed in
+configuration parameters admin_users or stats_users are
+allowed to login to the console. (Except when auth_mode=any,
+then any user is allowed in as a <br>
+stats_user.)</p>
+
+<p style="margin-top: 1em">Additionally, the username
+pgbouncer is allowed to log in without password, if the
+login comes via Unix socket and the client has same Unix
+user uid as the running process.</p>
+
+<p style="margin-top: 1em">Show commands <br>
+The SHOW commands output information. Each command is
+described below.</p>
+
+<p style="margin-top: 1em">SHOW STATS; <br>
+Shows statistics.</p>
+
+<p style="margin-top: 1em">database <br>
+Statistics are presented per database.</p>
+
+<p style="margin-top: 1em">total_requests <br>
+Total number of SQL requests pooled by pgbouncer.</p>
+
+<p style="margin-top: 1em">total_received <br>
+Total volume in bytes of network traffic received by
+pgbouncer.</p>
+
+<p style="margin-top: 1em">total_sent <br>
+Total volume in bytes of network traffic sent by
+pgbouncer.</p>
+
+<p style="margin-top: 1em">total_query_time <br>
+Total number of microseconds spent by pgbouncer when
+actively connected to PostgreSQL.</p>
+
+<p style="margin-top: 1em">avg_req <br>
+Average requests per second in last stat period.</p>
+
+<p style="margin-top: 1em">avg_recv <br>
+Average received (from clients) bytes per second.</p>
+
+<p style="margin-top: 1em">avg_sent <br>
+Average sent (to clients) bytes per second.</p>
+
+<p style="margin-top: 1em">avg_query <br>
+Average query duration in microseconds.</p>
+
+<p style="margin-top: 1em">SHOW SERVERS; <br>
+type S, for server.</p>
+
+<p style="margin-top: 1em">user Username pgbouncer uses to
+connect to server.</p>
+
+<p style="margin-top: 1em">database <br>
+Database name.</p>
+
+<p style="margin-top: 1em">state State of the pgbouncer
+server connection, one of active, used or idle.</p>
+
+<p style="margin-top: 1em">addr IP address of PostgreSQL
+server.</p>
+
+<p style="margin-top: 1em">port Port of PostgreSQL
+server.</p>
+
+<p style="margin-top: 1em">local_addr <br>
+Connection start address on local machine.</p>
+
+<p style="margin-top: 1em">local_port <br>
+Connection start port on local machine.</p>
+
+<p style="margin-top: 1em">connect_time <br>
+When the connection was made.</p>
+
+<p style="margin-top: 1em">request_time <br>
+When last request was issued.</p>
+
+<p style="margin-top: 1em">ptr Address of internal object
+for this connection. Used as unique ID.</p>
+
+<p style="margin-top: 1em">link Address of client
+connection the server is paired with.</p>
+
+<p style="margin-top: 1em">remote_pid <br>
+Pid of backend server process. In case connection is made
+over unix socket and OS supports getting process ID info,
+it&rsquo;s OS pid. Otherwise it&rsquo;s extracted from
+cancel <br>
+packet server sent, which should be PID in case server is
+Postgres, but it&rsquo;s a random number in case server it
+another PgBouncer.</p>
+
+<p style="margin-top: 1em">SHOW CLIENTS; <br>
+type C, for client.</p>
+
+<p style="margin-top: 1em">user Client connected user.</p>
+
+<p style="margin-top: 1em">database <br>
+Database name.</p>
+
+<p style="margin-top: 1em">state State of the client
+connection, one of active, used, waiting or idle.</p>
+
+<p style="margin-top: 1em">addr IP address of client.</p>
+
+<p style="margin-top: 1em">port Port client is connected
+to.</p>
+
+<p style="margin-top: 1em">local_addr <br>
+Connection end address on local machine.</p>
+
+<p style="margin-top: 1em">local_port <br>
+Connection end port on local machine.</p>
+
+<p style="margin-top: 1em">connect_time <br>
+Timestamp of connect time.</p>
+
+<p style="margin-top: 1em">request_time <br>
+Timestamp of latest client request.</p>
+
+<p style="margin-top: 1em">ptr Address of internal object
+for this connection. Used as unique ID.</p>
+
+<p style="margin-top: 1em">link Address of server
+connection the client is paired with.</p>
+
+<p style="margin-top: 1em">remote_pid <br>
+Process ID, in case client connects over UNIX socket and OS
+supports getting it.</p>
+
+<p style="margin-top: 1em">SHOW POOLS; <br>
+A new pool entry is made for each couple of (database,
+user).</p>
+
+<p style="margin-top: 1em">database <br>
+Database name.</p>
+
+<p style="margin-top: 1em">user User name.</p>
+
+<p style="margin-top: 1em">cl_active <br>
+Client connections that are linked to server connection and
+can process queries.</p>
+
+<p style="margin-top: 1em">cl_waiting <br>
+Client connections have sent queries but have not yet got a
+server connection.</p>
+
+<p style="margin-top: 1em">sv_active <br>
+Server connections that linked to client.</p>
+
+<p style="margin-top: 1em">sv_idle <br>
+Server connections that unused and immediately usable for
+client queries.</p>
+
+<p style="margin-top: 1em">sv_used <br>
+Server connections that have been idle more than
+server_check_delay, so they needs server_check_query to run
+on it before it can be used.</p>
+
+<p style="margin-top: 1em">sv_tested <br>
+Server connections that are currently running either
+server_reset_query or server_check_query.</p>
+
+<p style="margin-top: 1em">sv_login <br>
+Server connections currently in logging in process.</p>
+
+<p style="margin-top: 1em">maxwait <br>
+How long the first (oldest) client in queue has waited, in
+seconds. If this starts increasing, then the current pool of
+servers does not handle requests quick enough. <br>
+Reason may be either overloaded server or just too small of
+a pool_size setting.</p>
+
+<p style="margin-top: 1em">pool_mode <br>
+The pooling mode in use.</p>
+
+<p style="margin-top: 1em">SHOW LISTS; <br>
+Show following internal information, in columns (not
+rows):</p>
+
+<p style="margin-top: 1em">databases <br>
+Count of databases.</p>
+
+<p style="margin-top: 1em">users Count of users.</p>
+
+<p style="margin-top: 1em">pools Count of pools.</p>
+
+<p style="margin-top: 1em">free_clients <br>
+Count of free clients.</p>
+
+<p style="margin-top: 1em">used_clients <br>
+Count of used clients.</p>
+
+<p style="margin-top: 1em">login_clients <br>
+Count of clients in login state.</p>
+
+<p style="margin-top: 1em">free_servers <br>
+Count of free servers.</p>
+
+<p style="margin-top: 1em">used_servers <br>
+Count of used servers.</p>
+
+<p style="margin-top: 1em">SHOW USERS; <br>
+name The user name</p>
+
+<p style="margin-top: 1em">pool_mode <br>
+The user&rsquo;s override pool_mode, or NULL if the default
+will be used instead.</p>
+
+<p style="margin-top: 1em">SHOW DATABASES; <br>
+name Name of configured database entry.</p>
+
+<p style="margin-top: 1em">host Host pgbouncer connects
+to.</p>
+
+<p style="margin-top: 1em">port Port pgbouncer connects
+to.</p>
+
+<p style="margin-top: 1em">database <br>
+Actual database name pgbouncer connects to.</p>
+
+<p style="margin-top: 1em">force_user <br>
+When user is part of the connection string, the connection
+between pgbouncer and PostgreSQL is forced to the given
+user, whatever the client user.</p>
+
+<p style="margin-top: 1em">pool_size <br>
+Maximum number of server connections.</p>
+
+<p style="margin-top: 1em">pool_mode <br>
+The database&rsquo;s override pool_mode, or NULL if the
+default will be used instead.</p>
+
+<p style="margin-top: 1em">SHOW FDS; <br>
+Internal command - shows list of fds in use with internal
+state attached to them.</p>
+
+<p style="margin-top: 1em">When the connected user has
+username &quot;pgbouncer&quot;, connects through Unix socket
+and has same UID as running process, the actual fds are
+passed over the connection. This mechanism <br>
+is used to do an online restart. Note: This does not work on
+Windows machines.</p>
+
+<p style="margin-top: 1em">This command also blocks
+internal event loop, so it should not be used while
+PgBouncer is in use.</p>
+
+<p style="margin-top: 1em">fd File descriptor numeric
+value.</p>
+
+<p style="margin-top: 1em">task One of pooler, client or
+server.</p>
+
+<p style="margin-top: 1em">user User of the connection
+using the FD.</p>
+
+<p style="margin-top: 1em">database <br>
+Database of the connection using the FD.</p>
+
+<p style="margin-top: 1em">addr IP address of the
+connection using the FD, unix if a unix socket is used.</p>
+
+<p style="margin-top: 1em">port Port used by the connection
+using the FD.</p>
+
+<p style="margin-top: 1em">cancel Cancel key for this
+connection.</p>
+
+<p style="margin-top: 1em">link fd for corresponding
+server/client. NULL if idle.</p>
+
+<p style="margin-top: 1em">SHOW CONFIG; <br>
+Show the current configuration settings, one per row, with
+following columns:</p>
+
+<p style="margin-top: 1em">key Configuration variable
+name</p>
+
+<p style="margin-top: 1em">value Configuration value</p>
+
+<p style="margin-top: 1em">changeable <br>
+Either yes or no, shows if the variable can be changed while
+running. If no, the variable can be changed only
+boot-time.</p>
+
+<p style="margin-top: 1em">SHOW DNS_HOSTS; <br>
+Show hostnames in DNS cache.</p>
+
+<p style="margin-top: 1em">hostname <br>
+Host name.</p>
+
+<p style="margin-top: 1em">ttl How meny seconds until next
+lookup.</p>
+
+<p style="margin-top: 1em">addrs Comma separated list of
+addresses.</p>
+
+<p style="margin-top: 1em">SHOW DNS_ZONES <br>
+Show DNS zones in cache.</p>
+
+<p style="margin-top: 1em">zonename <br>
+Zone name.</p>
+
+<p style="margin-top: 1em">serial Current serial.</p>
+
+<p style="margin-top: 1em">count Hostnames belonging to
+this zone.</p>
+
+<p style="margin-top: 1em">Process controlling commands
+<br>
+PAUSE [db]; <br>
+PgBouncer tries to disconnect from all servers, first
+waiting for all queries to complete. The command will not
+return before all queries are finished. To be used at the
+time of <br>
+database restart.</p>
+
+<p style="margin-top: 1em">If database name is given, only
+that database will be paused.</p>
+
+<p style="margin-top: 1em">DISABLE db; <br>
+Reject all new client connections on the given database.</p>
+
+<p style="margin-top: 1em">ENABLE db; <br>
+Allow new client connections after a previous DISABLE
+command.</p>
+
+<p style="margin-top: 1em">KILL db; <br>
+Immediately drop all client and server connections on given
+database.</p>
+
+<p style="margin-top: 1em">SUSPEND; <br>
+All socket buffers are flushed and PgBouncer stops listening
+for data on them. The command will not return before all
+buffers are empty. To be used at the time of PgBouncer <br>
+online reboot.</p>
+
+<p style="margin-top: 1em">RESUME [db]; <br>
+Resume work from previous PAUSE or SUSPEND command.</p>
+
+<p style="margin-top: 1em">SHUTDOWN; <br>
+The PgBouncer process will exit.</p>
+
+<p style="margin-top: 1em">RELOAD; <br>
+The PgBouncer process will reload its configuration file and
+update changeable settings.</p>
+
+<p style="margin-top: 1em">Signals <br>
+SIGHUP Reload config. Same as issuing command RELOAD; on
+console.</p>
+
+<p style="margin-top: 1em">SIGINT Safe shutdown. Same as
+issuing PAUSE; and SHUTDOWN; on console.</p>
+
+<p style="margin-top: 1em">SIGTERM <br>
+Immediate shutdown. Same as issuing SHUTDOWN; on
+console.</p>
+
+<p style="margin-top: 1em">Libevent settings <br>
+From libevent docs:</p>
+
+<p style="margin-top: 1em">It is possible to disable
+support for epoll, kqueue, devpoll, poll <br>
+or select by setting the environment variable EVENT_NOEPOLL,
+<br>
+EVENT_NOKQUEUE, EVENT_NODEVPOLL, EVENT_NOPOLL or
+EVENT_NOSELECT, <br>
+respectively.</p>
+
+<p style="margin-top: 1em">By setting the environment
+variable EVENT_SHOW_METHOD, libevent <br>
+displays the kernel notification method that it uses.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+pgbouncer(5) - manpage of configuration settings
+descriptions.</p>
+
+
+<p style="margin-top: 1em">https://pgbouncer.github.io/</p>
+
+
+<p style="margin-top: 1em">https://wiki.postgresql.org/wiki/PgBouncer</p>
+
+<p style="margin-top: 1em">1.7 2006-10-23 PGBOUNCER(1)</p>
+<hr>
+</body>
+</html>

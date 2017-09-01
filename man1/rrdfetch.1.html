@@ -1,0 +1,339 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:36:03 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>RRDFETCH(1) rrdtool RRDFETCH(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+rrdfetch - Fetch data from an RRD.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+rrdtool fetch filename CF [--resolution|-r resolution]
+[--start|-s start] [--end|-e end] [--daemon address]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+The fetch function is normally used internally by the graph
+function to get data from RRDs. fetch will analyze the RRD
+and try to retrieve the data in the resolution requested.
+<br>
+The data fetched is printed to stdout. *UNKNOWN* data is
+often represented by the string &quot;NaN&quot; depending on
+your OS&rsquo;s printf function.</p>
+
+<p style="margin-top: 1em">filename <br>
+the name of the RRD you want to fetch the data from.</p>
+
+<p style="margin-top: 1em">CF the consolidation function
+that is applied to the data you want to fetch
+(AVERAGE,MIN,MAX,LAST)</p>
+
+<p style="margin-top: 1em">--resolution|-r resolution
+(default is the highest resolution) <br>
+the interval you want the values to have (seconds per
+value). rrdfetch will try to match your request, but it will
+return data even if no absolute match is possible. NB. <br>
+See note below.</p>
+
+<p style="margin-top: 1em">--start|-s start (default
+end-1day) <br>
+start of the time series. A time in seconds since epoch
+(1970-01-01) is required. Negative numbers are relative to
+the current time. By default, one day worth of data <br>
+will be fetched. See also AT-STYLE TIME SPECIFICATION
+section for a detailed explanation on ways to specify the
+start time.</p>
+
+<p style="margin-top: 1em">--end|-e end (default now) <br>
+the end of the time series in seconds since epoch. See also
+AT-STYLE TIME SPECIFICATION section for a detailed
+explanation of how to specify the end time.</p>
+
+<p style="margin-top: 1em">--daemon address <br>
+Address of the rrdcached daemon. If specified, a
+&quot;flush&quot; command is sent to the server before
+reading the RRD files. This allows rrdtool to return fresh
+data even if the <br>
+daemon is configured to cache values for a long time. For a
+list of accepted formats, see the -l option in the rrdcached
+manual.</p>
+
+<p style="margin-top: 1em">rrdtool fetch --daemon
+unix:/var/run/rrdcached.sock /var/lib/rrd/foo.rrd
+AVERAGE</p>
+
+<p style="margin-top: 1em">RESOLUTION INTERVAL <br>
+In order to get RRDtool to fetch anything other than the
+finest resolution RRA both the start and end time must be
+specified on boundaries that are multiples of the desired
+<br>
+resolution. Consider the following example:</p>
+
+<p style="margin-top: 1em">rrdtool create subdata.rrd -s 10
+DS:ds0:GAUGE:300:0:U RRA:AVERAGE:0.5:30:3600
+RRA:AVERAGE:0.5:90:1200 RRA:AVERAGE:0.5:360:1200
+RRA:MAX:0.5:360:1200 RRA:AVERAGE:0.5:8640:600
+RRA:MAX:0.5:8640:600</p>
+
+<p style="margin-top: 1em">This RRD collects data every 10
+seconds and stores its averages over 5 minutes, 15 minutes,
+1 hour, and 1 day, as well as the maxima for 1 hour and 1
+day.</p>
+
+<p style="margin-top: 1em">Consider now that you want to
+fetch the 15 minute average data for the last hour. You
+might try</p>
+
+<p style="margin-top: 1em">rrdtool fetch subdata.rrd
+AVERAGE -r 900 -s -1h</p>
+
+<p style="margin-top: 1em">However, this will almost always
+result in a time series that is NOT in the 15 minute RRA.
+Therefore, the highest resolution RRA, i.e. 5 minute
+averages, will be chosen which in <br>
+this case is not what you want.</p>
+
+<p style="margin-top: 1em">Hence, make sure that</p>
+
+<p style="margin-top: 1em">1. both start and end time are a
+multiple of 900</p>
+
+<p style="margin-top: 1em">2. both start and end time are
+within the desired RRA</p>
+
+<p style="margin-top: 1em">So, if time now is called
+&quot;t&quot;, do</p>
+
+<p style="margin-top: 1em">end time == int(t/900)*900, <br>
+start time == end time - 1hour, <br>
+resolution == 900.</p>
+
+<p style="margin-top: 1em">Using the bash shell, this could
+look be:</p>
+
+<p style="margin-top: 1em">TIME=$(date +%s) <br>
+RRDRES=900 <br>
+rrdtool fetch subdata.rrd AVERAGE -r $RRDRES -e
+$(($TIME/$RRDRES*$RRDRES)) -s e-1h</p>
+
+<p style="margin-top: 1em">Or in Perl:</p>
+
+<p style="margin-top: 1em">perl -e &rsquo;$ctime = time;
+$rrdres = 900; system &quot;rrdtool fetch subdata.rrd
+AVERAGE -r $rrdres -e @{[int($ctime/$rrdres)*$rrdres]} -s
+e-1h&quot;&rsquo;</p>
+
+<p style="margin-top: 1em">AT-STYLE TIME SPECIFICATION <br>
+Apart from the traditional Seconds since epoch, RRDtool does
+also understand at-style time specification. The
+specification is called &quot;at-style&quot; after the Unix
+command at(1) that <br>
+has moderately complex ways to specify time to run your job
+at a certain date and time. The at-style specification
+consists of two parts: the TIME REFERENCE specification and
+the <br>
+TIME OFFSET specification.</p>
+
+<p style="margin-top: 1em">TIME REFERENCE SPECIFICATION
+<br>
+The time reference specification is used, well, to establish
+a reference moment in time (to which the time offset is then
+applied to). When present, it should come first, when <br>
+omitted, it defaults to now. On its own part, time reference
+consists of a time-of-day reference (which should come
+first, if present) and a day reference.</p>
+
+<p style="margin-top: 1em">The time-of-day can be specified
+as HH:MM, HH.MM, or just HH. You can suffix it with am or pm
+or use 24-hours clock. Some special times of day are
+understood as well, including <br>
+midnight (00:00), noon (12:00) and British teatime
+(16:00).</p>
+
+<p style="margin-top: 1em">The day can be specified as
+month-name day-of-the-month and optional a 2- or 4-digit
+year number (e.g. March 8 1999). Alternatively, you can use
+day-of-week-name (e.g. Monday), <br>
+or one of the words: yesterday, today, tomorrow. You can
+also specify the day as a full date in several numerical
+formats, including MM/DD/[YY]YY, DD.MM.[YY]YY, or
+YYYYMMDD.</p>
+
+<p style="margin-top: 1em">NOTE1: this is different from
+the original at(1) behavior, where a single-number date is
+interpreted as MMDD[YY]YY.</p>
+
+<p style="margin-top: 1em">NOTE2: if you specify the day in
+this way, the time-of-day is REQUIRED as well.</p>
+
+<p style="margin-top: 1em">Finally, you can use the words
+now, start, end or epoch as your time reference. Now refers
+to the current moment (and is also the default time
+reference). Start (end) can be used <br>
+to specify a time relative to the start (end) time for those
+tools that use these categories (rrdfetch, rrdgraph) and
+epoch indicates the *IX epoch (*IX timestamp 0 = 1970-01-01
+<br>
+00:00:00 UTC). epoch is useful to disambiguate between a
+timestamp value and some forms of abbreviated date/time
+specifications, because it allows to use time offset <br>
+specifications using units, eg. epoch+19711205s
+unambiguously denotes timestamp 19711205 and not 1971-12-05
+00:00:00 UTC.</p>
+
+<p style="margin-top: 1em">Month and day of the week names
+can be used in their naturally abbreviated form (e.g., Dec
+for December, Sun for Sunday, etc.). The words now, start,
+end can be abbreviated as n, <br>
+s, e.</p>
+
+<p style="margin-top: 1em">TIME OFFSET SPECIFICATION <br>
+The time offset specification is used to add/subtract
+certain time intervals to/from the time reference moment. It
+consists of a sign (+ or -) and an amount. The following
+time <br>
+units can be used to specify the amount: years, months,
+weeks, days, hours, minutes, or seconds. These units can be
+used in singular or plural form, and abbreviated naturally
+or <br>
+to a single letter (e.g. +3days, -1wk, -3y). Several time
+units can be combined (e.g., -5mon1w2d) or concatenated
+(e.g., -5h45min = -5h-45min = -6h+15min = -7h+1h30m-15min,
+etc.)</p>
+
+<p style="margin-top: 1em">NOTE3: If you specify time
+offset in days, weeks, months, or years, you will end with
+the time offset that may vary depending on your time
+reference, because all those time units <br>
+have no single well defined time interval value (1 year
+contains either 365 or 366 days, 1 month is 28 to 31 days
+long, and even 1 day may be not equal to 24 hours twice a
+year, <br>
+when DST-related clock adjustments take place). To cope with
+this, when you use days, weeks, months, or years as your
+time offset units your time reference date is adjusted <br>
+accordingly without too much further effort to ensure
+anything about it (in the hope that mktime(3) will take care
+of this later). This may lead to some surprising (or even
+<br>
+invalid!) results, e.g. &rsquo;May 31 -1month&rsquo; =
+&rsquo;Apr 31&rsquo; (meaningless) = &rsquo;May 1&rsquo;
+(after mktime(3) normalization); in the EET timezone
+&rsquo;3:30am Mar 29 1999 -1 day&rsquo; yields &rsquo;3:30am
+Mar 28 <br>
+1999&rsquo; (Sunday) which is an invalid time/date
+combination (because of 3am -&gt; 4am DST forward clock
+adjustment, see the below example).</p>
+
+<p style="margin-top: 1em">In contrast, hours, minutes, and
+seconds are well defined time intervals, and these are
+guaranteed to always produce time offsets exactly as
+specified (e.g. for EET timezone, <br>
+&rsquo;8:00 Mar 27 1999 +2 days&rsquo; = &rsquo;8:00 Mar 29
+1999&rsquo;, but since there is 1-hour DST forward clock
+adjustment that occurs around 3:00 Mar 28 1999, the actual
+time interval between <br>
+8:00 Mar 27 1999 and 8:00 Mar 29 1999 equals 47 hours; on
+the other hand, &rsquo;8:00 Mar 27 1999 +48 hours&rsquo; =
+&rsquo;9:00 Mar 29 1999&rsquo;, as expected)</p>
+
+<p style="margin-top: 1em">NOTE4: The single-letter
+abbreviation for both months and minutes is m. To
+disambiguate them, the parser tries to read your mind :) by
+applying the following two heuristics:</p>
+
+<p style="margin-top: 1em">1. If m is used in context of
+(i.e. right after the) years, months, weeks, or days it is
+assumed to mean months, while in the context of hours,
+minutes, and seconds it means <br>
+minutes. (e.g., in -1y6m or +3w1m m is interpreted as
+months, while in -3h20m or +5s2m m the parser decides for
+minutes).</p>
+
+<p style="margin-top: 1em">2. Out of context (i.e. right
+after the + or - sign) the meaning of m is guessed from the
+number it directly follows. Currently, if the number&rsquo;s
+absolute value is below 25 it is <br>
+assumed that m means months, otherwise it is treated as
+minutes. (e.g., -25m == -25 minutes, while +24m == +24
+months)</p>
+
+<p style="margin-top: 1em">Final NOTES: Time specification
+is case-insensitive. Whitespace can be inserted freely or
+omitted altogether. There are, however, cases when
+whitespace is required (e.g., <br>
+&rsquo;midnight Thu&rsquo;). In this case you should either
+quote the whole phrase to prevent it from being taken apart
+by your shell or use &rsquo;_&rsquo; (underscore) or
+&rsquo;,&rsquo; (comma) which also count <br>
+as whitespace (e.g., midnight_Thu or midnight,Thu).</p>
+
+<p style="margin-top: 1em">TIME SPECIFICATION EXAMPLES <br>
+Oct 12 -- October 12 this year</p>
+
+<p style="margin-top: 1em">-1month or -1m -- current time
+of day, only a month before (may yield surprises, see NOTE3
+above).</p>
+
+<p style="margin-top: 1em">noon yesterday -3hours --
+yesterday morning; can also be specified as 9am-1day.</p>
+
+<p style="margin-top: 1em">23:59 31.12.1999 -- 1 minute to
+the year 2000.</p>
+
+<p style="margin-top: 1em">12/31/99 11:59pm -- 1 minute to
+the year 2000 for imperialists.</p>
+
+<p style="margin-top: 1em">12am 01/01/01 -- start of the
+new millennium</p>
+
+<p style="margin-top: 1em">end-3weeks or e-3w -- 3 weeks
+before end time (may be used as start time
+specification).</p>
+
+<p style="margin-top: 1em">start+6hours or s+6h -- 6 hours
+after start time (may be used as end time
+specification).</p>
+
+<p style="margin-top: 1em">931225537 -- 18:45 July 5th,
+1999 (yes, seconds since 1970 are valid as well).</p>
+
+<p style="margin-top: 1em">19970703 12:45 -- 12:45 July
+3th, 1997 (my favorite, and its even got an ISO number
+(8601)).</p>
+
+<p style="margin-top: 1em">ENVIRONMENT VARIABLES <br>
+The following environment variables may be used to change
+the behavior of &quot;rrdtool fetch&quot;:</p>
+
+<p style="margin-top: 1em">RRDCACHED_ADDRESS <br>
+If this environment variable is set it will have the same
+effect as specifying the &quot;--daemon&quot; option on the
+command line. If both are present, the command line argument
+takes <br>
+precedence.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Tobias Oetiker &lt;tobi@oetiker.ch&gt;</p>
+
+<p style="margin-top: 1em">1.4.8 2013-05-23 RRDFETCH(1)</p>
+<hr>
+</body>
+</html>

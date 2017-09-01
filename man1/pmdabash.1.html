@@ -1,0 +1,211 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:31:55 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>PMDABASH(1) General Commands Manual PMDABASH(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+pmdabash - Bourne-Again SHell trace performance metrics
+domain agent</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+$PCP_PMDAS_DIR/bash/pmdabash [-C] [-d domain] [-l logfile]
+[-I interval] [-t timeout] [-U username] configfile</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+pmdabash is an experimental Performance Metrics Domain Agent
+(PMDA) which exports &quot;xtrace&quot; events from a traced
+bash(1) process. This includes the command execution
+information <br>
+that would usually be sent to standard error with the set -x
+option to the shell.</p>
+
+<p style="margin-top: 1em">Event metrics are exported
+showing each command executed, the function name and line
+number in the script, and a timestamp. Additionally, the
+process identifier for the shell <br>
+and its parent process are exported.</p>
+
+<p style="margin-top: 1em">This requires bash version 4 or
+later.</p>
+
+<p style="margin-top: 1em">A brief description of the
+pmdabash command line options follows:</p>
+
+<p style="margin-top: 1em">-d It is absolutely crucial that
+the performance metrics domain number specified here is
+unique and consistent. That is, domain should be different
+for every PMDA on the one <br>
+host, and the same domain number should be used for the same
+PMDA on all hosts.</p>
+
+<p style="margin-top: 1em">-l Location of the log file. By
+default, a log file named bash.log is written in the current
+directory of pmcd(1) when pmdabash is started, i.e.
+$PCP_LOG_DIR/pmcd. If the <br>
+log file cannot be created or is not writable, output is
+written to the standard error instead.</p>
+
+<p style="margin-top: 1em">-s Amount of time (in seconds)
+between subsequent evaluations of the shell trace file
+descriptor(s). The default is 2 seconds.</p>
+
+<p style="margin-top: 1em">-m Maximum amount of memory to
+be allowed for each event queue (one per traced process).
+The default is 2 megabytes.</p>
+
+<p style="margin-top: 1em">-U User account under which to
+run the agent. The default is the unprivileged
+&quot;pcp&quot; account in current versions of PCP, but in
+older versions the superuser account (&quot;root&quot;) <br>
+was used by default.</p>
+
+<p style="margin-top: 1em">INSTALLATION <br>
+In order for a host to export the names, help text and
+values for the bash performance metrics, do the following as
+root:</p>
+
+<p style="margin-top: 1em"># cd $PCP_PMDAS_DIR/bash <br>
+# ./Install</p>
+
+<p style="margin-top: 1em">As soon as an instrumented shell
+script (see INSTRUMENTATION selection below) is run, with
+tracing enabled, new metric values will appear - no further
+setup of the agent is <br>
+required.</p>
+
+<p style="margin-top: 1em">If you want to undo the
+installation, do the following as root:</p>
+
+<p style="margin-top: 1em"># cd $PCP_PMDAS_DIR/bash <br>
+# ./Remove</p>
+
+<p style="margin-top: 1em">pmdabash is launched by pmcd(1)
+and should never be executed directly. The Install and
+Remove scripts notify pmcd(1) when the agent is installed or
+removed.</p>
+
+<p style="margin-top: 1em">INSTRUMENTATION <br>
+In order to allow the flow of event data between a bash(1)
+script and pmdabash, the script should take the following
+actions:</p>
+
+<p style="margin-top: 1em">#!/bin/sh <br>
+source $PCP_DIR/etc/pcp.sh</p>
+
+<p style="margin-top: 1em">pcp_trace on $@ # enable tracing
+<br>
+echo &quot;awoke, $count&quot;</p>
+
+<p style="margin-top: 1em">pcp_trace off # disable
+tracing</p>
+
+<p style="margin-top: 1em">The tracing can be enabled and
+disabled any number of times by the script. On successful
+installation of the agent, several metrics will be
+available:</p>
+
+<p style="margin-top: 1em">$ pminfo bash <br>
+bash.xtrace.numclients <br>
+bash.xtrace.maxmem <br>
+bash.xtrace.queuemem <br>
+bash.xtrace.count <br>
+bash.xtrace.records <br>
+bash.xtrace.parameters.pid <br>
+bash.xtrace.parameters.parent <br>
+bash.xtrace.parameters.lineno <br>
+bash.xtrace.parameters.function <br>
+bash.xtrace.parameters.command</p>
+
+<p style="margin-top: 1em">When an instrumented script is
+running, the generation of event records can be verified
+using the pmevent(1) command, as follows:</p>
+
+<p style="margin-top: 1em">$ pmevent -t 1 -x &rsquo;&rsquo;
+bash.xtrace.records <br>
+host: localhost <br>
+samples: all <br>
+bash.xtrace.records[&quot;4538 ./test-trace.sh 1 2 3&quot;]:
+5 event records <br>
+10:00:05.000 --- event record [0] flags 0x19
+(point,id,parent) --- <br>
+bash.xtrace.parameters.pid 4538 <br>
+bash.xtrace.parameters.parent 4432 <br>
+bash.xtrace.parameters.lineno 43 <br>
+bash.xtrace.parameters.command &quot;true&quot; <br>
+10:00:05.000 --- event record [1] flags 0x19
+(point,id,parent) --- <br>
+bash.xtrace.parameters.pid 4538 <br>
+bash.xtrace.parameters.parent 4432 <br>
+bash.xtrace.parameters.lineno 45 <br>
+bash.xtrace.parameters.command &quot;(( count++ ))&quot;
+<br>
+10:00:05.000 --- event record [2] flags 0x19
+(point,id,parent) --- <br>
+bash.xtrace.parameters.pid 4538 <br>
+bash.xtrace.parameters.parent 4432 <br>
+bash.xtrace.parameters.lineno 46 <br>
+bash.xtrace.parameters.command &quot;echo &rsquo;awoke,
+3&rsquo;&quot; <br>
+10:00:05.000 --- event record [3] flags 0x19
+(point,id,parent) --- <br>
+bash.xtrace.parameters.pid 4538 <br>
+bash.xtrace.parameters.parent 4432 <br>
+bash.xtrace.parameters.lineno 47 <br>
+bash.xtrace.parameters.command &quot;tired 2&quot; <br>
+10:00:05.000 --- event record [4] flags 0x19
+(point,id,parent) --- <br>
+bash.xtrace.parameters.pid 4538 <br>
+bash.xtrace.parameters.parent 4432 <br>
+bash.xtrace.parameters.lineno 38 <br>
+bash.xtrace.parameters.function &quot;tired&quot; <br>
+bash.xtrace.parameters.command &quot;sleep 2&quot;</p>
+
+<p style="margin-top: 1em">FILES <br>
+$PCP_PMCDCONF_PATH <br>
+command line options used to launch pmdabash <br>
+$PCP_PMDAS_DIR/bash/help <br>
+default help text file for the bash metrics <br>
+$PCP_PMDAS_DIR/bash/Install <br>
+installation script for the pmdabash agent <br>
+$PCP_PMDAS_DIR/bash/Remove <br>
+undo installation script for pmdabash <br>
+$PCP_LOG_DIR/pmcd/bash.log <br>
+default log file for error messages and other information
+from pmdabash</p>
+
+<p style="margin-top: 1em">PCP ENVIRONMENT <br>
+Environment variables with the prefix PCP_ are used to
+parameterize the file and directory names used by PCP. On
+each installation, the file /etc/pcp.conf contains the local
+<br>
+values for these variables. The $PCP_CONF variable may be
+used to specify an alternative configuration file, as
+described in pcp.conf(5).</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+bash(1), pmevent(1) and pmcd(1).</p>
+
+<p style="margin-top: 1em">Performance Co-Pilot PCP
+PMDABASH(1)</p>
+<hr>
+</body>
+</html>

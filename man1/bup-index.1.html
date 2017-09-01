@@ -1,0 +1,257 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 15:56:50 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>bup-index(1) bup-index(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+bup-index - print and/or update the bup filesystem index</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+bup index &lt;-p|-m|-s|-u|--clear|--check&gt; [-H] [-l] [-x]
+[--fake-valid] [--no-check-device] [--fake-invalid] [-f
+indexfile] [--exclude path] [--exclude-from filename]
+[--exclude-rx <br>
+pattern] [--exclude-rx-from filename] [-v]
+&lt;paths...&gt;</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+bup index manipulates the filesystem index, which is a cache
+of absolute paths and their metadata (atttributes, SHA-1
+hashes, etc.). The bup index is similar in function to the
+<br>
+git(1) index, and the default index can be found in
+$BUP_DIR/bupindex.</p>
+
+<p style="margin-top: 1em">Creating a backup in bup
+consists of two steps: updating the index with bup index,
+then actually backing up the files (or a subset of the
+files) with bup save. The separation <br>
+exists for these reasons:</p>
+
+<p style="margin-top: 1em">1. There is more than one way to
+generate a list of files that need to be backed up. For
+example, you might want to use inotify(7) or dnotify(7).</p>
+
+<p style="margin-top: 1em">2. Even if you back up files to
+multiple destinations (for added redundancy), the file
+names, attributes, and hashes will be the same each time.
+Thus, you can save the trouble <br>
+of repeatedly re-generating the list of files for each
+backup set.</p>
+
+<p style="margin-top: 1em">3. You may want to use the data
+tracked by bup index for other purposes (such as speeding up
+other programs that need the same information).</p>
+
+<p style="margin-top: 1em">NOTES <br>
+At the moment, bup will ignore Linux attributes (cf.
+chattr(1) and lsattr(1)) on some systems (any big-endian
+systems where sizeof(long) &lt; sizeof(int)). This is
+because the <br>
+Linux kernel and FUSE currently disagree over the type of
+the attr system call arguments, and so on big-endian systems
+there&rsquo;s no way to get the results without the risk of
+stack <br>
+corruption (http://lwn.net/Articles/575846/). In these
+situations, bup will print a warning the first time Linux
+attrs are relevant during any index/save/restore
+operation.</p>
+
+<p style="margin-top: 1em">bup makes accommodations for the
+expected &quot;worst-case&quot; filesystem timestamp
+resolution -- currently one second; examples include VFAT,
+ext2, ext3, small ext4, etc. Since bup <br>
+cannot know the filesystem timestamp resolution, and could
+be traversing multiple filesystems during any given run, it
+always assumes that the resolution may be no better than
+<br>
+one second.</p>
+
+<p style="margin-top: 1em">As a practical matter, this
+means that index updates are a bit imprecise, and so bup
+save may occasionally record filesystem changes that you
+didn&rsquo;t expect. That&rsquo;s because, dur&acirc; <br>
+ing an index update, if bup encounters a path whose actual
+timestamps are more recent than one second before the update
+started, bup will set the index timestamps for that path
+<br>
+(mtime and ctime) to exactly one second before the run, --
+effectively capping those values.</p>
+
+<p style="margin-top: 1em">This ensures that no subsequent
+changes to those paths can result in timestamps that are
+identical to those in the index. If that were possible, bup
+could overlook the modifica&acirc; <br>
+tions.</p>
+
+<p style="margin-top: 1em">You can see the effect of this
+behavior in this example (assume that less than one second
+elapses between the initial file creation and first index
+run):</p>
+
+<p style="margin-top: 1em">$ touch src/1 src/2 <br>
+# A &quot;sleep 1&quot; here would avoid the unexpected
+save. <br>
+$ bup index src <br>
+$ bup save -n src src # Saves 1 and 2. <br>
+$ date &gt; src/1 <br>
+$ bup index src <br>
+$ date &gt; src/2 # Not indexed. <br>
+$ bup save -n src src # But src/2 is saved anyway.</p>
+
+<p style="margin-top: 1em">Strictly speaking, bup should
+not notice the change to src/2, but it does, due to the
+accommodations described above.</p>
+
+<p style="margin-top: 1em">MODES <br>
+-u, --update <br>
+recursively update the index for the given paths and their
+descendants. One or more paths must be specified, and if a
+path ends with a symbolic link, the link itself will <br>
+be indexed, not the target. If no mode option is given,
+--update is the default, and paths may be excluded by the
+--exclude, --exclude-rx, and --one-file-system options.</p>
+
+<p style="margin-top: 1em">-p, --print <br>
+print the contents of the index. If paths are given, shows
+the given entries and their descendants. If no paths are
+given, shows the entries starting at the current <br>
+working directory (.).</p>
+
+<p style="margin-top: 1em">-m, --modified <br>
+prints only files which are marked as modified (ie. changed
+since the most recent backup) in the index. Implies -p.</p>
+
+<p style="margin-top: 1em">-s, --status <br>
+prepend a status code (A, M, D, or space) before each path.
+Implies -p. The codes mean, respectively, that a file is
+marked in the index as added, modified, deleted, or <br>
+unchanged since the last backup.</p>
+
+<p style="margin-top: 1em">--check <br>
+carefully check index file integrity before and after
+updating. Mostly useful for automated tests.</p>
+
+<p style="margin-top: 1em">--clear <br>
+clear the default index.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-H, --hash <br>
+for each file printed, prepend the most recently recorded
+hash code. The hash code is normally generated by bup save.
+For objects which have not yet been backed up, the <br>
+hash code will be 0000000000000000000000000000000000000000.
+Note that the hash code is printed even if the file is known
+to be modified or deleted in the index (ie. the <br>
+file on the filesystem no longer matches the recorded hash).
+If this is a problem for you, use --status.</p>
+
+<p style="margin-top: 1em">-l, --long <br>
+print more information about each file, in a similar format
+to the -l option to ls(1).</p>
+
+<p style="margin-top: 1em">-x, --xdev, --one-file-system
+<br>
+don&rsquo;t cross filesystem boundaries when traversing the
+filesystem -- though as with tar and rsync, the mount points
+themselves will still be indexed. Only applicable if <br>
+you&rsquo;re using -u.</p>
+
+<p style="margin-top: 1em">--fake-valid <br>
+mark specified paths as up-to-date even if they
+aren&rsquo;t. This can be useful for testing, or to avoid
+unnecessarily backing up files that you know are boring.</p>
+
+<p style="margin-top: 1em">--fake-invalid <br>
+mark specified paths as not up-to-date, forcing the next
+&quot;bup save&quot; run to re-check their contents.</p>
+
+<p style="margin-top: 1em">-f, --indexfile=indexfile <br>
+use a different index filename instead of
+$BUP_DIR/bupindex.</p>
+
+<p style="margin-top: 1em">--exclude=path <br>
+exclude path from the backup (may be repeated).</p>
+
+<p style="margin-top: 1em">--exclude-from=filename <br>
+read --exclude paths from filename, one path per-line (may
+be repeated). Ignore completely empty lines.</p>
+
+<p style="margin-top: 1em">--exclude-rx=pattern <br>
+exclude any path matching pattern, which must be a Python
+regular expression (http://docs.python.org/library/re.html).
+The pattern will be compared against the full path, <br>
+without anchoring, so &quot;x/y&quot; will match
+&quot;ox/yard&quot; or &quot;box/yards&quot;. To exclude the
+contents of /tmp, but not the directory itself, use
+&quot;^/tmp/.&quot;. (may be repeated)</p>
+
+<p style="margin-top: 1em">Examples:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&rsquo;/foo$&rsquo; - exclude any file named foo</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&rsquo;/foo/$&rsquo; - exclude any directory named foo</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&rsquo;/foo/.&rsquo; - exclude the content of any directory
+named foo</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&rsquo;^/tmp/.&rsquo; - exclude root-level /tmp&rsquo;s
+content, but not /tmp itself</p>
+
+<p style="margin-top: 1em">--exclude-rx-from=filename <br>
+read --exclude-rx patterns from filename, one pattern
+per-line (may be repeated). Ignore completely empty
+lines.</p>
+
+<p style="margin-top: 1em">--no-check-device <br>
+don&rsquo;t mark an entry invalid if the device number
+(stat(2) st_dev) changes. This can be useful when indexing
+remote, automounted, or snapshot filesystems (LVM, Btrfs,
+<br>
+etc.), where the device number isn&rsquo;t fixed.</p>
+
+<p style="margin-top: 1em">-v, --verbose <br>
+increase log output during update (can be used more than
+once). With one -v, print each directory as it is updated;
+with two -v, print each file too.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+bup index -vux /etc /var /usr</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+bup-save(1), bup-drecurse(1), bup-on(1)</p>
+
+<p style="margin-top: 1em">BUP <br>
+Part of the bup(1) suite.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Avery Pennarun &lt;apenwarr@gmail.com&gt;.</p>
+
+<p style="margin-top: 1em">Bup debian/0.29-2 2017-01-01
+bup-index(1)</p>
+<hr>
+</body>
+</html>

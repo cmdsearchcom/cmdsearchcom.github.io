@@ -1,0 +1,739 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:40:37 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>T-PROT(1) General Commands Manual T-PROT(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+t-prot - TOFU Protection - Display Filter for RFC 5322
+messages</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+t-prot [OPTIONS]...</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This program is a filter to improve the readability of
+internet messages (emails and usenet posts) by *hiding* some
+annoying parts, e.g. mailing list footers, signatures, and
+<br>
+TOFU (see definition below), as well as squeezing sequences
+of blank lines or punctuation. The program also detects TOFU
+or a high quoting ratio in a message (so you may take <br>
+appropriate action, e.g. when submitting messages to a
+mailing list or a news server). <br>
+The filter is written in Perl and relies on input to be a
+single message conforming to RFC 822 or its successors, RFC
+2822 and RFC 5322. In messages conforming to MIME (RFCs <br>
+2045-2049) t-prot handles text/plain parts, others are not
+touched.</p>
+
+<p style="margin-top: 1em">Already reformatted messages are
+handled well: the script was initially designed to cope with
+the output of the MUA mutt (which is the reason for not
+using standard CPAN modules <br>
+for handling messages).</p>
+
+<p style="margin-top: 1em">T-prot offers example
+configuration files for mutt and its fork mutt-kz, Heirloom
+mailx and metamail. Also coming with the t-prot package is
+the example S-Lang macro t-prot.sl <br>
+for using t-prot from within slrn. There is a
+proof-of-concept filter for INN2, which you will have to
+adapt to the needs of the news site you host. For use with
+sendmail&rsquo;s <br>
+alias(5) file, please see below (the option -p provides an
+example line).</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+If you do not specify any options, t-prot does ... nothing.
+Every feature you want must be turned on explicitly.
+Admittedly, we have quite a number of options for t-prot. To
+<br>
+limit confusion they are grouped into five sections:
+Input/Output Options, Advertisement And Mailing List
+Footers, Filtering Options, Detection Options, and Other
+Options. While <br>
+the others should be quite clear, filtering and detection
+might deserve a word (or two).</p>
+
+<p style="margin-top: 1em">If you want to tune the
+appearance of your mail from within your MUA (or news
+messages from within your NUA), then go for the Filtering
+Options section.</p>
+
+<p style="margin-top: 1em">If you want to use t-prot to
+check on mails before they are submitted to mailing lists,
+fed to your news server, or delivered by your MDA, then have
+a peek at the Detection <br>
+Options section. You may accept or reject/bounce messages
+depending on t-prot&rsquo;s result.</p>
+
+<p style="margin-top: 1em">INPUT/OUTPUT OPTIONS <br>
+-i FILE <br>
+Defines an input file; default is &rsquo;-&rsquo; i.e.
+STDIN.</p>
+
+<p style="margin-top: 1em">-o FILE <br>
+Defines the output file; default is STDOUT.</p>
+
+<p style="margin-top: 1em">--body Input consists just of
+the message&rsquo;s body. There are no RFC 5322 header
+lines.</p>
+
+<p style="margin-top: 1em">NOTE: This does not work with
+--pgp-short, and multipart messages will not be detected due
+to missing headers.</p>
+
+<p style="margin-top: 1em">--lax-security <br>
+Allow insecure writing method. DO NOT USE UNLESS YOU REALLY
+KNOW WHAT YOU ARE DOING. (This ugly workaround is needed for
+some early mutt versions and should NEVER be used <br>
+as a default, otherwise it will probably turn into a
+security issue.)</p>
+
+<p style="margin-top: 1em">You can use this option safely
+to enable -o /dev/null (or other files which cannot be
+changed with the user&rsquo;s privileges).</p>
+
+<p style="margin-top: 1em">--max-lines=x <br>
+Maximum number of lines a message may count (with headers).
+If the message is longer than x lines, the message will not
+be processed but printed unmodified. Exit status <br>
+will be EX_DATAERR except when called with -Mmutt or
+-Mmutt-kz.</p>
+
+<p style="margin-top: 1em">ADVERTISEMENT AND MAILING LIST
+FOOTERS <br>
+-a &quot;commercial signature&quot;: Hides
+&quot;footers&quot; (signatures) from commercial email
+providers. <br>
+This option compares the last lines of the message body with
+any footer file found in the directory specified with -A
+DIRECTORY (which is mandatory for this option). The <br>
+comparison is done by perl&rsquo;s index() function (please
+try perldoc -f index for details).</p>
+
+<p style="margin-top: 1em">NOTE: This option is not needed
+if --ftr-ad is specified.</p>
+
+<p style="margin-top: 1em">--ftr-ad <br>
+&quot;enable aggressive ad footer matching&quot;: With this
+option enabled, t-prot makes footer detection really greedy:
+We assume that commercial email providers aren&rsquo;t even
+<br>
+frightened to append changing texts *under* their ads which
+are appended to the message body. Because these texts even
+have changing lengths we simply detect the lines of <br>
+the footer *anywhere* in the body of the message and assume
+that everything below belongs to the footer. (Man, if life
+where always that easy! ;) <br>
+With this option even GMX ads should be easy to hide -- you
+buy this with a slight performance hit (which is the reason
+this option is disabled by default), and with the <br>
+possibility that sometimes the algorithm is just a little
+*too* greedy.</p>
+
+<p style="margin-top: 1em">NOTE: This requires a directory
+with footer files to be given with option -A DIRECTORY.</p>
+
+<p style="margin-top: 1em">-A DIRECTORY <br>
+&quot;ad footer directory&quot;: Defines the directory which
+contains the advertisement list footers (one footer per
+file) which are to be tested when removing them with options
+-a <br>
+or --ftr-ad. <br>
+This option is also needed if you do not want signature
+lengths to be counted wrong or fullquotes get undetected
+when an ad footer is appended at the bottom of the message
+<br>
+(especially when using -S or -t).</p>
+
+<p style="margin-top: 1em">-l &quot;list signature&quot;:
+Hides &quot;footers&quot; (signatures) from mailing lists.
+Footer detection works like the -a option.</p>
+
+<p style="margin-top: 1em">NOTE: This requires a directory
+with footer files to be given with option -L DIRECTORY. -l
+is not needed if --ftr-ml is specified.</p>
+
+<p style="margin-top: 1em">--ftr-ml <br>
+&quot;enable aggressive mailing list footer matching&quot;:
+With this option enabled t-prot makes footer detection
+really greedy: Should be helpful with broken list servers,
+or even <br>
+if your email provider munges the bodies of your messages.
+<br>
+Works similar to --ftr-ad, just that it is intended for
+mailing list footers.</p>
+
+<p style="margin-top: 1em">NOTE: This requires a directory
+with footer files to be given with option -L DIRECTORY.</p>
+
+<p style="margin-top: 1em">-L DIRECTORY <br>
+&quot;list footer directory&quot;: Defines the directory
+which contains the mailing list footers (one footer per
+file) which are to be tested when removing them with the
+options -l <br>
+or --ftr-ml. <br>
+This option is also needed if you do not want signature
+lengths to be counted wrong or fullquotes get undetected
+when a mailing list footer is appended at the bottom of <br>
+the message (especially when using -S or -t).</p>
+
+<p style="margin-top: 1em">FILTER OPTIONS <br>
+--bigq[=n[,x]] <br>
+&quot;shrink big quotes&quot;: Blocks of quotes with more
+than n lines will be shrunk to x lines. Defaults are 30 for
+n and 10 for x.</p>
+
+<p style="margin-top: 1em">-c[n] &quot;compress&quot;:
+Squeezes a sequence of blank lines to just n blank lines. n
+defaults to 2.</p>
+
+<p style="margin-top: 1em">--diff Tolerate unified diff
+(see diff(1) and patch(1)) appended after the signature
+(which usually makes the signature too long to be
+valid).</p>
+
+<p style="margin-top: 1em">Also, protect diff standard
+output from hiding (which would otherwise be easy prey for
+-t).</p>
+
+<p style="margin-top: 1em">-e &quot;ellipsis&quot;:
+Squeezes a sequence of four or more dots, exclamation marks,
+or question marks to only three dots or marks,
+respectively.</p>
+
+<p style="margin-top: 1em">--fixind <br>
+Fix broken quotes to adhere to RFC 3676 by removing spaces
+between quote characters and adding a space after them. <br>
+NOTE: This may produce false positives if spaces in between
+quote characters are intended (thus changing the quoting
+level, see RFC 3676 for details).</p>
+
+<p style="margin-top: 1em">--groupwise <br>
+Hides TOFU as produced by Novell Groupwise.</p>
+
+<p style="margin-top: 1em">-k &quot;anti Kammquote&quot;:
+Tries (not too aggressively) to fix those broken
+zig-zag-shaped lines wrapped around by some MUAs which are
+known as &quot;Kammquoting&quot; in German.</p>
+
+<p style="margin-top: 1em">NOTE: This option is considered
+stable by now. However, sometimes Kammquotes should have
+been removed but weren&rsquo;t. Please send a bug report if
+this happens to you (after <br>
+carefully reading the BUGS and REPORTING BUGS section of
+this man page, that is).</p>
+
+<p style="margin-top: 1em">Please also note that enabling
+this option is quite a performance hit.</p>
+
+<p style="margin-top: 1em">--kdiff=n <br>
+Minimum length difference between two lines for wrapped line
+detection on Kammquotes. For details, please see the source
+code. <br>
+Anyway, lower values make the algorithm more aggressive,
+higher values make Kammquotes harder to detect. Default is
+20.</p>
+
+<p style="margin-top: 1em">Requires -k.</p>
+
+<p style="margin-top: 1em">--kmaxl=n <br>
+Maximum line length for wrapped line detection on
+Kammquotes. For details, please see the source code. <br>
+Anyway, higher values make the algorithm more aggressive,
+lower values make Kammquotes harder to detect. Default is
+80.</p>
+
+<p style="margin-top: 1em">Requires -k.</p>
+
+<p style="margin-top: 1em">--kminl=n <br>
+Minimum line length for wrapped line detection on
+Kammquotes. For details, please see the source code. <br>
+Anyway, lower values make the algorithm more aggressive,
+higher values make Kammquotes harder to detect. Default is
+65.</p>
+
+<p style="margin-top: 1em">Requires -k.</p>
+
+<p style="margin-top: 1em">--locale=LOCALE <br>
+Specify which locale to use for correct parsing of your
+MUA&rsquo;s formatting of the displayed message (usually it
+is the locale your MUA uses). Right now this option is only
+<br>
+used when -Mmutt or -Mmutt-kz is specified, but this may
+change in future. You need the Perl module Locale::gettext
+for this feature.</p>
+
+<p style="margin-top: 1em">NOTE: If you use mutt, mutt-kz
+or gnupg with locales, t-prot will only work correctly if
+you specify the corresponding locale string. Alternatively,
+you can use the envi&acirc; <br>
+ronment variables LC_ALL, LC_MESSAGES, or LANG to specify
+the locale string.</p>
+
+<p style="margin-top: 1em">NOTE also: You also have to make
+sure you are running t-prot with matching gnupg and mutt /
+mutt-kz versions. T-prot detects gnupg and mutt / mutt-kz
+locales of the recent <br>
+stable versions of those programs, earlier versions might
+not work well with a recent version of t-prot.</p>
+
+<p style="margin-top: 1em">-M, --muaMUA <br>
+&quot;mail user agent&quot;: Turn on special treatment for
+some mail user agents. (Right now only mutt(1) and
+mutt-kz(1) are supported, but more might be added in
+future.) Caveat: <br>
+If your MUA is supported by this feature you must ensure
+t-prot makes use of it when called from within your MUA to
+work as desired.</p>
+
+<p style="margin-top: 1em">-m &quot;Microsoft TOFU&quot;:
+Hides TOFU as given by some Microsoft mailers. (You all
+surely know these fullquotes beginning with <br>
+&quot;----- Original Message -----&quot; <br>
+and some header lines...)</p>
+
+<p style="margin-top: 1em">--ms-smart <br>
+Burn CPU cycles trying to be smart with MS style TOFU: If
+there are PGP signed parts inside the TOFU, the text still
+might conceal other message parts and therefore should <br>
+not be deleted.</p>
+
+<p style="margin-top: 1em">Please note that this is
+probably just a waste of time because most MS Outlook users
+who do produce this kind of TOFU won&rsquo;t care about
+making their messages the least bit <br>
+readable or even predictable. So this option will probably
+just be interesting for mutt message hooks (to activate it
+on demand when you know the sender tries to write <br>
+legible messages).</p>
+
+<p style="margin-top: 1em">Requires -Mmutt / -Mmutt-kz and
+-m.</p>
+
+<p style="margin-top: 1em">--pgp-move <br>
+Move PGP and SSL verification output to bottom; requires
+-Mmutt / -Mmutt-kz.</p>
+
+<p style="margin-top: 1em">--pgp-move-vrf <br>
+Move PGP and SSL verification output to bottom only if
+verification shows a good signature and the signature could
+be verified as authentic (using a trust path). If there <br>
+is any problem with the signature, the PGP output should not
+be moved so the user is more likely to notice. Requires
+-Mmutt / -Mmutt-kz.</p>
+
+<p style="margin-top: 1em">NOTE: If gpg is terminated
+before finished (e.g. hitting Ctrl-C, or using kill(1)), we
+cannot always detect if the check was interrupted. Though
+t-prot tries to be smart, <br>
+there will be false positives.</p>
+
+<p style="margin-top: 1em">--pgp-short <br>
+Hide non-relevant PGP key uids; requires -Mmutt /
+-Mmutt-kz.</p>
+
+<p style="margin-top: 1em">-r &quot;rip header off&quot;:
+Hides all mail header lines.</p>
+
+<p style="margin-top: 1em">--reply <br>
+Subject lines with multiple reply prefixes (Re: and
+translations into other languages) get squeezed to only one
+prefix.</p>
+
+<p style="margin-top: 1em">-S[n] &quot;suppression of
+overlong signatures&quot;: Signatures are to be n lines (not
+including the one containing dash-dash-space) or less. If
+there are more, it is probably not that <br>
+spirited after all. So with this option you trade it for a
+truely nice line. <br>
+If no n is given, default is 4. (We do not recommend using a
+value other than 4. Consider this old-fashioned, but we
+actually do *like* RFC conformance.)</p>
+
+<p style="margin-top: 1em">NOTE: The line containing
+&quot;-- &quot; ist not counted when testing for an overlong
+signature, but it is included when displaying how many lines
+were deleted.</p>
+
+<p style="margin-top: 1em">-s &quot;signature
+deletion&quot;: Hides signatures, i.e. all lines after a
+&quot;signature dashes&quot; line, i.e. a line with three
+characters: dash-dash-space (no more, no less).</p>
+
+<p style="margin-top: 1em">--sani Sanitize headers
+&quot;To:&quot;, &quot;From:&quot; and &quot;Subject:&quot;:
+Quoted-printable gets fixed to the corresponding chars.
+German Umlauts are translated to their &quot;ae&quot;,
+&quot;oe&quot;, &quot;ue&quot; pendants. <br>
+Useful e.g. for searching by subject within MUAs like
+Berkeley mailx.</p>
+
+<p style="margin-top: 1em">--sigsmax[=n] <br>
+&quot;maximum number of tolerated signatures&quot;: Here you
+can define how many signatures you accept to be treated as
+such. (Most significant behaviour is when microsoft style
+<br>
+quotes are removed. Experts please see the code for the more
+subtle implications of this option.) <br>
+Leave empty or specify zero to have an unlimited number of
+sigs. Default is 1.</p>
+
+<p style="margin-top: 1em">--spass <br>
+&quot;SpamAssassin workaround&quot;: SpamAssassin (available
+at http://spamassassin.org/) often is configured that it
+adds some lines to the message body containing information
+<br>
+about the spam criteria which were found matching for the
+message. This option enables an extra test to avoid false
+positives for Microsoft style TOFU on such messages.</p>
+
+<p style="margin-top: 1em">-t &quot;TOFU deletion&quot;:
+Hides &quot;traditional style&quot; TOFU, where each line
+begins with the indent string &quot;&gt;&quot;.</p>
+
+<p style="margin-top: 1em">-w &quot;whitespace
+deletion&quot;: Hides trailing whitespace (sequences of
+space and tab). CAVEAT: This may lead to interesting effects
+with crossposts between mailing lists or with <br>
+undetected signature attempts.</p>
+
+<p style="margin-top: 1em">DETECTION OPTIONS <br>
+-P MESSAGE <br>
+&quot;user defined bounce message for picky delivery&quot;:
+You may specify your own bounce message to be returned when
+we try to deliver an email and bounce it because there is
+<br>
+TOFU inside. See -p.</p>
+
+<p style="margin-top: 1em">-p [ADDRESS] <br>
+&quot;picky delivery&quot;: If we really find some TOFU,
+abort with exit code EX_UNAVAILABLE. Otherwise redirect the
+message to ADDRESS if given.</p>
+
+<p style="margin-top: 1em">Intended for use from within
+mail delivery agents (MDAs) or mail transport agents (MTAs),
+or even from within INN, so the message bounces if TOFU is
+detected, and does not <br>
+get on *your* nerves. :)</p>
+
+<p style="margin-top: 1em">As an example for usage with
+sendmail, put this line into your alias file and invoke
+newaliases:</p>
+
+<p style="margin-top: 1em">notofu:
+|&quot;/usr/local/bin/t-prot -mt -p=user@mydomain&quot;</p>
+
+<p style="margin-top: 1em">This will bounce messages for
+&lt;notofu@domainname&gt; if any TOFU is detected inside the
+message, and deliver it to &lt;user@mydomain&gt; otherwise.
+Note that TOFU is only detected <br>
+if you specify -t respectively -m.</p>
+
+<p style="margin-top: 1em">PLEASE be careful not to bounce
+messages to mailing lists!</p>
+
+<p style="margin-top: 1em">--check[=FLAGS] <br>
+Run checks. If successful, print an error message and quit
+with an appropriate exit code. Useful e.g. for rejecting
+messages from within INN2.</p>
+
+<p style="margin-top: 1em">Flags are separated by commas
+(no whitespaces), and can be the following (right now just
+one flag):</p>
+
+<p style="margin-top: 1em">ratio[=n] <br>
+If the quoting ratio is n or more, the message is rejected.
+Must be between 0 and 1, or else it is entirely disabled.
+Default is 0.75 (i.e., 75% of the message lines are <br>
+quotes).</p>
+
+<p style="margin-top: 1em">-d, --debug <br>
+Print envelope info to syslog when bouncing TOFU
+contaminated email. Default syslog facility is mail.debug.
+Requires -p.</p>
+
+<p style="margin-top: 1em">OTHER OPTIONS <br>
+-h, --help <br>
+Displays a short help text with a summary on all options,
+and exits.</p>
+
+<p style="margin-top: 1em">-v, --version <br>
+Prints the current version number and exits.</p>
+
+<p style="margin-top: 1em">ENVIRONMENT <br>
+The environment variables LC_ALL, LC_MESSAGES, and LANG are
+read and respected when interpreting output by mutt /
+mutt-kz or gnupg (unless they are overruled by the --locale
+<br>
+option). T-prot&rsquo;s own output is English regardless of
+any locale setting.</p>
+
+<p style="margin-top: 1em">EXIT STATUS <br>
+On program exit, t-prot uses exit codes from
+/usr/include/sysexits.h and thus behaves in a manner that
+sendmail and others understand when calling t-prot.</p>
+
+<p style="margin-top: 1em">Currently, the codes used are
+<br>
+EX_OK <br>
+EX_USAGE <br>
+EX_DATAERR <br>
+EX_UNAVAILABLE <br>
+EX_SOFTWARE <br>
+EX_IOERR</p>
+
+<p style="margin-top: 1em">If, however, perl fails to
+compile and execute t-prot, perl&rsquo;s normal exit codes
+will be returned.</p>
+
+<p style="margin-top: 1em">TOFU? <br>
+TOFU is an abbreviation which mixes German and English
+words; it expands to &quot;text oben, full-quote unten&quot;
+which means &quot;text above - full quote below&quot; and
+describes the style of <br>
+so many users who let their mailer or newsreader quote
+everything of the previous message and just add some text at
+the top; obviously they think that quoted text must not be
+<br>
+changed at all. This is quite annoying as it needlessly
+sends a lot of data even when it is not required. Some
+editing of messages is desired. Please point these people to
+the <br>
+page http://www.river.com/users/share/etiquette/edit.html -
+thank you!</p>
+
+<p style="margin-top: 1em">PERFORMANCE <br>
+There are several ways to fine-tune t-prot&rsquo;s
+performance:</p>
+
+<p style="margin-top: 1em">Some command line options are
+quite grave a performance hit -- do not use -k and
+especially --ms-smart if you are content without them.</p>
+
+<p style="margin-top: 1em">Checking for special footers is
+very costly as well. Put as few footer files as absolutely
+needed in any footer directory.</p>
+
+<p style="margin-top: 1em">All PGP related options are
+eating up lots of CPU time. Try to avoid them on unsigned
+and unencrypted messages.</p>
+
+<p style="margin-top: 1em">When calling t-prot from within
+mutt (or mutt-kz), you might use mutt&rsquo;s folder-hook
+and message-hook facilities to turn options on only when
+needed, e.g. to set up a different <br>
+footer directory for each mailing list folder.</p>
+
+<p style="margin-top: 1em">TROUBLESHOOTING <br>
+Q: I want to make my mailing list footer files match more
+different mailing list footers. Can I use regular
+expressions, or how can I accomplish that?</p>
+
+<p style="margin-top: 1em">A: Nope, regexp&rsquo;s do not
+work here. The comparison is made by the perl builtin
+index() function (see perldoc for more detailed info), so
+you must exactly match the beginning <br>
+of the line. The longer the line you specify, the more
+precise the match; if your line is empty you match
+unconditionally.</p>
+
+<p style="margin-top: 1em">Q: I use the options -l and -L
+to suppress mailing list footers when displaying messages in
+mutt(1). This does work sometimes, but sometimes it does
+not: the footer is not <br>
+detected, and therefore full quotes are not deleted and
+signatures are detected as too long (which they
+aren&rsquo;t).</p>
+
+<p style="margin-top: 1em">A: This might occur if the
+message is badly encoded, so mutt cannot resolve all encoded
+characters, e.g. if you have an encoded message on a mailing
+list, and majordomo <br>
+appends a mailing list footer in a different encoding (or
+even plain us-ascii). &quot;-- &quot; simply does not match
+&quot;--=20&quot;. <br>
+Another problem are non-us-ascii characters. Just avoid
+them, and everything should work fine. <br>
+See the preceding Q+A for a solution.</p>
+
+<p style="margin-top: 1em">Q: I want to write a message
+which contains parts that should *not* be deleted even when
+filtered with t-prot. Is this possible?</p>
+
+<p style="margin-top: 1em">A: Yes, but please do not spread
+word of it. Make unobstrusive use of the verbatim
+instruction:</p>
+
+<p style="margin-top: 1em">#v+ <br>
+This line is protected from being filtered by t-prot !!!!!!!
+<br>
+#v- <br>
+Text coming now is not.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Written by Jochen Striepe
+&lt;t-prot@tolot.escape.de&gt;.</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+All of the documentation and software included in the t-prot
+releases is copyrighted by Jochen Striepe (except when
+explicitly stated otherwise).</p>
+
+<p style="margin-top: 1em">Copyright &Acirc;&copy;
+2001-2015 Jochen Striepe. All rights reserved.</p>
+
+<p style="margin-top: 1em">Redistribution and use, with or
+without modification, are permitted provided that the
+following conditions are met:</p>
+
+<p style="margin-top: 1em">1. Redistributions of source
+code must retain the above copyright notice, this list of
+conditions and the following disclaimer.</p>
+
+<p style="margin-top: 1em">2. All advertising materials
+mentioning features or use of this software must display the
+following acknowledgement:</p>
+
+<p style="margin-top: 1em">This product includes software
+developed by Jochen Striepe and others.</p>
+
+<p style="margin-top: 1em">3. Neither the name of the
+author nor the names of any contributors may be used to
+endorse or promote products derived from this software
+without specific prior written permis&acirc; <br>
+sion.</p>
+
+<p style="margin-top: 1em">THIS SOFTWARE IS PROVIDED BY THE
+AUTHOR AND CONTRIBUTORS &lsquo;&lsquo;AS IS&rsquo;&rsquo;
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY <br>
+AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSE&acirc; <br>
+QUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+<br>
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+<br>
+POSSIBILITY OF SUCH DAMAGE.</p>
+
+<p style="margin-top: 1em">IDEAS AND INSPIRATION <br>
+Many good ideas, bug reports and support from (in
+alphabetical order) Bjoern Buerger, Bjoern Laessig,
+Christian Borss, Gerfried Fuchs, Martin Neitzel, Martin
+Dietze, Matthias <br>
+Kilian, Ralf Doeblitz, Sven Guckes and many more (see the
+ChangeLog for active contributors). Many thanks to all of
+them!</p>
+
+<p style="margin-top: 1em">Many thanks to Gerhard H.
+Wrodnigg who uses a TOFU protection script in order to keep
+the responses to his cancel bot reasonably short. The entire
+inspiration for this hack came <br>
+from the &quot;TOFU protection&quot; line of his script on
+many usenet postings.</p>
+
+<p style="margin-top: 1em">AVAILABILITY <br>
+You can get the latest version from
+http://www.escape.de/users/tolot/mutt/.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+There is a problem when mutt gives a PGP verified or even a
+multipart message to t-prot: The information where the PGP
+encrypted/signed data or even attachments begin and end is
+<br>
+plainly embedded in the text, not really cleanly
+recognizable for t-prot. The problem should be worked around
+by now, please send a bug report if it does not work for
+you.</p>
+
+<p style="margin-top: 1em">REPORTING BUGS <br>
+Please note that t-prot development happens on current
+stable perl versions only. If you do run t-prot on earlier
+(or unstable) perl versions, you might encounter perl
+compiler <br>
+bugs (or funny t-prot behaviour). One solution is to upgrade
+your perl, another is simply to write a bug report. If you
+do not run a current perl version, please include this <br>
+information in your bug report.</p>
+
+<p style="margin-top: 1em">Please do not report a bug if
+<br>
+* you found it in the TODO file coming with the
+distribution. We do know those and try to fix them as soon
+as possible. <br>
+* you have an old t-prot version. If you encounter a
+problem, first see if there is a new t-prot version which
+fixes the issue. If you upgraded to the latest version and
+it <br>
+still occurs, a bug report is just great.</p>
+
+<p style="margin-top: 1em">If you noticed a bug when
+processing a message and want to provide the t-prot team
+with some useful info, please: <br>
+* if invoking t-prot by mutt&rsquo;s display_filter
+facility, just set display_filter to something like</p>
+
+<p style="margin-top: 1em">&quot;tee ~/foobar | t-prot
+&lt;your options&gt;&quot;</p>
+
+<p style="margin-top: 1em">and include ~/foobar in the bug
+report -- this way we might reproduce the bug much easier if
+you are using a different environment than we do. <br>
+* provide information on what command line options you use
+t-prot with, what perl version t-prot runs on your system,
+and what else might be important to enable us reproducing
+<br>
+the bug.</p>
+
+<p style="margin-top: 1em">Send your bug report to
+&lt;t-prot-bugs@tolot.escape.de&gt;. Thank you.</p>
+
+<p style="margin-top: 1em">TODO <br>
+Fix bugs (see the BUGS section). Beside that, all main
+features should be implemented by now. See the TODO file for
+more information.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+mutt(1), mutt-kz(1), muttrc(5) and the part about
+&quot;display_filter&quot;, perl(1), aliases(5),</p>
+
+<p style="margin-top: 1em">RFCs 2045-2049, 3676 and
+5322,</p>
+
+
+<p style="margin-top: 1em">http://freshmeat.net/articles/t-prot/
+(a nice, solid introduction), <br>
+http://got.to/quote/ (German language), <br>
+http://www.river.com/users/share/etiquette/edit.html (the
+Learn To Edit Messages HowTo has found a new home).</p>
+
+<p style="margin-top: 1em">T-PROT March 2015 T-PROT(1)</p>
+<hr>
+</body>
+</html>

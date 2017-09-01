@@ -1,0 +1,711 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:31:28 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>PG_PROVE(1p) User Contributed Perl Documentation
+PG_PROVE(1p)</p>
+
+<p style="margin-top: 1em">Name <br>
+pg_prove - A command-line tool for running and harnessing
+pgTAP tests</p>
+
+<p style="margin-top: 1em">Usage <br>
+pg_prove tests/ <br>
+pg_prove --dbname template1 test*.sql <br>
+pg_prove -d testdb --runtests</p>
+
+<p style="margin-top: 1em">Description <br>
+&quot;pg_prove&quot; is a command-line application to run
+one or more pgTAP &lt;http://pgtap.org/&gt; tests in a
+PostgreSQL database. The output of the tests is harvested
+and processed by <br>
+TAP::Harness in order to summarize the results of the
+test.</p>
+
+<p style="margin-top: 1em">Tests can be written and run in
+one of two ways, as SQL scripts or as xUnit-style database
+functions.</p>
+
+<p style="margin-top: 1em">Test Scripts <br>
+pgTAP test scripts should consist of a series of SQL
+statements that output TAP. Here&rsquo;s a simple example
+that assumes that the pgTAP functions have been installed in
+the <br>
+database:</p>
+
+<p style="margin-top: 1em">-- Start transaction and plan
+the tests. <br>
+BEGIN; <br>
+SELECT plan(1);</p>
+
+<p style="margin-top: 1em">-- Run the tests. <br>
+SELECT pass( &rsquo;My test passed, w00t!&rsquo; );</p>
+
+<p style="margin-top: 1em">-- Finish the tests and clean
+up. <br>
+SELECT * FROM finish(); <br>
+ROLLBACK;</p>
+
+<p style="margin-top: 1em">Now run the tests by passing the
+list of SQL script names or the name of a test directory to
+&quot;pg_prove&quot;. Here&rsquo;s what it looks like when
+the pgTAP tests are run with &quot;pg_prove&quot;</p>
+
+<p style="margin-top: 1em">% pg_prove -U postgres tests/
+<br>
+tests/coltap.....ok <br>
+tests/hastap.....ok <br>
+tests/moretap....ok <br>
+tests/pg73.......ok <br>
+tests/pktap......ok <br>
+All tests successful. <br>
+Files=5, Tests=216, 1 wallclock secs ( 0.06 usr 0.02 sys +
+0.08 cusr 0.07 csys = 0.23 CPU) <br>
+Result: PASS</p>
+
+<p style="margin-top: 1em">xUnit Test Functions <br>
+pgTAP test functions should return a set of text, and then
+simply return the values returned by pgTAP functions, like
+so:</p>
+
+<p style="margin-top: 1em">CREATE OR REPLACE FUNCTION
+setup_insert( <br>
+) RETURNS SETOF TEXT AS $$ <br>
+RETURN NEXT is( MAX(nick), NULL, &rsquo;Should have no
+users&rsquo;) FROM users; <br>
+INSERT INTO users (nick) VALUES (&rsquo;theory&rsquo;); <br>
+$$ LANGUAGE plpgsql;</p>
+
+<p style="margin-top: 1em">Create OR REPLACE FUNCTION
+test_user( <br>
+) RETURNS SETOF TEXT AS $$ <br>
+SELECT is( nick, &rsquo;theory&rsquo;, &rsquo;Should have
+nick&rsquo;) FROM users; <br>
+END; <br>
+$$ LANGUAGE sql;</p>
+
+<p style="margin-top: 1em">Once you have these functions
+defined in your database, you can run them with
+&quot;pg_prove&quot; by using the &quot;--runtests&quot;
+option.</p>
+
+<p style="margin-top: 1em">% pg_prove --dbname mydb
+--runtests <br>
+runtests()....ok <br>
+All tests successful. <br>
+Files=1, Tests=32, 0 wallclock secs ( 0.02 usr 0.01 sys +
+0.01 cusr 0.00 csys = 0.04 CPU) <br>
+Result: PASS</p>
+
+<p style="margin-top: 1em">Be sure to pass the
+&quot;--schema&quot; option if your test functions are all
+in one schema, and the &quot;--match&quot; option if they
+have names that don&rsquo;t start with &quot;test&quot;. For
+example, if you <br>
+have all of your test functions in the &quot;test&quot;
+schema and ending with &quot;test,&quot; run the tests like
+so:</p>
+
+<p style="margin-top: 1em">pg_prove --dbname mydb --schema
+test --match &rsquo;test$&rsquo;</p>
+
+<p style="margin-top: 1em">Options <br>
+-b --psql-bin PSQL Location of the psql client. <br>
+-d, --dbname DBNAME Database to which to connect. <br>
+-U, --username USERNAME User with which to connect. <br>
+-h, --host HOST Host to which to connect. <br>
+-p, --port PORT Port to which to connect. <br>
+-P, --pset OPTION=VALUE Set psql key/value printing option.
+<br>
+-S, --set VAR=VALUE Set variables for psql session. <br>
+-R --runtests Run xUnit test using runtests(). <br>
+-s, --schema SCHEMA Schema in which to find xUnit tests.
+<br>
+-x, --match REGEX Regular expression to find xUnit
+tests.</p>
+
+<p style="margin-top: 1em">--ext Set the extension for
+tests (default .pg) <br>
+-r, --recurse Recursively descend into directories. <br>
+--ignore-exit Ignore exit status from test scripts. <br>
+--trap Trap Ctrl-C and print summary on interrupt. <br>
+--harness Define test harness to use. <br>
+-j, --jobs N Run N test jobs in parallel (try 9.) <br>
+--rc RCFILE Process options from rcfile <br>
+--norc Don&rsquo;t process default .proverc <br>
+--state OPTION=VALUE Set persistent state options.</p>
+
+<p style="margin-top: 1em">-v, --verbose Print all test
+lines. <br>
+-f, --failures Show failed tests. <br>
+-o, --comments Show comments and diagnostics. <br>
+--directives Only show results with TODO or SKIP directives.
+<br>
+-q, --quiet Suppress some test output while running tests.
+<br>
+-Q, --QUIET Only print summary results. <br>
+--parse Show full list of TAP parse errors, if any. <br>
+--normalize Normalize TAP output in verbose output <br>
+-D --dry Dry run. Show test that would have run. <br>
+--merge Merge test scripts&rsquo; STDERR and STDOUT. <br>
+-t --timer Print elapsed time after each test. <br>
+-c, --color Colored test output (default). <br>
+--nocolor Do not color test output. <br>
+--shuffle Run the tests in random order. <br>
+--reverse Run the tests in reverse order. <br>
+-a, --archive FILENAME Store the resulting TAP in an archive
+file. <br>
+--formatter Result formatter to use. <br>
+--count Show X/Y test count when not verbose (default) <br>
+--nocount Disable the X/Y test count.</p>
+
+<p style="margin-top: 1em">-H, --help Print a usage
+statement and exit. <br>
+-?, Print a usage statement and exit. <br>
+-m, --man Print the complete documentation and exit. <br>
+-V, --version Print the version number and exit.</p>
+
+<p style="margin-top: 1em">Options Details <br>
+Database Options <br>
+&quot;-b&quot; <br>
+&quot;--psql-bin&quot; <br>
+pg_prove --psql-bin /usr/local/pgsql/bin/psql <br>
+pg_prove -b /usr/local/bin/psql</p>
+
+<p style="margin-top: 1em">Path to the &quot;psql&quot;
+program, which will be used to actually run the tests.
+Defaults to psql, which should work well, when it is in your
+path.</p>
+
+<p style="margin-top: 1em">&quot;-d&quot; <br>
+&quot;--dbname&quot; <br>
+pg_prove --dbname try <br>
+pg_prove -d postgres</p>
+
+<p style="margin-top: 1em">The name of database to which to
+connect. Defaults to the value of the $PGDATABASE
+environment variable or to the system username.</p>
+
+<p style="margin-top: 1em">&quot;-U&quot; <br>
+&quot;--username&quot; <br>
+pg_prove --username foo <br>
+pg_prove -U postgres</p>
+
+<p style="margin-top: 1em">PostgreSQL user name to connect
+as. Defaults to the value of the $PGUSER environment
+variable or to the operating system name of the user running
+the application.</p>
+
+<p style="margin-top: 1em">&quot;-h&quot; <br>
+&quot;--host&quot; <br>
+pg_prove --host pg.example.com <br>
+pg_prove -h dev.local</p>
+
+<p style="margin-top: 1em">Specifies the host name of the
+machine on which the server is running. If the value begins
+with a slash, it is used as the directory for the
+Unix-domain socket. Defaults to <br>
+the value of the $PGHOST environment variable or
+localhost.</p>
+
+<p style="margin-top: 1em">&quot;-p&quot; <br>
+&quot;--port&quot; <br>
+pg_prove --port 1234 <br>
+pg_prove -p 666</p>
+
+<p style="margin-top: 1em">Specifies the TCP port or the
+local Unix-domain socket file extension on which the server
+is listening for connections. Defaults to the value of the
+$PGPORT environment <br>
+variable or, if not set, to the port specified at compile
+time, usually 5432.</p>
+
+<p style="margin-top: 1em">&quot;-P&quot; <br>
+&quot;--pset&quot; <br>
+pg_prove --pset tuples_only=0 <br>
+pg_prove -P null=[NULL]</p>
+
+<p style="margin-top: 1em">Specifies printing options in
+the style of &quot;set&quot; in the &quot;psql&quot;
+program. See
+&lt;http://www.postgresql.org/docs/current/static/app-psql.html&gt;
+for details on the supported <br>
+options.</p>
+
+<p style="margin-top: 1em">&quot;-S&quot; <br>
+&quot;--set&quot; <br>
+pg_prove --set MY_CONTRACT=321 <br>
+pg_prove -S TEST_SEARCH_PATH=test,public</p>
+
+<p style="margin-top: 1em">Sets local variables for psql in
+the style of &quot;&quot; in the &quot;psql&quot; program.
+See
+&lt;http://www.postgresql.org/docs/current/static/app-psql.html&gt;
+for details on the supported <br>
+options.</p>
+
+<p style="margin-top: 1em">&quot;--runtests&quot; <br>
+pg_prove --runtests <br>
+pg_prove -r</p>
+
+<p style="margin-top: 1em">Don&rsquo;t run any test
+scripts, but just use the &quot;runtests()&quot; pgTAP
+function to run xUnit tests. This ends up looking like a
+single test script has been run, when in fact no test <br>
+scripts have been run. Instead, &quot;pg_prove&quot; tells
+&quot;psql&quot; to run something like:</p>
+
+<p style="margin-top: 1em">psql --command &rsquo;SELECT *
+FROM runtests()&rsquo;</p>
+
+<p style="margin-top: 1em">You should use this option when
+you&rsquo;ve written your tests in xUnit style, where
+they&rsquo;re all defined in test functions already loaded
+in the database.</p>
+
+<p style="margin-top: 1em">&quot;-s&quot; <br>
+&quot;--schema&quot; <br>
+pg_prove --schema test <br>
+pg_prove -s mytest</p>
+
+<p style="margin-top: 1em">Used with
+&quot;--runtests&quot;, and, in fact, implicitly forces
+&quot;--runtests&quot; to be true. This option can be used
+to specify the name of a schema in which to find xUnit
+functions to <br>
+run. Basically, it tells &quot;psql&quot; to run something
+like:</p>
+
+<p style="margin-top: 1em">psql --command &quot;SELECT *
+FROM runtests(&rsquo;test&rsquo;::name)&quot;</p>
+
+<p style="margin-top: 1em">&quot;-x&quot; <br>
+&quot;--match&quot; <br>
+pg_prove --match &rsquo;test$&rsquo; <br>
+pg_prove -x _test_</p>
+
+<p style="margin-top: 1em">Used with
+&quot;--runtests&quot;, and, in fact, implicitly forces
+&quot;--runtests&quot; to be true. This option can be used
+to specify a POSIX regular expression that will be used to
+search for <br>
+xUnit functions to run. Basically, it tells &quot;psql&quot;
+to run something like:</p>
+
+<p style="margin-top: 1em">psql --command &quot;SELECT *
+FROM runtests(&rsquo;_test_&rsquo;::text)&quot;</p>
+
+<p style="margin-top: 1em">This will run any visible
+functions with the string &quot;_test_&quot; in their names.
+This can be especially useful if you just want to run a
+single test in a given schema. For <br>
+example, this:</p>
+
+<p style="margin-top: 1em">pg_prove --schema testing
+--match &rsquo;^test_widgets$&rsquo;</p>
+
+<p style="margin-top: 1em">Will have &quot;psql&quot;
+execute the &quot;runtests()&quot; function like so:</p>
+
+<p style="margin-top: 1em">SELECT * FROM
+runtests(&rsquo;testing&rsquo;::name,
+&rsquo;^test_widgets$&rsquo;::text);</p>
+
+<p style="margin-top: 1em">Behavioral Options <br>
+&quot;--ext&quot; <br>
+pg_prove --ext .sql tests/</p>
+
+<p style="margin-top: 1em">Set the extension for test files
+(default .pg). May be specified multiple times if you have
+test scripts with multiple extensions, though all must be
+pgTAP tests:</p>
+
+<p style="margin-top: 1em">pg_prove --ext .sql --ext .pg
+--ext .pgt</p>
+
+<p style="margin-top: 1em">If you want to mix pgTAP tests
+with other TAP-emitting tests, like Perl tests, use
+&quot;prove&quot; instead, where &quot;--ext&quot;
+identifies any test file, and &quot;--pgtap-option
+suffix=&quot; lets <br>
+you specify one or more extensions for pgTAP tests.</p>
+
+<p style="margin-top: 1em">prove --source Perl --ext .t
+--ext .pg --source pgTAP --pgtap-option suffix=.pg</p>
+
+<p style="margin-top: 1em">&quot;-r&quot; <br>
+&quot;--recurse&quot; <br>
+pg_prove --recurse tests/ <br>
+pg_prove --recurse sql/</p>
+
+<p style="margin-top: 1em">Recursively descend into
+directories when searching for tests. Be sure to specify
+&quot;--ext&quot; if your tests do not end in
+&quot;.pg&quot;. Not relevant with
+&quot;--runtests&quot;.</p>
+
+<p style="margin-top: 1em">&quot;--ignore-exit&quot; <br>
+pg_prove --ignore-exit</p>
+
+<p style="margin-top: 1em">Ignore exit status from test
+scripts. Normally if a script triggers a database exception,
+&quot;psql&quot; will exit with an error code and, even if
+all tests passed, the test will be <br>
+considered a failure. Use &quot;--ignore-exit&quot; to
+ignore such situations (at your own peril).</p>
+
+<p style="margin-top: 1em">&quot;--trap&quot; <br>
+pg_prove --trap</p>
+
+<p style="margin-top: 1em">Trap &quot;Ctrl-C&quot; and
+print a summary on interrupt.</p>
+
+<p style="margin-top: 1em">&quot;--harness&quot; <br>
+pg_prove --harness TAP::Harness::Color</p>
+
+<p style="margin-top: 1em">Specify a subclass of
+TAP::Harness to use for the test harness. Defaults to
+TAP::Harness (unless &quot;--archive&quot; is specified, in
+which case it uses TAP::Harness::Archive).</p>
+
+<p style="margin-top: 1em">&quot;-j&quot; <br>
+&quot;-jobs&quot; <br>
+Run N test jobs in parallel (try 9.)</p>
+
+<p style="margin-top: 1em">&quot;--rc&quot; <br>
+pg_prove --rc pg_prove.rc</p>
+
+<p style="margin-top: 1em">Process options from the
+specified configuration file.</p>
+
+<p style="margin-top: 1em">If &quot;--rc&quot; is not
+specified and ./.proverc or ~/.proverc exist, they will be
+read and the options they contain processed before the
+command line options. Options in <br>
+configuration files are specified in the same way as command
+line options:</p>
+
+<p style="margin-top: 1em"># .proverc <br>
+--state=hot,fast,save <br>
+-j9</p>
+
+<p style="margin-top: 1em">Under Windows and VMS the option
+file is named _proverc rather than .proverc and is sought
+only in the current directory.</p>
+
+<p style="margin-top: 1em">Due to how options are loaded
+you cannot use .proverc for &quot;pg_prove&quot;-specific
+options, only &quot;prove&quot; options. However,
+&lt;pg_prove&gt; does support all of the usual libpq <br>
+Environment Variables
+&lt;http://www.postgresql.org/docs/current/static/libpq-envars.html&gt;.</p>
+
+<p style="margin-top: 1em">&quot;--norc&quot; <br>
+Do not process ./.proverc or ~/.proverc.</p>
+
+<p style="margin-top: 1em">&quot;--state&quot; <br>
+You can ask &quot;pg_prove&quot; to remember the state of
+previous test runs and select and/or order the tests to be
+run based on that saved state.</p>
+
+<p style="margin-top: 1em">The &quot;--state&quot; switch
+requires an argument which must be a comma separated list of
+one or more of the following options.</p>
+
+<p style="margin-top: 1em">&quot;last&quot; <br>
+Run the same tests as the last time the state was saved.
+This makes it possible, for example, to recreate the
+ordering of a shuffled test.</p>
+
+<p style="margin-top: 1em"># Run all tests in random order
+<br>
+pg_prove --state save --shuffle</p>
+
+<p style="margin-top: 1em"># Run them again in the same
+order <br>
+pg_prove --state last</p>
+
+<p style="margin-top: 1em">&quot;failed&quot; <br>
+Run only the tests that failed on the last run.</p>
+
+<p style="margin-top: 1em"># Run all tests <br>
+pg_prove --state save</p>
+
+<p style="margin-top: 1em"># Run failures <br>
+pg_prove --state failed</p>
+
+<p style="margin-top: 1em">If you also specify the
+&quot;save&quot; option newly passing tests will be excluded
+from subsequent runs.</p>
+
+<p style="margin-top: 1em"># Repeat until no more failures
+<br>
+pg_prove --state failed,save</p>
+
+<p style="margin-top: 1em">&quot;passed&quot; <br>
+Run only the passed tests from last time. Useful to make
+sure that no new problems have been introduced.</p>
+
+<p style="margin-top: 1em">&quot;all&quot; <br>
+Run all tests in normal order. Multiple options may be
+specified, so to run all tests with the failures from last
+time first:</p>
+
+<p style="margin-top: 1em">pg_prove --state
+failed,all,save</p>
+
+<p style="margin-top: 1em">&quot;hot&quot; <br>
+Run the tests that most recently failed first. The last
+failure time of each test is stored. The &quot;hot&quot;
+option causes tests to be run in most-recent- failure
+order.</p>
+
+<p style="margin-top: 1em">pg_prove --state hot,save</p>
+
+<p style="margin-top: 1em">Tests that have never failed
+will not be selected. To run all tests with the most
+recently failed first use</p>
+
+<p style="margin-top: 1em">pg_prove --state
+hot,all,save</p>
+
+<p style="margin-top: 1em">This combination of options may
+also be specified thus</p>
+
+<p style="margin-top: 1em">pg_prove --state adrian</p>
+
+<p style="margin-top: 1em">&quot;todo&quot; <br>
+Run any tests with todos.</p>
+
+<p style="margin-top: 1em">&quot;slow&quot; <br>
+Run the tests in slowest to fastest order. This is useful in
+conjunction with the &quot;-j&quot; parallel testing switch
+to ensure that your slowest tests start running first.</p>
+
+<p style="margin-top: 1em">pg_prove --state slow -j9</p>
+
+<p style="margin-top: 1em">&quot;fast&quot; <br>
+Run test tests in fastest to slowest order.</p>
+
+<p style="margin-top: 1em">&quot;new&quot; <br>
+Run the tests in newest to oldest order based on the
+modification times of the test scripts.</p>
+
+<p style="margin-top: 1em">&quot;old&quot; <br>
+Run the tests in oldest to newest order.</p>
+
+<p style="margin-top: 1em">&quot;fresh&quot; <br>
+Run those test scripts that have been modified since the
+last test run.</p>
+
+<p style="margin-top: 1em">&quot;save&quot; <br>
+Save the state on exit. The state is stored in a file called
+.pg_prove (_pg_prove on Windows and VMS) in the current
+directory.</p>
+
+<p style="margin-top: 1em">The &quot;--state&quot; switch
+may be used more than once.</p>
+
+<p style="margin-top: 1em">pg_prove --state hot --state
+all,save</p>
+
+<p style="margin-top: 1em">Display Options <br>
+&quot;-v&quot; <br>
+&quot;--verbose&quot; <br>
+pg_prove --verbose <br>
+pg_prove -v</p>
+
+<p style="margin-top: 1em">Display standard output of test
+scripts while running them. This behavior can also be
+triggered by setting the $TEST_VERBOSE environment variable
+to a true value.</p>
+
+<p style="margin-top: 1em">&quot;-f&quot; <br>
+&quot;--failures&quot; <br>
+pg_prove --failures <br>
+pg_prove -f</p>
+
+<p style="margin-top: 1em">Show failed tests.</p>
+
+<p style="margin-top: 1em">&quot;-o&quot; <br>
+&quot;--comments&quot; <br>
+Show comments, such as diagnostics output by
+&quot;diag()&quot;. Enabled by default. use
+&quot;--no-comments&quot; to disable.</p>
+
+<p style="margin-top: 1em">&quot;--directives&quot; <br>
+pg_prove --directives</p>
+
+<p style="margin-top: 1em">Only show results with TODO or
+SKIP directives.</p>
+
+<p style="margin-top: 1em">&quot;-q&quot; <br>
+&quot;--quiet&quot; <br>
+pg_prove --quiet <br>
+pg_prove -q</p>
+
+<p style="margin-top: 1em">Suppress some test output while
+running tests.</p>
+
+<p style="margin-top: 1em">&quot;-Q&quot; <br>
+&quot;--QUIET&quot; <br>
+pg_prove --QUIET <br>
+pg_prove -Q</p>
+
+<p style="margin-top: 1em">Only print summary results.</p>
+
+<p style="margin-top: 1em">&quot;--parse&quot; <br>
+pg_prove --parse</p>
+
+<p style="margin-top: 1em">Enables the display of any TAP
+parsing errors as tests run. Useful for debugging new TAP
+emitters.</p>
+
+<p style="margin-top: 1em">&quot;--normalize&quot; <br>
+pg_prove --normalize</p>
+
+<p style="margin-top: 1em">Normalize TAP output in verbose
+output. Errors in the harnessed TAP corrected by the parser
+will be corrected.</p>
+
+<p style="margin-top: 1em">&quot;--dry&quot; <br>
+&quot;-D&quot; <br>
+pg_prove --dry tests/ <br>
+pg_prove -D</p>
+
+<p style="margin-top: 1em">Dry run. Just outputs a list of
+the tests that would have been run.</p>
+
+<p style="margin-top: 1em">&quot;--merge&quot; <br>
+Merge test scripts&rsquo; &quot;STDERR&quot; with their
+&quot;STDOUT&quot;. Not really relevant to pgTAP tests,
+which only print to &quot;STDERR&quot; when an exception is
+thrown.</p>
+
+<p style="margin-top: 1em">&quot;-t&quot; <br>
+&quot;--timer&quot; <br>
+pg_prove --timer <br>
+pg_prove -t</p>
+
+<p style="margin-top: 1em">Print elapsed time after each
+test file.</p>
+
+<p style="margin-top: 1em">&quot;-c&quot; <br>
+&quot;--color&quot; <br>
+pg_prove --color <br>
+pg_prove -c</p>
+
+<p style="margin-top: 1em">Display test results in color.
+Colored test output is the default, but if output is not to
+a terminal, color is disabled.</p>
+
+<p style="margin-top: 1em">Requires Term::ANSIColor on
+Unix-like platforms and Win32::Console on Windows. If the
+necessary module is not installed colored output will not be
+available.</p>
+
+<p style="margin-top: 1em">&quot;--nocolor&quot; <br>
+Do not display test results in color.</p>
+
+<p style="margin-top: 1em">&quot;--shuffle&quot; <br>
+pg_prove --shuffle tests/</p>
+
+<p style="margin-top: 1em">Test scripts are normally run in
+alphabetical order. Use &quot;--reverse&quot; to run them in
+in random order. Not relevant when used with
+&quot;--runtests&quot;.</p>
+
+<p style="margin-top: 1em">&quot;--reverse&quot; <br>
+pg_prove --reverse tests/</p>
+
+<p style="margin-top: 1em">Test scripts are normally run in
+alphabetical order. Use &quot;--reverse&quot; to run them in
+reverse order. Not relevant when used with
+&quot;--runtests&quot;.</p>
+
+<p style="margin-top: 1em">&quot;-a&quot; <br>
+&quot;--archive&quot; <br>
+pg_prove --archive tap.tar.gz <br>
+pg_prove -a test_output.tar</p>
+
+<p style="margin-top: 1em">&quot;-f&quot; <br>
+&quot;--formatter&quot; <br>
+pg_prove --formatter TAP::Formatter::File <br>
+pg_prove -f TAP::Formatter::Console</p>
+
+<p style="margin-top: 1em">The name of the class to use to
+format output. The default is TAP::Formatter::Console, or
+TAP::Formatter::File if the output isn&rsquo;t a TTY.</p>
+
+<p style="margin-top: 1em">&quot;--count&quot; <br>
+pg_prove --count</p>
+
+<p style="margin-top: 1em">Show the X/Y test count as tests
+run when not verbose (default).</p>
+
+<p style="margin-top: 1em">&quot;--nocount&quot; <br>
+pg_prove --nocount</p>
+
+<p style="margin-top: 1em">Disable the display of the X/Y
+test count as tests run.</p>
+
+<p style="margin-top: 1em">Send the TAP output to a TAP
+archive file as well as to the normal output destination.
+The archive formats supported are .tar and .tar.gz.</p>
+
+<p style="margin-top: 1em">Metadata Options <br>
+&quot;-H&quot; <br>
+&quot;-?&quot; <br>
+&quot;--help&quot; <br>
+pg_prove --help <br>
+pg_prove -H</p>
+
+<p style="margin-top: 1em">Outputs a brief description of
+the options supported by &quot;pg_prove&quot; and exits.</p>
+
+<p style="margin-top: 1em">&quot;-m&quot; <br>
+&quot;--man&quot; <br>
+pg_prove --man <br>
+pg_prove -m</p>
+
+<p style="margin-top: 1em">Outputs this documentation and
+exits.</p>
+
+<p style="margin-top: 1em">&quot;-V&quot; <br>
+&quot;--version&quot; <br>
+pg_prove --version <br>
+pg_prove -V</p>
+
+<p style="margin-top: 1em">Outputs the program name and
+version and exits.</p>
+
+<p style="margin-top: 1em">Author <br>
+David E. Wheeler &lt;dwheeler@cpan.org&gt;</p>
+
+<p style="margin-top: 1em">Copyright <br>
+Copyright (c) 2008-2016 David E. Wheeler. Some Rights
+Reserved.</p>
+
+<p style="margin-top: 1em">perl v5.24.1 2016-10-31
+PG_PROVE(1p)</p>
+<hr>
+</body>
+</html>

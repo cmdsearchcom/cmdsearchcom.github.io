@@ -1,0 +1,625 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:39:16 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>STOMPCLT(1) User Contributed Perl Documentation
+STOMPCLT(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+stompclt - versatile STOMP client</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+stompclt [OPTIONS]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+stompclt is a versatile tool to interact with messaging
+brokers speaking STOMP and/or message queues (see
+Messaging::Message::Queue) on disk.</p>
+
+<p style="margin-top: 1em">It receives messages (see
+Messaging::Message) from an incoming module, optionally
+massaging them (i.e. filtering and/or modifying), and sends
+them to an outgoing module. <br>
+Depending on which modules are used, the tool can perform
+different operations.</p>
+
+<p style="margin-top: 1em">Here are the supported incoming
+modules:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; broker: connect
+to a messaging broker using STOMP, subscribe to one or more
+destinations and receive the messages sent by the broker</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; queue: read
+messages from a message queue on disk</p>
+
+<p style="margin-top: 1em">Here are the supported outgoing
+modules:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; broker: connect
+to a messaging broker using STOMP and send the messages</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; queue: store the
+messages in a message queue on disk</p>
+
+<p style="margin-top: 1em">Here are some frequently used
+combinations:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; incoming broker
++ outgoing queue: drain some destinations, storing the
+messages on disk</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; incoming queue +
+outgoing broker: (re-)send messages that have been
+previously stored on disk, optionally with modifications
+(such as altering the destination)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; incoming broker
++ outgoing broker: shovel messages from one broker to
+another</p>
+
+<p style="margin-top: 1em">See the &quot;EXAMPLES&quot;
+sections for concrete examples.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+--callback-code CODE <br>
+execute the given Perl code on each message, see the
+&quot;CALLBACK&quot; section below for more information</p>
+
+<p style="margin-top: 1em">--callback-data KEY=VALUE...
+<br>
+pass this data to the user supplied callback code, see the
+&quot;CALLBACK&quot; section below for more information</p>
+
+<p style="margin-top: 1em">--callback-path PATH <br>
+execute the Perl code in the given file on each message, see
+the &quot;CALLBACK&quot; section below for more
+information</p>
+
+<p style="margin-top: 1em">--config, --conf, --cfg PATH
+<br>
+use the given configuration file, see the
+&quot;CONFIGURATION FILE&quot; section below for more
+information</p>
+
+<p style="margin-top: 1em">--config-general KEY=VALUE...
+<br>
+use the given Config::General options when creating the
+configuration parser</p>
+
+<p style="margin-top: 1em">--count, -c INTEGER <br>
+process at most the given number of messages; note: when
+using an incoming broker, to avoid consuming more messages,
+it is recommended to enable the --reliable option</p>
+
+<p style="margin-top: 1em">--daemon | --no-daemon <br>
+detach stompclt so that it becomes a daemon running in the
+background; debug, warning and error messages will get sent
+to syslog; this option can be negated</p>
+
+<p style="margin-top: 1em">--debug, -d <br>
+show debugging information</p>
+
+<p style="margin-top: 1em">--duration SECONDS <br>
+process messages during at most the given number of seconds
+and then stop; can be fractional</p>
+
+<p style="margin-top: 1em">--heart-beat | --no-heart-beat
+<br>
+enable STOMP 1.1 heart-beats between stompclt and the
+broker(s); this option can be negated</p>
+
+<p style="margin-top: 1em">--help, -h, -? <br>
+show some help</p>
+
+<p style="margin-top: 1em">--incoming-broker-auth STRING
+<br>
+use this authentication string (see Authen::Credential) to
+authenticate to the incoming broker; this option can be
+given multiple times</p>
+
+<p style="margin-top: 1em">--incoming-broker-connect
+KEY=VALUE... <br>
+use these options in the STOMP CONNECT frame sent to the
+incoming broker</p>
+
+<p style="margin-top: 1em">--incoming-broker-sockopts
+KEY=VALUE... <br>
+use these socket options when connecting to the incoming
+broker</p>
+
+<p style="margin-top: 1em">--incoming-broker-stomp-debug
+STRING <br>
+set the STOMP debug flags (see Net::STOMP::Client) when
+interacting with the incoming broker</p>
+
+<p style="margin-top: 1em">--incoming-broker-type STRING
+<br>
+set the incoming broker type; this can be useful when using
+STOMP features which are broker specific</p>
+
+<p style="margin-top: 1em">--incoming-broker-uri URI <br>
+use this connection URI (see Net::STOMP::Client) to connect
+to the incoming broker</p>
+
+<p style="margin-top: 1em">--incoming-queue KEY=VALUE...
+<br>
+read incoming messages from the given message queue (see
+Messaging::Message::Queue)</p>
+
+<p style="margin-top: 1em">--lazy | --no-lazy <br>
+initialize the outgoing module only after having received
+the first message; this option can be negated</p>
+
+<p style="margin-top: 1em">--list, -l <br>
+show all supported options</p>
+
+<p style="margin-top: 1em">--loop | --no-loop <br>
+when using an incoming message queue, loop over it; this
+option can be negated</p>
+
+<p style="margin-top: 1em">--manual, -m <br>
+show this manual</p>
+
+<p style="margin-top: 1em">--outgoing-broker-auth STRING
+<br>
+use this authentication string (see Authen::Credential) to
+authenticate to the outgoing broker; this option can be
+given multiple times</p>
+
+<p style="margin-top: 1em">--outgoing-broker-connect
+KEY=VALUE... <br>
+use these options in the STOMP CONNECT frame sent to the
+outgoing broker</p>
+
+<p style="margin-top: 1em">--outgoing-broker-sockopts
+KEY=VALUE... <br>
+use these socket options when connecting to the outgoing
+broker</p>
+
+<p style="margin-top: 1em">--outgoing-broker-stomp-debug
+STRING <br>
+set the STOMP debug flags (see Net::STOMP::Client) when
+interacting with the outgoing broker</p>
+
+<p style="margin-top: 1em">--outgoing-broker-type STRING
+<br>
+set the outgoing broker type; this can be useful when using
+STOMP features which are broker specific</p>
+
+<p style="margin-top: 1em">--outgoing-broker-uri URI <br>
+use this connection URI (see Net::STOMP::Client) to connect
+to the outgoing broker</p>
+
+<p style="margin-top: 1em">--outgoing-queue KEY=VALUE...
+<br>
+store outgoing messages into the given message queue (see
+Messaging::Message::Queue)</p>
+
+<p style="margin-top: 1em">--pidfile PATH <br>
+use this pid file</p>
+
+<p style="margin-top: 1em">--prefetch INTEGER <br>
+set the prefetch value (i.e. the maximum number of messages
+to received without acknowledging them) on the incoming
+broker</p>
+
+<p style="margin-top: 1em">--quit <br>
+tell another instance of stompclt (identified by its pid
+file, as specified by the --pidfile option) to quit</p>
+
+<p style="margin-top: 1em">--reliable | --no-reliable <br>
+use STOMP features for more reliable messaging (i.e. client
+side acknowledgments and receipts) at the cost of less
+performance; this option can be negated</p>
+
+<p style="margin-top: 1em">--remove | --no-remove <br>
+when using an incoming message queue, remove the processed
+messages; this option can be negated</p>
+
+<p style="margin-top: 1em">--statistics, -s |
+--no-statistics <br>
+report statistics at the end of the execution; this option
+can be negated</p>
+
+<p style="margin-top: 1em">--status <br>
+get the status of another instance of stompclt (identified
+by its pid file, as specified by the --pidfile option); the
+exit code will be zero if the instance is alive and <br>
+non-zero otherwise</p>
+
+<p style="margin-top: 1em">--subscribe KEY=VALUE... <br>
+use these options in the STOMP SUBSCRIBE frame used with the
+incoming broker; this option can be given multiple times</p>
+
+<p style="margin-top: 1em">--timeout-broker SECONDS <br>
+use this timeout when interacting with the broker (e.g.
+getting receipts back); can be fractional</p>
+
+<p style="margin-top: 1em">--timeout-client SECONDS <br>
+use this timeout for the client heart-beat; can be
+fractional (default: 40)</p>
+
+<p style="margin-top: 1em">--timeout-connect SECONDS <br>
+use this timeout when connecting to the broker; can be
+fractional</p>
+
+<p style="margin-top: 1em">--timeout-disconnect SECONDS
+<br>
+use this timeout when disconnecting from the broker; can be
+fractional (default: 60)</p>
+
+<p style="margin-top: 1em">--timeout-flush SECONDS <br>
+use this timeout when attempting to send the last bytes to
+the broker just before disconnecting; can be fractional
+(default: 60)</p>
+
+<p style="margin-top: 1em">--timeout-inactivity SECONDS
+<br>
+use this timeout in the incoming module to stop stompclt
+when no new messages have been received (aka drain mode);
+can be fractional</p>
+
+<p style="margin-top: 1em">--timeout-linger SECONDS <br>
+when stopping stompclt, use this timeout to finish
+interacting with the broker; can be fractional</p>
+
+<p style="margin-top: 1em">--timeout-server SECONDS <br>
+use this timeout for the server heart-beat; can be
+fractional (default: 10)</p>
+
+<p style="margin-top: 1em">--timeout-status SECONDS <br>
+use this timeout when checking the status with --status; can
+be fractional</p>
+
+<p style="margin-top: 1em">--unsubscribe KEY=VALUE... <br>
+use these options in the STOMP UNSUBSCRIBE frame used with
+the incoming broker; this option can be given multiple times
+and should match the --subscribe options</p>
+
+<p style="margin-top: 1em">--version <br>
+display version information</p>
+
+<p style="margin-top: 1em">--window INTEGER <br>
+keep at most the given number of not-yet-acknowledged
+messages in memory</p>
+
+<p style="margin-top: 1em">To list all the available
+options in a compact form, type:</p>
+
+<p style="margin-top: 1em">$ stompclt -l</p>
+
+<p style="margin-top: 1em">CONFIGURATION FILE <br>
+stompclt can read its options from a configuration file. For
+this, the Config::General module is used and the option
+names are the same as on the command line. For instance:</p>
+
+<p style="margin-top: 1em">daemon = true <br>
+pidfile = /var/run/stompclt.pid <br>
+incoming-queue = path=/var/spool/stompclt <br>
+outgoing-broker-uri = stomp://broker.acme.com:6163 <br>
+outgoing-broker-auth = &quot;plain name=guest
+pass=guest&quot;</p>
+
+<p style="margin-top: 1em">Alternatively, options can be
+nested:</p>
+
+<p style="margin-top: 1em">&lt;outgoing-broker&gt; <br>
+uri = stomp://broker.acme.com:6163 <br>
+auth = &quot;plain name=guest pass=guest&quot; <br>
+&lt;/outgoing-broker&gt;</p>
+
+<p style="margin-top: 1em">Or even:</p>
+
+<p style="margin-top: 1em">&lt;outgoing&gt; <br>
+&lt;broker&gt; <br>
+uri = stomp://broker.acme.com:6163 <br>
+&lt;auth&gt; <br>
+scheme = plain <br>
+name = guest <br>
+pass = guest <br>
+&lt;/auth&gt; <br>
+&lt;/broker&gt; <br>
+&lt;/outgoing&gt;</p>
+
+<p style="margin-top: 1em">The options specified on the
+command line have precedence over the ones found in the
+configuration file.</p>
+
+<p style="margin-top: 1em">CALLBACK <br>
+stompclt can be given Perl code to execute on all processed
+messages. This can be used for different purposes:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; massaging: the
+code can change any part of the message, including setting
+or removing header fields</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; filtering: the
+code can decide if the message must be given to the outgoing
+module or not</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; displaying: the
+code can print any part of the message</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; copying: the
+code can store a copy of the message into files or message
+queues</p>
+
+<p style="margin-top: 1em">To use callbacks, the
+--callback-path or --callback-code option must be used. The
+Perl code must provide functions with the following
+signature:</p>
+
+<p style="margin-top: 1em">start(DATA) <br>
+(optional) this will be called when the program starts, with
+the supplied data (see the --callback-data option) as a hash
+reference</p>
+
+<p style="margin-top: 1em">check(MESSAGE) <br>
+(mandatory) this will be called when the program has one
+message to process; it will be given the message (see
+Messaging::Message) and must return either a message (it
+could <br>
+be the same one or a new one) or a string describing why the
+message has been dropped</p>
+
+<p style="margin-top: 1em">idle() <br>
+(optional) this will be called when the program has no
+message to process</p>
+
+<p style="margin-top: 1em">stop() <br>
+(optional) this will be called when the program stops</p>
+
+<p style="margin-top: 1em">The code can be put in a file,
+on the command line or in the stompclt configuration file,
+using the &quot;here document&quot; syntax.</p>
+
+<p style="margin-top: 1em">Here is an example (to be put in
+the stompclt configuration file) that prints on stdout a
+JSON array of messages:</p>
+
+<p style="margin-top: 1em">callback-code = &lt;&lt;EOF <br>
+my($count); <br>
+sub start ($) { <br>
+$count = 0; <br>
+} <br>
+sub check ($) { <br>
+my($msg) = @_; <br>
+print($count++ ? &quot;,&quot; : &quot;[&quot;); <br>
+print($msg-&gt;serialize(), &quot;0); <br>
+return($msg); <br>
+} <br>
+sub stop () { <br>
+print($count ? &quot;]0 : &quot;[]0); <br>
+} <br>
+EOF</p>
+
+<p style="margin-top: 1em">For simple callback code that
+only needs the &quot;check&quot; subroutine, it is enough to
+supply the &quot;inside code&quot;. If the subroutine
+definition is missing, the supplied code will be <br>
+wrapped with:</p>
+
+<p style="margin-top: 1em">sub check ($) { <br>
+my($msg) = @_; <br>
+local *hdr = $msg-&gt;header(); <br>
+local *bdy = $msg-&gt;body_ref(); <br>
+... your code goes here ... <br>
+return($msg); <br>
+}</p>
+
+<p style="margin-top: 1em">This allows for instance to
+remove the &quot;message-id&quot; header with something
+like:</p>
+
+<p style="margin-top: 1em">$ stompclt ... --callback-code
+&rsquo;delete($hdr{&quot;message-id&quot;})&rsquo;</p>
+
+<p style="margin-top: 1em">Or to filter on message bodies
+with:</p>
+
+<p style="margin-top: 1em">$ stompclt ... --callback-code
+&rsquo;return(&quot;skip&quot;) unless $bdy =~
+/error/&rsquo;</p>
+
+<p style="margin-top: 1em">SUBSCRIPTIONS <br>
+In the case of an incoming broker, stompclt deals with the
+subscriptions defined by the --subscribe option.</p>
+
+<p style="margin-top: 1em">Regardless of the --reliable
+option, subscriptions are always made using receipts. Also,
+if missing, an &quot;id&quot; header is always added.</p>
+
+<p style="margin-top: 1em">Here is for instance how to
+create a named durable topic subscription using Apollo:</p>
+
+<p style="margin-top: 1em">$ stompclt ... --subscribe
+&rsquo;destination=/topic/foo persistent=true
+id=mysub&rsquo;</p>
+
+<p style="margin-top: 1em">By default, when it finishes,
+stompclt does not unsubscribe. It simply disconnects from
+the broker and the latter will perform the necessary cleanup
+when terminating the STOMP <br>
+connection.</p>
+
+<p style="margin-top: 1em">If the --unsubscribe option is
+given, even if it is empty, stompclt will explicitly
+unsubscribe before disconnecting, also using receipts.</p>
+
+<p style="margin-top: 1em">Here is for instance how to
+destroy, when stompclt ends, the durable topic subscription
+created above:</p>
+
+<p style="margin-top: 1em">$ stompclt ... --unsubscribe
+&rsquo;persistent=true&rsquo;</p>
+
+<p style="margin-top: 1em">There is no need to give the
+subscription &quot;id&quot; in the --unsubscribe option
+because, by default, it comes from the matching --subscribe
+option.</p>
+
+<p style="margin-top: 1em">UDP SUPPORT <br>
+stompclt has experimental UDP support (outgoing only). This
+has been tested with Apollo.</p>
+
+<p style="margin-top: 1em">To use it, simply specify an
+outgoing URI that uses UDP such as:</p>
+
+<p style="margin-top: 1em">$ stompclt ...
+--outgoing-broker-uri udp://broker.acme.com:6163</p>
+
+<p style="margin-top: 1em">Features such as authentication,
+heart beating, reliability and socket options are not
+supported over UDP.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+SENDING <br>
+Here is an example of a configuration file for a message
+sender daemon (from queue to broker), forcing the
+&quot;persistent&quot; header to &quot;true&quot; (something
+which is highly recommended <br>
+for reliable messaging) and setting the destination:</p>
+
+<p style="margin-top: 1em"># define the source message
+queue <br>
+&lt;incoming-queue&gt; <br>
+path = /var/spool/sender <br>
+&lt;/incoming-queue&gt; <br>
+# modify the message header on the fly <br>
+callback-code = &lt;&lt;EOF <br>
+$hdr{destination} = &quot;/queue/app1.data&quot;; <br>
+$hdr{persistent} = &quot;true&quot;; <br>
+EOF <br>
+# define the destination broker <br>
+&lt;outgoing-broker&gt; <br>
+uri = &quot;stomp://broker.acme.com:6163&quot; <br>
+&lt;/outgoing-broker&gt; <br>
+# miscellaneous options <br>
+reliable = true <br>
+pidfile = /var/run/sender.pid <br>
+daemon = true <br>
+loop = true <br>
+remove = true</p>
+
+<p style="margin-top: 1em">RECEIVING <br>
+Here is an example of a configuration file for a message
+receiver daemon (from broker to queue):</p>
+
+<p style="margin-top: 1em"># define the source broker <br>
+&lt;incoming-broker&gt; <br>
+uri = &quot;stomp://broker.acme.com:6163&quot; <br>
+&lt;auth&gt; <br>
+scheme = plain <br>
+name = receiver <br>
+pass = secret <br>
+&lt;/auth&gt; <br>
+&lt;/incoming-broker&gt; <br>
+# define the subscriptions <br>
+&lt;subscribe&gt; <br>
+destination = /queue/app1.data <br>
+&lt;/subscribe&gt; <br>
+&lt;subscribe&gt; <br>
+destination = /queue/app2.data <br>
+&lt;/subscribe&gt; <br>
+# define the destination message queue <br>
+&lt;outgoing-queue&gt; <br>
+path = /var/spool/receiver <br>
+&lt;/outgoing-queue&gt; <br>
+# miscellaneous options <br>
+pidfile = /var/run/receiver.pid <br>
+daemon = true</p>
+
+<p style="margin-top: 1em">Here is how to use the
+configuration file above with some options overridden on the
+command line to drain the queues in the foreground:</p>
+
+<p style="margin-top: 1em">$ stompclt --config test.conf
+--no-daemon --timeout-inactivity 10</p>
+
+<p style="margin-top: 1em">SHOVELING <br>
+Here is an example of a configuration file for a message
+shoveler (from broker to broker), clearing some headers on
+the fly so that messages can be replayed safely:</p>
+
+<p style="margin-top: 1em"># define the source broker <br>
+&lt;incoming-broker&gt; <br>
+uri = &quot;stomp://broker.acme.com:6163&quot; <br>
+&lt;/incoming-broker&gt; <br>
+# define the subscriptions <br>
+&lt;subscribe&gt; <br>
+destination = /queue/app1.data <br>
+&lt;/subscribe&gt; <br>
+&lt;subscribe&gt; <br>
+destination = /queue/app2.data <br>
+&lt;/subscribe&gt; <br>
+# define the destination broker <br>
+&lt;outgoing-broker&gt; <br>
+uri = &quot;stomp://dev-broker.acme.com:6163&quot; <br>
+&lt;/outgoing-broker&gt; <br>
+# modify the message so that it can be replayed <br>
+callback-code = &lt;&lt;EOF <br>
+foreach my $name (qw(message-id timestamp expires)) { <br>
+delete($hdr{$name}); <br>
+} <br>
+EOF</p>
+
+<p style="margin-top: 1em">TAPPING <br>
+Callback code can also be used to tap messages, i.e. get a
+copy of all messages processed by stompclt. Here is some
+callback code for this purpose that could for instance be
+<br>
+merged with the shoveling code above. It also shows how to
+use the --callback-data option:</p>
+
+<p style="margin-top: 1em">callback-code = &lt;&lt;EOF <br>
+my($queue); <br>
+sub start ($) { <br>
+my($data) = @_; <br>
+$queue = Messaging::Message::Queue-&gt;new($data); <br>
+} <br>
+sub check ($) { <br>
+my($msg) = @_; <br>
+$queue-&gt;add_message($msg); <br>
+return($msg); <br>
+} <br>
+EOF</p>
+
+<p style="margin-top: 1em">Callback data must be given to
+specify which message queue to use:</p>
+
+<p style="margin-top: 1em">$ stompclt --config tap.conf
+--callback-data &quot;path=/tmp/tap type=DQS&quot;</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+Authen::Credential, Config::General, Messaging::Message,
+Messaging::Message::Queue, Net::STOMP::Client.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Lionel Cons &lt;http://cern.ch/lionel.cons&gt;</p>
+
+<p style="margin-top: 1em">Copyright (C) CERN 2012-2016</p>
+
+<p style="margin-top: 1em">perl v5.24.1 2016-11-15
+STOMPCLT(1)</p>
+<hr>
+</body>
+</html>

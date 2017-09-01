@@ -1,0 +1,750 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:12:59 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>LOCAL(8) System Manager&rsquo;s Manual LOCAL(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+local - Postfix local mail delivery</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+local [generic Postfix daemon options]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+The local(8) daemon processes delivery requests from the
+Postfix queue manager to deliver mail to local recipients.
+Each delivery request specifies a queue file, a sender <br>
+address, a domain or host to deliver to, and one or more
+recipients. This program expects to be run from the
+master(8) process manager.</p>
+
+<p style="margin-top: 1em">The local(8) daemon updates
+queue files and marks recipients as finished, or it informs
+the queue manager that delivery should be tried again at a
+later time. Delivery status <br>
+reports are sent to the bounce(8), defer(8) or trace(8)
+daemon as appropriate.</p>
+
+<p style="margin-top: 1em">CASE FOLDING <br>
+All delivery decisions are made using the bare recipient
+name (i.e. the address localpart), folded to lower case. See
+also under ADDRESS EXTENSION below for a few exceptions.</p>
+
+<p style="margin-top: 1em">SYSTEM-WIDE AND USER-LEVEL
+ALIASING <br>
+The system administrator can set up one or more system-wide
+sendmail-style alias databases. Users can have
+sendmail-style ~/.forward files. Mail for name is delivered
+to the <br>
+alias name, to destinations in ~name/.forward, to the
+mailbox owned by the user name, or it is sent back as
+undeliverable.</p>
+
+<p style="margin-top: 1em">The system administrator can
+specify a comma/space separated list of ~/.forward like
+files through the forward_path configuration parameter. Upon
+delivery, the local delivery <br>
+agent tries each pathname in the list until a file is
+found.</p>
+
+<p style="margin-top: 1em">Delivery via ~/.forward files is
+done with the privileges of the recipient. Thus, ~/.forward
+like files must be readable by the recipient, and their
+parent directory needs to <br>
+have &quot;execute&quot; permission for the recipient.</p>
+
+<p style="margin-top: 1em">The forward_path parameter is
+subject to interpolation of $user (recipient username),
+$home (recipient home directory), $shell (recipient shell),
+$recipient (complete recipient <br>
+address), $extension (recipient address extension), $domain
+(recipient domain), $local (entire recipient address
+localpart) and $recipient_delimiter. The forms ${name?value}
+and <br>
+${name:value} expand conditionally to value when $name is
+(is not) defined. Characters that may have special meaning
+to the shell or file system are replaced by underscores.
+<br>
+The list of acceptable characters is specified with the
+forward_expansion_filter configuration parameter.</p>
+
+<p style="margin-top: 1em">An alias or ~/.forward file may
+list any combination of external commands, destination file
+names, :include: directives, or mail addresses. See
+aliases(5) for a precise descrip&acirc; <br>
+tion. Each line in a user&rsquo;s .forward file has the same
+syntax as the right-hand part of an alias.</p>
+
+<p style="margin-top: 1em">When an address is found in its
+own alias expansion, delivery is made to the user instead.
+When a user is listed in the user&rsquo;s own ~/.forward
+file, delivery is made to the user&rsquo;s <br>
+mailbox instead. An empty ~/.forward file means do not
+forward mail.</p>
+
+<p style="margin-top: 1em">In order to prevent the mail
+system from using up unreasonable amounts of memory, input
+records read from :include: or from ~/.forward files are
+broken up into chunks of length <br>
+line_length_limit.</p>
+
+<p style="margin-top: 1em">While expanding aliases,
+~/.forward files, and so on, the program attempts to avoid
+duplicate deliveries. The duplicate_filter_limit
+configuration parameter limits the number of <br>
+remembered recipients.</p>
+
+<p style="margin-top: 1em">MAIL FORWARDING <br>
+For the sake of reliability, forwarded mail is re-submitted
+as a new message, so that each recipient has a separate
+on-file delivery status record.</p>
+
+<p style="margin-top: 1em">In order to stop mail forwarding
+loops early, the software adds an optional Delivered-To:
+header with the final envelope recipient address. If mail
+arrives for a recipient that <br>
+is already listed in a Delivered-To: header, the message is
+bounced.</p>
+
+<p style="margin-top: 1em">MAILBOX DELIVERY <br>
+The default per-user mailbox is a file in the UNIX mail
+spool directory (/var/mail/user or /var/spool/mail/user);
+the location can be specified with the mail_spool_directory
+con&acirc; <br>
+figuration parameter. Specify a name ending in / for
+qmail-compatible maildir delivery.</p>
+
+<p style="margin-top: 1em">Alternatively, the per-user
+mailbox can be a file in the user&rsquo;s home directory
+with a name specified via the home_mailbox configuration
+parameter. Specify a relative path name. <br>
+Specify a name ending in / for qmail-compatible maildir
+delivery.</p>
+
+<p style="margin-top: 1em">Mailbox delivery can be
+delegated to an external command specified with the
+mailbox_command_maps and mailbox_command configuration
+parameters. The command executes with the priv&acirc; <br>
+ileges of the recipient user (exceptions: secondary groups
+are not enabled; in case of delivery as root, the command
+executes with the privileges of default_privs).</p>
+
+<p style="margin-top: 1em">Mailbox delivery can be
+delegated to alternative message transports specified in the
+master.cf file. The mailbox_transport_maps and
+mailbox_transport configuration parameters <br>
+specify an optional message transport that is to be used for
+all local recipients, regardless of whether they are found
+in the UNIX passwd database. The fallback_transport_maps
+<br>
+and fallback_transport parameters specify an optional
+message transport for recipients that are not found in the
+aliases(5) or UNIX passwd database.</p>
+
+<p style="margin-top: 1em">In the case of UNIX-style
+mailbox delivery, the local(8) daemon prepends a &quot;From
+sender time_stamp&quot; envelope header to each message,
+prepends an X-Original-To: header with the <br>
+recipient address as given to Postfix, prepends an optional
+Delivered-To: header with the final envelope recipient
+address, prepends a Return-Path: header with the envelope
+<br>
+sender address, prepends a &gt; character to lines beginning
+with &quot;From &quot;, and appends an empty line. The
+mailbox is locked for exclusive access while delivery is in
+progress. In <br>
+case of problems, an attempt is made to truncate the mailbox
+to its original length.</p>
+
+<p style="margin-top: 1em">In the case of maildir delivery,
+the local daemon prepends an optional Delivered-To: header
+with the final envelope recipient address, prepends an
+X-Original-To: header with the <br>
+recipient address as given to Postfix, and prepends a
+Return-Path: header with the envelope sender address.</p>
+
+<p style="margin-top: 1em">EXTERNAL COMMAND DELIVERY <br>
+The allow_mail_to_commands configuration parameter restricts
+delivery to external commands. The default setting (alias,
+forward) forbids command destinations in :include:
+files.</p>
+
+<p style="margin-top: 1em">Optionally, the process working
+directory is changed to the path specified with
+command_execution_directory (Postfix 2.2 and later). Failure
+to change directory causes mail to be <br>
+deferred.</p>
+
+<p style="margin-top: 1em">The command_execution_directory
+parameter value is subject to interpolation of $user
+(recipient username), $home (recipient home directory),
+$shell (recipient shell), $recipient <br>
+(complete recipient address), $extension (recipient address
+extension), $domain (recipient domain), $local (entire
+recipient address localpart) and $recipient_delimiter. The
+<br>
+forms ${name?value} and ${name:value} expand conditionally
+to value when $name is (is not) defined. Characters that may
+have special meaning to the shell or file system are <br>
+replaced by underscores. The list of acceptable characters
+is specified with the execution_directory_expansion_filter
+configuration parameter.</p>
+
+<p style="margin-top: 1em">The command is executed directly
+where possible. Assistance by the shell (/bin/sh on UNIX
+systems) is used only when the command contains shell magic
+characters, or when the com&acirc; <br>
+mand invokes a shell built-in command.</p>
+
+<p style="margin-top: 1em">A limited amount of command
+output (standard output and standard error) is captured for
+inclusion with non-delivery status reports. A command is
+forcibly terminated if it does <br>
+not complete within command_time_limit seconds. Command exit
+status codes are expected to follow the conventions defined
+in &lt;sysexits.h&gt;. Exit status 0 means normal successful
+<br>
+completion.</p>
+
+<p style="margin-top: 1em">Postfix version 2.3 and later
+support RFC 3463-style enhanced status codes. If a command
+terminates with a non-zero exit status, and the command
+output begins with an enhanced <br>
+status code, this status code takes precedence over the
+non-zero exit status.</p>
+
+<p style="margin-top: 1em">A limited amount of message
+context is exported via environment variables. Characters
+that may have special meaning to the shell are replaced by
+underscores. The list of accept&acirc; <br>
+able characters is specified with the
+command_expansion_filter configuration parameter.</p>
+
+<p style="margin-top: 1em">SHELL The recipient user&rsquo;s
+login shell.</p>
+
+<p style="margin-top: 1em">HOME The recipient user&rsquo;s
+home directory.</p>
+
+<p style="margin-top: 1em">USER The bare recipient
+name.</p>
+
+<p style="margin-top: 1em">EXTENSION <br>
+The optional recipient address extension.</p>
+
+<p style="margin-top: 1em">DOMAIN The recipient address
+domain part.</p>
+
+<p style="margin-top: 1em">LOGNAME <br>
+The bare recipient name.</p>
+
+<p style="margin-top: 1em">LOCAL The entire recipient
+address localpart (text to the left of the rightmost @
+character).</p>
+
+<p style="margin-top: 1em">ORIGINAL_RECIPIENT <br>
+The entire recipient address, before any address rewriting
+or aliasing (Postfix 2.5 and later).</p>
+
+<p style="margin-top: 1em">RECIPIENT <br>
+The entire recipient address.</p>
+
+<p style="margin-top: 1em">SENDER The entire sender
+address.</p>
+
+<p style="margin-top: 1em">Additional remote client
+information is made available via the following environment
+variables:</p>
+
+<p style="margin-top: 1em">CLIENT_ADDRESS <br>
+Remote client network address. Available as of Postfix
+2.2.</p>
+
+<p style="margin-top: 1em">CLIENT_HELO <br>
+Remote client EHLO command parameter. Available as of
+Postfix 2.2.</p>
+
+<p style="margin-top: 1em">CLIENT_HOSTNAME <br>
+Remote client hostname. Available as of Postfix 2.2.</p>
+
+<p style="margin-top: 1em">CLIENT_PROTOCOL <br>
+Remote client protocol. Available as of Postfix 2.2.</p>
+
+<p style="margin-top: 1em">SASL_METHOD <br>
+SASL authentication method specified in the remote client
+AUTH command. Available as of Postfix 2.2.</p>
+
+<p style="margin-top: 1em">SASL_SENDER <br>
+SASL sender address specified in the remote client MAIL FROM
+command. Available as of Postfix 2.2.</p>
+
+<p style="margin-top: 1em">SASL_USERNAME <br>
+SASL username specified in the remote client AUTH command.
+Available as of Postfix 2.2.</p>
+
+<p style="margin-top: 1em">The PATH environment variable is
+always reset to a system-dependent default path, and
+environment variables whose names are blessed by the
+export_environment configuration param&acirc; <br>
+eter are exported unchanged.</p>
+
+<p style="margin-top: 1em">The current working directory is
+the mail queue directory.</p>
+
+<p style="margin-top: 1em">The local(8) daemon prepends a
+&quot;From sender time_stamp&quot; envelope header to each
+message, prepends an X-Original-To: header with the
+recipient address as given to Postfix, <br>
+prepends an optional Delivered-To: header with the final
+recipient envelope address, prepends a Return-Path: header
+with the sender envelope address, and appends no empty
+line.</p>
+
+<p style="margin-top: 1em">EXTERNAL FILE DELIVERY <br>
+The delivery format depends on the destination filename
+syntax. The default is to use UNIX-style mailbox format.
+Specify a name ending in / for qmail-compatible maildir
+deliv&acirc; <br>
+ery.</p>
+
+<p style="margin-top: 1em">The allow_mail_to_files
+configuration parameter restricts delivery to external
+files. The default setting (alias, forward) forbids file
+destinations in :include: files.</p>
+
+<p style="margin-top: 1em">In the case of UNIX-style
+mailbox delivery, the local(8) daemon prepends a &quot;From
+sender time_stamp&quot; envelope header to each message,
+prepends an X-Original-To: header with the <br>
+recipient address as given to Postfix, prepends an optional
+Delivered-To: header with the final recipient envelope
+address, prepends a &gt; character to lines beginning with
+&quot;From <br>
+&quot;, and appends an empty line. The envelope sender
+address is available in the Return-Path: header. When the
+destination is a regular file, it is locked for exclusive
+access <br>
+while delivery is in progress. In case of problems, an
+attempt is made to truncate a regular file to its original
+length.</p>
+
+<p style="margin-top: 1em">In the case of maildir delivery,
+the local daemon prepends an optional Delivered-To: header
+with the final envelope recipient address, and prepends an
+X-Original-To: header with <br>
+the recipient address as given to Postfix. The envelope
+sender address is available in the Return-Path: header.</p>
+
+<p style="margin-top: 1em">ADDRESS EXTENSION <br>
+The optional recipient_delimiter configuration parameter
+specifies how to separate address extensions from local
+recipient names.</p>
+
+<p style="margin-top: 1em">For example, with
+&quot;recipient_delimiter = +&quot;, mail for name+foo is
+delivered to the alias name+foo or to the alias name, to the
+destinations listed in ~name/.forward+foo or in <br>
+~name/.forward, to the mailbox owned by the user name, or it
+is sent back as undeliverable.</p>
+
+<p style="margin-top: 1em">DELIVERY RIGHTS <br>
+Deliveries to external files and external commands are made
+with the rights of the receiving user on whose behalf the
+delivery is made. In the absence of a user context, the <br>
+local(8) daemon uses the owner rights of the :include: file
+or alias database. When those files are owned by the
+superuser, delivery is made with the rights specified with
+the <br>
+default_privs configuration parameter.</p>
+
+<p style="margin-top: 1em">STANDARDS <br>
+RFC 822 (ARPA Internet Text Messages) <br>
+RFC 3463 (Enhanced status codes)</p>
+
+<p style="margin-top: 1em">DIAGNOSTICS <br>
+Problems and transactions are logged to syslogd(8).
+Corrupted message files are marked so that the queue manager
+can move them to the corrupt queue afterwards.</p>
+
+<p style="margin-top: 1em">Depending on the setting of the
+notify_classes parameter, the postmaster is notified of
+bounces and of other trouble.</p>
+
+<p style="margin-top: 1em">SECURITY <br>
+The local(8) delivery agent needs a dual personality 1) to
+access the private Postfix queue and IPC mechanisms, 2) to
+impersonate the recipient and deliver to recipient-specified
+<br>
+files or commands. It is therefore security sensitive.</p>
+
+<p style="margin-top: 1em">The local(8) delivery agent
+disallows regular expression substitution of $1 etc. in
+alias_maps, because that would open a security hole.</p>
+
+<p style="margin-top: 1em">The local(8) delivery agent will
+silently ignore requests to use the proxymap(8) server
+within alias_maps. Instead it will open the table directly.
+Before Postfix version 2.2, <br>
+the local(8) delivery agent will terminate with a fatal
+error.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+For security reasons, the message delivery status of
+external commands or of external files is never checkpointed
+to file. As a result, the program may occasionally deliver
+more <br>
+than once to a command or external file. Better safe than
+sorry.</p>
+
+<p style="margin-top: 1em">Mutually-recursive aliases or
+~/.forward files are not detected early. The resulting mail
+forwarding loop is broken by the use of the Delivered-To:
+message header.</p>
+
+<p style="margin-top: 1em">CONFIGURATION PARAMETERS <br>
+Changes to main.cf are picked up automatically, as local(8)
+processes run for only a limited amount of time. Use the
+command &quot;postfix reload&quot; to speed up a change.</p>
+
+<p style="margin-top: 1em">The text below provides only a
+parameter summary. See postconf(5) for more details
+including examples.</p>
+
+<p style="margin-top: 1em">COMPATIBILITY CONTROLS <br>
+biff (yes) <br>
+Whether or not to use the local biff service.</p>
+
+<p style="margin-top: 1em">expand_owner_alias (no) <br>
+When delivering to an alias &quot;aliasname&quot; that has
+an &quot;owner-aliasname&quot; companion alias, set the
+envelope sender address to the expansion of the
+&quot;owner-aliasname&quot; alias.</p>
+
+<p style="margin-top: 1em">owner_request_special (yes) <br>
+Give special treatment to owner-listname and
+listname-request address localparts: don&rsquo;t split such
+addresses when the recipient_delimiter is set to
+&quot;-&quot;.</p>
+
+<p style="margin-top: 1em">sun_mailtool_compatibility (no)
+<br>
+Obsolete SUN mailtool compatibility feature.</p>
+
+<p style="margin-top: 1em">Available in Postfix version 2.3
+and later:</p>
+
+<p style="margin-top: 1em">frozen_delivered_to (yes) <br>
+Update the local(8) delivery agent&rsquo;s idea of the
+Delivered-To: address (see prepend_delivered_header) only
+once, at the start of a delivery attempt; do not update the
+<br>
+Delivered-To: address while expanding aliases or .forward
+files.</p>
+
+<p style="margin-top: 1em">Available in Postfix version
+2.5.3 and later:</p>
+
+<p style="margin-top: 1em">strict_mailbox_ownership (yes)
+<br>
+Defer delivery when a mailbox file is not owned by its
+recipient.</p>
+
+<p style="margin-top: 1em">reset_owner_alias (no) <br>
+Reset the local(8) delivery agent&rsquo;s idea of the
+owner-alias attribute, when delivering mail to a child alias
+that does not have its own owner alias.</p>
+
+<p style="margin-top: 1em">DELIVERY METHOD CONTROLS <br>
+The precedence of local(8) delivery methods from high to low
+is: aliases, .forward files, mailbox_transport_maps,
+mailbox_transport, mailbox_command_maps, mailbox_command,
+<br>
+home_mailbox, mail_spool_directory, fallback_transport_maps,
+fallback_transport, and luser_relay.</p>
+
+<p style="margin-top: 1em">alias_maps (see &rsquo;postconf
+-d&rsquo; output) <br>
+The alias databases that are used for local(8) delivery.</p>
+
+<p style="margin-top: 1em">forward_path (see
+&rsquo;postconf -d&rsquo; output) <br>
+The local(8) delivery agent search list for finding a
+.forward file with user-specified delivery methods.</p>
+
+<p style="margin-top: 1em">mailbox_transport_maps (empty)
+<br>
+Optional lookup tables with per-recipient message delivery
+transports to use for local(8) mailbox delivery, whether or
+not the recipients are found in the UNIX passwd <br>
+database.</p>
+
+<p style="margin-top: 1em">mailbox_transport (empty) <br>
+Optional message delivery transport that the local(8)
+delivery agent should use for mailbox delivery to all local
+recipients, whether or not they are found in the UNIX <br>
+passwd database.</p>
+
+<p style="margin-top: 1em">mailbox_command_maps (empty)
+<br>
+Optional lookup tables with per-recipient external commands
+to use for local(8) mailbox delivery.</p>
+
+<p style="margin-top: 1em">mailbox_command (empty) <br>
+Optional external command that the local(8) delivery agent
+should use for mailbox delivery.</p>
+
+<p style="margin-top: 1em">home_mailbox (empty) <br>
+Optional pathname of a mailbox file relative to a local(8)
+user&rsquo;s home directory.</p>
+
+<p style="margin-top: 1em">mail_spool_directory (see
+&rsquo;postconf -d&rsquo; output) <br>
+The directory where local(8) UNIX-style mailboxes are
+kept.</p>
+
+<p style="margin-top: 1em">fallback_transport_maps (empty)
+<br>
+Optional lookup tables with per-recipient message delivery
+transports for recipients that the local(8) delivery agent
+could not find in the aliases(5) or UNIX password <br>
+database.</p>
+
+<p style="margin-top: 1em">fallback_transport (empty) <br>
+Optional message delivery transport that the local(8)
+delivery agent should use for names that are not found in
+the aliases(5) or UNIX password database.</p>
+
+<p style="margin-top: 1em">luser_relay (empty) <br>
+Optional catch-all destination for unknown local(8)
+recipients.</p>
+
+<p style="margin-top: 1em">Available in Postfix version 2.2
+and later:</p>
+
+<p style="margin-top: 1em">command_execution_directory
+(empty) <br>
+The local(8) delivery agent working directory for delivery
+to external command.</p>
+
+<p style="margin-top: 1em">MAILBOX LOCKING CONTROLS <br>
+deliver_lock_attempts (20) <br>
+The maximal number of attempts to acquire an exclusive lock
+on a mailbox file or bounce(8) logfile.</p>
+
+<p style="margin-top: 1em">deliver_lock_delay (1s) <br>
+The time between attempts to acquire an exclusive lock on a
+mailbox file or bounce(8) logfile.</p>
+
+<p style="margin-top: 1em">stale_lock_time (500s) <br>
+The time after which a stale exclusive mailbox lockfile is
+removed.</p>
+
+<p style="margin-top: 1em">mailbox_delivery_lock (see
+&rsquo;postconf -d&rsquo; output) <br>
+How to lock a UNIX-style local(8) mailbox before attempting
+delivery.</p>
+
+<p style="margin-top: 1em">RESOURCE AND RATE CONTROLS <br>
+command_time_limit (1000s) <br>
+Time limit for delivery to external commands.</p>
+
+<p style="margin-top: 1em">duplicate_filter_limit (1000)
+<br>
+The maximal number of addresses remembered by the address
+duplicate filter for aliases(5) or virtual(5) alias
+expansion, or for showq(8) queue displays.</p>
+
+
+<p style="margin-top: 1em">local_destination_concurrency_limit
+(2) <br>
+The maximal number of parallel deliveries via the local mail
+delivery transport to the same recipient (when
+&quot;local_destination_recipient_limit = 1&quot;) or the
+maximal number <br>
+of parallel deliveries to the same local domain (when
+&quot;local_destination_recipient_limit &gt; 1&quot;).</p>
+
+
+<p style="margin-top: 1em">local_destination_recipient_limit
+(1) <br>
+The maximal number of recipients per message delivery via
+the local mail delivery transport.</p>
+
+<p style="margin-top: 1em">mailbox_size_limit (51200000)
+<br>
+The maximal size of any local(8) individual mailbox or
+maildir file, or zero (no limit).</p>
+
+<p style="margin-top: 1em">SECURITY CONTROLS <br>
+allow_mail_to_commands (alias, forward) <br>
+Restrict local(8) mail delivery to external commands.</p>
+
+<p style="margin-top: 1em">allow_mail_to_files (alias,
+forward) <br>
+Restrict local(8) mail delivery to external files.</p>
+
+<p style="margin-top: 1em">command_expansion_filter (see
+&rsquo;postconf -d&rsquo; output) <br>
+Restrict the characters that the local(8) delivery agent
+allows in $name expansions of $mailbox_command and
+$command_execution_directory.</p>
+
+<p style="margin-top: 1em">default_privs (nobody) <br>
+The default rights used by the local(8) delivery agent for
+delivery to external file or command.</p>
+
+<p style="margin-top: 1em">forward_expansion_filter (see
+&rsquo;postconf -d&rsquo; output) <br>
+Restrict the characters that the local(8) delivery agent
+allows in $name expansions of $forward_path.</p>
+
+<p style="margin-top: 1em">Available in Postfix version 2.2
+and later:</p>
+
+
+<p style="margin-top: 1em">execution_directory_expansion_filter
+(see &rsquo;postconf -d&rsquo; output) <br>
+Restrict the characters that the local(8) delivery agent
+allows in $name expansions of
+$command_execution_directory.</p>
+
+<p style="margin-top: 1em">Available in Postfix version
+2.5.3 and later:</p>
+
+<p style="margin-top: 1em">strict_mailbox_ownership (yes)
+<br>
+Defer delivery when a mailbox file is not owned by its
+recipient.</p>
+
+<p style="margin-top: 1em">MISCELLANEOUS CONTROLS <br>
+config_directory (see &rsquo;postconf -d&rsquo; output) <br>
+The default location of the Postfix main.cf and master.cf
+configuration files.</p>
+
+<p style="margin-top: 1em">daemon_timeout (18000s) <br>
+How much time a Postfix daemon process may take to handle a
+request before it is terminated by a built-in watchdog
+timer.</p>
+
+<p style="margin-top: 1em">delay_logging_resolution_limit
+(2) <br>
+The maximal number of digits after the decimal point when
+logging sub-second delay values.</p>
+
+<p style="margin-top: 1em">export_environment (see
+&rsquo;postconf -d&rsquo; output) <br>
+The list of environment variables that a Postfix process
+will export to non-Postfix processes.</p>
+
+<p style="margin-top: 1em">ipc_timeout (3600s) <br>
+The time limit for sending or receiving information over an
+internal communication channel.</p>
+
+<p style="margin-top: 1em">local_command_shell (empty) <br>
+Optional shell program for local(8) delivery to non-Postfix
+command.</p>
+
+<p style="margin-top: 1em">max_idle (100s) <br>
+The maximum amount of time that an idle Postfix daemon
+process waits for an incoming connection before terminating
+voluntarily.</p>
+
+<p style="margin-top: 1em">max_use (100) <br>
+The maximal number of incoming connections that a Postfix
+daemon process will service before terminating
+voluntarily.</p>
+
+<p style="margin-top: 1em">prepend_delivered_header
+(command, file, forward) <br>
+The message delivery contexts where the Postfix local(8)
+delivery agent prepends a Delivered-To: message header with
+the address that the mail was delivered to.</p>
+
+<p style="margin-top: 1em">process_id (read-only) <br>
+The process ID of a Postfix command or daemon process.</p>
+
+<p style="margin-top: 1em">process_name (read-only) <br>
+The process name of a Postfix command or daemon process.</p>
+
+<p style="margin-top: 1em">propagate_unmatched_extensions
+(canonical, virtual) <br>
+What address lookup tables copy an address extension from
+the lookup key to the lookup result.</p>
+
+<p style="margin-top: 1em">queue_directory (see
+&rsquo;postconf -d&rsquo; output) <br>
+The location of the Postfix top-level queue directory.</p>
+
+<p style="margin-top: 1em">recipient_delimiter (empty) <br>
+The separator between user names and address extensions
+(user+foo).</p>
+
+<p style="margin-top: 1em">require_home_directory (no) <br>
+Require that a local(8) recipient&rsquo;s home directory
+exists before mail delivery is attempted.</p>
+
+<p style="margin-top: 1em">syslog_facility (mail) <br>
+The syslog facility of Postfix logging.</p>
+
+<p style="margin-top: 1em">syslog_name (see &rsquo;postconf
+-d&rsquo; output) <br>
+The mail system name that is prepended to the process name
+in syslog records, so that &quot;smtpd&quot; becomes, for
+example, &quot;postfix/smtpd&quot;.</p>
+
+<p style="margin-top: 1em">FILES <br>
+The following are examples; details differ between systems.
+<br>
+$HOME/.forward, per-user aliasing <br>
+/etc/aliases, system-wide alias database <br>
+/var/spool/mail, system mailboxes</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+qmgr(8), queue manager <br>
+bounce(8), delivery status reports <br>
+newaliases(1), create/update alias database <br>
+postalias(1), create/update alias database <br>
+aliases(5), format of alias database <br>
+postconf(5), configuration parameters <br>
+master(5), generic daemon options <br>
+syslogd(8), system logging</p>
+
+<p style="margin-top: 1em">LICENSE <br>
+The Secure Mailer license must be distributed with this
+software.</p>
+
+<p style="margin-top: 1em">HISTORY <br>
+The Delivered-To: message header appears in the qmail system
+by Daniel Bernstein.</p>
+
+<p style="margin-top: 1em">The maildir structure appears in
+the qmail system by Daniel Bernstein.</p>
+
+<p style="margin-top: 1em">AUTHOR(S) <br>
+Wietse Venema <br>
+IBM T.J. Watson Research <br>
+P.O. Box 704 <br>
+Yorktown Heights, NY 10598, USA</p>
+ 
+<p style="margin-top: 1em">LOCAL(8)</p>
+<hr>
+</body>
+</html>

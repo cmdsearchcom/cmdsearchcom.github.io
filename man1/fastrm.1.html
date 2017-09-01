@@ -1,0 +1,256 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:09:00 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>FASTRM(1) InterNetNews Documentation FASTRM(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+fastrm - Quickly remove a list of files</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+fastrm [-de] [-c|-cI] [-s|-sM] [-u|-uN] base-directory</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+fastrm reads a list of either file names or storage API
+tokens, one per line, from its standard input and removes
+them. Storage API tokens are removed via the SMcancel() <br>
+interface. fastrm does not delete files safely or with an
+eye to security, but rather cuts every corner it can to
+delete files as fast as it can. It should therefore never be
+<br>
+run on publically writable directories, or in any other
+environment where a hostile party may control the directory
+structure in which it is working.</p>
+
+<p style="margin-top: 1em">If a file name is not an
+absolute path name, it is considered to be relative to
+base-directory as given on the command line. The
+base-directory parameter must be a simple <br>
+absolute pathname (it must not contain multiple consecutive
+slashes or references to the special directories
+&quot;.&quot; or &quot;..&quot;).</p>
+
+<p style="margin-top: 1em">fastrm is designed to be faster
+than the typical &quot;| xargs rm&quot; pipeline when given
+a sorted list of file names as input. For example, fastrm
+will usually chdir(2) into a <br>
+directory before removing files from it, meaning that if its
+input is sorted, most names passed to unlink(2) will be
+simple names. This can substantially reduce the operating
+<br>
+system overhead from directory lookups.</p>
+
+<p style="margin-top: 1em">fastrm assumes that its input is
+valid and that it is safe to call unlink(2) on every file
+name it is given. As a safety measure, however, fastrm when
+running as root will check <br>
+with stat(2) that a file name doesn&rsquo;t specify a
+directory before removing it. (In some operating systems,
+root is allowed to unlink directories, even directories
+which aren&rsquo;t <br>
+empty, which can cause file system corruption.)</p>
+
+<p style="margin-top: 1em">The input to fastrm should
+always be sorted -- or even better be in the order file
+names are output by find(1) -- if speed is an issue and the
+input isn&rsquo;t solely storage API <br>
+tokens. (It deals fine with unsorted input, but is unlikely
+to be any faster in that case than a simple &quot;| xargs
+rm&quot; command.) Sorting may even slightly speed up the
+removal of <br>
+storage API tokens due to caching effects, since sorting
+will tend to keep all of the tokens from a particular
+storage method together.</p>
+
+<p style="margin-top: 1em">Various additional optimizations
+for removing files can be turned on and/or tuned with
+options (see below). Which options will be most effective
+depends heavily on the <br>
+underlying structure of the file system, the way in which
+directories are stored and searched, and similar, often
+underdocumented, operating system implementation details.
+The <br>
+more sophisticated the underlying operating system and file
+system, the more likely that it will already perform the
+equivalent of these optimizations internally.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-c[I] <br>
+Controls when fastrm calls chdir(2). If the number of files
+to be unlinked from a given directory is at least I, then
+fastrm will change to that directory before unlinking <br>
+those files. Otherwise, it will use either the absolute path
+names or a path name relative to the current directory
+(whichever is likely more efficient). The I parameter is
+<br>
+optional; if just -c is given, -c1 is assumed, which will
+cause fastrm to always chdir before calling unlink(2). The
+default is -c3. Use -c0 to prevent fastrm from ever <br>
+using chdir(2).</p>
+
+<p style="margin-top: 1em">-d Don&rsquo;t remove any files.
+Instead, print a list of the files that would be removed to
+standard output. Each line contains either the current
+directory of fastrm at the time <br>
+it would do the unlink and the relative path name it would
+pass to unlink(2) as two fields separated by whitespace and
+a &quot;/&quot;, the absolute path name (as a single field)
+that <br>
+would be passed to unlink(2), or the string
+&quot;Token&quot; and the storage API token that would be
+removed.</p>
+
+<p style="margin-top: 1em">-e Treat an empty input file as
+an error. This is most useful when fastrm is last in a
+pipeline after a preceding sort(1) command, ensuring that
+fastrm will fail if the sort <br>
+fails.</p>
+
+<p style="margin-top: 1em">-s[M] <br>
+When -s is given and the number of files to remove in a
+directory is greater than M, rather than remove files in the
+order given, fastrm will open the directory and read it,
+<br>
+unlinking files in the order that they appear in the
+directory. On systems with a per-process directory cache or
+that use a linear search to find files in a directory, this
+<br>
+should make directory lookups faster. The M parameter is
+optional; if just -s is given, -s5 is assumed.</p>
+
+<p style="margin-top: 1em">When this option is in effect,
+fastrm won&rsquo;t attempt to remove files that it
+doesn&rsquo;t see in the directory, possibly significantly
+speeding it up if most of the files to be <br>
+removed have already been deleted. However, using this
+option requires fastrm to do more internal work and it also
+assumes that the order of directory listings is stable in
+<br>
+the presence of calls to unlink(2) between calls to
+readdir(3). This may be a dangerous assumption with some
+sophisticated file systems (and in general this option is
+only <br>
+useful with file systems that use unindexed linear searches
+to find files in directories or when most of the files to be
+removed have already been deleted).</p>
+
+<p style="margin-top: 1em">This optimization is off by
+default.</p>
+
+<p style="margin-top: 1em">-u[N] <br>
+Specifying this option promises that there are no symbolic
+links in the directory tree from which files are being
+removed. This allows fastrm to make an additional <br>
+optimization to its calls to chdir(2), constructing a
+relative path using &quot;../..&quot; and the like to pass
+to chdir(2) rather than always using absolute paths. Since
+this <br>
+reduces the number of directory lookups needed with deeply
+nested directory structures (such as that typically created
+by traditional news spool storage), it can be a <br>
+significant optimization, but it breaks horribly in the
+presence of symbolic links to directories.</p>
+
+<p style="margin-top: 1em">When -u is given, fastrm will
+use at most N levels of &quot;..&quot; segments to construct
+paths. N is optional; if just -u is given, -u1 is
+assumed.</p>
+
+<p style="margin-top: 1em">This optimization is off by
+default.</p>
+
+<p style="margin-top: 1em">fastrm also accepts -a and -r
+options, which do nothing at all except allow you to say
+&quot;fastrm -usa&quot;, &quot;fastrm -usr&quot;, or
+&quot;fastrm -user&quot;. These happen to often be
+convenient sets <br>
+of options to use.</p>
+
+<p style="margin-top: 1em">EXIT STATUS <br>
+fastrm exits with a status of zero if there were no
+problems, and an exit status of 1 if something went wrong.
+Attempting to remove a file that does not exist is not
+considered <br>
+a problem.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+fastrm is typically invoked by INN via expirerm(8) using a
+command like:</p>
+
+<p style="margin-top: 1em">fastrm -e &lt;patharticles in
+inn.conf&gt; &lt; expire.list</p>
+
+<p style="margin-top: 1em">To enable all optimizations and
+see the affect on the order of removal caused by -s,
+use:</p>
+
+<p style="margin-top: 1em">fastrm -d -s -e -u
+&lt;patharticles&gt; &lt; expire.list</p>
+
+<p style="margin-top: 1em">If your file system has indexed
+directory lookups, but you have a deeply nested directory
+structure, you may want to use a set of flags like:</p>
+
+<p style="margin-top: 1em">fastrm -e -u3
+&lt;patharticles&gt; &lt; expire.list</p>
+
+<p style="margin-top: 1em">to strongly prefer relative
+paths but not to use readdir(2) to order the calls to
+unlink(2).</p>
+
+<p style="margin-top: 1em">You may want to edit expirerm(8)
+to change the flags passed to fastrm.</p>
+
+<p style="margin-top: 1em">WARNINGS <br>
+fastrm cuts corners and does not worry about security, so it
+does not use chdir(2) safely and could be tricked into
+removing files other than those that were intended if run on
+a <br>
+specially constructed file tree or a file tree that is being
+modified while it is running. It should therefore never be
+used with world-writable directories or any other <br>
+directory that might be controlled or modified by an
+attacker.</p>
+
+<p style="margin-top: 1em">NOTES <br>
+fastrm defers opening the storage subsystem or attempting to
+parse any INN configuration files until it encounters a
+token in the list of files to remove. It&rsquo;s therefore
+<br>
+possible to use fastrm outside of INN as a general fast file
+removal program.</p>
+
+<p style="margin-top: 1em">HISTORY <br>
+fastrm was originally written by &lt;kre@munnari.oz.au&gt;.
+This manual page was rewritten in POD by Russ Allbery
+&lt;eagle@eyrie.org&gt; for InterNetNews.</p>
+
+<p style="margin-top: 1em">$Id: fastrm.pod 9767 2014-12-07
+21:13:43Z iulius $</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+expirerm(8).</p>
+
+<p style="margin-top: 1em">INN 2.6.1 2015-09-12
+FASTRM(1)</p>
+<hr>
+</body>
+</html>

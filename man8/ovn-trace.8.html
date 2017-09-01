@@ -1,0 +1,569 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:14:15 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>ovn-trace(8) Open vSwitch Manual ovn-trace(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+ovn-trace - Open Virtual Network logical network tracing
+utility</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+ovn-trace [options] datapath microflow</p>
+
+<p style="margin-top: 1em">ovn-trace [options] --detach</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This utility simulates packet forwarding within an OVN
+logical network. It can be used to run through
+&lsquo;&lsquo;what-if&acirc;&acirc; scenarios: if a packet
+originates at a logical port, what will <br>
+happen to it and where will it ultimately end up? Users
+already familiar with the Open vSwitch ofproto/trace command
+described in ovs-vswitch(8) will find ovn-trace to be a
+simi&acirc; <br>
+lar tool for logical networks.</p>
+
+<p style="margin-top: 1em">ovn-trace works by reading the
+Logical_Flow and other tables from the OVN southbound
+database (see ovn-sb(5)). It simulates a packet&acirc;s path
+through logical networks by repeatedly <br>
+looking it up in the logical flow table, following the
+entire tree of possibilities.</p>
+
+<p style="margin-top: 1em">ovn-trace simulates only the OVN
+logical network. It does not simulate the physical elements
+on which the logical network is layered. This means that,
+for example, it is unimpor&acirc; <br>
+tant how VMs are distributed among hypervisors, or whether
+their hypervisors are functioning and reachable, so
+ovn-trace will yield the same results regardless. There is
+one <br>
+important exception: ovn-northd, the daemon that generates
+the logical flows that ovn-trace simulates, treats logical
+ports differently based on whether they are up or down. <br>
+Thus, if you see surprising results, ensure that the ports
+involved in a simulation are up.</p>
+
+<p style="margin-top: 1em">The simplest way to use
+ovn-trace is to provide datapath and microflow arguments on
+the command line. In this case, it simulates the behavior of
+a single packet and exits. For an <br>
+alternate usage model, see Daemon Mode below.</p>
+
+<p style="margin-top: 1em">The datapath argument specifies
+the name of a logical datapath. Acceptable names are the
+name from the northbound Logical_Switch or Logical_Router
+table, the UUID of a record <br>
+from one of those tables, or the UUID of a record from the
+southbound Datapath_Binding table.</p>
+
+<p style="margin-top: 1em">The microflow argument describes
+the packet whose forwarding is to be simulated, in the
+syntax of an OVN logical expression, as described in
+ovn-sb(5), to express constraints. <br>
+The parser understands prerequisites; for example, if the
+expression refers to ip4.src, there is no need to explicitly
+state ip4 or eth.type == 0x800.</p>
+
+<p style="margin-top: 1em">For reasonable L2 behavior, the
+microflow should include at least inport and eth.dst, plus
+eth.src if port security is enabled. For example:</p>
+
+<p style="margin-top: 1em">inport == &quot;lp11&quot;
+&amp;&amp; eth.src == 00:01:02:03:04:05 &amp;&amp; eth.dst
+== ff:ff:ff:ff:ff:ff</p>
+
+<p style="margin-top: 1em">For reasonable L3 behavior,
+microflow should also include ip4.src and ip4.dst (or
+ip6.src and ip6.dst) and ip.ttl. For example:</p>
+
+<p style="margin-top: 1em">inport == &quot;lp111&quot;
+&amp;&amp; eth.src == f0:00:00:00:01:11 &amp;&amp; eth.dst
+== 00:00:00:00:ff:11 <br>
+&amp;&amp; ip4.src == 192.168.11.1 &amp;&amp; ip4.dst ==
+192.168.22.2 &amp;&amp; ip.ttl == 64</p>
+
+<p style="margin-top: 1em">Here&acirc;s an ARP microflow
+example:</p>
+
+<p style="margin-top: 1em">inport == &quot;lp123&quot; <br>
+&amp;&amp; eth.dst == ff:ff:ff:ff:ff:ff &amp;&amp; eth.src
+== f0:00:00:00:01:11 <br>
+&amp;&amp; arp.op == 1 &amp;&amp; arp.sha ==
+f0:00:00:00:01:11 &amp;&amp; arp.spa == 192.168.1.11 <br>
+&amp;&amp; arp.tha == ff:ff:ff:ff:ff:ff &amp;&amp; arp.tpa
+== 192.168.2.22</p>
+
+<p style="margin-top: 1em">ovn-trace will reject erroneous
+microflow expressions, which beyond syntax errors fall into
+two categories. First, they can be ambiguous. For example,
+tcp.src == 80 is ambiguous <br>
+because it does not state IPv4 or IPv6 as the Ethernet type.
+ip4 &amp;&amp; tcp.src &gt; 1024 is also ambiguous because
+it does not constrain bits of tcp.src to particular values.
+Second, <br>
+they can be contradictory, e.g. ip4 &amp;&amp; ip6.</p>
+
+<p style="margin-top: 1em">OUTPUT <br>
+ovn-trace supports the three different forms of output, each
+described in a separate section below. Regardless of the
+selected output format, ovn-trace starts the output with a
+<br>
+line that shows the microflow being traced in OpenFlow
+syntax.</p>
+
+<p style="margin-top: 1em">Detailed Output <br>
+The detailed form of output is also the default form. This
+form groups output into sections headed up by the ingress or
+egress pipeline being traversed. Each pipeline lists each
+<br>
+table that was visited (by number and name), the ovn-northd
+source file and line number of the code that added the flow,
+the match expression and priority of the logical flow <br>
+that was matched, and the actions that were executed.</p>
+
+<p style="margin-top: 1em">The execution of OVN logical
+actions naturally forms a &lsquo;&lsquo;control
+stack&acirc;&acirc; that resembles that of a program in
+conventional programming languages such as C or Java.
+Because the <br>
+next action that calls into another logical flow table for a
+lookup is a recursive construct, OVN
+&lsquo;&lsquo;programs&acirc;&acirc; in practice tend to
+form deep control stacks that, displayed in the <br>
+obvious way using additional indentation for each level,
+quickly use up the horizontal space on all but the widest
+displays. To make detailed output more readable, without
+loss <br>
+of generality, ovn-trace omits indentation for
+&lsquo;&lsquo;tail recursion,&acirc;&acirc; that is, when
+next is the last action in a logical flow, it does not
+indent details of the next table lookup <br>
+more deeply. Output still uses indentation when it is needed
+for clarity.</p>
+
+<p style="margin-top: 1em">OVN
+&lsquo;&lsquo;programs&acirc;&acirc; traces also tend to
+encounter long strings of logical flows with match
+expression 1 (which matches every packet) and the single
+action next;. These are uninter&acirc; <br>
+esting and merely clutter output, so ovn-trace omits them
+entirely even from detailed output.</p>
+
+<p style="margin-top: 1em">The following excerpt from
+detailed ovn-trace output shows a section for a packet
+traversing the ingress pipeline of logical datapath ls1 with
+ingress logical port lp111. The <br>
+packet matches a logical flow in table 0 (aka
+ls_in_port_sec_l2) with priority 50 and executes next(1); to
+pass to table 1. Tables 1 through 11 are trivial and
+omitted. In table <br>
+12 (aka ls_in_l2_lkup), the packet matches a flow with
+priority 50 based on its Ethernet destination address and
+the flow&acirc;s actions output the packet to the
+lrp11-attachement <br>
+logical port.</p>
+
+<p style="margin-top: 1em">ingress(dp=&quot;ls1&quot;,
+inport=&quot;lp111&quot;) <br>
+--------------------------------- <br>
+0. ls_in_port_sec_l2: inport == &quot;lp111&quot;, priority
+50 <br>
+next(1); <br>
+12. ls_in_l2_lkup: eth.dst == 00:00:00:00:ff:11, priority 50
+<br>
+outport = &quot;lrp11-attachment&quot;; <br>
+output;</p>
+
+<p style="margin-top: 1em">Summary Output <br>
+Summary output includes the logical pipelines visited by a
+packet and the logical actions executed on it. Compared to
+the detailed output, however, it removes details of tables
+<br>
+and logical flows traversed by a packet. It uses a format
+closer to that of a programming language and does not
+attempt to avoid indentation. The summary output equivalent
+to the <br>
+above detailed output fragment is:</p>
+
+<p style="margin-top: 1em">ingress(dp=&quot;ls1&quot;,
+inport=&quot;lp111&quot;) { <br>
+outport = &quot;lrp11-attachment&quot;; <br>
+output; <br>
+... <br>
+};</p>
+
+<p style="margin-top: 1em">Minimal Output <br>
+Minimal output includes only actions that modify packet data
+(not including OVN registers or metadata such as outport)
+and output actions that actually deliver a packet to a
+log&acirc; <br>
+ical port (excluding patch ports). The operands of actions
+that modify packet data are displayed reduced to constants,
+e.g. ip4.dst = reg0; might be show as ip4.dst = <br>
+192.168.0.1; if that was the value actually loaded. This
+yields output even simpler than the summary format. (Users
+familiar with Open vSwitch may recognize this as similar in
+<br>
+spirit to the datapath actions listed at the bottom of
+ofproto/trace output.)</p>
+
+<p style="margin-top: 1em">The minimal output format
+reflects the externally seen behavior of the logical
+networks more than it does the implementation. This makes
+this output format the most suitable for <br>
+use in regression tests, because it is least likely to
+change when logical flow tables are rearranged without
+semantic change.</p>
+
+<p style="margin-top: 1em">DAEMON MODE <br>
+If ovn-trace is invoked with the --detach option (see Daemon
+Options, below), it runs in the background as a daemon and
+accepts commands from ovs-appctl (or another JSON-RPC <br>
+client) indefinitely. The currently supported commands are
+described below.</p>
+
+<p style="margin-top: 1em">trace [options] datapath
+microflow <br>
+Traces microflow through datapath and replies with the
+results of the trace. Accepts the options described under
+Trace Options below.</p>
+
+<p style="margin-top: 1em">exit Causes ovn-trace to
+gracefully terminate.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+Trace Options <br>
+--detailed <br>
+--summary <br>
+--minimal <br>
+These options control the form and level of detail in
+ovn-trace output. If more than one of these options is
+specified, all of the selected forms are output, in the
+order <br>
+listed above, each headed by a banner line. If none of these
+options is given, --detailed is the default. See Output,
+above, for a description of each kind of output.</p>
+
+<p style="margin-top: 1em">--all <br>
+Selects all three forms of output.</p>
+
+<p style="margin-top: 1em">--ovs[=remote] <br>
+Makes ovn-trace attempt to obtain and display the OpenFlow
+flows that correspond to each OVN logical flow. To do so,
+ovn-trace connects to remote (by default, <br>
+unix:/var/run/openvswitch/br-int.mgmt) over OpenFlow and
+retrieves the flows. If remote is specified, it must be an
+active OpenFlow connection method described in <br>
+ovs-ofctl(8).</p>
+
+<p style="margin-top: 1em">To make the best use of the
+output, it is important to understand the relationship
+between logical flows and OpenFlow flows.
+ovn-architecture(7), under Architectural Physi&acirc; <br>
+cal Life Cycle of a Packet, describes this relationship.
+Keep in mind the following points:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; ovn-trace
+currently shows all the OpenFlow flows to which a logical
+flow corresponds, even though an actual packet ordinarily
+matches only one of these.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Some logical
+flows can map to the Open vSwitch &lsquo;&lsquo;conjunctive
+match&acirc;&acirc; extension (see ovs-fields(7)). Currently
+ovn-trace cannot display the flows with conjunction <br>
+actions that effectively produce the conj_id match.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Some logical
+flows may not be represented in the OpenFlow tables on a
+given hypervisor, if they could not be used on that
+hypervisor.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Some OpenFlow
+flows do not correspond to logical flows, such as OpenFlow
+flows that map between physical and logical ports. These
+flows will never show up in a trace.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; When ovn-trace
+omits uninteresting logical flows from output, it does not
+look up the corresponding OpenFlow flows.</p>
+
+<p style="margin-top: 1em">Daemon Options <br>
+--pidfile[=pidfile] <br>
+Causes a file (by default, program.pid) to be created
+indicating the PID of the running process. If the pidfile
+argument is not specified, or if it does not begin with /,
+<br>
+then it is created in /var/run/openvswitch.</p>
+
+<p style="margin-top: 1em">If --pidfile is not specified,
+no pidfile is created.</p>
+
+<p style="margin-top: 1em">--overwrite-pidfile <br>
+By default, when --pidfile is specified and the specified
+pidfile already exists and is locked by a running process,
+the daemon refuses to start. Specify --overwrite-pid&acirc;
+<br>
+file to cause it to instead overwrite the pidfile.</p>
+
+<p style="margin-top: 1em">When --pidfile is not specified,
+this option has no effect.</p>
+
+<p style="margin-top: 1em">--detach <br>
+Runs this program as a background process. The process
+forks, and in the child it starts a new session, closes the
+standard file descriptors (which has the side effect of <br>
+disabling logging to the console), and changes its current
+directory to the root (unless --no-chdir is specified).
+After the child completes its initialization, the parent
+<br>
+exits.</p>
+
+<p style="margin-top: 1em">--monitor <br>
+Creates an additional process to monitor this program. If it
+dies due to a signal that indicates a programming error
+(SIGABRT, SIGALRM, SIGBUS, SIGFPE, SIGILL, SIGPIPE, <br>
+SIGSEGV, SIGXCPU, or SIGXFSZ) then the monitor process
+starts a new copy of it. If the daemon dies or exits for
+another reason, the monitor process exits.</p>
+
+<p style="margin-top: 1em">This option is normally used
+with --detach, but it also functions without it.</p>
+
+<p style="margin-top: 1em">--no-chdir <br>
+By default, when --detach is specified, the daemon changes
+its current working directory to the root directory after it
+detaches. Otherwise, invoking the daemon from a <br>
+carelessly chosen directory would prevent the administrator
+from unmounting the file system that holds that
+directory.</p>
+
+<p style="margin-top: 1em">Specifying --no-chdir suppresses
+this behavior, preventing the daemon from changing its
+current working directory. This may be useful for collecting
+core files, since it <br>
+is common behavior to write core dumps into the current
+working directory and the root directory is not a good
+directory to use.</p>
+
+<p style="margin-top: 1em">This option has no effect when
+--detach is not specified.</p>
+
+<p style="margin-top: 1em">--no-self-confinement <br>
+By default this daemon will try to self-confine itself to
+work with files under well-known directories whitelisted at
+build time. It is better to stick with this default <br>
+behavior and not to use this flag unless some other Access
+Control is used to confine daemon. Note that in contrast to
+other access control implementations that are typi&acirc;
+<br>
+cally enforced from kernel-space (e.g. DAC or MAC),
+self-confinement is imposed from the user-space daemon
+itself and hence should not be considered as a full
+confinement <br>
+strategy, but instead should be viewed as an additional
+layer of security.</p>
+
+<p style="margin-top: 1em">--user=user:group <br>
+Causes this program to run as a different user specified in
+user:group, thus dropping most of the root privileges. Short
+forms user and :group are also allowed, with cur&acirc; <br>
+rent user or group assumed, respectively. Only daemons
+started by the root user accepts this argument.</p>
+
+<p style="margin-top: 1em">On Linux, daemons will be
+granted CAP_IPC_LOCK and CAP_NET_BIND_SERVICES before
+dropping root privileges. Daemons that interact with a
+datapath, such as ovs-vswitchd, will <br>
+be granted two additional capabilities, namely CAP_NET_ADMIN
+and CAP_NET_RAW. The capability change will apply even if
+the new user is root.</p>
+
+<p style="margin-top: 1em">On Windows, this option is not
+currently supported. For security reasons, specifying this
+option will cause the daemon process not to start.</p>
+
+<p style="margin-top: 1em">Logging Options <br>
+-v[spec] <br>
+--verbose=[spec] <br>
+Sets logging levels. Without any spec, sets the log level
+for every module and destination to dbg. Otherwise, spec is
+a list of words separated by spaces or commas or <br>
+colons, up to one from each category below:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; A valid module
+name, as displayed by the vlog/list command on
+ovs-appctl(8), limits the log level change to the specified
+module.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; syslog, console,
+or file, to limit the log level change to only to the system
+log, to the console, or to a file, respectively. (If
+--detach is specified, the daemon <br>
+closes its standard file descriptors, so logging to the
+console will have no effect.)</p>
+
+<p style="margin-top: 1em">On Windows platform, syslog is
+accepted as a word and is only useful along with the
+--syslog-target option (the word has no effect
+otherwise).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; off, emer, err,
+warn, info, or dbg, to control the log level. Messages of
+the given severity or higher will be logged, and messages of
+lower severity will be filtered <br>
+out. off filters out all messages. See ovs-appctl(8) for a
+definition of each log level.</p>
+
+<p style="margin-top: 1em">Case is not significant within
+spec.</p>
+
+<p style="margin-top: 1em">Regardless of the log levels set
+for file, logging to a file will not take place unless
+--log-file is also specified (see below).</p>
+
+<p style="margin-top: 1em">For compatibility with older
+versions of OVS, any is accepted as a word but has no
+effect.</p>
+
+<p style="margin-top: 1em">-v <br>
+--verbose <br>
+Sets the maximum logging verbosity level, equivalent to
+--verbose=dbg.</p>
+
+<p style="margin-top: 1em">-vPATTERN:destination:pattern
+<br>
+--verbose=PATTERN:destination:pattern <br>
+Sets the log pattern for destination to pattern. Refer to
+ovs-appctl(8) for a description of the valid syntax for
+pattern.</p>
+
+<p style="margin-top: 1em">-vFACILITY:facility <br>
+--verbose=FACILITY:facility <br>
+Sets the RFC5424 facility of the log message. facility can
+be one of kern, user, mail, daemon, auth, syslog, lpr, news,
+uucp, clock, ftp, ntp, audit, alert, clock2, local0, <br>
+local1, local2, local3, local4, local5, local6 or local7. If
+this option is not specified, daemon is used as the default
+for the local system syslog and local0 is used while <br>
+sending a message to the target provided via the
+--syslog-target option.</p>
+
+<p style="margin-top: 1em">--log-file[=file] <br>
+Enables logging to a file. If file is specified, then it is
+used as the exact name for the log file. The default log
+file name used if file is omitted is /var/log/open&acirc;
+<br>
+vswitch/program.log.</p>
+
+<p style="margin-top: 1em">--syslog-target=host:port <br>
+Send syslog messages to UDP port on host, in addition to the
+system syslog. The host must be a numerical IP address, not
+a hostname.</p>
+
+<p style="margin-top: 1em">--syslog-method=method <br>
+Specify method as how syslog messages should be sent to
+syslog daemon. The following forms are supported:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; libc, to use the
+libc syslog() function. This is the default behavior.
+Downside of using this options is that libc adds fixed
+prefix to every message before it is <br>
+actually sent to the syslog daemon over /dev/log UNIX domain
+socket.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; unix:file, to
+use a UNIX domain socket directly. It is possible to specify
+arbitrary message format with this option. However, rsyslogd
+8.9 and older versions use <br>
+hard coded parser function anyway that limits UNIX domain
+socket use. If you want to use arbitrary message format with
+older rsyslogd versions, then use UDP socket to <br>
+localhost IP address instead.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; udp:ip:port, to
+use a UDP socket. With this method it is possible to use
+arbitrary message format also with older rsyslogd. When
+sending syslog messages over UDP <br>
+socket extra precaution needs to be taken into account, for
+example, syslog daemon needs to be configured to listen on
+the specified UDP port, accidental iptables <br>
+rules could be interfering with local syslog traffic and
+there are some security considerations that apply to UDP
+sockets, but do not apply to UNIX domain sockets.</p>
+
+<p style="margin-top: 1em">PKI Options <br>
+PKI configuration is required to use SSL for the connection
+to the database (and the switch, if --ovs is specified).</p>
+
+<p style="margin-top: 1em">-p privkey.pem <br>
+--private-key=privkey.pem <br>
+Specifies a PEM file containing the private key used as
+identity for outgoing SSL connections.</p>
+
+<p style="margin-top: 1em">-c cert.pem <br>
+--certificate=cert.pem <br>
+Specifies a PEM file containing a certificate that certifies
+the private key specified on -p or --private-key to be
+trustworthy. The certificate must be signed by the <br>
+certificate authority (CA) that the peer in SSL connections
+will use to verify it.</p>
+
+<p style="margin-top: 1em">-C cacert.pem <br>
+--ca-cert=cacert.pem <br>
+Specifies a PEM file containing the CA certificate for
+verifying certificates presented to this program by SSL
+peers. (This may be the same certificate that SSL peers <br>
+use to verify the certificate specified on -c or
+--certificate, or it may be a different one, depending on
+the PKI design in use.)</p>
+
+<p style="margin-top: 1em">-C none <br>
+--ca-cert=none <br>
+Disables verification of certificates presented by SSL
+peers. This introduces a security risk, because it means
+that certificates cannot be verified to be those of <br>
+known trusted hosts.</p>
+
+<p style="margin-top: 1em">Other Options <br>
+--db database <br>
+The OVSDB database remote to contact. If the OVN_SB_DB
+environment variable is set, its value is used as the
+default. Otherwise, the default is unix:/var/run/open&acirc;
+<br>
+vswitch/db.sock, but this default is unlikely to be useful
+outside of single-machine OVN test environments.</p>
+
+<p style="margin-top: 1em">-h <br>
+--help <br>
+Prints a brief help message to the console.</p>
+
+<p style="margin-top: 1em">-V <br>
+--version <br>
+Prints version information to the console.</p>
+
+<p style="margin-top: 1em">Open vSwitch 2.7.0 ovn-trace
+ovn-trace(8)</p>
+<hr>
+</body>
+</html>

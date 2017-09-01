@@ -1,0 +1,202 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:16:23 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>HAPOLICY(1) User Contributed Perl Documentation
+HAPOLICY(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+hapolicy - policy delegation high availability script</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+hapolicy [OPTIONS] --service=SERVICE1 [--service=SERVICE2
+...]</p>
+
+<p style="margin-top: 1em">Services: <br>
+-s, --service
+&lt;name&gt;=&lt;address&gt;:&lt;port&gt;[:&lt;prio&gt;:&lt;weight&gt;:&lt;timeout&gt;]</p>
+
+<p style="margin-top: 1em">Options: <br>
+-d, --default &lt;action&gt; returns &lt;action&gt; if no
+service was available (default: &rsquo;dunno&rsquo;) <br>
+-l, --logging log requests <br>
+-v, --verbose increase logging verbosity <br>
+-L, --stdout log to stdout, for debugging, do NOT use with
+postfix</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+INTRODUCTION <br>
+hapolicy enables high availability, weighted loadbalancing
+and a fallback action for postfix policy delegation
+services. Invoked via postfix spawn it acts as a wrapper
+that <br>
+queries other policy servers via tcp connection. The order
+of the service queries can be influenced by assigning a
+specific priority and weight to each service. A service is
+<br>
+considered &rsquo;failing&rsquo;, if the connection is
+refused or the specified service timeout is reached. If all
+of the configured policy services were failing, hapolicy
+returns a default <br>
+action (e.g. dunno) to postfix.</p>
+
+<p style="margin-top: 1em">With version 1.00 hapolicy has
+less than 200 lines of perl code using only standard perl
+modules. It does not require any disk access nor
+configuration files and runs under an <br>
+unpriviledged user account. This should allow fast and
+reliable operation.</p>
+
+<p style="margin-top: 1em">CONFIGURATION <br>
+A service has the following attributes</p>
+
+<p style="margin-top: 1em">&quot;servicename&quot; =&gt; {
+<br>
+ip =&gt; &rsquo;127.0.0.1&rsquo;, # ip address <br>
+port =&gt; &rsquo;10040&rsquo;, # tcp port <br>
+prio =&gt; &rsquo;10&rsquo;, # optional, lower wins <br>
+weight =&gt; &rsquo;1&rsquo;, # optional, for items with
+same prio (weighted round-robin), higher is better <br>
+timeout =&gt; &rsquo;30&rsquo;, # optional, query timeout in
+seconds <br>
+},</p>
+
+<p style="margin-top: 1em">You may define multiple services
+at the command line. Which means that</p>
+
+<p style="margin-top: 1em">hapolicy -s
+&quot;grey1=10.0.0.1:10031:10&quot; -s
+&quot;grey2=10.0.0.2:10031:20&quot;</p>
+
+<p style="margin-top: 1em">will always try first service
+grey1 at ip 10.0.0.1 port 10031 and if that service is not
+available or does not answer within the default of 30
+seconds the next service grey2 at <br>
+ip 10.0.0.2 port 10031 will be queried.</p>
+
+<p style="margin-top: 1em">If you want to load balance
+connections you may define</p>
+
+<p style="margin-top: 1em">hapolicy -s
+&quot;polw1=10.0.0.1:12525:10:2&quot; -s
+&quot;polw2=10.0.0.2:12525:10:1&quot;</p>
+
+<p style="margin-top: 1em">which queries service polw1 at
+ip 10.0.0.1 twice as much as service polw2 at ip 10.0.0.2.
+Note that this setup also ensures high availability for both
+services. If polw1 is not <br>
+available or does not answer within the default of 30
+seconds polw2 will be queried and vice versa. There is no
+reason to define a service twice.</p>
+
+<p style="margin-top: 1em">INTEGRATION <br>
+Enter the following at the bottom of your postfix master.cf
+(usually located at /etc/postfix):</p>
+
+<p style="margin-top: 1em"># service description, note the
+leading blanks at the second line <br>
+127.0.0.1:10060 inet n n n - 0 spawn <br>
+user=nobody argv=/usr/local/bin/hapolicy -l -s
+GREY1=10.0.0.1:10031:10 -s GREY2=10.0.0.2:10031:10</p>
+
+<p style="margin-top: 1em">save the file and open postfix
+main.cf. Modify it as follows:</p>
+
+<p style="margin-top: 1em">127.0.0.1:10060_time_limit =
+3600</p>
+
+<p style="margin-top: 1em">smtpd_recipient_restrictions =
+<br>
+permit_mynetworks, <br>
+... other authed permits ... <br>
+reject_unauth_destination, <br>
+... other restrictions ... <br>
+check_policy_service inet:127.0.0.1:10060 # &lt;- hapolicy
+query</p>
+
+<p style="margin-top: 1em">Now issue &rsquo;postfix
+reload&rsquo; at the command line. Of course you can have
+more enhanced setups using postfix restriction classes.
+Please see &quot;LINKS&quot; for further options.</p>
+
+<p style="margin-top: 1em">LINKS <br>
+[1] Postfix SMTP Access Policy Delegation
+&lt;http://www.postfix.org/SMTPD_POLICY_README.html&gt;</p>
+
+<p style="margin-top: 1em">[2] Postfix Per-Client/User/etc.
+Access Control
+&lt;http://www.postfix.org/RESTRICTION_CLASS_README.html&gt;</p>
+
+<p style="margin-top: 1em">LICENSE <br>
+hapolicy is free software and released under BSD license,
+which basically means that you can do what you want as long
+as you keep the copyright notice:</p>
+
+<p style="margin-top: 1em">Copyright (c) 2008, Jan Peter
+Kessler All rights reserved.</p>
+
+<p style="margin-top: 1em">Redistribution and use in source
+and binary forms, with or without modification, are
+permitted provided that the following conditions are
+met:</p>
+
+<p style="margin-top: 1em">* Redistributions of source code
+must retain the above copyright <br>
+notice, this list of conditions and the following
+disclaimer. <br>
+* Redistributions in binary form must reproduce the above
+copyright <br>
+notice, this list of conditions and the following disclaimer
+in <br>
+the documentation and/or other materials provided with the
+<br>
+distribution. <br>
+* Neither the name of the authors nor the names of his
+contributors <br>
+may be used to endorse or promote products derived from this
+<br>
+software without specific prior written permission.</p>
+
+<p style="margin-top: 1em">THIS SOFTWARE IS PROVIDED BY ME
+&lsquo;&lsquo;AS IS&rsquo;&rsquo; AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A <br>
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, <br>
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+<br>
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Jan Peter Kessler &lt;info (AT) postfwd (DOT) org&gt;. Let
+me know, if you have any suggestions.</p>
+
+<p style="margin-top: 1em">perl v5.24.1 2016-12-05
+HAPOLICY(1)</p>
+<hr>
+</body>
+</html>

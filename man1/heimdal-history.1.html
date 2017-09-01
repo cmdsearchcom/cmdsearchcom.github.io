@@ -1,0 +1,313 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:16:32 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>HEIMDAL-HISTORY(1) krb5-strength HEIMDAL-HISTORY(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+heimdal-history - Password history via Heimdal external
+strength checking</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+heimdal-history [-hmq] [-b target-time] [-d database] <br>
+[-S length-stats-db] [-s strength-program] [principal]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+heimdal-history is an implementation of password history via
+the Heimdal external password strength checking interface.
+It stores separate history for each principal, hashed <br>
+using Crypt::PBKDF2 with randomly-generated salt. (The
+randomness is from a weak pseudorandom number generator, not
+strongly random.)</p>
+
+<p style="margin-top: 1em">Password history is stored in a
+BerkeleyDB DB_HASH file. The key is the principal. The value
+is a JSON array of objects, each of which has two keys.
+&quot;timestamp&quot; contains the <br>
+time when the history entry was added (in POSIX seconds
+since UNIX epoch), and &quot;hash&quot; contains the hash of
+a previously-used password in the Crypt::PBKDF2
+LDAP-compatible format. <br>
+Passwords are hashed using PBKDF2 (from PKCS#5) with SHA-256
+as the underlying hash function using a number of rounds
+configured in this script. See Crypt::PBKDF2 for more <br>
+information.</p>
+
+<p style="margin-top: 1em">heimdal-history also checks
+password strength before checking history. It does so by
+invoking another program that also uses the Heimdal external
+password strength checking <br>
+interface. By default, it runs /usr/bin/heimdal-strength.
+Only if that program approves the password does it hash it
+and check history.</p>
+
+<p style="margin-top: 1em">For more information on how to
+set up password history, see &quot;CONFIGURATION&quot;
+below.</p>
+
+<p style="margin-top: 1em">As with any implementation of
+the Heimdal external password strength checking protocol,
+heimdal-history expects, on standard input:</p>
+
+<p style="margin-top: 1em">principal: &lt;principal&gt;
+<br>
+new-password: &lt;password&gt; <br>
+end</p>
+
+<p style="margin-top: 1em">(with no leading whitespace).
+&lt;principal&gt; is the principal changing its password
+(passed to the other password strength checking program but
+otherwise unused here), and <br>
+&lt;password&gt; is the new password. There must be exactly
+one space after the colon. Any subsequent spaces are taken
+to be part of the principal or password.</p>
+
+<p style="margin-top: 1em">If invoked as root,
+heimdal-history will run the external strength checking
+program as user &quot;nobody&quot; and group
+&quot;nogroup&quot;, and will check and write to the history
+database as user <br>
+&quot;_history&quot; and group &quot;_history&quot;. These
+users must exist on the system if it is run as root.</p>
+
+<p style="margin-top: 1em">The result of each password
+check will be logged to syslog (priority LOG_INFO, facility
+LOG_AUTH). Each log line will be a set of key/value pairs in
+the format &quot;key=value&quot;. The <br>
+keys are:</p>
+
+<p style="margin-top: 1em">action <br>
+The action performed (currently always
+&quot;check&quot;).</p>
+
+<p style="margin-top: 1em">principal <br>
+The principal for which a password was checked.</p>
+
+<p style="margin-top: 1em">error <br>
+An internal error message that did not stop the history
+check, but which may indicate that something is wrong with
+the history database (such as corrupted entries or invalid
+<br>
+hashes). If this key is present, neither &quot;result&quot;
+nor &quot;reason&quot; will be present. There will be a
+subsequent log message from the same invocation giving the
+final result of <br>
+the history check (assuming heimdal-history doesn&rsquo;t
+exit with a fatal error).</p>
+
+<p style="margin-top: 1em">result <br>
+Either &quot;accepted&quot; or &quot;rejected&quot;.</p>
+
+<p style="margin-top: 1em">reason <br>
+If the password was rejected, the reason for the
+rejection.</p>
+
+<p style="margin-top: 1em">The value will be surrounded
+with double quotes if it contains a double quote or space.
+Any double quotes in the value will be doubled, so
+&quot;&quot;&quot; becomes &quot;&quot;.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-b target-time, --benchmark=target-time <br>
+Do not do a password history check. Instead, benchmark the
+hash algorithm with various possible iteration counts and
+find an iteration count that results in target-time <br>
+seconds of computation time required to hash a password
+(which should be a real number). A result will be considered
+acceptable if it is within 0.005 seconds of the target <br>
+time. The results will be printed to standard output and
+then heimdal-history will exit successfully.</p>
+
+<p style="margin-top: 1em">-d database, --database=database
+<br>
+Use database as the history database file instead of the
+default (/var/lib/heimdal-history/history.db). Primarily
+used for testing, since Heimdal won&rsquo;t pass this
+argument.</p>
+
+<p style="margin-top: 1em">-h, --help <br>
+Print a short usage message and exit.</p>
+
+<p style="margin-top: 1em">-m, --manual, --man <br>
+Display this manual and exit.</p>
+
+<p style="margin-top: 1em">-q, --quiet <br>
+Suppress logging to syslog and only return the results on
+standard output and standard error. Primarily used for
+testing, since Heimdal won&rsquo;t pass this argument.</p>
+
+<p style="margin-top: 1em">-S length-stats-db,
+--stats=length-stats-db <br>
+Use length-stats-db as the database file for password length
+statistics instead of the default
+(/var/lib/heimdal-history/lengths.db). Primarily used for
+testing, since <br>
+Heimdal won&rsquo;t pass this argument.</p>
+
+<p style="margin-top: 1em">-s strength-program,
+--strength=strength-program <br>
+Run strength-program as the external strength-checking
+program instead of the default (/usr/bin/heimdal-strength).
+Primarily used for testing, since Heimdal won&rsquo;t pass
+this <br>
+argument.</p>
+
+<p style="margin-top: 1em">CONFIGURATION <br>
+Additional setup is required to use this history
+implementation with your Heimdal KDC.</p>
+
+<p style="margin-top: 1em">First, ensure that its
+dependencies are installed, and then examine the local
+configuration settings at the top of the heimdal-history
+program. By default, it requires a <br>
+&quot;_history&quot; user and &quot;_history&quot; group be
+present on the system, and all history information will be
+read and written as that user and group. It also requires a
+&quot;nobody&quot; user and <br>
+&quot;nogroup&quot; group to be present (this should be the
+default with most variants of UNIX), and all strength
+checking will be done as that user and group. It uses
+various files in <br>
+/var/lib/heimdal-history to store history and statistical
+information by default, so if using the defaults, create
+that directory and ensure it is writable by the
+&quot;_history&quot; <br>
+user.</p>
+
+<p style="margin-top: 1em">Once that setup is done, change
+your &quot;[password_quality]&quot; configuration in
+krb5.conf or kdc.conf to:</p>
+
+<p style="margin-top: 1em">[password_quality] <br>
+policies = external-check <br>
+external_program = /usr/local/bin/heimdal-history</p>
+
+<p style="margin-top: 1em">The heimdal-history program will
+automatically also run heimdal-strength as well, looking for
+it in /usr/bin. Change the $STRENGTH_PROGRAM setting at the
+top of the script if <br>
+you have that program in a different location. You should
+continue to configure heimdal-strength as if you were
+running it directly.</p>
+
+<p style="margin-top: 1em">RETURN STATUS <br>
+On approval of the password, heimdal-history will print
+&quot;APPROVED&quot; and a newline to standard output and
+exit with status 0.</p>
+
+<p style="margin-top: 1em">If the password is rejected by
+the strength checking program or if it (or a version with a
+single character removed) matches one of the hashes stored
+in the password history, <br>
+heimdal-history will print the reason for rejection to
+standard error and exit with status 0.</p>
+
+<p style="margin-top: 1em">On any internal error,
+heimdal-history will print the error to standard error and
+exit with a non-zero status.</p>
+
+<p style="margin-top: 1em">FILES <br>
+/usr/bin/heimdal-strength <br>
+The default password strength checking program. This program
+must follow the Heimdal external password strength checking
+API.</p>
+
+
+<p style="margin-top: 1em">/var/lib/heimdal-history/history.db
+<br>
+The default database path. If heimdal-strength is run as
+root, this file needs to be readable and writable by user
+&quot;_history&quot; and group &quot;_history&quot;. If it
+doesn&rsquo;t exist, it <br>
+will be created with mode 0600.</p>
+
+
+<p style="margin-top: 1em">/var/lib/heimdal-history/history.db.lock
+<br>
+The lock file used to synchronize access to the history
+database. As with the history database, if heimdal-strength
+is run as root, this file needs to be readable and <br>
+writable by user &quot;_history&quot; and group
+&quot;_history&quot;.</p>
+
+
+<p style="margin-top: 1em">/var/lib/heimdal-history/lengths.db
+<br>
+The default length statistics path, which will be a
+BerkeleyDB DB_HASH file of password lengths to counts of
+passwords with that length. If heimdal-strength is run as
+root, <br>
+this file needs to be readable and writable by user
+&quot;_history&quot; and group &quot;_history&quot;. If it
+doesn&rsquo;t exist, it will be created with mode 0600.</p>
+
+
+<p style="margin-top: 1em">/var/lib/heimdal-history/lengths.db.lock
+<br>
+The lock file used to synchronize access to the length
+statistics database. As with the length statistics database,
+if heimdal-strength is run as root, this file needs to be
+<br>
+readable and writable by user &quot;_history&quot; and group
+&quot;_history&quot;.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Russ Allbery &lt;eagle@eyrie.org&gt;</p>
+
+<p style="margin-top: 1em">COPYRIGHT AND LICENSE <br>
+Copyright 2016 Russ Allbery &lt;eagle@eyrie.org&gt;</p>
+
+<p style="margin-top: 1em">Copyright 2013, 2014 The Board
+of Trustees of the Leland Stanford Junior University</p>
+
+<p style="margin-top: 1em">Permission is hereby granted,
+free of charge, to any person obtaining a copy of this
+software and associated documentation files (the
+&quot;Software&quot;), to deal in the Software without <br>
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to <br>
+whom the Software is furnished to do so, subject to the
+following conditions:</p>
+
+<p style="margin-top: 1em">The above copyright notice and
+this permission notice shall be included in all copies or
+substantial portions of the Software.</p>
+
+<p style="margin-top: 1em">THE SOFTWARE IS PROVIDED
+&quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR <br>
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
+OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+<br>
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+Crypt::PBKDF2, heimdal-strength(1)</p>
+
+<p style="margin-top: 1em">3.1 2016-12-25
+HEIMDAL-HISTORY(1)</p>
+<hr>
+</body>
+</html>

@@ -1,0 +1,687 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:25:38 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>MK-QUERY-PROFILER(1) User Contributed Perl Documentation
+MK-QUERY-PROFILER(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+mk-query-profiler - Execute SQL statements and print
+statistics, or measure activity caused by other
+processes.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+Usage: mk-query-profiler [OPTION...] [FILE...]</p>
+
+<p style="margin-top: 1em">mk-query-profiler reads and
+executes queries, and prints statistics about MySQL server
+load. Connection options are read from MySQL option files.
+If FILE is given, queries are <br>
+read and executed from the file(s). With no FILE, or when
+FILE is -, read standard input. If --external is specified,
+lines in FILE are executed by the shell. You must specify
+<br>
+- if no FILE and you want --external to read and execute
+from standard input. Queries in FILE must be terminated with
+a semicolon and separated by a blank line.</p>
+
+<p style="margin-top: 1em">mk-query-profiler can profile
+the (semicolon-terminated, blank-line separated) queries in
+a file:</p>
+
+<p style="margin-top: 1em">mk-query-profiler queries.sql
+<br>
+cat queries.sql | mk-query-profiler <br>
+mk-query-profiler -vv queries.sql <br>
+mk-query-profiler -v --separate --only 2,5,6 queries.sql
+<br>
+mk-query-profiler --tab queries.sql &gt; results.csv</p>
+
+<p style="margin-top: 1em">It can also just observe what
+happens in the server:</p>
+
+<p style="margin-top: 1em">mk-query-profiler --external</p>
+
+<p style="margin-top: 1em">Or it can run shell commands
+from a file and measure the result:</p>
+
+<p style="margin-top: 1em">mk-query-profiler --external
+commands.txt <br>
+mk-query-profiler --external - &lt; commands.txt</p>
+
+<p style="margin-top: 1em">Read &quot;HOW TO
+INTERPRET&quot; to learn what it all means.</p>
+
+<p style="margin-top: 1em">RISKS <br>
+The following section is included to inform users about the
+potential risks, whether known or unknown, of using this
+tool. The two main categories of risks are those created by
+<br>
+the nature of the tool (e.g. read-only tools vs. read-write
+tools) and those created by bugs.</p>
+
+<p style="margin-top: 1em">mk-query-profiler is generally
+read-only and very low risk. It will execute FLUSH TABLES if
+you specify &quot;--flush&quot;.</p>
+
+<p style="margin-top: 1em">At the time of this release, we
+know of no bugs that could cause serious harm to users.</p>
+
+<p style="margin-top: 1em">The authoritative source for
+updated information is always the online issue tracking
+system. Issues that affect this tool will be marked as such.
+You can see a list of such <br>
+issues at the following URL:
+&lt;http://www.maatkit.org/bugs/mk-query-profiler&gt;.</p>
+
+<p style="margin-top: 1em">See also &quot;BUGS&quot; for
+more information on filing bugs and getting help.</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+mk-query-profiler reads a file containing one or more SQL
+statements or shell commands, executes them, and analyzes
+the output of SHOW STATUS afterwards. It then prints <br>
+statistics about how the batch performed. For example, it
+can show how many table scans the batch caused, how many
+page reads, how many temporary tables, and so forth.</p>
+
+<p style="margin-top: 1em">All command-line arguments are
+optional, but you must either specify a file containing the
+batch to profile as the last argument, or specify that
+you&rsquo;re profiling an external <br>
+program with the &quot;--external&quot; option, or provide
+input to STDIN.</p>
+
+<p style="margin-top: 1em">If the file contains multiple
+statements, they must be separated by blank lines. If you
+don&rsquo;t do that, mk-query-profiler won&rsquo;t be able
+to split the file into individual queries, <br>
+and MySQL will complain about syntax errors.</p>
+
+<p style="margin-top: 1em">If the MySQL server version is
+before 5.0.2, you should make sure the server is completely
+unused before trying to profile a batch. Prior to this
+version, SHOW STATUS showed <br>
+only global status variables, so other queries will
+interfere and produce false results. mk-query-profiler will
+try to detect if anything did interfere, but there can be no
+<br>
+guarantees.</p>
+
+<p style="margin-top: 1em">Prior to MySQL 5.0.2, InnoDB
+status variables are not available, and prior to version
+5.0.3, InnoDB row lock status variables are not available.
+mk-query-profiler will omit any <br>
+output related to these variables if they&rsquo;re not
+available.</p>
+
+<p style="margin-top: 1em">For more information about SHOW
+STATUS, read the relevant section of the MySQL manual at
+&lt;http://dev.mysql.com/doc/en/server-status-variables.html&gt;</p>
+
+<p style="margin-top: 1em">HOW TO INTERPRET <br>
+TAB-SEPARATED OUTPUT <br>
+If you specify &quot;--tab&quot;, you will get the raw
+output of SHOW STATUS in tab-separated format, convenient
+for opening with a spreadsheet. This is not the default
+output, but it&rsquo;s <br>
+so much easier to describe that I&rsquo;ll cover it
+first.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Most of the
+command-line options for controlling verbosity and such are
+ignored in --tab mode.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The variable
+names you see in MySQL, such as &rsquo;Com_select&rsquo;,
+are kept -- there are no euphimisms, so you have to know
+your MySQL variables.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The columns are
+Variable_name, Before, After1...AfterN, Calibration. The
+Variable_name column is just what it sounds like. Before is
+the result from the first run of SHOW <br>
+STATUS. After1, After2, etc are the results of running SHOW
+STATUS after each query in the batch. Finally, the last
+column is the result of running SHOW STATUS just after <br>
+the last AfterN column, so you can see how much work SHOW
+STATUS itself causes.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If you specify
+&quot;--verbose&quot;, output includes every variable
+mk-query-profiler measures. If not (default) it only
+includes variables where there was some difference from one
+<br>
+column to the next.</p>
+
+<p style="margin-top: 1em">NORMAL OUTPUT <br>
+If you don&rsquo;t specify --tab, you&rsquo;ll get a report
+formatted for human readability. This is the default output
+format.</p>
+
+<p style="margin-top: 1em">mk-query-profiler can output a
+lot of information, as you&rsquo;ve seen if you ran the
+examples in the &quot;SYNOPSIS&quot;. What does it all
+mean?</p>
+
+<p style="margin-top: 1em">First, there are two basic
+groups of information you might see: per-query and summary.
+If your batch contains only one query, these will be the
+same and you&rsquo;ll only see the <br>
+summary. You can recognize the difference by looking for
+centered, all-caps, boxed-in section headers. Externally
+profiled commands will have EXTERNAL, individually profiled
+<br>
+queries will have QUERY, and summary will say SUMMARY.</p>
+
+<p style="margin-top: 1em">Next, the information in each
+section is grouped into subsections, headed by an underlined
+title. Each of these sections has varying information in it.
+Which sections you see <br>
+depends on command-line arguments and your MySQL version.
+I&rsquo;ll explain each section briefly. If you really want
+to know where the numbers come from, read <br>
+
+&lt;http://dev.mysql.com/doc/en/server-status-variables.html&gt;.</p>
+
+<p style="margin-top: 1em">You need to understand which
+numbers are insulated from other queries and which are not.
+This depends on your MySQL version. Version 5.0.2 introduced
+the concept of session <br>
+status variables, so you can see information about only your
+own connection. However, many variables aren&rsquo;t
+session-ized, so when you have MySQL 5.0.2 or greater, you
+will <br>
+actually see a mix of session and global variables. That
+means other queries happening at the same time will pollute
+some of your results. If you have MySQL versions older than
+<br>
+5.0.2, you won&rsquo;t have ANY connection-specific stats,
+so your results will be polluted by other queries no matter
+what. Because of the mixture of session and global
+variables, by <br>
+far the best way to profile is on a completely quiet server
+where nothing else is interfering with your results.</p>
+
+<p style="margin-top: 1em">While explaining the results in
+the sections that follow, I&rsquo;ll refer to a value as
+&quot;protected&quot; if it comes from a session-specific
+variable and can be relied upon to be accurate <br>
+even on a busy server. Just keep in mind, if you&rsquo;re
+not using MySQL 5.0.2 or newer, your results will be
+inaccurate unless you&rsquo;re running against a totally
+quiet server, even if <br>
+I label it as &quot;protected.&quot;</p>
+
+<p style="margin-top: 1em">Overall stats <br>
+This section shows the overall elapsed time for the query,
+as measured by Perl, and the optimizer cost as reported by
+MySQL.</p>
+
+<p style="margin-top: 1em">If you&rsquo;re viewing separate
+query statistics, this is all you&rsquo;ll see. If
+you&rsquo;re looking at a summary, you&rsquo;ll also see a
+breakdown of the questions the queries asked the server.</p>
+
+<p style="margin-top: 1em">The execution time is not
+totally reliable, as it includes network round-trip time,
+Perl&rsquo;s own execution time, and so on. However, on a
+low-latency network, this should be <br>
+fairly negligible, giving you a reasonable measure of the
+query&rsquo;s time, especially for queries longer than a few
+tenths of a second.</p>
+
+<p style="margin-top: 1em">The optimizer cost comes from
+the Last_query_cost variable, and is protected from other
+connections in MySQL 5.0.7 and greater. It is not available
+before 5.0.1.</p>
+
+<p style="margin-top: 1em">The total number of questions is
+not protected, but the breakdown of individual question
+types is, because it comes from the Com_ status
+variables.</p>
+
+<p style="margin-top: 1em">Table and index accesses <br>
+This section shows you information about the batch&rsquo;s
+table and index-level operations (as opposed to row-level
+operations, which will be in the next section). The
+&quot;Table locks <br>
+acquired&quot; and &quot;Temp files&quot; values are
+unprotected, but everything else in this section is
+protected.</p>
+
+<p style="margin-top: 1em">The &quot;Potential
+filesorts&quot; value is calculated as the number of times a
+query had both a scan sort (Sort_scan) and created a
+temporary table (Created_tmp_tables). There is no <br>
+Sort_filesort or similar status value, so it&rsquo;s a best
+guess at whether a query did a filesort. It should be fairly
+accurate.</p>
+
+<p style="margin-top: 1em">If you specified
+&quot;--allow-cache&quot;, you&rsquo;ll see statistics on
+the query cache. These are unprotected.</p>
+
+<p style="margin-top: 1em">Row operations <br>
+These values are all about the row-level operations your
+batch caused. For example, how many rows were inserted,
+updated, or deleted. You&rsquo;ll also see row-level index
+access <br>
+statistics, such as how many times the query sought and read
+the next entry in an index.</p>
+
+<p style="margin-top: 1em">Depending on your MySQL version,
+you&rsquo;ll either see one or two columns of information in
+this section. The one headed &quot;Handler&quot; is all from
+the Handler_ variables, and those <br>
+statistics are protected. If your MySQL version supports it,
+you&rsquo;ll also see a column headed &quot;InnoDB,&quot;
+which is unprotected.</p>
+
+<p style="margin-top: 1em">I/O Operations <br>
+This section gives information on I/O operations your batch
+caused, both in memory and on disk. Unless you have MySQL
+5.0.2 or greater, you&rsquo;ll only see information on the
+key <br>
+cache. Otherwise, you&rsquo;ll see a lot of information on
+InnoDB&rsquo;s I/O operations as well, such as how many
+times the query was able to satisfy a read from the buffer
+pool and how <br>
+many times it had to go to the disk.</p>
+
+<p style="margin-top: 1em">None of the information in this
+section is protected.</p>
+
+<p style="margin-top: 1em">InnoDB Data Operations <br>
+This section only appears when you&rsquo;re querying MySQL
+5.0.2 or newer. None of the information is protected.
+You&rsquo;ll see statistics about how many pages were
+affected, how many <br>
+operations took place, and how many bytes were affected.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+This tool accepts additional command-line arguments. Refer
+to the &quot;SYNOPSIS&quot; and usage information for
+details.</p>
+
+<p style="margin-top: 1em">--allow-cache <br>
+Let MySQL query cache cache the queries executed.</p>
+
+<p style="margin-top: 1em">By default this is disabled.
+When enabled, cache profiling information is added to the
+printout. See
+&lt;http://dev.mysql.com/doc/en/query-cache.html&gt; for
+more information <br>
+about the query cache.</p>
+
+<p style="margin-top: 1em">--ask-pass <br>
+Prompt for a password when connecting to MySQL.</p>
+
+<p style="margin-top: 1em">--[no]calibrate <br>
+default: yes</p>
+
+<p style="margin-top: 1em">Try to compensate for &quot;SHOW
+STATUS&quot;.</p>
+
+<p style="margin-top: 1em">Measure and compensate for the
+&quot;cost of observation&quot; caused by running SHOW
+STATUS. Only works reliably on a quiet server; on a busy
+server, other processes can cause the <br>
+calibration to be wrong.</p>
+
+<p style="margin-top: 1em">--charset <br>
+short form: -A; type: string</p>
+
+<p style="margin-top: 1em">Default character set. If the
+value is utf8, sets Perl&rsquo;s binmode on STDOUT to utf8,
+passes the mysql_enable_utf8 option to DBD::mysql, and runs
+SET NAMES UTF8 after <br>
+connecting to MySQL. Any other value sets binmode on STDOUT
+without the utf8 layer, and runs SET NAMES after connecting
+to MySQL.</p>
+
+<p style="margin-top: 1em">--config <br>
+type: Array</p>
+
+<p style="margin-top: 1em">Read this comma-separated list
+of config files; if specified, this must be the first option
+on the command line.</p>
+
+<p style="margin-top: 1em">--database <br>
+short form: -D; type: string</p>
+
+<p style="margin-top: 1em">Database to use for
+connection.</p>
+
+<p style="margin-top: 1em">--defaults-file <br>
+short form: -F; type: string</p>
+
+<p style="margin-top: 1em">Only read mysql options from the
+given file. You must give an absolute pathname.</p>
+
+<p style="margin-top: 1em">--external <br>
+Calibrate, then pause while an external program runs.</p>
+
+<p style="margin-top: 1em">This is typically useful while
+you run an external program. When you press [enter]
+mk-query-profiler will stop sleeping and take another
+measurement, then print statistics <br>
+as usual.</p>
+
+<p style="margin-top: 1em">When there is a filename on the
+command line, mk-query-profiler executes each line in the
+file as a shell command. If you give - as the filename,
+mk-query-profiler reads <br>
+from STDIN.</p>
+
+<p style="margin-top: 1em">Output from shell commands is
+printed to STDOUT and terminated with __BEGIN__, after which
+mk-query-profiler prints its own output.</p>
+
+<p style="margin-top: 1em">--flush <br>
+cumulative: yes</p>
+
+<p style="margin-top: 1em">Flush tables. Specify twice to
+do between every query.</p>
+
+<p style="margin-top: 1em">Calls FLUSH TABLES before
+profiling. If you are executing queries from a batch file,
+specifying --flush twice will cause mk-query-profiler to
+call FLUSH TABLES between every <br>
+query, not just once at the beginning. Default is not to
+flush at all. See
+&lt;http://dev.mysql.com/doc/en/flush.html&gt; for more
+information.</p>
+
+<p style="margin-top: 1em">--help <br>
+Show help and exit.</p>
+
+<p style="margin-top: 1em">--host <br>
+short form: -h; type: string</p>
+
+<p style="margin-top: 1em">Connect to host.</p>
+
+<p style="margin-top: 1em">--[no]innodb <br>
+default: yes</p>
+
+<p style="margin-top: 1em">Show InnoDB statistics.</p>
+
+<p style="margin-top: 1em">--only <br>
+type: hash</p>
+
+<p style="margin-top: 1em">Only show statistics for this
+comma-separated list of queries or commands.</p>
+
+<p style="margin-top: 1em">--password <br>
+short form: -p; type: string</p>
+
+<p style="margin-top: 1em">Password to use when
+connecting.</p>
+
+<p style="margin-top: 1em">--pid <br>
+type: string</p>
+
+<p style="margin-top: 1em">Create the given PID file. The
+file contains the process ID of the script. The PID file is
+removed when the script exits. Before starting, the script
+checks if the PID <br>
+file already exists. If it does not, then the script creates
+and writes its own PID to it. If it does, then the script
+checks the following: if the file contains a PID and <br>
+a process is running with that PID, then the script dies;
+or, if there is no process running with that PID, then the
+script overwrites the file with its own PID and starts; <br>
+else, if the file contains no PID, then the script dies.</p>
+
+<p style="margin-top: 1em">--port <br>
+short form: -P; type: int</p>
+
+<p style="margin-top: 1em">Port number to use for
+connection.</p>
+
+<p style="margin-top: 1em">--separate <br>
+Print stats separately for each query.</p>
+
+<p style="margin-top: 1em">The default is to show only the
+summary of the entire batch. See also
+&quot;--verbose&quot;.</p>
+
+<p style="margin-top: 1em">--[no]session <br>
+default: yes</p>
+
+<p style="margin-top: 1em">Use session &quot;SHOW
+STATUS&quot; and &quot;SHOW VARIABLES&quot;.</p>
+
+<p style="margin-top: 1em">Disabled if the server version
+doesn&rsquo;t support it.</p>
+
+<p style="margin-top: 1em">--set-vars <br>
+type: string; default: wait_timeout=10000</p>
+
+<p style="margin-top: 1em">Set these MySQL variables.
+Immediately after connecting to MySQL, this string will be
+appended to SET and executed.</p>
+
+<p style="margin-top: 1em">--socket <br>
+short form: -S; type: string</p>
+
+<p style="margin-top: 1em">Socket file to use for
+connection.</p>
+
+<p style="margin-top: 1em">--tab <br>
+Print tab-separated values instead of whitespace-aligned
+columns.</p>
+
+<p style="margin-top: 1em">--user <br>
+short form: -u; type: string</p>
+
+<p style="margin-top: 1em">User for login if not current
+user.</p>
+
+<p style="margin-top: 1em">--verbose <br>
+short form: -v; cumulative: yes; default: 0</p>
+
+<p style="margin-top: 1em">Verbosity; specify multiple
+times for more detailed output.</p>
+
+<p style="margin-top: 1em">When &quot;--tab&quot; is given,
+prints variables that don&rsquo;t change. Otherwise
+increasing the level of verbosity includes extra sections in
+the output.</p>
+
+<p style="margin-top: 1em">--verify <br>
+Verify nothing else is accessing the server.</p>
+
+<p style="margin-top: 1em">This is a weak verification; it
+simply calibrates twice (see &quot;--[no]calibrate&quot;)
+and verifies that the cost of observation remains
+constant.</p>
+
+<p style="margin-top: 1em">--version <br>
+Show version and exit.</p>
+
+<p style="margin-top: 1em">DSN OPTIONS <br>
+These DSN options are used to create a DSN. Each option is
+given like &quot;option=value&quot;. The options are
+case-sensitive, so P and p are not the same option. There
+cannot be <br>
+whitespace before or after the &quot;=&quot; and if the
+value contains whitespace it must be quoted. DSN options are
+comma-separated. See the maatkit manpage for full
+details.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; A</p>
+
+<p style="margin-top: 1em">dsn: charset; copy: yes</p>
+
+<p style="margin-top: 1em">Default character set.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; D</p>
+
+<p style="margin-top: 1em">dsn: database; copy: yes</p>
+
+<p style="margin-top: 1em">Default database.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; F</p>
+
+<p style="margin-top: 1em">dsn: mysql_read_default_file;
+copy: yes</p>
+
+<p style="margin-top: 1em">Only read default options from
+the given file</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; h</p>
+
+<p style="margin-top: 1em">dsn: host; copy: yes</p>
+
+<p style="margin-top: 1em">Connect to host.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; p</p>
+
+<p style="margin-top: 1em">dsn: password; copy: yes</p>
+
+<p style="margin-top: 1em">Password to use when
+connecting.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; P</p>
+
+<p style="margin-top: 1em">dsn: port; copy: yes</p>
+
+<p style="margin-top: 1em">Port number to use for
+connection.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; S</p>
+
+<p style="margin-top: 1em">dsn: mysql_socket; copy: yes</p>
+
+<p style="margin-top: 1em">Socket file to use for
+connection.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; u</p>
+
+<p style="margin-top: 1em">dsn: user; copy: yes</p>
+
+<p style="margin-top: 1em">User for login if not current
+user.</p>
+
+<p style="margin-top: 1em">DOWNLOADING <br>
+You can download Maatkit from Google Code at
+&lt;http://code.google.com/p/maatkit/&gt;, or you can get
+any of the tools easily with a command like the
+following:</p>
+
+<p style="margin-top: 1em">wget
+http://www.maatkit.org/get/toolname <br>
+or <br>
+wget http://www.maatkit.org/trunk/toolname</p>
+
+<p style="margin-top: 1em">Where &quot;toolname&quot; can
+be replaced with the name (or fragment of a name) of any of
+the Maatkit tools. Once downloaded, they&rsquo;re ready to
+run; no installation is needed. The first <br>
+URL gets the latest released version of the tool, and the
+second gets the latest trunk code from Subversion.</p>
+
+<p style="margin-top: 1em">ENVIRONMENT <br>
+The environment variable &quot;MKDEBUG&quot; enables verbose
+debugging output in all of the Maatkit tools:</p>
+
+<p style="margin-top: 1em">MKDEBUG=1 mk-....</p>
+
+<p style="margin-top: 1em">SYSTEM REQUIREMENTS <br>
+You need Perl, DBI, DBD::mysql, and some core modules.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+For a list of known bugs see
+&lt;http://www.maatkit.org/bugs/mk-query-profiler&gt;.</p>
+
+<p style="margin-top: 1em">Please use Google Code Issues
+and Groups to report bugs or request support:
+&lt;http://code.google.com/p/maatkit/&gt;. You can also join
+#maatkit on Freenode to discuss Maatkit.</p>
+
+<p style="margin-top: 1em">Please include the complete
+command-line used to reproduce the problem you are seeing,
+the version of all MySQL servers involved, the complete
+output of the tool when run with <br>
+&quot;--version&quot;, and if possible, debugging output
+produced by running with the &quot;MKDEBUG=1&quot;
+environment variable.</p>
+
+<p style="margin-top: 1em">COPYRIGHT, LICENSE AND WARRANTY
+<br>
+This program is copyright 2007-2011 Baron Schwartz. Feedback
+and improvements are welcome.</p>
+
+<p style="margin-top: 1em">THIS PROGRAM IS PROVIDED
+&quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A <br>
+PARTICULAR PURPOSE.</p>
+
+<p style="margin-top: 1em">This program is free software;
+you can redistribute it and/or modify it under the terms of
+the GNU General Public License as published by the Free
+Software Foundation, version 2; <br>
+OR the Perl Artistic License. On UNIX and similar systems,
+you can issue &lsquo;man perlgpl&rsquo; or &lsquo;man
+perlartistic&rsquo; to read these licenses.</p>
+
+<p style="margin-top: 1em">You should have received a copy
+of the GNU General Public License along with this program;
+if not, write to the Free Software Foundation, Inc., 59
+Temple Place, Suite 330, <br>
+Boston, MA 02111-1307 USA.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+See also mk-profile-compact.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Baron Schwartz</p>
+
+<p style="margin-top: 1em">ABOUT MAATKIT <br>
+This tool is part of Maatkit, a toolkit for power users of
+MySQL. Maatkit was created by Baron Schwartz; Baron and
+Daniel Nichter are the primary code contributors. Both are
+<br>
+employed by Percona. Financial support for Maatkit
+development is primarily provided by Percona and its
+clients.</p>
+
+<p style="margin-top: 1em">ACKNOWLEDGEMENTS <br>
+I was inspired by the wonderful mysqlreport utility
+available at &lt;http://www.hackmysql.com/&gt;.</p>
+
+<p style="margin-top: 1em">Other contributors: Bart van
+Bragt.</p>
+
+<p style="margin-top: 1em">Thanks to all who have
+helped.</p>
+
+<p style="margin-top: 1em">VERSION <br>
+This manual page documents Ver 1.1.22 Distrib 7540
+$Revision: 7477 $.</p>
+
+<p style="margin-top: 1em">perl v5.24.1 2011-06-08
+MK-QUERY-PROFILER(1)</p>
+<hr>
+</body>
+</html>

@@ -1,0 +1,611 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:22:48 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>LTTNG-ENABLE-CHANN(1) LTTng Manual
+LTTNG-ENABLE-CHANN(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+lttng-enable-channel - Create or enable LTTng channels</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+Create a Linux kernel channel:</p>
+
+<p style="margin-top: 1em">lttng [GENERAL OPTIONS]
+enable-channel --kernel <br>
+[--overwrite] [--output=(mmap | splice)] <br>
+[--subbuf-size=SIZE] [--num-subbuf=COUNT] <br>
+[--switch-timer=PERIODUS] [--read-timer=PERIODUS] <br>
+[--tracefile-size=SIZE] [--tracefile-count=COUNT] <br>
+[--session=SESSION] CHANNEL</p>
+
+<p style="margin-top: 1em">Create a user space channel:</p>
+
+<p style="margin-top: 1em">lttng [GENERAL OPTIONS]
+enable-channel --userspace <br>
+[--overwrite] [--buffers-pid] <br>
+[--subbuf-size=SIZE] [--num-subbuf=COUNT] <br>
+[--switch-timer=PERIODUS] [--read-timer=PERIODUS] <br>
+[--tracefile-size=SIZE] [--tracefile-count=COUNT] <br>
+[--session=SESSION] CHANNEL</p>
+
+<p style="margin-top: 1em">Enable existing channel(s):</p>
+
+<p style="margin-top: 1em">lttng [GENERAL OPTIONS]
+enable-channel (--userspace | --kernel) <br>
+[--session=SESSION] CHANNEL[,CHANNEL]...</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+The lttng enable-channel command can create a new channel,
+or enable one or more existing and disabled ones.</p>
+
+<p style="margin-top: 1em">A channel is the owner of
+sub-buffers holding recorded events. Event, rules, when
+created using lttng-enable-event(1), are always assigned to
+a channel. When creating a new <br>
+channel, many parameters related to those sub-buffers can be
+fine-tuned. They are described in the subsections below.</p>
+
+<p style="margin-top: 1em">When CHANNEL does not name an
+existing channel, a channel named CHANNEL is created.
+Otherwise, the disabled channel named CHANNEL is
+enabled.</p>
+
+<p style="margin-top: 1em">Note that the
+lttng-enable-event(1) command can automatically create
+default channels when no channel exist.</p>
+
+<p style="margin-top: 1em">A channel is always contained in
+a tracing session (see lttng-create(1) for creating a
+tracing session). The session in which a channel is created
+using lttng enable-channel can <br>
+be specified using the --session option. If the --session
+option is omitted, the current tracing session is
+targeted.</p>
+
+<p style="margin-top: 1em">Existing enabled channels can be
+disabled using lttng-disable-channel(1). Channels of a given
+session can be listed using lttng-list(1).</p>
+
+<p style="margin-top: 1em">See the LIMITATIONS section
+below for a list of limitations of this command to
+consider.</p>
+
+<p style="margin-top: 1em">Event loss modes <br>
+LTTng tracers are non-blocking: when no empty sub-buffer
+exists, losing events is acceptable when the alternative
+would be to cause substantial delays in the instrumented
+<br>
+application&acirc;s execution.</p>
+
+<p style="margin-top: 1em">LTTng privileges performance
+over integrity, aiming at perturbing the traced system as
+little as possible in order to make tracing of subtle race
+conditions and rare interrupt <br>
+cascades possible.</p>
+
+<p style="margin-top: 1em">When it comes to losing events
+because no empty sub-buffer is available, the
+channel&acirc;s event loss mode, specified by one of the
+--discard and --overwrite options, determines what <br>
+to do amongst:</p>
+
+<p style="margin-top: 1em">Discard <br>
+Drop the newest events until a sub-buffer is released.</p>
+
+<p style="margin-top: 1em">Overwrite <br>
+Clear the sub-buffer containing the oldest recorded events
+and start recording the newest events there. This mode is
+sometimes called flight recorder mode because it behaves
+<br>
+like a flight recorder: always keep a fixed amount of the
+latest data.</p>
+
+<p style="margin-top: 1em">Which mechanism to choose
+depends on the context: prioritize the newest or the oldest
+events in the ring buffer?</p>
+
+<p style="margin-top: 1em">Beware that, in overwrite mode
+(--overwrite option), a whole sub-buffer is abandoned as
+soon as a new event doesn&acirc;t find an empty sub-buffer,
+whereas in discard mode (--discard <br>
+option), only the event that doesn&acirc;t fit is
+discarded.</p>
+
+<p style="margin-top: 1em">Also note that a count of lost
+events is incremented and saved in the trace itself when an
+event is lost in discard mode, whereas no information is
+kept when a sub-buffer gets <br>
+overwritten before being committed.</p>
+
+<p style="margin-top: 1em">The probability of losing
+events, if it is experience in a given context, can be
+reduced by fine-tuning the sub-buffers count and size (see
+next subsection).</p>
+
+<p style="margin-top: 1em">Sub-buffers count and size <br>
+The --num-subbuf and --subbuf-size options respectively set
+the number of sub-buffers and their individual size when
+creating a new channel.</p>
+
+<p style="margin-top: 1em">Note that there is a noticeable
+tracer&acirc;s CPU overhead introduced when switching
+sub-buffers (marking a full one as consumable and switching
+to an empty one for the following <br>
+events to be recorded). Knowing this, the following list
+presents a few practical situations along with how to
+configure sub-buffers for them when creating a channel in
+overwrite <br>
+mode (--overwrite option):</p>
+
+<p style="margin-top: 1em">High event throughput <br>
+In general, prefer bigger sub-buffers to lower the risk of
+losing events. Having bigger sub-buffers also ensures a
+lower sub-buffer switching frequency. The number of <br>
+sub-buffers is only meaningful if the channel is enabled in
+overwrite mode: in this case, if a sub-buffer overwrite
+happens, the other sub-buffers are left unaltered.</p>
+
+<p style="margin-top: 1em">Low event throughput <br>
+In general, prefer smaller sub-buffers since the risk of
+losing events is already low. Since events happen less
+frequently, the sub-buffer switching frequency should remain
+<br>
+low and thus the tracer&acirc;s overhead should not be a
+problem.</p>
+
+<p style="margin-top: 1em">Low memory system <br>
+If the target system has a low memory limit, prefer fewer
+first, then smaller sub-buffers. Even if the system is
+limited in memory, it is recommended to keep the sub-buffers
+<br>
+as big as possible to avoid a high sub-buffer switching
+frequency.</p>
+
+<p style="margin-top: 1em">In discard mode (--discard
+option), the sub-buffers count parameter is pointless: using
+two sub-buffers and setting their size according to the
+requirements of the context is <br>
+fine.</p>
+
+<p style="margin-top: 1em">Switch and read timers <br>
+When a channel&acirc;s switch timer fires, a sub-buffer
+switch happens. This timer may be used to ensure that event
+data is consumed and committed to trace files periodically
+in case <br>
+of a low event throughput.</p>
+
+<p style="margin-top: 1em">It&acirc;s also convenient when
+big sub-buffers are used to cope with sporadic high event
+throughput, even if the throughput is normally lower.</p>
+
+<p style="margin-top: 1em">By default, a notification
+mechanism is used to signal a full sub-buffer so that it can
+be consumed. When such notifications must be avoided, for
+example in real-time <br>
+applications, the channel&acirc;s read timer can be used
+instead. When the read timer fires, sub-buffers are checked
+for consumption when they are full.</p>
+
+<p style="margin-top: 1em">Buffering scheme <br>
+In the user space tracing domain, two buffering schemes are
+available when creating a channel:</p>
+
+<p style="margin-top: 1em">Per-process buffering
+(--buffers-pid option) <br>
+Keep one ring buffer per process.</p>
+
+<p style="margin-top: 1em">Per-user buffering
+(--buffers-uid option) <br>
+Keep one ring buffer for all the processes of a single
+user.</p>
+
+<p style="margin-top: 1em">The per-process buffering scheme
+consumes more memory than the per-user option if more than
+one process is instrumented for LTTng-UST. However,
+per-process buffering ensures that <br>
+one process having a high event throughput won&acirc;t fill
+all the shared sub-buffers, only its own.</p>
+
+<p style="margin-top: 1em">The Linux kernel tracing domain
+only has one available buffering scheme which is to use a
+single ring buffer for the whole system (--buffers-global
+option).</p>
+
+<p style="margin-top: 1em">Trace files limit and size <br>
+By default, trace files can grow as large as needed. The
+maximum size of each trace file written by a channel can be
+set on creation using the --tracefile-size option. When such
+<br>
+a trace file&acirc;s size reaches the channel&acirc;s fixed
+maximum size, another trace file is created to hold the next
+recorded events. A file count is appended to each trace file
+name in <br>
+this case.</p>
+
+<p style="margin-top: 1em">If the --tracefile-size option
+is used, the maximum number of created trace files is
+unlimited. To limit them, the --tracefile-count option can
+be used. This option is always <br>
+used in conjunction with the --tracefile-size option.</p>
+
+<p style="margin-top: 1em">For example, consider this
+command:</p>
+
+<p style="margin-top: 1em">lttng enable-channel --kernel
+--tracefile-size=4096 --tracefile-count=32 my-channel</p>
+
+<p style="margin-top: 1em">Here, for each stream, the
+maximum size of each trace file is 4 kiB and there can be a
+maximum of 32 different files. When there is no space left
+in the last file, trace file <br>
+rotation happens: the first file is cleared and new
+sub-buffers containing events are written there.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+General options are described in lttng(1).</p>
+
+<p style="margin-top: 1em">Domain <br>
+One of:</p>
+
+<p style="margin-top: 1em">-k, --kernel <br>
+Enable channel in the Linux kernel domain.</p>
+
+<p style="margin-top: 1em">-u, --userspace <br>
+Enable channel in the user space domain.</p>
+
+<p style="margin-top: 1em">Target <br>
+-s SESSION, --session=SESSION <br>
+Create or enable channel in the tracing session named
+SESSION instead of the current tracing session.</p>
+
+<p style="margin-top: 1em">Event loss mode <br>
+One of:</p>
+
+<p style="margin-top: 1em">--discard <br>
+Discard events when sub-buffers are full (default).</p>
+
+<p style="margin-top: 1em">--overwrite <br>
+Flight recorder mode: always keep a fixed amount of the
+latest data.</p>
+
+<p style="margin-top: 1em">Sub-buffers <br>
+--num-subbuf=COUNT <br>
+Use COUNT sub-buffers. Rounded up to the next power of
+two.</p>
+
+<p style="margin-top: 1em">Default values:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-uid options: 4</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-pid options: 4</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --kernel option:
+4</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; metadata
+channel: 2</p>
+
+<p style="margin-top: 1em">--subbuf-size=SIZE <br>
+Set the individual size of sub-buffers to SIZE bytes. The k
+(kiB), M (MiB), and G (GiB) suffixes are supported. Rounded
+up to the next power of two.</p>
+
+<p style="margin-top: 1em">The minimum sub-buffer size, for
+each tracer, is the maximum value between the default below
+and the system&acirc;s page size. The following command
+shows the current system&acirc;s page <br>
+size: getconf PAGE_SIZE.</p>
+
+<p style="margin-top: 1em">Default values:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-uid options: 131072</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-pid options: 4096</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --kernel option:
+262144</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; metadata
+channel: 4096</p>
+
+<p style="margin-top: 1em">--output=TYPE <br>
+Set channel&acirc;s output type to TYPE.</p>
+
+<p style="margin-top: 1em">Available types: mmap (always
+available) and splice (only available with the --kernel
+option).</p>
+
+<p style="margin-top: 1em">Default values:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-uid options: mmap</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-pid options: mmap</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --kernel option:
+splice</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; metadata
+channel: mmap</p>
+
+<p style="margin-top: 1em">Buffering scheme <br>
+One of:</p>
+
+<p style="margin-top: 1em">--buffers-global <br>
+Use shared sub-buffers for the whole system (only available
+with the --kernel option).</p>
+
+<p style="margin-top: 1em">--buffers-pid <br>
+Use different sub-buffers for each traced process (only
+available with the the --userspace option). This is the
+default buffering scheme for user space channels.</p>
+
+<p style="margin-top: 1em">--buffers-uid <br>
+Use shared sub-buffers for all the processes of the user
+running the command (only available with the --userspace
+option).</p>
+
+<p style="margin-top: 1em">Trace files <br>
+--tracefile-count=COUNT <br>
+Limit the number of trace files created by this channel to
+COUNT. 0 means unlimited. Default: 0.</p>
+
+<p style="margin-top: 1em">Use this option in conjunction
+with the --tracefile-size option.</p>
+
+<p style="margin-top: 1em">The file count within a stream
+is appended to each created trace file. If COUNT files are
+created and more events need to be recorded, the first trace
+file of the stream is <br>
+cleared and used again.</p>
+
+<p style="margin-top: 1em">--tracefile-size=SIZE <br>
+Set the maximum size of each trace file written by this
+channel within a stream to SIZE bytes. 0 means unlimited.
+Default: 0.</p>
+
+<p style="margin-top: 1em">Note: traces generated with this
+option may inaccurately report discarded events as of CTF
+1.8.</p>
+
+<p style="margin-top: 1em">Timers <br>
+--read-timer <br>
+Set the channel&acirc;s read timer&acirc;s period to
+PERIODUS &Acirc;&micro;s. 0 means a disabled read timer.</p>
+
+<p style="margin-top: 1em">Default values:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-uid options: 0</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-pid options: 0</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --kernel option:
+200000</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; metadata
+channel: 0</p>
+
+<p style="margin-top: 1em">--switch-timer=PERIODUS <br>
+Set the channel&acirc;s switch timer&acirc;s period to
+PERIODUS &Acirc;&micro;s. 0 means a disabled switch
+timer.</p>
+
+<p style="margin-top: 1em">Default values:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-uid options: 0</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --userspace and
+--buffers-pid options: 0</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; --kernel option:
+0</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; metadata
+channel: 0</p>
+
+<p style="margin-top: 1em">Program information <br>
+-h, --help <br>
+Show command help.</p>
+
+<p style="margin-top: 1em">This option, like lttng-help(1),
+attempts to launch /usr/bin/man to view the command&acirc;s
+man page. The path to the man pager can be overridden by the
+LTTNG_MAN_BIN_PATH <br>
+environment variable.</p>
+
+<p style="margin-top: 1em">--list-options <br>
+List available command options.</p>
+
+<p style="margin-top: 1em">LIMITATIONS <br>
+As of this version of LTTng, it is not possible to perform
+the following actions with the lttng enable-channel
+command:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Reconfigure a
+channel once it is created.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Re-enable a
+disabled channel once its tracing session has been active at
+least once.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Create a channel
+once its tracing session has been active at least once.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Create a user
+space channel with a given buffering scheme (--buffers-uid
+or --buffers-pid options) and create a second user space
+channel with a different buffering scheme in <br>
+the same tracing session.</p>
+
+<p style="margin-top: 1em">ENVIRONMENT VARIABLES <br>
+LTTNG_ABORT_ON_ERROR <br>
+Set to 1 to abort the process after the first error is
+encountered.</p>
+
+<p style="margin-top: 1em">LTTNG_HOME <br>
+Overrides the $HOME environment variable. Useful when the
+user running the commands has a non-writable home
+directory.</p>
+
+<p style="margin-top: 1em">LTTNG_MAN_BIN_PATH <br>
+Absolute path to the man pager to use for viewing help
+information about LTTng commands (using lttng-help(1) or
+lttng COMMAND --help).</p>
+
+<p style="margin-top: 1em">LTTNG_SESSION_CONFIG_XSD_PATH
+<br>
+Path in which the session.xsd session configuration XML
+schema may be found.</p>
+
+<p style="margin-top: 1em">LTTNG_SESSIOND_PATH <br>
+Full session daemon binary path.</p>
+
+<p style="margin-top: 1em">The --sessiond-path option has
+precedence over this environment variable.</p>
+
+<p style="margin-top: 1em">Note that the lttng-create(1)
+command can spawn an LTTng session daemon automatically if
+none is running. See lttng-sessiond(8) for the environment
+variables influencing the <br>
+execution of the session daemon.</p>
+
+<p style="margin-top: 1em">FILES <br>
+$LTTNG_HOME/.lttngrc <br>
+User LTTng runtime configuration.</p>
+
+<p style="margin-top: 1em">This is where the per-user
+current tracing session is stored between executions of
+lttng(1). The current tracing session can be set with
+lttng-set-session(1). See lttng- <br>
+create(1) for more information about tracing sessions.</p>
+
+<p style="margin-top: 1em">$LTTNG_HOME/lttng-traces <br>
+Default output directory of LTTng traces. This can be
+overridden with the --output option of the lttng-create(1)
+command.</p>
+
+<p style="margin-top: 1em">$LTTNG_HOME/.lttng <br>
+User LTTng runtime and configuration directory.</p>
+
+<p style="margin-top: 1em">$LTTNG_HOME/.lttng/sessions <br>
+Default location of saved user tracing sessions (see
+lttng-save(1) and lttng-load(1)).</p>
+
+<p style="margin-top: 1em">/usr/local/etc/lttng/sessions
+<br>
+System-wide location of saved tracing sessions (see
+lttng-save(1) and lttng-load(1)).</p>
+
+<p style="margin-top: 1em">Note <br>
+$LTTNG_HOME defaults to $HOME when not explicitly set.</p>
+
+<p style="margin-top: 1em">EXIT STATUS <br>
+0 <br>
+Success</p>
+
+<p style="margin-top: 1em">1 <br>
+Command error</p>
+
+<p style="margin-top: 1em">2 <br>
+Undefined command</p>
+
+<p style="margin-top: 1em">3 <br>
+Fatal error</p>
+
+<p style="margin-top: 1em">4 <br>
+Command warning (something went wrong during the
+command)</p>
+
+<p style="margin-top: 1em">BUGS <br>
+If you encounter any issue or usability problem, please
+report it on the LTTng bug tracker
+&lt;https://bugs.lttng.org/projects/lttng-tools&gt;.</p>
+
+<p style="margin-top: 1em">RESOURCES <br>
+&Acirc;&middot; LTTng project website
+&lt;http://lttng.org&gt;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; LTTng
+documentation &lt;http://lttng.org/docs&gt;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Git repositories
+&lt;http://git.lttng.org&gt;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; GitHub
+organization &lt;http://github.com/lttng&gt;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Continuous
+integration &lt;http://ci.lttng.org/&gt;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Mailing list
+&lt;http://lists.lttng.org&gt; for support and development:
+lttng-dev@lists.lttng.org</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; IRC channel
+&lt;irc://irc.oftc.net/lttng&gt;: #lttng on irc.oftc.net</p>
+
+<p style="margin-top: 1em">COPYRIGHTS <br>
+This program is part of the LTTng-tools project.</p>
+
+<p style="margin-top: 1em">LTTng-tools is distributed under
+the GNU General Public License version 2
+&lt;http://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html&gt;.
+See the LICENSE <br>
+
+&lt;https://github.com/lttng/lttng-tools/blob/master/LICENSE&gt;
+file for details.</p>
+
+<p style="margin-top: 1em">THANKS <br>
+Special thanks to Michel Dagenais and the DORSAL laboratory
+&lt;http://www.dorsal.polymtl.ca/&gt; at &Atilde;cole
+Polytechnique de Montr&Atilde;&copy;al for the LTTng
+journey.</p>
+
+<p style="margin-top: 1em">Also thanks to the Ericsson
+teams working on tracing which helped us greatly with
+detailed bug reports and unusual test cases.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+LTTng-tools was originally written by Mathieu Desnoyers,
+Julien Desfossez, and David Goulet. More people have since
+contributed to it.</p>
+
+<p style="margin-top: 1em">LTTng-tools is currently
+maintained by J&Atilde;&copy;r&Atilde;&copy;mie Galarneau
+&lt;mailto:jeremie.galarneau@efficios.com&gt;.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+lttng-disable-channel(1), lttng(1)</p>
+
+<p style="margin-top: 1em">LTTng 2.9.3 01/09/2017
+LTTNG-ENABLE-CHANN(1)</p>
+<hr>
+</body>
+</html>

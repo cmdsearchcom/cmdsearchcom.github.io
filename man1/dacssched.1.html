@@ -1,0 +1,256 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:02:04 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>DACSSCHED(1) DACS Commands Manual DACSSCHED(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+dacssched - rule-based command scheduling</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+dacssched [-h | -help] [-ll log_level] [-q] [{-r | -rules}
+rules_uri] [{-s | -sched} sched_uri] [-v]</p>
+
+<p style="margin-top: 1em">dacssched --version</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This program is part of the DACS suite. It is a stand-alone
+program that neither accepts the usual DACS command line
+options (dacsoptions) nor accesses any DACS configuration
+<br>
+files.</p>
+
+<p style="margin-top: 1em">The dacssched command runs other
+programs when specified conditions have been met. It does
+this by periodically examining a schedule, which, for each
+scheduled event, identifies <br>
+the necessary conditions and the command line to be executed
+should the conditions be satisfied. Rules are stored
+separately from the schedule, although in a future version
+it <br>
+might be possible to contain them with their schedule.</p>
+
+<p style="margin-top: 1em">Although dacssched is
+conceptually similar to cron(8)[1], atrun(8)[2], and other
+programs used to schedule a command to be executed or a
+reminder to be sent at certain times or <br>
+dates, there are some important differences. First, because
+the DACS rule evaluation engine is used, conditions much
+more broad and complex than simply the time or date can be
+<br>
+used to schedule a command - DACS expressions[3] are
+available. For instance, a rule to manage automated file
+backup could be written to take into account context other
+than <br>
+simply the day of the week and the time of day, if necessary
+even running external programs to assist in making the
+determination. Second, both a schedule and the rules <br>
+referenced by a schedule are accessed through the DACS
+virtual filestore, which means they can be stored in file or
+database, retrieved by HTTP, and so on.</p>
+
+<p style="margin-top: 1em">Note <br>
+Although this program may be useful, it is currently merely
+a prototype intended for demonstration and experimentation
+purposes. Some configuration capabilities, features, <br>
+and security steps required by a production version have not
+been implemented. The prototype must be invoked
+periodically; a production version would run in the
+background <br>
+and automatically rescan the schedule at a given frequency.
+Note that because of its flexibility, the schedule must be
+polled at a suitable frequency - in general, the <br>
+program cannot compute when the next scheduled event will
+occur. Also because events need not be triggered by a time
+or date, some events may need to &quot;self-disabling&quot;
+so that <br>
+they are not repeatedly executed unintentionally.</p>
+
+<p style="margin-top: 1em">Operation <br>
+The program loads a schedule, which either comes from a
+default file or a location specified on the command line. A
+schedule is an ordinary text file, each line of which is
+<br>
+either blank, a comment, or a scheduled event. The file is
+processed in the order in which the events appear from the
+top. Initial whitespace on any line is ignored. A comment
+<br>
+line begins with a &quot;#&quot; character. A scheduled
+event consists of a name, followed by whitespace, followed
+by a command. If name evaluates to True (i.e., it grants
+access), the <br>
+command is executed through system(3)[4]. If rule evaluation
+fails because of an error, the event is not executed. Events
+are not removed from the schedule after their command <br>
+has been executed.</p>
+
+<p style="margin-top: 1em">A name, which must begin with a
+slash, has no significance to dacssched; it is simply a
+label that is used to identify the rule to apply and is
+matched against a rule&rsquo;s service <br>
+element.</p>
+
+<p style="margin-top: 1em">Here is a simple schedule
+containing one event:</p>
+
+<p style="margin-top: 1em"># A simple schedule <br>
+/setdate /usr/local/sbin/rdate -a</p>
+
+<p style="margin-top: 1em">If the condition labelled
+/setdate is True the specified command will be executed.</p>
+
+<p style="margin-top: 1em">A simple rule such as the
+following might be associated with the event:</p>
+
+<p style="margin-top: 1em">&lt;acl_rule
+status=&quot;enabled&quot;&gt; <br>
+&lt;services&gt; <br>
+&lt;service url_pattern=&quot;/setdate&quot;/&gt; <br>
+&lt;/services&gt;</p>
+
+<p style="margin-top: 1em">&lt;rule
+order=&quot;allow,deny&quot;&gt; <br>
+&lt;allow&gt; <br>
+time(hour) eq 2 and time(min) eq 0 <br>
+&lt;/allow&gt; <br>
+&lt;/rule&gt; <br>
+&lt;/acl_rule&gt;</p>
+
+<p style="margin-top: 1em">This rule enables the event
+/setdate at 2:00am every day. We will assume that the
+schedule is processed exactly once per minute.</p>
+
+<p style="margin-top: 1em">Internally, dacssched converts
+the scheduled event above into the expression:</p>
+
+<p style="margin-top: 1em">rule(&quot;/setdate&quot;,
+rule_uri)</p>
+
+<p style="margin-top: 1em">(where rule_uri specifies the
+ruleset to use) and then evaluates the expression. Please
+refer to the rule predicate[5] for additional
+information.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+The arguments are processed as they are examined
+(left-to-right) and their ordering can be significant.</p>
+
+<p style="margin-top: 1em">By default, the program will
+look for a schedule in the file
+${Conf::DACS_HOME}/dacssched/sched. (default:
+/usr/local/dacs/dacssched/sched) The default location for
+the rules is <br>
+${Conf::DACS_HOME}/dacssched/acls. (default:
+/usr/local/dacs/dacssched/acls)</p>
+
+<p style="margin-top: 1em">The following command line flags
+are recognized:</p>
+
+<p style="margin-top: 1em">-h <br>
+Prints the usage blurb.</p>
+
+<p style="margin-top: 1em">-ll log_level <br>
+Set the debugging output level to log_level (see
+dacs(1)[6]). The default level is warn, and the -v flag
+bumps the level to debug or trace.</p>
+
+<p style="margin-top: 1em">-q <br>
+Be quiet, except for error messages. The -v and -ll flags
+are independent of this.</p>
+
+<p style="margin-top: 1em">-r rule_uri <br>
+-rules rule_uri <br>
+This flag specifies the ruleset to be used. It can be an
+absolute pathname or a URI in the syntax of the VFS[7]
+configuration directive. Examples:</p>
+
+<p style="margin-top: 1em">-r
+&quot;[acls1]dacs-fs:/local/acls&quot; <br>
+-rules /usr/local/myrules</p>
+
+<p style="margin-top: 1em">-s sched_uri <br>
+-sched sched_uri <br>
+This flag specifies the schedule. It can be an absolute
+pathname or a URI in the syntax of the VFS[7] configuration
+directive.</p>
+
+<p style="margin-top: 1em">-v <br>
+Increase the level of debugging output. The flag may be
+repeated.</p>
+
+<p style="margin-top: 1em">--version <br>
+Display the program&rsquo;s version information and then
+exit.</p>
+
+<p style="margin-top: 1em">DIAGNOSTICS <br>
+The program exits 0 if everything was fine, 1 if an error
+occurred.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+dacs.exprs(5)[3], dacs.acls(5)[8]</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Distributed Systems Software (www.dss.ca[9])</p>
+
+<p style="margin-top: 1em">COPYING <br>
+Copyright2003-2015 Distributed Systems Software. See the
+LICENSE[10] file that accompanies the distribution for
+licensing information.</p>
+
+<p style="margin-top: 1em">NOTES <br>
+1. cron(8) <br>
+
+http://www.freebsd.org/cgi/man.cgi?query=cron&amp;apropos=0&amp;sektion=8&amp;manpath=FreeBSD+10.1-RELEASE&amp;format=html</p>
+
+<p style="margin-top: 1em">2. atrun(8) <br>
+
+http://www.freebsd.org/cgi/man.cgi?query=atrun&amp;apropos=0&amp;sektion=8&amp;manpath=FreeBSD+10.1-RELEASE&amp;format=html</p>
+
+<p style="margin-top: 1em">3. expressions <br>
+http://dacs.dss.ca/man/dacs.exprs.5.html</p>
+
+<p style="margin-top: 1em">4. system(3) <br>
+
+http://www.freebsd.org/cgi/man.cgi?query=system&amp;apropos=0&amp;sektion=3&amp;manpath=FreeBSD+10.1-RELEASE&amp;format=html</p>
+
+<p style="margin-top: 1em">5. rule predicate <br>
+http://dacs.dss.ca/man/dacs.exprs.5.html#rule</p>
+
+<p style="margin-top: 1em">6. dacs(1) <br>
+http://dacs.dss.ca/man/dacs.1.html</p>
+
+<p style="margin-top: 1em">7. VFS <br>
+http://dacs.dss.ca/man/dacs.conf.5.html#VFS</p>
+
+<p style="margin-top: 1em">8. dacs.acls(5) <br>
+http://dacs.dss.ca/man/dacs.acls.5.html</p>
+
+<p style="margin-top: 1em">9. www.dss.ca <br>
+http://www.dss.ca</p>
+
+<p style="margin-top: 1em">10. LICENSE <br>
+http://dacs.dss.ca/man/../misc/LICENSE</p>
+
+<p style="margin-top: 1em">DACS 1.4.38a 01/12/2017
+DACSSCHED(1)</p>
+<hr>
+</body>
+</html>

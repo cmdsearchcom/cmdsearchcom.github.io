@@ -1,0 +1,1457 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:13:23 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>GIT-DPM(1) GIT-DPM GIT-DPM(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+git-dpm - Debian packages in git manager</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+git-dpm --help</p>
+
+<p style="margin-top: 1em">git-dpm [ options ] command [
+per-command-options and -arguments ]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+Git-dpm is a tool to handle a Debian source package in a git
+repository.</p>
+
+<p style="margin-top: 1em">Each project contains three
+branches, a Debian branch (master/whatever), a patched
+branch (patched/patched-whatever) and an upstream branch
+(upstream/upstream-whatever) and <br>
+git-dpm helps you store the information in there so you have
+your changes exportable as quilt series.</p>
+
+<p style="margin-top: 1em">Git-dpm will guess the other two
+branches based on the branch it sees. (Most commands act
+based on the current HEAD, i.e. what branch you have
+currently checked out, though some <br>
+as e.g. status allows an optional argument instead). So for
+example, if you are in branch master, git-dpm assumes the
+corresponding upstream branch is called upstream. If you
+<br>
+are in branch upstream-something, it assumes the Debian
+branch is called something.</p>
+
+<p style="margin-top: 1em">Note that most commands may
+switch to another branch automatically, partly because it is
+easier to implement that way and hopefully so one does not
+need to switch branches manu&acirc; <br>
+ally so often.</p>
+
+<p style="margin-top: 1em">SHORT EXPLANATION OF THE
+BRANCHES <br>
+the upstream branch (upstream|upstream-whatever) <br>
+This branch contains the upstream sources. Its contents need
+to be equal enough to the contents in your upstream
+tarball.</p>
+
+<p style="margin-top: 1em">the patched branch
+(patched|patched-whatever) <br>
+This branch contains your patches to the upstream source.
+Every commit will be stored as a single patch in the
+resulting package.</p>
+
+<p style="margin-top: 1em">Most of the time it will not
+exist as a branch known to git, but only as some point in
+the history of the Debian branch and possibly as tag for
+published versions. <br>
+Git-dpm will create it when needed and remove the branch
+when no longer needed.</p>
+
+<p style="margin-top: 1em">To help git generate a linear
+patch series, this should ideal be a linear chain of
+commits, whose description are helpful for other people.</p>
+
+<p style="margin-top: 1em">As this branch is regularly
+rebased, you should not publish it.</p>
+
+<p style="margin-top: 1em">the Debian branch
+(master|whatever) <br>
+This is the primary branch.</p>
+
+<p style="margin-top: 1em">This branch contains the debian/
+directory and has the patched branch merged in.</p>
+
+<p style="margin-top: 1em">Every change not in debian/,
+.git* or deleting files must be done in the patched
+branch.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+Let&rsquo;s start with some examples:</p>
+
+<p style="margin-top: 1em">Checking out a project <br>
+First get the master branch: <br>
+git clone URL</p>
+
+<p style="margin-top: 1em">Then create upstream branch and
+see if the .orig.tar is ready: <br>
+git-dpm prepare</p>
+
+<p style="margin-top: 1em">Create the patched branch and
+check it out: <br>
+git-dpm checkout-patched</p>
+
+<p style="margin-top: 1em">Do some changes, apply some
+patches, commit them.. <br>
+... <br>
+git commit</p>
+
+<p style="margin-top: 1em">If your modification fixes a
+previous change (and that is not the last commit, otherwise
+you could have used --amend), you might want to squash those
+two commits into one, <br>
+so use: <br>
+git rebase -i upstream</p>
+
+<p style="margin-top: 1em">Then you want to get those
+changes into the Debian branch and the new patch files
+created (which you can do using git-dpm update-patches), but
+you most likely want to also <br>
+document what you did in the changelog, so all in one step:
+<br>
+git-dpm dch -- -i</p>
+
+<p style="margin-top: 1em">Perhaps change something in the
+Debian packaging: <br>
+... <br>
+git commit -a</p>
+
+<p style="margin-top: 1em">Then push the whole thing back:
+<br>
+git push</p>
+
+<p style="margin-top: 1em">Switching to a new upstream
+version <br>
+Get a new .orig.tar file. Either upgrade your upstream
+branch to the contents of that file and call git-dpm
+record-new-upstream ../new-stuff.orig.tar.gz or tell git-dpm
+<br>
+to import and record it: <br>
+git-dpm import-new-upstream --rebase
+../new-stuff.orig.tar.gz</p>
+
+<p style="margin-top: 1em">This will rebase the patched
+branch to the new upstream branch, perhaps you will need to
+resolve some conflicts: <br>
+vim ... <br>
+git add resolved files <br>
+git rebase --continue</p>
+
+<p style="margin-top: 1em">After rebase is run (with some
+luck even in the first try): <br>
+git-dpm dch -- -v newupstream-1 &quot;new upstream
+version&quot;</p>
+
+<p style="margin-top: 1em">You could have also done the
+last step in three by: <br>
+git-dpm update-patches <br>
+dch -- -v newupstream-1 &quot;new upstream version&quot;
+<br>
+git commit --amend -a</p>
+
+<p style="margin-top: 1em">Do other debian/ changes: <br>
+... <br>
+git commit -a</p>
+
+<p style="margin-top: 1em">Then push the whole thing back:
+<br>
+git push</p>
+
+<p style="margin-top: 1em">Creating a new project <br>
+Create an upstream (or upstream-whatever) branch containing
+the contents of your orig.tar file: <br>
+tar -xvf example_0.orig.tar.gz <br>
+cd example-0 <br>
+git init <br>
+git add . <br>
+git commit -m &quot;import example_0.orig.tar.gz&quot; <br>
+git checkout -b upstream-unstable</p>
+
+<p style="margin-top: 1em">You might want to use pristine
+tar to store your tar: <br>
+pristine-tar commit ../example_0.orig.tar.gz
+upstream-unstable</p>
+
+<p style="margin-top: 1em">Then let git-dpm know what
+tarball your upstream branch belongs to: <br>
+git-dpm init ../example_0.orig.tar.gz</p>
+
+<p style="margin-top: 1em">Note that since you were in
+upstream-unstable in this example, in the last example
+git-dpm assumed you want your Debian branch called unstable
+and not master, so after the <br>
+command returned you are in the newly created unstable
+branch.</p>
+
+<p style="margin-top: 1em">Do the rest of the packaging:
+<br>
+vim debian/control debian/rules <br>
+dch --create --package example -v 0-1 <br>
+git add debian/control debian/rules debian/changelog <br>
+git commit -m &quot;initial packaging&quot;</p>
+
+<p style="margin-top: 1em">Then add some patches: <br>
+git-dpm checkout-patched <br>
+vim ... <br>
+git commit -a <br>
+git-dpm dch &quot;fix ... (Closes: num)&quot;</p>
+
+<p style="margin-top: 1em">The git-dpm checkout-patched
+created a temporary branch patched-unstable (as you were in
+a branch called unstable. If you had called it with HEAD
+being a branch master, it <br>
+would have been patched) to which you added commits. Then
+the git-dpm update-patches implied by git-dpm dch merged
+those changes into unstable, deleted the temporary <br>
+branch and created new debian/patches/ files.</p>
+
+<p style="margin-top: 1em">Then build your package: <br>
+git-dpm status &amp;&amp; <br>
+dpkg-buildpackage -rfakeroot -us -uc -I&quot;.git*&quot;</p>
+
+<p style="margin-top: 1em">Now take a look what happened,
+perhaps you want to add some files to .gitignore (in the
+unstable branch), or remove some files from the unstable
+branch because your clean <br>
+rule removes them.</p>
+
+<p style="margin-top: 1em">Continue the last few steps
+until the package is finished. Then push your package: <br>
+git-dpm tag <br>
+git push --tags target unstable:unstable
+pristine-tar:pristine-tar</p>
+
+<p style="margin-top: 1em">Removing existing patches <br>
+First get the master branch: <br>
+git clone URL</p>
+
+<p style="margin-top: 1em">Create the patched branch and
+check it out: <br>
+git-dpm checkout-patched</p>
+
+<p style="margin-top: 1em">Get a list of commits since the
+last upstream release: git rebase -i upstream-unstable</p>
+
+<p style="margin-top: 1em">This will open your default
+editor with a list of commits. Edit the list to remove
+undesired commits. <br>
+... <br>
+git commit</p>
+
+<p style="margin-top: 1em">Then you want to get those
+changes into the Debian branch and the old patch files
+deleted (which you can do using git-dpm update-patches), but
+you most likely want to also <br>
+document what you did in the changelog, so all in one step:
+<br>
+git-dpm dch -- -i</p>
+
+<p style="margin-top: 1em">Perhaps change something in the
+Debian packaging: <br>
+... <br>
+git commit -a</p>
+
+<p style="margin-top: 1em">Then push the whole thing back:
+<br>
+git push</p>
+
+<p style="margin-top: 1em">GLOBAL OPTIONS <br>
+--debug <br>
+Give verbose output what git-dpm is doing. Mostly only
+useful for debugging or when preparing an bug report.</p>
+
+<p style="margin-top: 1em">--debug-git-calls <br>
+Output git invocations to stderr. (For more complicated
+debugging cases).</p>
+
+
+<p style="margin-top: 1em">--allow-changes-in-debian-branch
+<br>
+Ignore upstream changes in your Debian branch. This will
+either discard them if merge-patched is called by come
+command or them being ignored elsewhere.</p>
+
+<p style="margin-top: 1em">COMMANDS <br>
+init [options] tarfile [upstream-commit [preapplied-commit
+[patched-commit]]] <br>
+Create a new project.</p>
+
+<p style="margin-top: 1em">The first argument is an
+upstream tarball.</p>
+
+<p style="margin-top: 1em">You also need to have the
+contents of that file and the files given with --component
+unpackaged as some branch or commit in your git repository
+(or similar enough so <br>
+dpkg-source will not know the difference). This will be
+stored in the upstream branch (called upstream or
+upstream-whatever). If the second argument is non-existing
+or <br>
+empty, that branch must already exist, otherwise that branch
+will be initialized with what that second argument.
+(It&rsquo;s your responsibility that the contents match.
+git-dpm <br>
+does not know what your clean rule does, so cannot check
+(and does not even try to warn yet)).</p>
+
+<p style="margin-top: 1em">You can already have an Debian
+branch (called master or whatever). If it does not exist, it
+will exist afterwards. Otherwise it can contain a
+debian/patches/series file, <br>
+which git-dpm will import.</p>
+
+<p style="margin-top: 1em">The third argument can be a
+descendant of your upstream branch, that contains the
+changes of your Debian branch before any patches are applied
+(Most people prefer to have <br>
+none and lintian warns, but if you have some, commit/cherry
+pick them in a new branch/detached head on top of your
+upstream branch and name them here). Without <br>
+--patches-applied, your Debian branch may not have any
+upstream changes compared to this commit (or if it is not
+given, the upstream branch).</p>
+
+<p style="margin-top: 1em">If there is no fourth argument,
+git-dpm will apply possible patches in your Debian branch on
+top of the third argument or upstream. You can also do so
+yourself and give <br>
+that as fourth argument.</p>
+
+<p style="margin-top: 1em">The contents of this
+commit/branch given in the fourth commit or created by
+applying patches on top of the third/your upstream branch is
+then merged into your Debian <br>
+branch and remembered as patched branch.</p>
+
+<p style="margin-top: 1em">Options:</p>
+
+<p style="margin-top: 1em">--component filename <br>
+Record a .orig-component.tar file to be unpacked in your
+upstream branch.</p>
+
+<p style="margin-top: 1em">--patches-applied <br>
+Denote the Debian branch already has the patches
+applied.</p>
+
+<p style="margin-top: 1em">Without this git-dpm will check
+there are no changes in the Debian branch outside patch
+management before applying the patches; with this, it will
+instead check <br>
+there are no differences after applying the patches.</p>
+
+<p style="margin-top: 1em">--create-no-patches <br>
+Do not create/override debian/patches directory. You will
+have to call update-patches yourself. Useful if you are
+importing historical data and keep the original <br>
+patches in the Debian branch.</p>
+
+<p style="margin-top: 1em">--record-patch-category <br>
+Add a Patch-Category: field to each imported patch that is
+in a subdirectory of debian/patches. This causes
+update-patches to store it in the same subdirectory.</p>
+
+<p style="margin-top: 1em">--record-patch-name <br>
+Add a Patch-Name: field to each imported patch with its
+name. This causes update-patches to store it under its
+original name.</p>
+
+<p style="margin-top: 1em">prepare <br>
+Make sure upstream branch and upstream orig.tar ball are
+there and up to date. (Best called after a clone or a
+pull).</p>
+
+<p style="margin-top: 1em">status [branch]</p>
+
+<p style="margin-top: 1em">Check the status of the current
+project (or of the project belonging to the argument branch
+if that is given). Returns with non-zero exit code if
+something to do is <br>
+detected.</p>
+
+<p style="margin-top: 1em">checkout-patched</p>
+
+<p style="margin-top: 1em">Checkout the patched branch
+(patched|patched-whatever) after making sure it exists and
+is one recorded in the debian/.git-dpm file.</p>
+
+<p style="margin-top: 1em">If the patched branch references
+an old state (i.e. one that is already ancestor of the
+current Debian branch), it is changed to the recorded
+current one.</p>
+
+<p style="margin-top: 1em">Otherwise you can reset it to
+the last recorded state with the --force option.</p>
+
+<p style="margin-top: 1em">update-patches [options]
+[branch-name]</p>
+
+<p style="margin-top: 1em">After calling
+merge-patched-into-debian if necessary, update the contents
+of debian/patches to the current state of the patched
+branch.</p>
+
+<p style="margin-top: 1em">Also record in debian/.git-dpm
+which state of the patched branch the patches directory
+belongs to.</p>
+
+<p style="margin-top: 1em">If a branch-name is given, that
+branch is processed. Otherwise the name is derived from the
+currently checked out branch as usual.</p>
+
+<p style="margin-top: 1em">Options:</p>
+
+<p style="margin-top: 1em">--redo Do something, even if it
+seems like there is nothing to do.</p>
+
+<p style="margin-top: 1em">--allow-revert,
+--ignore-deletions, --dot-git-files=* <br>
+passed on to merge-patched-into-debian</p>
+
+<p style="margin-top: 1em">--amend <br>
+Do not create a new commit, but amend the last one in the
+Debian branch. (I.e. call merge-patched-into-debian with
+--amend and amend the updates patches into the <br>
+last commit even if that was not created by
+merge-patched-into-debian).</p>
+
+<p style="margin-top: 1em">-m message <br>
+Use message as commit message. (If used together with
+--amend, do not reuse old commit message, author or author
+date but replace the old commit with a new commit <br>
+with that message).</p>
+
+<p style="margin-top: 1em">--keep-branch <br>
+do not remove an existing patched branch (usually that is
+removed and can be recreated with checkout-patched to avoid
+stale copies lurking around.</p>
+
+<p style="margin-top: 1em">--allow-nonlinear <br>
+passed to merge-patched.</p>
+
+<p style="margin-top: 1em">dch [options] -- dch-options
+<br>
+After calling update-patches if necessary, run
+devscripts&rsquo; dch with the specified options and then do
+a git commit with a commit message containing changes to the
+<br>
+debian/changelog file.</p>
+
+<p style="margin-top: 1em">Options:</p>
+
+<p style="margin-top: 1em">--amend <br>
+Replace the commit currently the head of the Debian branch
+(master|something) instead of creating a new one on top. The
+commit message will also include changes <br>
+done to debian/changelog in the previous commit (unless
+reverted by the new edit).</p>
+
+<p style="margin-top: 1em">--ignore-patches <br>
+Do not call update-patches but simply ignore the current
+state of the patched branch (patched|patched-something).</p>
+
+<p style="margin-top: 1em">--keep-branch, --allow-revert,
+--allow-nonlinear, --ignore-deletions, --dot-git-files=*
+<br>
+Passed to update-patches, if called.</p>
+
+<p style="margin-top: 1em">--latest-only|--latest|-l <br>
+Only include changes between the current working directory
+before calling dch and after calling it (and not since the
+last commit or the last commit not replaced).</p>
+
+<p style="margin-top: 1em">-e | -v | -a | --all | -s | -n |
+--no-verify | -u | --untracked-files | -q | --quiet |
+--cleanup=... | --author=... <br>
+passed to git commit.</p>
+
+<p style="margin-top: 1em">merge-patched-into-debian
+[options] [branch-name] <br>
+Usually update-patches runs this for you if deemed
+necessary.</p>
+
+<p style="margin-top: 1em">This command is the core of
+git-dpm, but you usually do not call it directly. It is
+called by update-patches and things calling update-patches
+like dch when necessary.</p>
+
+<p style="margin-top: 1em">It replaces all files (with only
+the exceptions described below) in the current Debian branch
+(master|whatever) with those found in the patched branch
+<br>
+(patched|patched-whatever).</p>
+
+<p style="margin-top: 1em">Only the debian directory and
+files in the root directory starting with &quot;.git&quot;
+are kept from the Debian branch (so .gitignore,
+.gitattributes, ... will stay). And all <br>
+files that were found in the last recorded patched branch
+and deleted in the current Debian branch will also be
+deleted in the new one.</p>
+
+<p style="margin-top: 1em">Additionally the debian/.git-dpm
+file will be updated so the current patched branch is
+recorded and is marked as belonging to the last recorded
+upstream branch.</p>
+
+<p style="margin-top: 1em">If there is no branch-name given
+on the command line the base name of the branches to operate
+on is computed from the currently checked out branch as
+usual. Otherwise this <br>
+argument is used.</p>
+
+<p style="margin-top: 1em">Options:</p>
+
+<p style="margin-top: 1em">--allow-revert <br>
+Usually reverting to an old state of the patched branch is
+not allowed, to avoid mistakes (like having only pulled the
+Debian branch and forgot to run check&acirc; <br>
+out-patched). This option changes that so you can for
+example drop the last patch in your stack.</p>
+
+<p style="margin-top: 1em">--no-ignore-deletions (default)
+<br>
+Files deleted currently in the Debian branch relative to the
+recorded patched branch will still be deleted in the new
+Debian branch and not taken from the new <br>
+patched branch. This is the default unless a different
+default was set with <br>
+git config dpm.BRANCHNAME.dpmIgnoreDeletions true.</p>
+
+<p style="margin-top: 1em">--ignore-deletions <br>
+Disable the behavior described in --no-ignore-deletions.</p>
+
+<p style="margin-top: 1em">--dot-git-files=method <br>
+Specify how files starting with .git outside debian/ are
+handled. Those are handles specially as .gitattributes and
+.gitignore might be different in the Debian <br>
+branch without being part of any patch. (The whole debian/
+directory is always taken from the Debian branch, so files
+there are not affected).</p>
+
+<p style="margin-top: 1em">Possible methods are:</p>
+
+<p style="margin-top: 1em">automatic (default) <br>
+Any .git* files that are added, modified or removed in the
+current Debian branch compared to the old upstream branch
+are set to this state, everything else <br>
+is taken as found in the new patched branch.</p>
+
+<p style="margin-top: 1em">debian All .git* files are taken
+from the Debian branch. Files with a name like that from the
+patched branch are ignored.</p>
+
+<p style="margin-top: 1em">upstream <br>
+Files starting with .git are not given special handling.
+They are taken from the patched branch, unless they are
+deleted in the Debian branch and the <br>
+default --no-ignore-deletions is active. (i.e. just like any
+other file outside debian/).</p>
+
+<p style="margin-top: 1em">--keep-branch <br>
+do not remove an existing patched branch (usually that is
+removed and can be recreated with checkout-patched to avoid
+stale copies lurking around).</p>
+
+<p style="margin-top: 1em">--amend <br>
+Replace the last commit on your Debian branch (as git commit
+--amend would do). With the exception that every parent that
+is an ancestor of or equal to the new <br>
+patched branch or the recorded patched branch is omitted.
+(That is, you lose not only the commit on the Debian branch,
+but also a previous state of the patched <br>
+branch if your last commit also merged the patched
+branch).</p>
+
+<p style="margin-top: 1em">-m message <br>
+Commit message to use for the new commit created. (If used
+together with --amend, this disables reusing the old author
+and date).</p>
+
+<p style="margin-top: 1em">--allow-nonlinear <br>
+do not abort with an error if the patched branch is no
+linear series of commits on top of the upstream branch.
+Using this option is not recommended as it easily <br>
+hides problems with patched or upstream branch and may
+introduce broken debian/patches/ series, as format-patch
+does no serialisation.</p>
+
+<p style="margin-top: 1em">import-new-upstream [options]
+.orig.tar <br>
+Import the contents of the given tarfile (as with
+import-tar) and record this branch (as with
+record-new-upstream).</p>
+
+<p style="margin-top: 1em">This is roughly equivalent to:
+<br>
+git-dpm import-tar -p upstream filename <br>
+git checkout -b upstream <br>
+git-dpm record-new-upstream filename</p>
+
+<p style="margin-top: 1em">--detached <br>
+Don&rsquo;t make the new upstream branch an ancestor of the
+old upstream branch (unless you re-add that with -p).</p>
+
+<p style="margin-top: 1em">-p commit-id|--parent commit-id
+<br>
+Give import-tar additional parents of the new commit to
+create.</p>
+
+<p style="margin-top: 1em">For example if you track
+upstream&rsquo;s git repository in some branch, you can name
+that here to make it part of the history of your Debian
+branch.</p>
+
+<p style="margin-top: 1em">--allow-no-parent <br>
+If dpm.importWithoutParent is set to false via git config,
+git-dpm will not allow import-new-upstream to be run without
+this option or at least on -p option.</p>
+
+<p style="margin-top: 1em">--rebase-patched <br>
+After recording the new upstream branch, rebase the patched
+branch to the new upstream branch.</p>
+
+<p style="margin-top: 1em">--no-rebase-patched <br>
+Do not call rebase-patched after recording the new upstream
+branch. (This is currently the default, but that may change
+in the future).</p>
+
+<p style="margin-top: 1em">-m message <br>
+Commit message to use for the new commit to the Debian
+branch recording the new file and upstream branch.</p>
+
+<p style="margin-top: 1em">--component
+package_version.orig-component.tar.gz <br>
+Unpack the specified filename into the component directory
+and record it so that prepare and status know to check for
+it.</p>
+
+<p style="margin-top: 1em">--init</p>
+
+<p style="margin-top: 1em">None of the branches yet exists,
+create them.</p>
+
+<p style="margin-top: 1em">As the branches to operate on
+are derived from HEAD if no --branch option is given, you
+either need HEAD point to an not yet existing branch (like
+directly after <br>
+git init) or you need you give a name with --branch.
+Otherwise one of the branches already exists and you only
+get an error message.</p>
+
+<p style="margin-top: 1em">--branch debianbranch <br>
+Don&rsquo;t derive the Debian branch name from current HEAD
+but use debianbranch instead. (And upstream branch name and
+patched branch name derived from that as usual).</p>
+
+<p style="margin-top: 1em">--pristine-tar-commit | --ptc
+<br>
+Call pristine-tar commit for all imported tarballs not yet
+found in the pristine-tar branch.</p>
+
+<p style="margin-top: 1em">--no-pristine-tar-commit <br>
+Do not call pristine-tar commit for all imported tarballs
+even if configured to do so by <br>
+git config dpm.pristineTarCommit true or by <br>
+git config branch.debianbranch.dpmPristineTarCommit
+true.</p>
+
+<p style="margin-top: 1em">--ignore-deletions,
+--dot-git-files= <br>
+Passed to merge-patched, if called (only done if there were
+no patches previously).</p>
+
+<p style="margin-top: 1em">--upstream-author author <br>
+Used as the --author argument to git-dpm import-tar.</p>
+
+<p style="margin-top: 1em">--upstream-date date <br>
+Used as the --date argument to git-dpm import-tar
+(especially auto is supported to extract a date from the tar
+file).</p>
+
+<p style="margin-top: 1em">--exclude pattern <br>
+The given pattern is passed to tar as exclude pattern when
+unpacking. Can be given multiple times.</p>
+
+<p style="margin-top: 1em">import-tar [options] .tar-file
+<br>
+Create a new commit containing the contents of the given
+file. The commit will not have any parents, unless you give
+-p options.</p>
+
+<p style="margin-top: 1em">-p commit-id|--parent commit-id
+<br>
+Add the given commit as parent. (Can be specified multiple
+times).</p>
+
+<p style="margin-top: 1em">--branch branchname <br>
+Create new branch branchname if it does not already exist or
+replace branchname with a commit created from the tarball
+with the current branchname head as parent.</p>
+
+<p style="margin-top: 1em">-m message <br>
+Do not start an editor for the commit message, but use the
+argument instead.</p>
+
+<p style="margin-top: 1em">--date date <br>
+Date of the commit to create.</p>
+
+<p style="margin-top: 1em">If the value is auto then the
+newest date of any file or directory in the tarball is
+used.</p>
+
+<p style="margin-top: 1em">--author author <br>
+Author of the commit to create. It has to be in the usual
+git format <br>
+author &lt;email&gt;.</p>
+
+<p style="margin-top: 1em">--exclude pattern <br>
+The given pattern is passed to tar as exclude pattern when
+unpacking. Can be given multiple times.</p>
+
+<p style="margin-top: 1em">record-new-upstream [options]
+.orig.tar [commit]</p>
+
+<p style="margin-top: 1em">If you changed the upstream
+branch (upstream|upstream-whatever), git-dpm needs to know
+which tarball this branch now corresponds to and you have to
+rebase your patched <br>
+branch (patched|patched-whatever) to the new upstream
+branch.</p>
+
+<p style="margin-top: 1em">If there is a second argument,
+this command first replaces your upstream branch with the
+specified commit.</p>
+
+<p style="margin-top: 1em">Then the new upstream branch is
+recorded in your Debian branch&rsquo;s debian/.git-dpm
+file.</p>
+
+<p style="margin-top: 1em">If you specified
+--rebase-patched (or short --rebase), git-dpm rebase-patched
+will be called to rebase your patched branch on top of the
+new upstream branch.</p>
+
+<p style="margin-top: 1em">After this (and if the branch
+then looks like what you want), you still need to call
+git-dpm merge-patched-into-debian (or directly git-dpm
+update-patches).</p>
+
+<p style="margin-top: 1em">WARNING to avoid any
+misunderstandings: You have to change the upstream branch
+before using this command. It&rsquo;s your responsibility to
+ensure the contents of the tarball <br>
+match those of the upstream branch.</p>
+
+<p style="margin-top: 1em">--rebase-patched <br>
+Automatically call git-dpm rebase-patched.</p>
+
+<p style="margin-top: 1em">--new-tarball-only <br>
+Don&rsquo;t refuse operation if the tarball changes but the
+upstream branch did not. (This is only sensible if the
+tarball changed without changing its contents, see the <br>
+warning above).</p>
+
+<p style="margin-top: 1em">-m message <br>
+Commit message to use for the new commit to the Debian
+branch recording the new file and upstream branch.</p>
+
+<p style="margin-top: 1em">--amend <br>
+Replace the last commit instead of creating a new one on
+top.</p>
+
+<p style="margin-top: 1em">--component filename <br>
+Record filename as needed component source file (i.e. a
+sourcename_upstreamversion.orig-component.tar.compression
+file). It&rsquo;s your responsible to have that file&rsquo;s
+<br>
+contents already as part of your upstream branch (in a
+component subdirectory).</p>
+
+<p style="margin-top: 1em">(Recorded files will be looked
+for by status and prepare. The list of recorded component
+source files is removed when a new upstream branch or
+upstream .orig <br>
+source file is recorded).</p>
+
+<p style="margin-top: 1em">--ignore-deletions,
+--ot-git-files= <br>
+Passed to merge-patched, if called (which is only done if
+there were no patches previously, so the new upstream branch
+is merged in directly).</p>
+
+<p style="margin-top: 1em">rebase-patched <br>
+Try to rebase your current patched branch
+(patched|patched-whatever) to your current current upstream
+branch (upstream|upstream-whatever).</p>
+
+<p style="margin-top: 1em">If those branches do not yet
+exist as git branches, they are (re)created from the
+information recorded in debian/.git-dpm first.</p>
+
+<p style="margin-top: 1em">This is only a convenience
+wrapper around git rebase that first tries to determine what
+exactly is to rebase. If there are any conflicts, git rebase
+will ask you to <br>
+resolve them and tell rebase to continue.</p>
+
+<p style="margin-top: 1em">After this is finished (and if
+the branch then looks like what you want), you still need
+merge-patched-into-debian (or directly update-patches).</p>
+
+<p style="margin-top: 1em">tag [ options ] [ version ] <br>
+Add tags to the upstream, patched and Debian branches. If no
+version is given, it is taken from debian/changelog.</p>
+
+<p style="margin-top: 1em">Options:</p>
+
+<p style="margin-top: 1em">--refresh <br>
+Overwrite the tags if they are already there and differ
+(except upstream).</p>
+
+<p style="margin-top: 1em">--refresh-upstream <br>
+Overwrite the upstream if that is there and differs.</p>
+
+<p style="margin-top: 1em">--allow-stale-patches <br>
+Don&rsquo;t error out if patches are not up to date. This is
+only useful if you are importing historical data and want to
+tag it.</p>
+
+<p style="margin-top: 1em">--named <br>
+Use the package name as part of the names of the generated
+tags. (use git config dpm.tagsNamed true to make this the
+default)</p>
+
+<p style="margin-top: 1em">--with-name name <br>
+Like --named but give the name to use.</p>
+
+<p style="margin-top: 1em">--debian-tag tag-name</p>
+
+<p style="margin-top: 1em">--patched-tag tag-name</p>
+
+<p style="margin-top: 1em">--upstream-tag tag-name <br>
+Specify the names of the tags to generate.</p>
+
+<p style="margin-top: 1em">%p is replaced with the package
+name,</p>
+
+<p style="margin-top: 1em">%v with the version (without
+epoch) with colons (:) and tilde (~) replaced by underscore
+(_),</p>
+
+<p style="margin-top: 1em">%u with the upstream version
+(without epoch or Debian revision) with colons (:) and tilde
+(~) replaced by underscore (_),</p>
+
+<p style="margin-top: 1em">%e with the epoch,</p>
+
+<p style="margin-top: 1em">%f with the epoch followed by an
+underscore (_) if there is an epoch, and with the empty
+string if there is no epoch,</p>
+
+<p style="margin-top: 1em">%V with the version (without
+epoch) with colons (:) and tilde (~) replaced by dots
+(.),</p>
+
+<p style="margin-top: 1em">%U with the upstream version
+(without epoch or Debian revision) with colons (:) and tilde
+(~) replaced with dots (.),</p>
+
+<p style="margin-top: 1em">%E with the epoch followed by a
+dot if there is an epoch, and with the empty string if there
+is no epoch,</p>
+
+<p style="margin-top: 1em">%% with a single %.</p>
+
+<p style="margin-top: 1em">If one of those is not set via
+the command line option, git config is asked about value of
+dpm.debianTag, dpm.patchedTag or dpm.upstreamTag. If that is
+also not set or <br>
+the special value AUTO, then debian/.git-dpm is scanned for
+a line of the form <br>
+debianTag=&quot;value&quot;, <br>
+patchedTag=&quot;value&quot; or <br>
+upstreamTag=&quot;value&quot;.</p>
+
+<p style="margin-top: 1em">(Note: always add those to the
+end of the file, the first eight lines have fixed line
+numbers)</p>
+
+<p style="margin-top: 1em">If this still does not result in
+an pattern to use, the defaults are
+&rsquo;%p-debian%e-%v&rsquo;, &rsquo;%p-patched%e-%v&rsquo;
+and &rsquo;%p-upstream%e-%u&rsquo; with --named and
+&rsquo;debian%e-%v&rsquo;, <br>
+&rsquo;patched%e-%v&rsquo; and &rsquo;upstream%e-%u&rsquo;
+without.</p>
+
+<p style="margin-top: 1em">If a tag name has the special
+value NONE, no tag is generated.</p>
+
+<p style="margin-top: 1em">ref-tag [ options ] commit [
+version ] <br>
+Like tag, but create tags for commit, i.e. commit will get
+the Debian tag and the other tags are placed where the
+debian/.git-dpm file of that commit points to.</p>
+
+<p style="margin-top: 1em">So it is mostly equivalent to:
+<br>
+git checkout -b temp commit <br>
+git-dpm tag [options] [version] <br>
+git checkout previous-head <br>
+git branch -D temp</p>
+
+<p style="margin-top: 1em">Options like tag.</p>
+
+<p style="margin-top: 1em">apply-patch [ options... ] [
+filename ] <br>
+Switch to the patched branch (assuming it is up to date, use
+checkout-patched first to make sure or get an warning), and
+apply the patch given as argument or from stdin.</p>
+
+<p style="margin-top: 1em">--author author &lt;email&gt;
+<br>
+Override the author to be recorded.</p>
+
+<p style="margin-top: 1em">--defaultauthor author
+&lt;email&gt; <br>
+If no author could be determined from the commit, use
+this.</p>
+
+<p style="margin-top: 1em">--date date <br>
+Date to record this patch originally be from if non
+found.</p>
+
+<p style="margin-top: 1em">--dpatch <br>
+Parse patch as dpatch patch (Only works for dpatch patches
+actually being a patch, might silently fail for others).</p>
+
+<p style="margin-top: 1em">--cdbs Parse patch as cdbs
+simple-patchsys.mk patch (Only works for dpatch patches
+actually being a patch, might silently fail for others).</p>
+
+<p style="margin-top: 1em">--edit Start an editor before
+doing the commit (In case you are too lazy to amend).</p>
+
+<p style="margin-top: 1em">--record-name <br>
+Add a Patch-Name: field to tell update-patches to export it
+with the same name again.</p>
+
+<p style="margin-top: 1em">--name name <br>
+Add a Patch-Name: field to tell update-patches to use name
+as filename to store this patch into (relative to
+debian/patches).</p>
+
+<p style="margin-top: 1em">--category name <br>
+Add a Patch-Category: field to tell update-patches to always
+export this patch into a subdirectory name of
+debian/patches.</p>
+
+<p style="margin-top: 1em">cherry-pick [ options... ]
+commit <br>
+Recreate the patched branch and cherry-pick the given
+commit. Then merge that back into the Debian branch and
+update the debian/patches directory (i.e. mostly equivalent
+<br>
+to checkout-patched, git&rsquo;s cherry-pick, and
+update-patches).</p>
+
+<p style="margin-top: 1em">--merge-only <br>
+Only merge the patched branch back into the Debian branch
+but do not update the patches directory (You&rsquo;ll need
+to run update-patches later to get this done).</p>
+
+<p style="margin-top: 1em">-e | --edit <br>
+Passed to git&rsquo;s cherry-pick: edit the commit message
+picked.</p>
+
+<p style="margin-top: 1em">-s | --signoff <br>
+Passed to git&rsquo;s cherry-pick: add a Signed-off-by
+header</p>
+
+<p style="margin-top: 1em">-x Passed to git&rsquo;s
+cherry-pick: add a line describing what was picked</p>
+
+<p style="margin-top: 1em">-m num | --mainline num <br>
+Passed to git&rsquo;s cherry-pick: allow picking a merge by
+specifying the parent to look at.</p>
+
+<p style="margin-top: 1em">--repick <br>
+Don&rsquo;t abort if the specified commit is already
+contained.</p>
+
+<p style="margin-top: 1em">--allow-nonlinear,
+--ignore-deletions, --dot-git-files= <br>
+Passed to update-patches, if called.</p>
+
+<p style="margin-top: 1em">passed to
+merge-patched-into-debian and update-patches.</p>
+
+<p style="margin-top: 1em">--keep-branch <br>
+do not remove the patched branch when it is no longer
+needed.</p>
+
+<p style="margin-top: 1em">--amend <br>
+passed to merge-patched-into-debian: amend the last commit
+in the Debian branch.</p>
+
+<p style="margin-top: 1em">import-dsc <br>
+Import a Debian source package from a .dsc file. This can be
+used to create a new project or to import a source package
+into an existing project.</p>
+
+<p style="margin-top: 1em">While a possible old state of a
+project is recorded as parent commit, the state of the old
+Debian branch is not taken into account. Especially all file
+deletions and <br>
+.gitignore files and the like need to be reapplied/re-added
+afterwards. (Assumption is that new source package versions
+from outside might change stuff significantly, so <br>
+old information might more likely be outdated. And
+reapplying it is easier then reverting such changes.)</p>
+
+<p style="margin-top: 1em">First step is importing the
+.orig.tar file and possible .orig-component.tar files. You
+can either specify a branch to use. Otherwise import-dsc
+will look if the previous <br>
+state of this project already has the needed file so the old
+upstream branch can be reused. If there is non, the file
+will be imported as a new commit, by default with a <br>
+possible previous upstream branch as parent.</p>
+
+<p style="margin-top: 1em">Then import-dsc will try to
+import the source package in the state as dpkg-source -x
+would create it. (That is applying the .diff and making
+debian/rules executable for <br>
+1.0 format packages and replacing the debian directory with
+the contents of a .debian.tar and applying possible
+debian/patches/series for 3.0 format packages). This is <br>
+later referred to as verbatim import.</p>
+
+<p style="margin-top: 1em">If it is a 1.0 source format
+package, import-dsc then looks for a set of supported patch
+systems and tries to apply those patches. Those are then
+merged with the verbatim <br>
+state into the new Debian branch.</p>
+
+<p style="margin-top: 1em">Then a debian/.git-dpm file is
+created and a possible old state of the project added as
+parent.</p>
+
+<p style="margin-top: 1em">Note that dpkg-source is not
+used to extract packages, but they are extracted manually.
+Especially git-apply is used instead of patch. While this
+generally works (and <br>
+git-dpm has some magic to work around some of
+git-apply&rsquo;s shortcomings), unclean patches might
+sometimes need a -C0 option and then in same cases be
+applied at different <br>
+positions than where patch would apply them.</p>
+
+<p style="margin-top: 1em">General options:</p>
+
+<p style="margin-top: 1em">-b | --branch branch-name <br>
+Don&rsquo;t look at the current HEAD, but import the package
+into the git-dpm project branchname or create a new project
+(if that branch does not yet exist).</p>
+
+<p style="margin-top: 1em">--verbatim branch-name <br>
+After import-dsc has completed successfully, branch-name
+will contain the verbatim import of the .dsc file. If a
+branch of that name already exists, the new verba&acirc;
+<br>
+tim commit will also have the old as parent. (This also
+causes the verbatim commit not being amended with other
+changes, which can result in more commits).</p>
+
+<p style="margin-top: 1em">--use-changelog <br>
+Parse debian/changelog of the imported package. Use the
+description as commit messages and the author and time as
+default for patches and import commits without <br>
+that information. (Warning: may still contain some rough
+edges).</p>
+
+<p style="margin-top: 1em">Options about creating the
+upstream branch:</p>
+
+<p style="margin-top: 1em">--upstream-to-use commit <br>
+Do not import the .orig.tar nor try to reuse an old import,
+but always use the commit specified.</p>
+
+<p style="margin-top: 1em">It is your responsibility that
+this branch is similar enough to the .orig.tar file plus
+possible .orig-component.tar in their respective
+directories. (As usual, <br>
+similar enough means: Does not miss any files that your
+patches touch or your build process requires (or recreates
+unless debian/rules clean removes them again). <br>
+Every file different than in .orig.tar or not existing there
+you must delete in the resulting Debian branch. No patch may
+touch those files.)</p>
+
+<p style="margin-top: 1em">Use with care. Nothing will warn
+you even if you use the contents of a totally wrong upstream
+version.</p>
+
+<p style="margin-top: 1em">--detached-upstream <br>
+If importing a .orig.tar as new commit, do not make an
+possible commit for an old upstream version parent.</p>
+
+<p style="margin-top: 1em">--upstream-parent commit <br>
+Add commit as (additional) parent if importing a new
+upstream version.</p>
+
+<p style="margin-top: 1em">(This can for example be used to
+make upstream&rsquo;s git history part of your
+package&rsquo;s history and thus help git when
+cherry-picking stuff).</p>
+
+<p style="margin-top: 1em">--allow-no-parent <br>
+If dpm.importWithoutParent is set to false via git config,
+git-dpm will not allow import-dsc to be run without this
+option or at least on --upstream-parent option.</p>
+
+<p style="margin-top: 1em">--pristine-tar-commit |--ptc
+<br>
+Call pristine-tar commit for all tarballs imported after the
+rest of the import-dsc command was successful.</p>
+
+<p style="margin-top: 1em">--no-pristine-tar-commit <br>
+Do not call pristine-tar commit for all imported tarballs
+even if configured to do so by <br>
+git config dpm.pristineTarCommit true or by <br>
+git config branch.debianbranch.dpmPristineTarCommit
+true.</p>
+
+<p style="margin-top: 1em">--upstream-author author <br>
+Used as the --author argument to git-dpm import-tar.</p>
+
+<p style="margin-top: 1em">--upstream-date date <br>
+Used as the --date argument to git-dpm import-tar
+(especially auto is supported to extract a date from the tar
+file).</p>
+
+<p style="margin-top: 1em">--tar-exclude pattern <br>
+The given pattern is passed to tar as exclude pattern when
+unpacking tarfiles. Can be given multiple times.</p>
+
+<p style="margin-top: 1em">Options about applying
+patches:</p>
+
+<p style="margin-top: 1em">-f | --force-commit-reuse <br>
+Only look at parent and tree and no longer at the
+description when trying to reuse commits importing patches
+from previous package versions.</p>
+
+<p style="margin-top: 1em">-Cnum | --patch-context num <br>
+Passed as -Cnum to git-apply. Specifies the number of
+context lines that must match.</p>
+
+<p style="margin-top: 1em">--dpatch-allow-empty <br>
+Do not error out if a dpatch file does not change anything
+when treated as patch.</p>
+
+<p style="margin-top: 1em">As dpatch files can be arbitrary
+scripts, git-dpm has some problems detecting if they are
+really patches. (It can only cope with patches). If a script
+that is not <br>
+a patch is treated as patch that usually results in patch
+not modify anything, thus those are forbidden without this
+option.</p>
+
+<p style="margin-top: 1em">--patch-system mode <br>
+Specify what patch system is used for source format 1.0
+packages.</p>
+
+<p style="margin-top: 1em">auto (this is the default) <br>
+Try to determine what patch system is used by looking at
+debian/rules (and debian/control).</p>
+
+<p style="margin-top: 1em">none Those are not the patches
+you are looking for.</p>
+
+<p style="margin-top: 1em">history <br>
+Don&rsquo;t try to find any patches in the .diff (like
+none). If if the project already exists and the upstream
+tarball is the same, create the patched state of <br>
+the new one by using the patches of the old one and adding a
+patch of top bringing it to the new state.</p>
+
+<p style="margin-top: 1em">If you import multiple revisions
+of some package, where each new revision added at most a
+single change to upstream, this option allows you to almost
+auto&acirc; <br>
+matically create a proper set of patches (ideally only
+missing descriptions).</p>
+
+<p style="margin-top: 1em">If there are same changes and
+reverts those will be visible in the patches created, so
+this mode is not very useful in that case.</p>
+
+<p style="margin-top: 1em">quilt Extract and apply a
+debian/patches/series quilt like series on top of possible
+upstream changes found in the .diff file.</p>
+
+<p style="margin-top: 1em">quilt-first <br>
+As the quilt mode, but apply the patches to an unmodified
+upstream first and then cherry-pick the changes found in the
+.diff file.</p>
+
+<p style="margin-top: 1em">As this is not the order in
+which patches are applied in a normal unpack/build cycle,
+this will fail if those changes are not distinct enough (for
+example <br>
+when patches depend on changes done in the .diff).</p>
+
+<p style="margin-top: 1em">But if the .diff only contains
+unrelated changes which varies with each version, this gives
+a much nicer history, as the commits for the patches can
+more <br>
+easily be reused.</p>
+
+<p style="margin-top: 1em">quilt-applied <br>
+As the quilt-first mode, but assume the patches are already
+applied in the .diff, so apply them on top of an unmodified
+upstream and then add a commit bring&acirc; <br>
+ing it to the state in the .diff. (Or not if that patch
+would be empty).</p>
+
+<p style="margin-top: 1em">dpatch | dpatch-first |
+dpatch-applied <br>
+Like the quilt resp. quilt-first resp. quilt-applied modes,
+but instead look for dpatch-style patches in
+debian/patches/00list.</p>
+
+<p style="margin-top: 1em">Note that only patches are
+supported and not dpatch running other commands.</p>
+
+<p style="margin-top: 1em">simple | simple-first |
+simple-applied <br>
+Like the quilt resp. quilt-first resp. quilt-applied modes,
+but instead assume debian/patches/ contains patches suitable
+for cdbs&rsquo;s simple-patchsys.mk.</p>
+
+<p style="margin-top: 1em">--patch-author &quot;name
+&lt;email&gt;&quot; <br>
+Set the author for all git commits importing patches.</p>
+
+<p style="margin-top: 1em">--patch-default-author
+&quot;name &lt;email&gt;&quot; <br>
+Set an author for all patches not containing author
+information (or where git-dpm cannot determine it).</p>
+
+<p style="margin-top: 1em">--edit-patches <br>
+For every patch imported, start an editor for the commit
+message.</p>
+
+<p style="margin-top: 1em">--record-patch-category <br>
+Add a Patch-Category: field to each imported patch that is
+in a subdirectory of debian/patches. This causes
+update-patches to store it in the same subdirectory.</p>
+
+<p style="margin-top: 1em">--record-patch-name <br>
+Add a Patch-Name: field to each imported patch with its
+name. This causes update-patches to store it under its
+original name.</p>
+
+<p style="margin-top: 1em">record-dsc [options] commit
+.dsc-file <br>
+Store a pristine .dsc file in a dscs branch after storing
+the files it contains using pristine-tar.</p>
+
+<p style="margin-top: 1em">The first argument is an tag or
+commit storing the git-dpm project in the state belonging to
+the .dsc file and the second argument is the .dsc file
+itself. The files it <br>
+references are expected in the same directory as the file
+itself (if they are needed).</p>
+
+<p style="margin-top: 1em">Some checks are done to make
+sure the file and its contents are named properly and match
+the commit in question, but only cursory to avoid obvious
+mistakes (for example <br>
+only the version is checked, but .debian.tar is not unpacked
+to check the files are really the same, for example).</p>
+
+<p style="margin-top: 1em">Options:</p>
+
+<p style="margin-top: 1em">--create-branch <br>
+Create a new dscs branch.</p>
+
+<p style="margin-top: 1em">--allow-unsigned <br>
+Allow recording a unsigned .dsc file. This usually defeats
+the point of storing them at all.</p>
+
+<p style="margin-top: 1em">the debian/.git-dpm file <br>
+You should not need to know about the contents if this file
+except for debugging git-dpm.</p>
+
+<p style="margin-top: 1em">The file contains 8 lines, but
+future version may contain more.</p>
+
+<p style="margin-top: 1em">The first line is hint what this
+file is about and ignored.</p>
+
+<p style="margin-top: 1em">Then there are 4 git commit ids
+for the recorded states:</p>
+
+<p style="margin-top: 1em">First the state of the patched
+branch when the patches in debian/patches were last
+updated.</p>
+
+<p style="margin-top: 1em">Then the state of the patched
+branch when it was last merged into the Debian branch.</p>
+
+<p style="margin-top: 1em">Then the state upstream branch
+when the patched branch was last merged.</p>
+
+<p style="margin-top: 1em">Finally the upstream branch.</p>
+
+<p style="margin-top: 1em">The following 3 lines are the
+filename, the sha1 checksum and the size of the origtarball
+belonging to the recorded upstream branch.</p>
+
+<p style="margin-top: 1em">SHORTCUTS <br>
+Most commands also have shorter aliases, to avoid
+typing:</p>
+
+<p style="margin-top: 1em">update-patches: up, u-p, ci <br>
+prepare: prep <br>
+checkout-patched: co, c-p <br>
+rebase-patched: r-p <br>
+apply-patch: a-p <br>
+import-tar: i-t <br>
+import-new-upstream: i-n-u, inu <br>
+record-new-upstream: r-n-u, rnu <br>
+merge-patched-in-debian: merge-patched</p>
+
+<p style="margin-top: 1em">record-new-upstream is also
+available under the old name new-upstream, though likely
+will be removed in future versions (to avoid confusion).</p>
+
+<p style="margin-top: 1em">BRANCHES <br>
+the upstream branch (upstream|upstream-whatever) <br>
+This branch contains the upstream sources. It contents need
+to be equal enough to the contents in your upstream
+tarball.</p>
+
+<p style="margin-top: 1em">Equal enough means that
+dpkg-source should see no difference between your patched
+tree and and original tarball unpackaged, the patched
+applied and debian/rules clean run. <br>
+Usually it is easiest to just store the verbatim contents of
+your orig tarball here. Then you can also use it for
+pristine tar.</p>
+
+<p style="margin-top: 1em">This branch may contain a
+debian/ subdirectory, which will usually be just
+ignored.</p>
+
+<p style="margin-top: 1em">You can either publish that
+branch or make it only implicitly visible via the
+debian/.git-dpm file in the Debian branch.</p>
+
+<p style="margin-top: 1em">While it usually makes sense
+that newer upstream branches contain older ones, this is not
+needed. You should be able to switch from one created
+yourself or by some for&acirc; <br>
+eign-vcs importing tool generated one to an native upstream
+branch or vice versa without problems. Note that since the
+Debian branch has the patched branch as ancestor <br>
+and the patched branch the upstream branch, your upstream
+branches are part of the history of your Debian branch.
+Which has the advantage that you can recreate the exact <br>
+state of your branches from your history directly (like git
+checkout -b oldstate myoldtagorshaofdebianbranchcommit ;
+git-dpm prepare ; git checkout unstable-oldstate) but <br>
+the disadvantage that to remove those histories from your
+repository you have to do some manual work.</p>
+
+<p style="margin-top: 1em">the patched branch
+(patched|patched-whatever) <br>
+This branch contains your patches to the upstream source.
+(which of course means it is based on your upstream
+branch).</p>
+
+<p style="margin-top: 1em">Every commit will be stored as a
+single patch in the resulting package.</p>
+
+<p style="margin-top: 1em">To help git generate a linear
+patch series, this should ideal be a linear chain of
+commits, whose description are helpful for other people.</p>
+
+<p style="margin-top: 1em">As this branch is regularly
+rebase d, you should not publish it. Instead you can
+recreate this branch using git-dpm checkout-patched using
+the information stored in <br>
+debian/.git-dpm.</p>
+
+<p style="margin-top: 1em">You are not allowed to change
+the contents of the debian/ subdirectory in this branch.
+Renaming files or deleting files usually causes unnecessary
+large patches.</p>
+
+<p style="margin-top: 1em">the Debian branch
+(master|whatever) <br>
+This is the primary branch.</p>
+
+<p style="margin-top: 1em">This branch contains the debian/
+directory and has the patched branch merged in.</p>
+
+<p style="margin-top: 1em">Every change not in debian/,
+.git* or deleting files must be done in the patched
+branch.</p>
+
+<p style="margin-top: 1em">alternative branch names <br>
+You can specify alternate branch names for upstream and
+patched branches of a specific Debian branch, or force a
+branch to be a Debian branch that would normally be
+con&acirc; <br>
+sidered e.g. upstream branch of another branch by adding
+dpmUpstreamBranch and dpmPatchedBranch configure items for
+the Debian branch in question (you need both, only one <br>
+is treated as error).</p>
+
+<p style="margin-top: 1em">The following example is a no-op
+for all practical purposes: <br>
+git config branch.master.dpmUpstreamBranch upstream <br>
+git config branch.master.dpmPatchedBranch patched</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright &Acirc;&copy; 2009,2010 Bernhard R. Link <br>
+This is free software; see the source for copying
+conditions. There is NO warranty; not even for
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.</p>
+
+<p style="margin-top: 1em">REPORTING BUGS AND ISSUES <br>
+You can report bugs or feature suggestions to
+git-dpm-devel@lists.alioth.debian.org or to me. Please send
+questions to git-dpm-user@lists.alioth.debian.org or to me
+at <br>
+brlink@debian.org.</p>
+
+<p style="margin-top: 1em">git-dpm 2012-05-15
+GIT-DPM(1)</p>
+<hr>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 15:56:52 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>bup-restore(1) bup-restore(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+bup-restore - extract files from a backup set</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+bup restore [--outdir=outdir] [--exclude-rx pattern]
+[--exclude-rx-from filename] [-v] [-q] &lt;paths...&gt;</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+bup restore extracts files from a backup set (created with
+bup-save(1)) to the local filesystem.</p>
+
+<p style="margin-top: 1em">The specified paths are of the
+form /branch/revision/some/where. The components of the path
+are as follows:</p>
+
+<p style="margin-top: 1em">branch the name of the backup
+set to restore from; this corresponds to the --name (-n)
+option to bup save.</p>
+
+<p style="margin-top: 1em">revision <br>
+the revision of the backup set to restore. The revision
+latest is always the most recent backup on the given branch.
+You can discover other revisions using <br>
+bup ls /branch.</p>
+
+<p style="margin-top: 1em">some/where <br>
+the previously saved path (after any stripping/grafting)
+that you want to restore. For example, etc/passwd.</p>
+
+<p style="margin-top: 1em">If some/where names a directory,
+bup restore will restore that directory and then recursively
+restore its contents.</p>
+
+<p style="margin-top: 1em">If some/where names a directory
+and ends with a slash (ie. path/to/dir/), bup restore will
+restore the children of that directory directly to the
+current directory (or the <br>
+--outdir). If some/where does not end in a slash, the
+children will be restored to a subdirectory of the current
+directory.</p>
+
+<p style="margin-top: 1em">If some/where names a directory
+and ends in &rsquo;/.&rsquo; (ie. path/to/dir/.), bup
+restore will do exactly what it would have done for
+path/to/dir, and then restore dir&rsquo;s metadata to the
+<br>
+current directory (or the --outdir). See the EXAMPLES
+section.</p>
+
+<p style="margin-top: 1em">Whenever path metadata is
+available, bup restore will attempt to restore it. When
+restoring ownership, bup implements tar/rsync-like
+semantics. It will normally prefer user and <br>
+group names to uids and gids when they&rsquo;re available,
+but it will not try to restore the user unless running as
+root, and it will fall back to the numeric uid or gid
+whenever the <br>
+metadata contains a user or group name that doesn&rsquo;t
+exist on the current system. The use of user and group names
+can be disabled via --numeric-ids (which can be important
+when <br>
+restoring a chroot, for example), and as a special case, a
+uid or gid of 0 will never be remapped by name.
+Additionally, some systems don&rsquo;t allow setting a
+uid/gid that doesn&rsquo;t <br>
+correspond with a known user/group. On those systems, bup
+will log an error for each relevant path.</p>
+
+<p style="margin-top: 1em">The --map-user, --map-group,
+--map-uid, --map-gid options may be used to adjust the
+available ownership information before any of the rules
+above are applied, but note that due <br>
+to those rules, --map-uid and --map-gid will have no effect
+whenever a path has a valid user or group. In those cases,
+either --numeric-ids must be specified, or the user or <br>
+group must be cleared by a suitable --map-user foo= or
+--map-group foo=.</p>
+
+<p style="margin-top: 1em">Hardlinks will also be restored
+when possible, but at least currently, no links will be made
+to targets outside the restore tree, and if the restore tree
+spans a different ar&acirc; <br>
+rangement of filesystems from the save tree, some hardlink
+sets may not be completely restored.</p>
+
+<p style="margin-top: 1em">Also note that changing hardlink
+sets on disk between index and save may produce unexpected
+results. With the current implementation, bup will attempt
+to recreate any given <br>
+hardlink set as it existed at index time, even if all of the
+files in the set weren&rsquo;t still hardlinked (but were
+otherwise identical) at save time.</p>
+
+<p style="margin-top: 1em">Note that during the restoration
+process, access to data within the restore tree may be more
+permissive than it was in the original source. Unless
+security is irrelevant, you <br>
+must restore to a private subdirectory, and then move the
+resulting tree to its final position. See the EXAMPLES
+section for a demonstration.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-C, --outdir=outdir <br>
+create and change to directory outdir before extracting the
+files.</p>
+
+<p style="margin-top: 1em">--numeric-ids <br>
+restore numeric IDs (user, group, etc.) rather than
+names.</p>
+
+<p style="margin-top: 1em">--exclude-rx=pattern <br>
+exclude any path matching pattern, which must be a Python
+regular expression (http://docs.python.org/library/re.html).
+The pattern will be compared against the full path <br>
+rooted at the top of the restore tree, without anchoring, so
+&quot;x/y&quot; will match &quot;ox/yard&quot; or
+&quot;box/yards&quot;. To exclude the contents of /tmp, but
+not the directory itself, use <br>
+&quot;^/tmp/.&quot;. (can be specified more than once)</p>
+
+<p style="margin-top: 1em">Note that the root of the
+restore tree (which matches &rsquo;^/&rsquo;) is the top of
+the archive tree being restored, and has nothing to do with
+the filesystem destination. Given <br>
+&quot;restore ... /foo/latest/etc/&quot;, the pattern
+&rsquo;^/passwd$&rsquo; would match if a file named passwd
+had been saved as &rsquo;/foo/latest/etc/passwd&rsquo;.</p>
+
+<p style="margin-top: 1em">Examples:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&rsquo;/foo$&rsquo; - exclude any file named foo</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&rsquo;/foo/$&rsquo; - exclude any directory named foo</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&rsquo;/foo/.&rsquo; - exclude the content of any directory
+named foo</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+&rsquo;^/tmp/.&rsquo; - exclude root-level /tmp&rsquo;s
+content, but not /tmp itself</p>
+
+<p style="margin-top: 1em">--exclude-rx-from=filename <br>
+read --exclude-rx patterns from filename, one pattern
+per-line (may be repeated). Ignore completely empty
+lines.</p>
+
+<p style="margin-top: 1em">--sparse <br>
+write output data sparsely when reasonable. Currently,
+reasonable just means &quot;at least whenever there are 512
+or more consecutive zeroes&quot;.</p>
+
+<p style="margin-top: 1em">--map-user old=new <br>
+for every path, restore the old (saved) user name as new.
+Specifying &quot;&quot; for new will clear the user. For
+example &quot;--map-user foo=&quot; will allow the uid to
+take effect for <br>
+any path that originally had a user of &quot;foo&quot;,
+unless countermanded by a subsequent &quot;--map-user
+foo=...&quot; specification. See DESCRIPTION above for
+further information.</p>
+
+<p style="margin-top: 1em">--map-group old=new <br>
+for every path, restore the old (saved) group name as new.
+Specifying &quot;&quot; for new will clear the group. For
+example &quot;--map-group foo=&quot; will allow the gid to
+take effect <br>
+for any path that originally had a group of &quot;foo&quot;,
+unless countermanded by a subsequent &quot;--map-group
+foo=...&quot; specification. See DESCRIPTION above for
+further informa&acirc; <br>
+tion.</p>
+
+<p style="margin-top: 1em">--map-uid old=new <br>
+for every path, restore the old (saved) uid as new, unless
+countermanded by a subsequent &quot;--map-uid old=...&quot;
+option. Note that the uid will only be relevant for paths
+<br>
+with no user. See DESCRIPTION above for further
+information.</p>
+
+<p style="margin-top: 1em">--map-gid old=new <br>
+for every path, restore the old (saved) gid as new, unless
+countermanded by a subsequent &quot;--map-gid old=...&quot;
+option. Note that the gid will only be relevant for paths
+<br>
+with no user. See DESCRIPTION above for further
+information.</p>
+
+<p style="margin-top: 1em">-v, --verbose <br>
+increase log output. Given once, prints every directory as
+it is restored; given twice, prints every file and
+directory.</p>
+
+<p style="margin-top: 1em">-q, --quiet <br>
+don&rsquo;t show the progress meter. Normally, is stderr is
+a tty, a progress display is printed that shows the total
+number of files restored.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+Create a simple test backup set:</p>
+
+<p style="margin-top: 1em">$ bup index -u /etc <br>
+$ bup save -n mybackup /etc/passwd /etc/profile</p>
+
+<p style="margin-top: 1em">Restore just one file:</p>
+
+<p style="margin-top: 1em">$ bup restore
+/mybackup/latest/etc/passwd <br>
+Restoring: 1, done.</p>
+
+<p style="margin-top: 1em">$ ls -l passwd <br>
+-rw-r--r-- 1 apenwarr apenwarr 1478 2010-09-08 03:06
+passwd</p>
+
+<p style="margin-top: 1em">Restore etc to test (no trailing
+slash):</p>
+
+<p style="margin-top: 1em">$ bup restore -C test
+/mybackup/latest/etc <br>
+Restoring: 3, done.</p>
+
+<p style="margin-top: 1em">$ find test <br>
+test <br>
+test/etc <br>
+test/etc/passwd <br>
+test/etc/profile</p>
+
+<p style="margin-top: 1em">Restore the contents of etc to
+test (trailing slash):</p>
+
+<p style="margin-top: 1em">$ bup restore -C test
+/mybackup/latest/etc/ <br>
+Restoring: 2, done.</p>
+
+<p style="margin-top: 1em">$ find test <br>
+test <br>
+test/passwd <br>
+test/profile</p>
+
+<p style="margin-top: 1em">Restore the contents of etc and
+etc&rsquo;s metadata to test (trailing &quot;/.&quot;):</p>
+
+<p style="margin-top: 1em">$ bup restore -C test
+/mybackup/latest/etc/. <br>
+Restoring: 2, done.</p>
+
+<p style="margin-top: 1em"># At this point test and
+etc&rsquo;s metadata will match. <br>
+$ find test <br>
+test <br>
+test/passwd <br>
+test/profile</p>
+
+<p style="margin-top: 1em">Restore a tree without risk of
+unauthorized access:</p>
+
+<p style="margin-top: 1em"># mkdir --mode 0700
+restore-tmp</p>
+
+<p style="margin-top: 1em"># bup restore -C restore-tmp
+/somebackup/latest/foo <br>
+Restoring: 42, done.</p>
+
+<p style="margin-top: 1em"># mv restore-tmp/foo
+somewhere</p>
+
+<p style="margin-top: 1em"># rmdir restore-tmp</p>
+
+<p style="margin-top: 1em">Restore a tree, remapping an old
+user and group to a new user and group:</p>
+
+<p style="margin-top: 1em"># ls -l /original/y <br>
+-rw-r----- 1 foo baz 3610 Nov 4 11:31 y <br>
+# bup restore -C dest --map-user foo=bar --map-group baz=bax
+/x/latest/y <br>
+Restoring: 42, done. <br>
+# ls -l dest/y <br>
+-rw-r----- 1 bar bax 3610 Nov 4 11:31 y</p>
+
+<p style="margin-top: 1em">Restore a tree, remapping an old
+uid to a new uid. Note that the old user must be erased so
+that bup won&rsquo;t prefer it over the uid:</p>
+
+<p style="margin-top: 1em"># ls -l /original/y <br>
+-rw-r----- 1 foo baz 3610 Nov 4 11:31 y <br>
+# ls -ln /original/y <br>
+-rw-r----- 1 1000 1007 3610 Nov 4 11:31 y <br>
+# bup restore -C dest --map-user foo= --map-uid 1000=1042
+/x/latest/y <br>
+Restoring: 97, done. <br>
+# ls -ln dest/y <br>
+-rw-r----- 1 1042 1007 3610 Nov 4 11:31 y</p>
+
+<p style="margin-top: 1em">An alternate way to do the same
+by quashing users/groups universally with --numeric-ids:</p>
+
+<p style="margin-top: 1em"># bup restore -C dest
+--numeric-ids --map-uid 1000=1042 /x/latest/y <br>
+Restoring: 97, done.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+bup-save(1), bup-ftp(1), bup-fuse(1), bup-web(1)</p>
+
+<p style="margin-top: 1em">BUP <br>
+Part of the bup(1) suite.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Avery Pennarun &lt;apenwarr@gmail.com&gt;.</p>
+
+<p style="margin-top: 1em">Bup debian/0.29-2 2017-01-01
+bup-restore(1)</p>
+<hr>
+</body>
+</html>

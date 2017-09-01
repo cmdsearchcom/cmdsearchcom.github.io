@@ -1,0 +1,227 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:14:11 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>GMT-MUSIC-BMR-CALC-COVG(1p) User Contributed Perl
+Documentation GMT-MUSIC-BMR-CALC-COVG(1p)</p>
+
+<p style="margin-top: 1em">gmt music bmr calc-covg NAME
+<br>
+gmt music bmr calc-covg - Uses calcRoiCovg.c to count
+covered bases per-gene for each given tumor-normal pair of
+BAMs.</p>
+
+<p style="margin-top: 1em">VERSION <br>
+This document describes gmt music bmr calc-covg version 0.04
+(2016-01-01 at 23:10:19)</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+gmt music bmr calc-covg --gene-covg-dir=? --roi-file=?
+--reference-sequence=? --bam-list=? --output-dir=?
+[--cmd-list-file=?] [--cmd-prefix=?] [--normal-min-depth=?]
+<br>
+[--tumor-min-depth=?] [--min-mapq=?]</p>
+
+<p style="margin-top: 1em">General usage:</p>
+
+<p style="margin-top: 1em">... music bmr calc-covg
+--bam-list input_dir/bam_list --output-dir output_dir/
+--reference-sequence input_dir/all_sequences.fa --roi-file
+input_dir/all_coding_exons.tsv</p>
+
+<p style="margin-top: 1em">To create a list of commands
+that will allow the processing of each tumor-normal pair in
+parallel with an LSF job scheduler:</p>
+
+<p style="margin-top: 1em">... music bmr calc-covg
+--bam-list input_dir/bam_list --output-dir output_dir/
+--reference-sequence input_dir/all_sequences.fa --roi-file
+input_dir/all_coding_exons.tsv --cmd_list_file
+parallelizable_commands --cmd_prefix bsub</p>
+
+<p style="margin-top: 1em">In the above case, the commands
+printed into the output file
+&quot;parallelizable_commands&quot; can be run in parallel.
+After they complete, rerun this script as printed directly
+below <br>
+(--cmd_list_file and --cmd_prefix have been removed) to
+merge the parallelized calculations:</p>
+
+<p style="margin-top: 1em">... music bmr calc-covg
+--bam-list input_dir/bam_list --output-dir output_dir/
+--reference-sequence input_dir/all_sequences.fa --roi-file
+input_dir/all_coding_exons.tsv</p>
+
+<p style="margin-top: 1em">REQUIRED ARGUMENTS <br>
+gene-covg-dir Text <br>
+Directory where per-sample gene coverage files are
+located</p>
+
+<p style="margin-top: 1em">roi-file Text <br>
+Tab delimited list of ROIs [chr start stop gene_name] (See
+Description)</p>
+
+<p style="margin-top: 1em">reference-sequence Text <br>
+Path to reference sequence in FASTA format</p>
+
+<p style="margin-top: 1em">bam-list Text <br>
+Tab delimited list of BAM files [sample_name normal_bam
+tumor_bam] (See Description)</p>
+
+<p style="margin-top: 1em">output-dir Text <br>
+Directory where output files and subdirectories will be
+written</p>
+
+<p style="margin-top: 1em">OPTIONAL ARGUMENTS <br>
+cmd-list-file Text <br>
+A file to write calcRoiCovg commands to (See
+Description)</p>
+
+<p style="margin-top: 1em">cmd-prefix Text <br>
+A command that submits a job to your cluster (See
+Description)</p>
+
+<p style="margin-top: 1em">normal-min-depth Integer <br>
+The minimum read depth to consider a Normal BAM base as
+covered</p>
+
+<p style="margin-top: 1em">tumor-min-depth Integer <br>
+The minimum read depth to consider a Tumor BAM base as
+covered</p>
+
+<p style="margin-top: 1em">min-mapq Integer <br>
+The minimum mapping quality of reads to consider towards
+read depth counts</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This script counts bases with sufficient coverage in the
+ROIs of each gene in the given pairs of tumor-normal BAM
+files and categorizes them into - AT, CG (non-CpG), and CpG
+<br>
+counts. It also adds up these base-counts across all ROIs of
+each gene for each sample, but covered bases that lie within
+overlapping ROIs are not counted more than once towards <br>
+these total counts.</p>
+
+<p style="margin-top: 1em">By default, this script runs a
+C-based tool named calcRoiCovg for each sample one after
+another, taking ~30 mins per sample to generate per-ROI
+covered base counts. If the <br>
+results of calcRoiCovg for a sample already exists in the
+output subdirectory roi_covgs, re-calculation is skipped.
+This allows you to run your own calcRoiCovg jobs in parallel
+<br>
+or on multiple machines (Keep reading).</p>
+
+<p style="margin-top: 1em">Speed things up by running
+calcRoiCovg jobs in parallel: If a compute cluster or
+multiple machines are available, run this script twice as
+follows:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Define
+cmd-list-file and cmd-prefix to generate a file with
+commands that can be submitted to a cluster or run manually.
+These jobs will write per-ROI base counts in a <br>
+subdirectory roi_covgs.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; After all the
+parallelized calcRoiCovg jobs are completed, run this script
+again to add them up and generate the final per-gene base
+counts in a subdirectory gene_covgs. <br>
+Remember to remove the cmd-list-file and cmd-prefix
+arguments or you will just be re-creating a list of
+commands.</p>
+
+<p style="margin-top: 1em">ARGUMENTS <br>
+--roi-file <br>
+The regions of interest (ROIs) of each gene are typically
+regions targeted for sequencing or are merged exon loci
+(from multiple transcripts) of genes with 2-bp flanks <br>
+(splice junctions). ROIs from the same chromosome must be
+listed adjacent to each other in this file. This allows the
+underlying C-based code to run much more efficiently and
+<br>
+avoid re-counting bases seen in overlapping ROIs (for
+overall covered base counts). For per-gene base counts, an
+overlapping base will be counted each time it appears in an
+<br>
+ROI of the same gene. To avoid this, be sure to merge
+together overlapping ROIs of the same gene. BEDtools&rsquo;
+mergeBed can help if used per gene. <br>
+--reference-sequence <br>
+The reference sequence in FASTA format. If a reference
+sequence index is not found next to this file (a .fai file),
+it will be created. <br>
+--bam-list <br>
+Provide a file containing sample names and normal/tumor BAM
+locations for each. Use the tab- delimited format
+[sample_name normal_bam tumor_bam] per line. Additional
+columns <br>
+like clinical data are allowed, but ignored. The sample_name
+must be the same as the tumor sample names used in the MAF
+file (16th column, with the header <br>
+Tumor_Sample_Barcode). <br>
+--output-dir <br>
+Specify an output directory where the following will be
+created/written: roi_covgs: Subdirectory containing per-ROI
+covered base counts for each sample. gene_covgs: <br>
+Subdirectory containing per-gene covered base counts for
+each sample. total_covgs: File containing the overall
+non-overlapping coverages per sample. <br>
+--cmd-list-file <br>
+Specify a file into which a list of calcRoiCovg jobs will be
+written to. These can be scheduled in parallel, and will
+write per-ROI covered base-counts into the output <br>
+subdirectory roi_covgs. If cmd-list-file is left
+unspecified, this script runs calcRoiCovg per sample one
+after another, taking ~30 mins per sample, but it skips
+samples <br>
+whose output is already in roi_covgs. <br>
+--cmd-prefix <br>
+Specify a job submission command that will be prefixed to
+each command in cmd-list-file. This makes batch submission
+easier. Just run the cmd-list-file file as a shell script
+<br>
+to submit jobs. cmd-prefix is &quot;bsub&quot; if your
+cluster uses the LSF job scheduler, or &quot;qsub&quot; in
+Torque. Add arguments as necessary. For example, &quot;bsub
+-M 4GB&quot; sets a soft <br>
+memory limit of 4GB.</p>
+
+<p style="margin-top: 1em">LICENSE <br>
+Copyright (C) 2010-2011 Washington University in St.
+Louis.</p>
+
+<p style="margin-top: 1em">It is released under the Lesser
+GNU Public License (LGPL) version 3. See the associated
+LICENSE file in this distribution.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Cyriac Kandoth, Ph.D.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+genome-music-bmr(1), genome-music(1), genome(1)</p>
+
+<p style="margin-top: 1em">perl v5.22.1 2016-01-01
+GMT-MUSIC-BMR-CALC-COVG(1p)</p>
+<hr>
+</body>
+</html>

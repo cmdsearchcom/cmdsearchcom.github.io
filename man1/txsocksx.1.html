@@ -1,0 +1,249 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:41:13 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>TXSOCKSX(1) txsocksx TXSOCKSX(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+txsocksx - txsocksx Documentation</p>
+
+<p style="margin-top: 1em">txsocksx is SOCKS4/4a and SOCKS5
+client endpoints for Twisted 10.1 or greater. The code is
+available on github:
+https://github.com/habnabit/txsocksx</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+These examples assume familiarity with how to use Twisted
+endpoints. For simplicity, most of the examples will use
+SOCKS5.</p>
+
+<p style="margin-top: 1em">Authenticating <br>
+One specifies authentication methods to a
+SOCKS5ClientEndpoint via the methods parameter. For example,
+to connect using the username spam and password eggs:</p>
+
+<p style="margin-top: 1em">exampleEndpoint =
+SOCKS5ClientEndpoint( <br>
+&rsquo;example.com&rsquo;, 6667, proxyEndpoint,
+methods={&rsquo;login&rsquo;: (&rsquo;spam&rsquo;,
+&rsquo;eggs&rsquo;)})</p>
+
+<p style="margin-top: 1em">However, this will disable
+anonymous authentication. To use either login or anonymous
+authentication, specify both methods:</p>
+
+<p style="margin-top: 1em">exampleEndpoint =
+SOCKS5ClientEndpoint( <br>
+&rsquo;example.com&rsquo;, 6667, proxyEndpoint,
+methods={&rsquo;login&rsquo;: (&rsquo;spam&rsquo;,
+&rsquo;eggs&rsquo;), <br>
+&rsquo;anonymous&rsquo;: ()})</p>
+
+<p style="margin-top: 1em">The methods dict must always map
+from a string to a tuple.</p>
+
+<p style="margin-top: 1em">SOCKS4 <br>
+SOCKS4 has no authentication, but does have a configurable
+&quot;user ID&quot; which defaults to an empty string:</p>
+
+<p style="margin-top: 1em">exampleEndpoint =
+SOCKS4ClientEndpoint( <br>
+&rsquo;example.com&rsquo;, 6667, proxyEndpoint,
+user=&rsquo;spam&rsquo;)</p>
+
+<p style="margin-top: 1em">Connecting to a thing over tor
+<br>
+To connect to example.com on port 6667 over tor, one creates
+a SOCKS5ClientEndpoint wrapping the endpoint of the tor
+server:</p>
+
+<p style="margin-top: 1em">torServerEndpoint =
+TCP4ClientEndpoint(reactor, &rsquo;127.0.0.1&rsquo;, 9050)
+<br>
+exampleEndpoint =
+SOCKS5ClientEndpoint(&rsquo;example.com&rsquo;, 6667,
+torServerEndpoint)</p>
+
+<p style="margin-top: 1em">Establishing the connection from
+there proceeds like usual:</p>
+
+<p style="margin-top: 1em">deferred =
+exampleEndpoint.connect(someFactory)</p>
+
+<p style="margin-top: 1em">txsocksx will not do any DNS
+resolution, so the hostname example.com will not leak; tor
+will receive the hostname directly and do the DNS lookup
+itself.</p>
+
+<p style="margin-top: 1em">Tor allows connections by SOCKS4
+or SOCKS5, and does not expect a user ID to be sent when
+using the SOCKS4 client.</p>
+
+<p style="margin-top: 1em">Cancelling a connection <br>
+Sometimes one tires of waiting and wants to abort the
+connection attempt. For example, to abort the whole
+connection attempt after ten seconds:</p>
+
+<p style="margin-top: 1em">torServerEndpoint =
+TCP4ClientEndpoint(reactor, &rsquo;127.0.0.1&rsquo;, 9050)
+<br>
+exampleEndpoint =
+SOCKS5ClientEndpoint(&rsquo;example.com&rsquo;, 6667,
+torServerEndpoint) <br>
+deferred = exampleEndpoint.connect(someFactory) <br>
+reactor.callLater(10, deferred.cancel)</p>
+
+<p style="margin-top: 1em">This is a trivial example; real
+code should cancel the IDelayedCall returned by
+reactor.callLater when the deferred fires. The code would
+then look like this:</p>
+
+<p style="margin-top: 1em">torServerEndpoint =
+TCP4ClientEndpoint(reactor, &rsquo;127.0.0.1&rsquo;, 9050)
+<br>
+exampleEndpoint =
+SOCKS5ClientEndpoint(&rsquo;example.com&rsquo;, 6667,
+torServerEndpoint) <br>
+deferred = exampleEndpoint.connect(someFactory) <br>
+canceler = reactor.callLater(10, deferred.cancel)</p>
+
+<p style="margin-top: 1em">def cancelCanceler(result): <br>
+if canceler.active(): <br>
+canceler.cancel() <br>
+return result <br>
+deferred.addBoth(cancelCanceler)</p>
+
+<p style="margin-top: 1em">Making HTTP requests <br>
+Twisted&rsquo;s builtin Agent HTTP client did not support
+being handed an arbitrary endpoint before 15.0, so txsocksx
+provides an Agent for maximum compatibility.</p>
+
+<p style="margin-top: 1em">While txsocksx requires only
+Twisted 10.1, txsocksx.http requires Twisted 12.1 or
+greater. Its usage is almost identical to normal Agent
+usage:</p>
+
+<p style="margin-top: 1em">torServerEndpoint =
+TCP4ClientEndpoint(reactor, &rsquo;127.0.0.1&rsquo;, 9050)
+<br>
+agent = SOCKS5Agent(reactor,
+proxyEndpoint=torServerEndpoint) <br>
+deferred = agent.request(&rsquo;GET&rsquo;,
+&rsquo;http://example.com/&rsquo;)</p>
+
+<p style="margin-top: 1em">Note that the proxyEndpoint
+parameter must be passed as a keyword argument. There is a
+second, optional, keyword-only argument for passing
+additional arguments to the <br>
+SOCKS5ClientEndpoint as SOCKS5Agent constructs it:</p>
+
+<p style="margin-top: 1em">torServerEndpoint =
+TCP4ClientEndpoint(reactor, &rsquo;127.0.0.1&rsquo;, 9050)
+<br>
+agent = SOCKS5Agent(reactor,
+proxyEndpoint=torServerEndpoint, <br>
+endpointArgs=dict(methods={&rsquo;login&rsquo;:
+(&rsquo;spam&rsquo;, &rsquo;eggs&rsquo;)})) <br>
+deferred = agent.request(&rsquo;GET&rsquo;,
+&rsquo;http://example.com/&rsquo;)</p>
+
+<p style="margin-top: 1em">SOCKS5Agent transparently
+supports HTTPS via TLSWrapClientEndpoint.</p>
+
+<p style="margin-top: 1em">For users with Twisted 15.0 or
+greater, SOCKS5Agent also implements
+IAgentEndpointFactory.</p>
+
+<p style="margin-top: 1em">Upgrading to TLS <br>
+Sometimes one wants to switch to speaking TLS as soon as the
+proxy negotiation is finished. For that, there is
+txsocksx.tls. After wrapping an endpoint with <br>
+TLSWrapClientEndpoint, the connection will be upgraded to
+using TLS immediately after proxy negotiation finishes:</p>
+
+<p style="margin-top: 1em">torServerEndpoint =
+TCP4ClientEndpoint(reactor, &rsquo;127.0.0.1&rsquo;, 9050)
+<br>
+exampleEndpoint =
+SOCKS5ClientEndpoint(&rsquo;example.com&rsquo;, 6667,
+torServerEndpoint) <br>
+tlsEndpoint = TLSWrapClientEndpoint(exampleEndpoint) <br>
+deferred = tlsEndpoint.connect(someFactory)</p>
+
+<p style="margin-top: 1em">Proxying over a proxy <br>
+Because of txsocksx&rsquo;s composable design, it&rsquo;s
+trivial to connect from one SOCKS proxy to another:</p>
+
+<p style="margin-top: 1em">torServerEndpoint =
+TCP4ClientEndpoint(reactor, &rsquo;127.0.0.1&rsquo;, 9050)
+<br>
+firstProxyEndpoint = SOCKS5ClientEndpoint( <br>
+&rsquo;first-proxy.example.com&rsquo;, 1080,
+torServerEndpoint) <br>
+secondProxyEndpoint = SOCKS4ClientEndpoint( <br>
+&rsquo;second-proxy.example.com&rsquo;, 1080,
+firstProxyEndpoint) <br>
+finalHop = SOCKS5ClientEndpoint( <br>
+&rsquo;example.com&rsquo;, 113, secondProxyEndpoint) <br>
+deferred = finalHop.connect(someFactory)</p>
+
+<p style="margin-top: 1em">API <br>
+txsocksx.client <br>
+txsocksx.http <br>
+txsocksx.tls <br>
+TLS convenience wrappers for endpoints.</p>
+
+<p style="margin-top: 1em">class
+txsocksx.tls.TLSWrapClientEndpoint(contextFactory,
+wrappedEndpoint) <br>
+An endpoint which automatically starts TLS.</p>
+
+<p style="margin-top: 1em">Parameters</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; contextFactory
+-- A ContextFactory instance.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; wrappedEndpoint
+-- The endpoint to wrap.</p>
+
+<p style="margin-top: 1em">connect(fac) <br>
+Connect to the wrapped endpoint, then start TLS.</p>
+
+<p style="margin-top: 1em">The TLS negotiation is done by
+way of wrapping the provided factory with
+TLSMemoryBIOFactory during connection.</p>
+
+<p style="margin-top: 1em">Returns <br>
+A Deferred which fires with the same Protocol as
+wrappedEndpoint.connect(fac) fires with. If that Deferred
+errbacks, so will the returned deferred.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Aaron Gallagher</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+2010-2013, Aaron Gallagher</p>
+
+<p style="margin-top: 1em">1.15.0.2 Feb 11, 2017
+TXSOCKSX(1)</p>
+<hr>
+</body>
+</html>

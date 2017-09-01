@@ -1,0 +1,871 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:16:02 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>guestfs-hacking(1) Virtualization Support
+guestfs-hacking(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+guestfs-hacking - extending and contributing to
+libguestfs</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This manual page is for hackers who want to extend
+libguestfs itself.</p>
+
+<p style="margin-top: 1em">OVERVIEW OF THE SOURCE CODE <br>
+Libguestfs source is located in the github repository
+https://github.com/libguestfs/libguestfs</p>
+
+<p style="margin-top: 1em">Large amounts of boilerplate
+code in libguestfs (RPC, bindings, documentation) are
+generated. This means that many source files will appear to
+be missing from a straightforward <br>
+git checkout. You have to run the generator
+(&quot;./autogen.sh &amp;&amp; make -C generator&quot;) in
+order to create those files.</p>
+
+<p style="margin-top: 1em">Libguestfs uses an
+autotools-based build system, with the main files being
+configure.ac and Makefile.am. The generator subdirectory
+contains the generator, plus files describing <br>
+the API. The src subdirectory contains source for the
+library. The appliance and daemon subdirectories contain the
+source for the code that builds the appliance, and the code
+<br>
+that runs in the appliance respectively. Other directories
+are covered in the section &quot;SOURCE CODE
+SUBDIRECTORIES&quot; below.</p>
+
+<p style="margin-top: 1em">Apart from the fact that all API
+entry points go via some generated code, the library is
+straightforward. (In fact, even the generated code is
+designed to be readable, and <br>
+should be read as ordinary code). Some actions run entirely
+in the library, and are written as C functions in files
+under src. Others are forwarded to the daemon where (after
+<br>
+some generated RPC marshalling) they appear as C functions
+in files under daemon.</p>
+
+<p style="margin-top: 1em">To build from source, first read
+the &quot;README&quot; file.</p>
+
+<p style="margin-top: 1em">local* FILES <br>
+Files in the top source directory that begin with the prefix
+local* are ignored by git. These files can contain local
+configuration or scripts that you need to build
+libguestfs.</p>
+
+<p style="margin-top: 1em">By convention, I have a file
+called localconfigure which is a simple wrapper around
+autogen.sh containing local configure customizations that I
+need:</p>
+
+<p style="margin-top: 1em">. localenv <br>
+./autogen.sh --with-default-backend=libvirt
+--enable-gcc-warnings --enable-gtk-doc -C &quot;$@&quot;</p>
+
+<p style="margin-top: 1em">So I can use this to build
+libguestfs:</p>
+
+<p style="margin-top: 1em">./localconfigure &amp;&amp;
+make</p>
+
+<p style="margin-top: 1em">If there is a file in the top
+build directory called localenv, then it will be sourced by
+&quot;make&quot;. This file can contain any local
+environment variables needed, eg. for skipping <br>
+tests:</p>
+
+<p style="margin-top: 1em"># Use an alternate python
+binary. <br>
+export PYTHON=python3 <br>
+# Skip this test, it is broken. <br>
+export SKIP_TEST_BTRFS_FSCK=1</p>
+
+<p style="margin-top: 1em">Note that localenv is included
+by the top Makefile (so it&rsquo;s a Makefile fragment). But
+if it is also sourced by your localconfigure script then it
+is used as a shell script.</p>
+
+<p style="margin-top: 1em">ADDING A NEW API ACTION <br>
+Because large amounts of boilerplate code in libguestfs are
+generated, this makes it easy to extend the libguestfs
+API.</p>
+
+<p style="margin-top: 1em">To add a new API action there
+are two changes:</p>
+
+<p style="margin-top: 1em">1. You need to add a description
+of the call (name, parameters, return type, tests,
+documentation) to generator/actions.ml.</p>
+
+<p style="margin-top: 1em">There are two sorts of API
+action, depending on whether the call goes through to the
+daemon in the appliance, or is serviced entirely by the
+library (see &quot;ARCHITECTURE&quot; in <br>
+guestfs-internals(3)). &quot;guestfs_sync&quot; in
+guestfs(3) is an example of the former, since the sync is
+done in the appliance. &quot;guestfs_set_trace&quot; in
+guestfs(3) is an example of <br>
+the latter, since a trace flag is maintained in the handle
+and all tracing is done on the library side.</p>
+
+<p style="margin-top: 1em">Most new actions are of the
+first type, and get added to the
+&quot;daemon_functions&quot; list. Each function has a
+unique procedure number used in the RPC protocol which is
+assigned <br>
+to that action when we publish libguestfs and cannot be
+reused. Take the latest procedure number and increment
+it.</p>
+
+<p style="margin-top: 1em">For library-only actions of the
+second type, add to the &quot;non_daemon_functions&quot;
+list. Since these functions are serviced by the library and
+do not travel over the RPC <br>
+mechanism to the daemon, these functions do not need a
+procedure number, and so the procedure number is set to
+&quot;-1&quot;.</p>
+
+<p style="margin-top: 1em">2. Implement the action (in
+C):</p>
+
+<p style="margin-top: 1em">For daemon actions, implement
+the function &quot;do_&lt;name&gt;&quot; in the
+&quot;daemon/&quot; directory.</p>
+
+<p style="margin-top: 1em">For library actions, implement
+the function &quot;guestfs_impl_&lt;name&gt;&quot; in the
+&quot;src/&quot; directory.</p>
+
+<p style="margin-top: 1em">In either case, use another
+function as an example of what to do.</p>
+
+<p style="margin-top: 1em">After making these changes, use
+&quot;make&quot; to compile.</p>
+
+<p style="margin-top: 1em">Note that you don&rsquo;t need
+to implement the RPC, language bindings, manual pages or
+anything else. It&rsquo;s all automatically generated from
+the OCaml description.</p>
+
+<p style="margin-top: 1em">ADDING TESTS FOR AN API ACTION
+<br>
+You can supply zero or as many tests as you want per API
+call. The tests can either be added as part of the API
+description (generator/actions.ml), or in some rarer cases
+you <br>
+may want to drop a script into &quot;tests/*/&quot;. Note
+that adding a script to &quot;tests/*/&quot; is slower, so
+if possible use the first method.</p>
+
+<p style="margin-top: 1em">The following describes the test
+environment used when you add an API test in actions.ml.</p>
+
+<p style="margin-top: 1em">The test environment has 4 block
+devices:</p>
+
+<p style="margin-top: 1em">/dev/sda 2 GB <br>
+General block device for testing.</p>
+
+<p style="margin-top: 1em">/dev/sdb 2 GB <br>
+/dev/sdb1 is an ext2 filesystem used for testing filesystem
+write operations.</p>
+
+<p style="margin-top: 1em">/dev/sdc 10 MB <br>
+Used in a few tests where two block devices are needed.</p>
+
+<p style="margin-top: 1em">/dev/sdd <br>
+ISO with fixed content (see images/test.iso).</p>
+
+<p style="margin-top: 1em">To be able to run the tests in a
+reasonable amount of time, the libguestfs appliance and
+block devices are reused between tests. So don&rsquo;t try
+testing &quot;guestfs_kill_subprocess&quot; <br>
+in guestfs(3) :-x</p>
+
+<p style="margin-top: 1em">Each test starts with an initial
+scenario, selected using one of the &quot;Init*&quot;
+expressions, described in generator/types.ml. These
+initialize the disks mentioned above in a <br>
+particular way as documented in types.ml. You should not
+assume anything about the previous contents of other disks
+that are not initialized.</p>
+
+<p style="margin-top: 1em">You can add a prerequisite
+clause to any individual test. This is a run-time check,
+which, if it fails, causes the test to be skipped. Useful if
+testing a command which might <br>
+not work on all variations of libguestfs builds. A test that
+has prerequisite of &quot;Always&quot; means to run
+unconditionally.</p>
+
+<p style="margin-top: 1em">In addition, packagers can skip
+individual tests by setting environment variables before
+running &quot;make check&quot;.</p>
+
+
+<p style="margin-top: 1em">SKIP_TEST_&lt;CMD&gt;_&lt;NUM&gt;=1</p>
+
+<p style="margin-top: 1em">eg:
+&quot;SKIP_TEST_COMMAND_3=1&quot; skips test #3 of
+&quot;guestfs_command&quot; in guestfs(3).</p>
+
+<p style="margin-top: 1em">or:</p>
+
+<p style="margin-top: 1em">SKIP_TEST_&lt;CMD&gt;=1</p>
+
+<p style="margin-top: 1em">eg:
+&quot;SKIP_TEST_ZEROFREE=1&quot; skips all
+&quot;guestfs_zerofree&quot; in guestfs(3) tests.</p>
+
+<p style="margin-top: 1em">Packagers can run only certain
+tests by setting for example:</p>
+
+<p style="margin-top: 1em">TEST_ONLY=&quot;vfs_type
+zerofree&quot;</p>
+
+<p style="margin-top: 1em">See tests/c-api/tests.c for more
+details of how these environment variables work.</p>
+
+<p style="margin-top: 1em">DEBUGGING NEW API ACTIONS <br>
+Test new actions work before submitting them.</p>
+
+<p style="margin-top: 1em">You can use guestfish to try out
+new commands.</p>
+
+<p style="margin-top: 1em">Debugging the daemon is a
+problem because it runs inside a minimal environment.
+However you can fprintf messages in the daemon to stderr,
+and they will show up if you use <br>
+&quot;guestfish -v&quot;.</p>
+
+<p style="margin-top: 1em">ADDING A NEW LANGUAGE BINDING
+<br>
+All language bindings must be generated by the generator
+(see the generator subdirectory).</p>
+
+<p style="margin-top: 1em">There is no documentation for
+this yet. We suggest you look at an existing binding, eg.
+generator/ocaml.ml or generator/perl.ml.</p>
+
+<p style="margin-top: 1em">ADDING TESTS FOR LANGUAGE
+BINDINGS <br>
+Language bindings should come with tests. Previously testing
+of language bindings was rather ad-hoc, but we have been
+trying to formalize the set of tests that every language
+<br>
+binding should use.</p>
+
+<p style="margin-top: 1em">Currently only the OCaml and
+Perl bindings actually implement the full set of tests, and
+the OCaml bindings are canonical, so you should emulate what
+the OCaml tests do.</p>
+
+<p style="margin-top: 1em">This is the numbering scheme
+used by the tests:</p>
+
+<p style="margin-top: 1em">- 000+ basic tests:</p>
+
+<p style="margin-top: 1em">010 load the library <br>
+020 create <br>
+030 create-flags <br>
+040 create multiple handles <br>
+050 test setting and getting config properties <br>
+060 explicit close <br>
+065 implicit close (in GC&rsquo;d languages) <br>
+070 optargs <br>
+080 version</p>
+
+<p style="margin-top: 1em">- 100 launch, create partitions
+and LVs and filesystems</p>
+
+<p style="margin-top: 1em">- 400+ events:</p>
+
+<p style="margin-top: 1em">410 close event <br>
+420 log messages <br>
+430 progress messages</p>
+
+<p style="margin-top: 1em">- 800+ regression tests
+(specific to the language)</p>
+
+<p style="margin-top: 1em">- 900+ any other custom tests
+for the language</p>
+
+<p style="margin-top: 1em">To save time when running the
+tests, only 100, 430, 800+, 900+ should launch the
+handle.</p>
+
+<p style="margin-top: 1em">FORMATTING CODE <br>
+Our C source code generally adheres to some basic
+code-formatting conventions. The existing code base is not
+totally consistent on this front, but we do prefer that
+contributed <br>
+code be formatted similarly. In short, use spaces-not-TABs
+for indentation, use 2 spaces for each indentation level,
+and other than that, follow the K&amp;R style.</p>
+
+<p style="margin-top: 1em">If you use Emacs, add the
+following to one of one of your start-up files (e.g.,
+~/.emacs), to help ensure that you get indentation
+right:</p>
+
+<p style="margin-top: 1em">;;; In libguestfs, indent with
+spaces everywhere (not TABs). <br>
+;;; Exceptions: Makefile and ChangeLog modes. <br>
+(add-hook &rsquo;find-file-hook <br>
+&rsquo;(lambda () (if (and buffer-file-name <br>
+(string-match &quot;/libguestfs\&gt;&quot; <br>
+(buffer-file-name)) <br>
+(not (string-equal mode-name &quot;Change Log&quot;)) <br>
+(not (string-equal mode-name &quot;Makefile&quot;))) <br>
+(setq indent-tabs-mode nil))))</p>
+
+<p style="margin-top: 1em">;;; When editing C sources in
+libguestfs, use this style. <br>
+(defun libguestfs-c-mode () <br>
+&quot;C mode with adjusted defaults for use with
+libguestfs.&quot; <br>
+(interactive) <br>
+(c-set-style &quot;K&amp;R&quot;) <br>
+(setq c-indent-level 2) <br>
+(setq c-basic-offset 2)) <br>
+(add-hook &rsquo;c-mode-hook <br>
+&rsquo;(lambda () (if (string-match
+&quot;/libguestfs\&gt;&quot; <br>
+(buffer-file-name)) <br>
+(libguestfs-c-mode))))</p>
+
+<p style="margin-top: 1em">TESTING YOUR CHANGES <br>
+Turn warnings into errors when developing to make warnings
+hard to ignore:</p>
+
+<p style="margin-top: 1em">./configure --enable-werror</p>
+
+<p style="margin-top: 1em">Useful targets are:</p>
+
+<p style="margin-top: 1em">&quot;make check&quot; <br>
+Runs the regular test suite.</p>
+
+<p style="margin-top: 1em">This is implemented using the
+regular automake &quot;TESTS&quot; target. See the automake
+documentation for details.</p>
+
+<p style="margin-top: 1em">&quot;make check-valgrind&quot;
+<br>
+Runs a subset of the test suite under valgrind.</p>
+
+<p style="margin-top: 1em">See &quot;VALGRIND&quot;
+below.</p>
+
+<p style="margin-top: 1em">&quot;make
+check-valgrind-local-guests&quot; <br>
+Runs a subset of the test suite under valgrind using locally
+installed libvirt guests (read-only).</p>
+
+<p style="margin-top: 1em">&quot;make check-direct&quot;
+<br>
+Runs all tests using default appliance back-end. This only
+has any effect if a non-default backend was selected using
+&quot;./configure --with-default-backend=...&quot;</p>
+
+<p style="margin-top: 1em">&quot;make
+check-valgrind-direct&quot; <br>
+Run a subset of the test suite under valgrind using the
+default appliance back-end.</p>
+
+<p style="margin-top: 1em">&quot;make check-uml&quot; <br>
+Runs all tests using the User-Mode Linux backend.</p>
+
+<p style="margin-top: 1em">As there is no standard location
+for the User-Mode Linux kernel, you have to set
+&quot;LIBGUESTFS_HV&quot; to point to the kernel image,
+eg:</p>
+
+<p style="margin-top: 1em">make check-uml
+LIBGUESTFS_HV=~/d/linux-um/vmlinux</p>
+
+<p style="margin-top: 1em">&quot;make
+check-valgrind-uml&quot; <br>
+Runs all tests using the User-Mode Linux backend, under
+valgrind.</p>
+
+<p style="margin-top: 1em">As above, you have to set
+&quot;LIBGUESTFS_HV&quot; to point to the kernel.</p>
+
+<p style="margin-top: 1em">&quot;make
+check-with-upstream-qemu&quot; <br>
+Runs all tests using a local qemu binary. It looks for the
+qemu binary in QEMUDIR (defaults to $HOME/d/qemu), but you
+can set this to another directory on the command line, <br>
+eg:</p>
+
+<p style="margin-top: 1em">make check-with-upstream-qemu
+QEMUDIR=/usr/src/qemu</p>
+
+<p style="margin-top: 1em">&quot;make
+check-with-upstream-libvirt&quot; <br>
+Runs all tests using a local libvirt. This only has any
+effect if the libvirt backend was selected using
+&quot;./configure --with-default-backend=libvirt&quot;</p>
+
+<p style="margin-top: 1em">It looks for libvirt in
+LIBVIRTDIR (defaults to $HOME/d/libvirt), but you can set
+this to another directory on the command line, eg:</p>
+
+<p style="margin-top: 1em">make check-with-upstream-libvirt
+LIBVIRTDIR=/usr/src/libvirt</p>
+
+<p style="margin-top: 1em">&quot;make check-slow&quot; <br>
+Runs some slow/long-running tests which are not run by
+default.</p>
+
+<p style="margin-top: 1em">To mark a test as
+slow/long-running:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Add it to the
+list of &quot;TESTS&quot; in the Makefile.am, just like a
+normal test.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Modify the test
+so it checks if the &quot;SLOW=1&quot; environment variable
+is set, and if not set it skips (ie. returns with exit code
+77).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Add a variable
+&quot;SLOW_TESTS&quot; to the Makefile.am listing the slow
+tests.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Add a rule to
+the Makefile.am:</p>
+
+<p style="margin-top: 1em">check-slow: <br>
+$(MAKE) check TESTS=&quot;$(SLOW_TESTS)&quot; SLOW=1</p>
+
+<p style="margin-top: 1em">&quot;make check-all&quot; <br>
+Equivalent to running all &quot;make check*&quot; rules.</p>
+
+<p style="margin-top: 1em">&quot;make check-release&quot;
+<br>
+Runs a subset of &quot;make check*&quot; rules that are
+required to pass before a tarball can be released. Currently
+this is:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; check</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+check-valgrind</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; check-direct</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+check-valgrind-direct</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; check-slow</p>
+
+<p style="margin-top: 1em">&quot;make installcheck&quot;
+<br>
+Run &quot;make check&quot; on the installed copy of
+libguestfs.</p>
+
+<p style="margin-top: 1em">The version of installed
+libguestfs being tested, and the version of the libguestfs
+source tree must be the same.</p>
+
+<p style="margin-top: 1em">Do:</p>
+
+<p style="margin-top: 1em">./autogen.sh <br>
+make clean ||: <br>
+make <br>
+make installcheck</p>
+
+<p style="margin-top: 1em">VALGRIND <br>
+When you do &quot;make check-valgrind&quot;, it searches for
+any Makefile.am in the tree that has a
+&quot;check-valgrind:&quot; target and runs it.</p>
+
+<p style="margin-top: 1em">Writing the Makefile.am and
+tests correctly to use valgrind and working with automake
+parallel tests is subtle.</p>
+
+<p style="margin-top: 1em">If your tests are run via a
+shell script wrapper, then in the wrapper use:</p>
+
+<p style="margin-top: 1em">$VG virt-foo</p>
+
+<p style="margin-top: 1em">and in the Makefile.am use:</p>
+
+<p style="margin-top: 1em">check-valgrind: <br>
+make VG=&quot;$(top_builddir)/run @VG@&quot; check</p>
+
+<p style="margin-top: 1em">However, if your binaries run
+directly from the &quot;TESTS&quot; rule, you have to modify
+the Makefile.am like this:</p>
+
+<p style="margin-top: 1em">LOG_COMPILER = $(VG)</p>
+
+<p style="margin-top: 1em">check-valgrind: <br>
+make VG=&quot;@VG@&quot; check</p>
+
+<p style="margin-top: 1em">In either case, check that the
+right program is being tested by examining the tmp/valgrind*
+log files carefully.</p>
+
+<p style="margin-top: 1em">DAEMON CUSTOM PRINTF FORMATTERS
+<br>
+In the daemon code we have created custom printf formatters
+%Q and %R, which are used to do shell quoting.</p>
+
+<p style="margin-top: 1em">%Q Simple shell quoted string.
+Any spaces or other shell characters are escaped for
+you.</p>
+
+<p style="margin-top: 1em">%R Same as %Q except the string
+is treated as a path which is prefixed by the sysroot.</p>
+
+<p style="margin-top: 1em">For example:</p>
+
+<p style="margin-top: 1em">asprintf (&amp;cmd, &quot;cat
+%R&quot;, path);</p>
+
+<p style="margin-top: 1em">would produce &quot;cat
+/sysroot/some&nbsp;path&nbsp;with&nbsp;spaces&quot;</p>
+
+<p style="margin-top: 1em">Note: Do not use these when you
+are passing parameters to the &quot;command{,r,v,rv}()&quot;
+functions. These parameters do NOT need to be quoted because
+they are not passed via the shell <br>
+(instead, straight to exec). You probably want to use the
+&quot;sysroot_path()&quot; function however.</p>
+
+<p style="margin-top: 1em">SUBMITTING YOUR NEW API ACTIONS
+<br>
+Submit patches to the mailing list:
+http://www.redhat.com/mailman/listinfo/libguestfs and CC to
+rjones@redhat.com.</p>
+
+<p style="margin-top: 1em">INTERNATIONALIZATION (I18N)
+SUPPORT <br>
+We support i18n (gettext anyhow) in the library.</p>
+
+<p style="margin-top: 1em">However many messages come from
+the daemon, and we don&rsquo;t translate those at the
+moment. One reason is that the appliance generally has all
+locale files removed from it, because <br>
+they take up a lot of space. So we&rsquo;d have to readd
+some of those, as well as copying our PO files into the
+appliance.</p>
+
+<p style="margin-top: 1em">Debugging messages are never
+translated, since they are intended for the programmers.</p>
+
+<p style="margin-top: 1em">SOURCE CODE SUBDIRECTORIES <br>
+align <br>
+virt-alignment-scan(1) command and documentation.</p>
+
+<p style="margin-top: 1em">appliance <br>
+The libguestfs appliance, build scripts and so on.</p>
+
+<p style="margin-top: 1em">bash <br>
+Bash tab-completion scripts.</p>
+
+<p style="margin-top: 1em">build-aux <br>
+Various build scripts used by autotools.</p>
+
+<p style="margin-top: 1em">builder <br>
+virt-builder(1) command and documentation.</p>
+
+<p style="margin-top: 1em">cat The virt-cat(1),
+virt-filesystems(1), virt-log(1) and virt-ls(1) commands and
+documentation.</p>
+
+<p style="margin-top: 1em">contrib <br>
+Outside contributions, experimental parts.</p>
+
+<p style="margin-top: 1em">customize <br>
+virt-customize(1) command and documentation.</p>
+
+<p style="margin-top: 1em">daemon <br>
+The daemon that runs inside the libguestfs appliance and
+carries out actions.</p>
+
+<p style="margin-top: 1em">df virt-df(1) command and
+documentation.</p>
+
+<p style="margin-top: 1em">dib virt-dib(1) command and
+documentation.</p>
+
+<p style="margin-top: 1em">diff <br>
+virt-diff(1) command and documentation.</p>
+
+<p style="margin-top: 1em">docs <br>
+Miscellaneous manual pages.</p>
+
+<p style="margin-top: 1em">edit <br>
+virt-edit(1) command and documentation.</p>
+
+<p style="margin-top: 1em">examples <br>
+C API example code.</p>
+
+<p style="margin-top: 1em">fish <br>
+guestfish(1), the command-line shell, and various shell
+scripts built on top such as virt-copy-in(1),
+virt-copy-out(1), virt-tar-in(1), virt-tar-out(1).</p>
+
+<p style="margin-top: 1em">format <br>
+virt-format(1) command and documentation.</p>
+
+<p style="margin-top: 1em">fuse <br>
+guestmount(1), FUSE (userspace filesystem) built on top of
+libguestfs.</p>
+
+<p style="margin-top: 1em">generator <br>
+The crucially important generator, used to automatically
+generate large amounts of boilerplate C code for things like
+RPC and bindings.</p>
+
+<p style="margin-top: 1em">get-kernel <br>
+virt-get-kernel(1) command and documentation.</p>
+
+<p style="margin-top: 1em">gnulib <br>
+Gnulib is used as a portability library. A copy of gnulib is
+included under here.</p>
+
+<p style="margin-top: 1em">inspector <br>
+virt-inspector(1), the virtual machine image inspector.</p>
+
+<p style="margin-top: 1em">logo <br>
+Logo used on the website. The fish is called Arthur by the
+way.</p>
+
+<p style="margin-top: 1em">m4 M4 macros used by
+autoconf.</p>
+
+<p style="margin-top: 1em">make-fs <br>
+virt-make-fs(1) command and documentation.</p>
+
+<p style="margin-top: 1em">mllib <br>
+Various libraries and common code used by virt-resize(1) and
+the other tools which are written in OCaml.</p>
+
+<p style="margin-top: 1em">p2v virt-p2v(1) command,
+documentation and scripts for building the virt-p2v ISO or
+disk image.</p>
+
+<p style="margin-top: 1em">po Translations of simple
+gettext strings.</p>
+
+<p style="margin-top: 1em">po-docs <br>
+The build infrastructure and PO files for translations of
+manpages and POD files. Eventually this will be combined
+with the po directory, but that is rather complicated.</p>
+
+<p style="margin-top: 1em">rescue <br>
+virt-rescue(1) command and documentation.</p>
+
+<p style="margin-top: 1em">resize <br>
+virt-resize(1) command and documentation.</p>
+
+<p style="margin-top: 1em">sparsify <br>
+virt-sparsify(1) command and documentation.</p>
+
+<p style="margin-top: 1em">src Source code to the C
+library.</p>
+
+<p style="margin-top: 1em">sysprep <br>
+virt-sysprep(1) command and documentation.</p>
+
+<p style="margin-top: 1em">tests <br>
+Tests.</p>
+
+<p style="margin-top: 1em">test-data <br>
+Files and other test data used by the tests.</p>
+
+<p style="margin-top: 1em">test-tool <br>
+Test tool for end users to test if their qemu/kernel
+combination will work with libguestfs.</p>
+
+<p style="margin-top: 1em">tmp Used for temporary files
+when running the tests (instead of /tmp etc). The reason is
+so that you can run multiple parallel tests of libguestfs
+without having one set of <br>
+tests overwriting the appliance created by another.</p>
+
+<p style="margin-top: 1em">tools <br>
+Command line tools written in Perl (virt-win-reg(1) and many
+others).</p>
+
+<p style="margin-top: 1em">utils <br>
+Miscellaneous utilities, such as
+&quot;boot-benchmark&quot;.</p>
+
+<p style="margin-top: 1em">v2v virt-v2v(1) command and
+documentation.</p>
+
+<p style="margin-top: 1em">website <br>
+The http://libguestfs.org website files.</p>
+
+<p style="margin-top: 1em">csharp <br>
+erlang <br>
+gobject <br>
+golang <br>
+haskell <br>
+java <br>
+lua <br>
+ocaml <br>
+php <br>
+perl <br>
+python <br>
+ruby <br>
+Language bindings.</p>
+
+<p style="margin-top: 1em">MAKING A STABLE RELEASE <br>
+When we make a stable release, there are several steps
+documented here. See &quot;LIBGUESTFS VERSION NUMBERS&quot;
+in guestfs(3) for general information about the stable
+branch policy.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Check &quot;make
+&amp;&amp; make check&quot; works on at least Fedora, Debian
+and Ubuntu.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Check
+&quot;./configure --without-libvirt&quot; works.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Finalize
+guestfs-release-notes.pod</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Push and pull
+from Zanata.</p>
+
+<p style="margin-top: 1em">Run:</p>
+
+<p style="margin-top: 1em">zanata push</p>
+
+<p style="margin-top: 1em">to push the latest POT files to
+Zanata. Then run:</p>
+
+<p style="margin-top: 1em">./zanata-pull.sh</p>
+
+<p style="margin-top: 1em">which is a wrapper to pull the
+latest translated *.po files.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Consider
+updating gnulib to latest upstream version.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Create new
+stable and development directories under
+http://libguestfs.org/download.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Edit
+website/index.html.in.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Set the version
+(in configure.ac) to the new stable version, ie. 1.XX.0, and
+commit it:</p>
+
+<p style="margin-top: 1em">./localconfigure <br>
+make distclean -k <br>
+./localconfigure <br>
+make &amp;&amp; make dist <br>
+make maintainer-commit <br>
+make maintainer-tag</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Create the
+stable branch in git:</p>
+
+<p style="margin-top: 1em">git branch stable-1.XX <br>
+git push origin stable-1.XX</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Do a full
+release of the stable branch.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Set the version
+to the next development version and commit that. Optionally
+do a full release of the development branch.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+guestfs(3), guestfs-examples(3), guestfs-internals(3),
+guestfs-performance(1), guestfs-release-notes(1),
+guestfs-testing(1), libguestfs-test-tool(1), <br>
+libguestfs-make-fixed-appliance(1),
+http://libguestfs.org/.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Richard W.M. Jones (&quot;rjones at redhat dot
+com&quot;)</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright (C) 2009-2016 Red Hat Inc.</p>
+
+<p style="margin-top: 1em">LICENSE <br>
+This library is free software; you can redistribute it
+and/or modify it under the terms of the GNU Lesser General
+Public License as published by the Free Software Foundation;
+<br>
+either version 2 of the License, or (at your option) any
+later version.</p>
+
+<p style="margin-top: 1em">This library is distributed in
+the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR <br>
+PURPOSE. See the GNU Lesser General Public License for more
+details.</p>
+
+<p style="margin-top: 1em">You should have received a copy
+of the GNU Lesser General Public License along with this
+library; if not, write to the Free Software Foundation,
+Inc., 51 Franklin Street, Fifth <br>
+Floor, Boston, MA 02110-1301 USA</p>
+
+<p style="margin-top: 1em">BUGS <br>
+To get a list of bugs against libguestfs, use this link:
+https://bugzilla.redhat.com/buglist.cgi?component=libguestfs&amp;product=Virtualization+Tools</p>
+
+<p style="margin-top: 1em">To report a new bug against
+libguestfs, use this link:
+https://bugzilla.redhat.com/enter_bug.cgi?component=libguestfs&amp;product=Virtualization+Tools</p>
+
+<p style="margin-top: 1em">When reporting a bug, please
+supply:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The version of
+libguestfs.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Where you got
+libguestfs (eg. which Linux distro, compiled from source,
+etc)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Describe the bug
+accurately and give a way to reproduce it.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Run
+libguestfs-test-tool(1) and paste the complete, unedited
+output into the bug report.</p>
+
+<p style="margin-top: 1em">libguestfs-1.32.7 2016-08-08
+guestfs-hacking(1)</p>
+<hr>
+</body>
+</html>

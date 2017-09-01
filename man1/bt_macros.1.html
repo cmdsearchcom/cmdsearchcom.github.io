@@ -1,0 +1,211 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 15:56:26 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>BT_MACROS(1) btparse BT_MACROS(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+bt_macros - accessing and manipulating the btparse macro
+table</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+void bt_add_macro_value (AST * assignment, <br>
+btshort options); <br>
+void bt_add_macro_text (char * macro, <br>
+char * text, <br>
+char * filename, <br>
+int line);</p>
+
+<p style="margin-top: 1em">void bt_delete_macro (char *
+macro); <br>
+void bt_delete_all_macros (void);</p>
+
+<p style="margin-top: 1em">int bt_macro_length (char
+*macro); <br>
+char * bt_macro_text (char * macro, <br>
+char * filename, <br>
+int line);</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+btparse maintains a single table of all macros
+(abbreviations) encountered while parsing BibTeX entries. It
+updates this table whenever it encounters a &quot;macro
+definition&quot; <br>
+(@string) entry, and refers to it whenever a macro is used
+in an entry and needs to be expanded. (Macros are not
+necessarily expanded on input, although this is the default.
+<br>
+See bt_postprocess.) Macro definitions are only cleared when
+btparse&rsquo;s global cleanup function,
+&quot;bt_cleanup()&quot;, is called. Thus, unless you
+explicitly call &quot;bt_delete_macro()&quot; <br>
+or &quot;bt_delete_all_macros()&quot;, macro definitions
+persist for as long as you use the library---usually, the
+lifetime of your process.</p>
+
+<p style="margin-top: 1em">FUNCTIONS <br>
+You can use the following functions to add macros, delete
+them, and query their values---thus interfering with
+btparse&rsquo;s normal operation on the fly.</p>
+
+<p style="margin-top: 1em">bt_add_macro_text () <br>
+void bt_add_macro_text (char * macro, <br>
+char * text, <br>
+char * filename, <br>
+int line);</p>
+
+<p style="margin-top: 1em">Defines a new macro, or
+redefines an old one. &quot;macro&quot; is the name of the
+macro, and &quot;text&quot; is the text it should expand to.
+&quot;filename&quot; and &quot;line&quot; are just used to
+generate <br>
+any warnings about the macro definition; if they don&rsquo;t
+apply, specify &quot;NULL&quot; for &quot;filename&quot; and
+0 for &quot;line&quot;. The only such warning occurs when
+you redefine an old macro: <br>
+its value is overridden, and &quot;bt_add_macro_text()&quot;
+issues a warning saying so.</p>
+
+<p style="margin-top: 1em">For instance, when parsing this
+macro definition entry:</p>
+
+<p style="margin-top: 1em">@string{fubar = &quot;Fouled Up
+Beyond All Recognition&quot;}</p>
+
+<p style="margin-top: 1em">the library (in particular, the
+post-processing code called after an entry is successfully
+parsed) will ultimately do this:</p>
+
+<p style="margin-top: 1em">bt_add_macro_text
+(&quot;fubar&quot;, &quot;Fouled Up Beyond All
+Recognition&quot;, <br>
+filename, line);</p>
+
+<p style="margin-top: 1em">This in turn will cause the
+macro &quot;fubar&quot; to be expanded appropriately
+whenever the post-processing code sees it in any future
+entries.</p>
+
+<p style="margin-top: 1em">bt_add_macro_value () <br>
+void bt_add_macro_value (AST * assignment, <br>
+btshort options);</p>
+
+<p style="margin-top: 1em">This function is mainly for
+internal use by the library, but it&rsquo;s available to you
+if you ever find yourself with a little bit of AST
+representing a macro definition, and you <br>
+want to set the macro yourself (rather than letting the
+library&rsquo;s post-processing code take care of it for
+you). &quot;assignment&quot; must be an AST node as returned
+by <br>
+&quot;bt_next_field()&quot;. Unlike most other btparse
+functions that take an &quot;options&quot; argument,
+&quot;options&quot; here tells how the value in
+&quot;assignment&quot; was post-processed. This is <br>
+needed because macro values have to be processed in a
+special way to be valid in future expansions; if this one
+wasn&rsquo;t processed like that,
+&quot;bt_add_macro_value()&quot; will do it <br>
+for you. If you don&rsquo;t know how the value was
+post-processed, just supply 0 for
+&quot;options&quot;---that&rsquo;s guaranteed to describe
+something different from &quot;the right way&quot; for
+macros, <br>
+so the post-processing will be done correctly.</p>
+
+<p style="margin-top: 1em">The processing done to macro
+values is mainly to ensure that we can get away with storing
+just a string in the macro table: macros invoked by the
+macro are themselves <br>
+expanded, and all sub-strings are concatenated. For
+instance, if btparse parses these entries:</p>
+
+<p style="margin-top: 1em">@string{and = &quot; and &quot;}
+<br>
+@string{jim_n_bob = &quot;James Smith&quot; # and #
+&quot;Bob Jones&quot;}</p>
+
+<p style="margin-top: 1em">then the value stored for
+&quot;jim_n_bob&quot; should obviously be the string
+&quot;James Smith and Bob Jones&quot;. To ensure this,
+btparse has to process the value of &quot;and&quot;
+differently from <br>
+most BibTeX strings: in particular, whitespace is not
+collapsed before the string is stored. That way, the correct
+value, &quot; and &quot;, is interpolated into the value of
+<br>
+&quot;jim_n_bob&quot;. Thus, all macro values have
+sub-macros expanded and strings concatenated before they are
+stored, but whitespace is not collapsed until the macro is
+used in a <br>
+regular entry.</p>
+
+<p style="margin-top: 1em">This function calls
+&quot;bt_add_macro_text()&quot;, so the same proviso about
+redefining old macros applies---a warning will be issued,
+and the old value lost.</p>
+
+<p style="margin-top: 1em">bt_delete_macro () <br>
+void bt_delete_macro (char * macro);</p>
+
+<p style="margin-top: 1em">Deletes a macro from the macro
+table. If &quot;macro&quot; isn&rsquo;t defined, takes no
+action.</p>
+
+<p style="margin-top: 1em">bt_delete_all_macros () <br>
+void bt_delete_all_macros (void);</p>
+
+<p style="margin-top: 1em">Deletes all macros from the
+macro table.</p>
+
+<p style="margin-top: 1em">bt_macro_length () <br>
+int bt_macro_length (char *macro);</p>
+
+<p style="margin-top: 1em">Returns the length of a
+macro&rsquo;s expansion text. If the macro is undefined,
+returns 0; no warning is issued.</p>
+
+<p style="margin-top: 1em">bt_macro_text () <br>
+char * bt_macro_text (char * macro, <br>
+char * filename, <br>
+int line);</p>
+
+<p style="margin-top: 1em">Returns the expansion text of a
+macro. If the macro is not defined, issues a warning and
+returns &quot;NULL&quot;. &quot;filename&quot; and
+&quot;line&quot; are used for generating this warning; if
+they <br>
+don&rsquo;t apply (i.e. you&rsquo;re not expanding the macro
+as a result of finding it in some file), supply
+&quot;NULL&quot; for &quot;filename&quot; and 0 for
+&quot;line&quot;.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+btparse</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Greg Ward &lt;gward@python.net&gt;</p>
+
+<p style="margin-top: 1em">btparse, version 0.78 2017-01-10
+BT_MACROS(1)</p>
+<hr>
+</body>
+</html>

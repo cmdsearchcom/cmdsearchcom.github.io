@@ -1,0 +1,648 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:10:14 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>DHCPCD(8) BSD System Manager&rsquo;s Manual
+DHCPCD(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+dhcpcd &acirc; a DHCP client</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+dhcpcd [-146ABbDdEGgHJKLMNPpqTV] [-C, --nohook hook] [-c,
+--script script] [-e, --env value] [-F, --fqdn FQDN] [-f,
+--config file] [-h, --hostname hostname] <br>
+[-I, --clientid clientid] [-i, --vendorclassid
+vendorclassid] [-j, --logfile logfile] [-l, --leasetime
+seconds] [-m, --metric metric] [-O, --nooption option] <br>
+[-o, --option option] [-Q, --require option] [-r, --request
+address] [-S, --static value] [-s, --inform address[/cidr]]
+[--inform6] [-t, --timeout seconds] <br>
+[-u, --userclass class] [-v, --vendor code, value] [-W,
+--whitelist address[/cidr]] [-w] [--waitip [4 | 6]] [-y,
+--reboot seconds] [-X, --blacklist address[/cidr]] <br>
+[-Z, --denyinterfaces pattern] [-z, --allowinterfaces
+pattern] [interface] [...] <br>
+dhcpcd -n, --rebind [interface] <br>
+dhcpcd -k, --release [interface] <br>
+dhcpcd -U, --dumplease interface <br>
+dhcpcd --version <br>
+dhcpcd -x, --exit [interface]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+dhcpcd is an implementation of the DHCP client specified in
+RFC 2131. dhcpcd gets the host information (IP address,
+routes, etc) from a DHCP server and configures the network
+<br>
+interface of the machine on which it is running. dhcpcd then
+runs the configuration script which writes DNS information
+to resolvconf(8), if available, otherwise directly to <br>
+/etc/resolv.conf. If the hostname is currently blank, (null)
+or localhost, or force_hostname is YES or TRUE or 1 then
+dhcpcd sets the hostname to the one supplied by the DHCP
+<br>
+server. dhcpcd then daemonises and waits for the lease
+renewal time to lapse. It will then attempt to renew its
+lease and reconfigure if the new lease changes when the
+lease <br>
+beings to expire or the DHCP server sends message to renew
+early.</p>
+
+<p style="margin-top: 1em">If any interface reports a
+working carrier then dhcpcd will try and obtain a lease
+before forking to the background, otherwise it will fork
+right away. This behaviour can be modi&acirc; <br>
+fied with the -b, --background and -w, --waitip options.</p>
+
+<p style="margin-top: 1em">dhcpcd is also an implementation
+of the BOOTP client specified in RFC 951.</p>
+
+<p style="margin-top: 1em">dhcpcd is also an implementation
+of the IPv6 Router Solicitor as specified in RFC 4861 and
+RFC 6106.</p>
+
+<p style="margin-top: 1em">dhcpcd is also an implementation
+of the IPv6 Privacy Extensions to AutoConf as specified in
+RFC 4941. This feature needs to be enabled in the kernel and
+dhcpcd will start using <br>
+it.</p>
+
+<p style="margin-top: 1em">dhcpcd is also an implementation
+of the DHCPv6 client as specified in RFC 3315. By default,
+dhcpcd only starts DHCPv6 when instructed to do so by an
+IPV6 Router Advertisement. If <br>
+no Identity Association is configured, then a Non-temporary
+Address is requested.</p>
+
+<p style="margin-top: 1em">Local Link configuration <br>
+If dhcpcd failed to obtain a lease, it probes for a valid
+IPv4LL address (aka ZeroConf, aka APIPA). Once obtained it
+restarts the process of looking for a DHCP server to get a
+<br>
+proper address.</p>
+
+<p style="margin-top: 1em">When using IPv4LL, dhcpcd nearly
+always succeeds and returns an exit code of 0. In the rare
+case it fails, it normally means that there is a reverse ARP
+proxy installed which <br>
+always defeats IPv4LL probing. To disable this behaviour,
+you can use the -L, --noipv4ll option.</p>
+
+<p style="margin-top: 1em">Multiple interfaces <br>
+If a list of interfaces are given on the command line, then
+dhcpcd only works with those interfaces, otherwise dhcpcd
+discovers available Ethernet interfaces that can be
+config&acirc; <br>
+ured. When dhcpcd is operating on more than one interface,
+it is called Master mode. and this behaviour can be forced
+with the -M, --master option so that an individual interface
+<br>
+can start dhcpcd but only one instance is running. The
+dhcpcd-ui project expects dhcpcd to be running this way.</p>
+
+<p style="margin-top: 1em">If a single interface is given
+then dhcpcd only works for that interface and runs as a
+separate instance. The -w, --waitip option is enabled in
+this instance to maintain compati&acirc; <br>
+bility with older versions.</p>
+
+<p style="margin-top: 1em">Interfaces are preferred by
+carrier, DHCP lease/IPv4LL and then lowest metric. For
+systems that support route metrics, each route will be
+tagged with the metric, otherwise dhcpcd <br>
+changes the routes to use the interface with the same route
+and the lowest metric. See options below for controlling
+which interfaces we allow and deny through the use of
+pat&acirc; <br>
+terns.</p>
+
+<p style="margin-top: 1em">Hooking into events <br>
+dhcpcd runs /lib/dhcpcd/dhcpcd-run-hooks, or the script
+specified by the -c, --script option. This script runs each
+script found in /lib/dhcpcd/dhcpcd-hooks in a lexical order.
+<br>
+The default installation supplies the scripts 01-test,
+02-dump, 20-resolv.conf and 30-hostname. You can disable
+each script by using the -C, --nohook option. See <br>
+dhcpcd-run-hooks(8) for details on how these scripts work.
+dhcpcd currently ignores the exit code of the script.</p>
+
+<p style="margin-top: 1em">More scripts are supplied in
+/usr/share/dhcpcd/hooks and need to be copied to
+/lib/dhcpcd/dhcpcd-hooks if you intend to use them. For
+example, you could install 10-wpa_supplicant <br>
+so that dhcpcd can ensure that wpa_supplicant(8) is always
+running on a hot-plugged wireless interface.</p>
+
+<p style="margin-top: 1em">Fine tuning <br>
+You can fine-tune the behaviour of dhcpcd with the following
+options:</p>
+
+<p style="margin-top: 1em">-b, --background <br>
+Background immediately. This is useful for startup scripts
+which don&rsquo;t disable link messages for carrier
+status.</p>
+
+<p style="margin-top: 1em">-c, --script script <br>
+Use this script instead of the default
+/lib/dhcpcd/dhcpcd-run-hooks.</p>
+
+<p style="margin-top: 1em">-D, --duid <br>
+Generate an RFC 4361 compliant clientid. This requires
+persistent storage and not all DHCP servers work with it so
+it is not enabled by default. dhcpcd generates the DUID <br>
+and stores it in /etc/dhcpcd.duid. This file should not be
+copied to other hosts.</p>
+
+<p style="margin-top: 1em">-d, --debug <br>
+Echo debug messages to the stderr and syslog.</p>
+
+<p style="margin-top: 1em">-E, --lastlease <br>
+If dhcpcd cannot obtain a lease, then try to use the last
+lease acquired for the interface. If the -p, --persistent
+option is not given then the lease is used if it
+hasn&rsquo;t <br>
+expired.</p>
+
+<p style="margin-top: 1em">-e, --env value <br>
+Push value to the environment for use in
+dhcpcd-run-hooks(8). For example, you can force the hostname
+hook to always set the hostname with -e
+force_hostname=YES.</p>
+
+<p style="margin-top: 1em">-g, --reconfigure <br>
+dhcpcd will re-apply IP address, routing and run
+dhcpcd-run-hooks(8) for each interface. This is useful so
+that a 3rd party such as PPP or VPN can change the routing
+table <br>
+and / or DNS, etc and then instruct dhcpcd to put things
+back afterwards. dhcpcd does not read a new configuration
+when this happens - you should rebind if you need that <br>
+functionality.</p>
+
+<p style="margin-top: 1em">-F, --fqdn fqdn <br>
+Requests that the DHCP server updates DNS using FQDN instead
+of just a hostname. Valid values for fqdn are disable, none,
+ptr and both. dhcpcd itself never does any DNS <br>
+updates. dhcpcd encodes the FQDN hostname as specified in
+RFC1035.</p>
+
+<p style="margin-top: 1em">-f, --config file <br>
+Specify a config to load instead of /etc/dhcpcd.conf. dhcpcd
+always processes the config file before any command line
+options.</p>
+
+<p style="margin-top: 1em">-h, --hostname hostname <br>
+Sends hostname to the DHCP server so it can be registered in
+DNS. If hostname is an empty string then the current system
+hostname is sent. If hostname is a FQDN (ie, con&acirc; <br>
+tains a .) then it will be encoded as such.</p>
+
+<p style="margin-top: 1em">-I, --clientid clientid <br>
+Send the clientid. If the string is of the format 01:02:03
+then it is encoded as hex. For interfaces whose hardware
+address is longer than 8 bytes, or if the clientid is <br>
+an empty string then dhcpcd sends a default clientid of the
+hardware family and the hardware address.</p>
+
+<p style="margin-top: 1em">-i, --vendorclassid
+vendorclassid <br>
+Override the DHCPv4 vendorclassid field sent. The default is
+dhcpcd-&lt;version&gt;:&lt;os&gt;:&lt;machine&gt;:&lt;platform&gt;.
+For example <br>
+dhcpcd-5.5.6:NetBSD-6.99.5:i386:i386 <br>
+If not set then none is sent. Some badly configured DHCP
+servers reject unknown vendorclassids. To work around it,
+try and impersonate Windows by using the MSFT vendor&acirc;
+<br>
+classid.</p>
+
+<p style="margin-top: 1em">-j, --logfile logfile <br>
+Writes to the specified logfile rather than syslog(3). The
+logfile is truncated when opened and is reopened when dhcpcd
+receives the SIGUSR2 signal.</p>
+
+<p style="margin-top: 1em">-k, --release [interface] <br>
+This causes an existing dhcpcd process running on the
+interface to release its lease and de-configure the
+interface regardless of the -p, --persistent option. If no
+<br>
+interface is specified then this applies to all interfaces.
+If no interfaces are left running, dhcpcd will exit.</p>
+
+<p style="margin-top: 1em">-l, --leasetime seconds <br>
+Request a specific lease time in seconds. By default dhcpcd
+does not request any lease time and leaves it in the hands
+of the DHCP server.</p>
+
+<p style="margin-top: 1em">-M, --master <br>
+Start dhcpcd in master mode even if only one interface
+specified on the command line. See the Multiple Interfaces
+section above.</p>
+
+<p style="margin-top: 1em">-m, --metric metric <br>
+Metrics are used to prefer an interface over another one,
+lowest wins. dhcpcd will supply a default metic of 200 +
+if_nametoindex(3). An extra 100 will be added for
+wire&acirc; <br>
+less interfaces.</p>
+
+<p style="margin-top: 1em">-n, --rebind [interface] <br>
+Notifies dhcpcd to reload its configuration and rebind the
+specified interface. If no interface is specified then this
+applies to all interfaces. If dhcpcd is not run&acirc; <br>
+ning, then it starts up as normal. This may also cause
+wpa_supplicant(8) to reload its configuration for each
+interface as well if the relevant hook script has been <br>
+installed.</p>
+
+<p style="margin-top: 1em">-N, --renew [interface] <br>
+Notifies dhcpcd to renew existing addresses on the specified
+interface. If no interface is specified then this applies to
+all interfaces. If dhcpcd is not running, then <br>
+it starts up as normal. Unlike the -n, --rebind option
+above, the configuration for dhcpcd is not reloaded.</p>
+
+<p style="margin-top: 1em">-o, --option option <br>
+Request the DHCP option variable for use in
+/lib/dhcpcd/dhcpcd-run-hooks.</p>
+
+<p style="margin-top: 1em">-p, --persistent <br>
+dhcpcd normally de-configures the interface and
+configuration when it exits. Sometimes, this isn&rsquo;t
+desirable if, for example, you have root mounted over NFS or
+SSH clients <br>
+connect to this host and they need to be notified of the
+host shutting down. You can use this option to stop this
+from happening.</p>
+
+<p style="margin-top: 1em">-r, --request [address] <br>
+Request the address in the DHCP DISCOVER message. There is
+no guarantee this is the address the DHCP server will
+actually give. If no address is given then the first <br>
+address currently assigned to the interface is used.</p>
+
+<p style="margin-top: 1em">-s, --inform [address[/cidr]]
+<br>
+Behaves like -r, --request as above, but sends a DHCP INFORM
+instead of DISCOVER/REQUEST. This does not get a lease as
+such, just notifies the DHCP server of the address <br>
+in use. You should also include the optional cidr network
+number in case the address is not already configured on the
+interface. dhcpcd remains running and pretends it <br>
+has an infinite lease. dhcpcd will not de-configure the
+interface when it exits. If dhcpcd fails to contact a DHCP
+server then it returns a failure instead of falling <br>
+back on IPv4LL.</p>
+
+<p style="margin-top: 1em">--inform6 <br>
+Performs a DHCPv6 Information Request. No address is
+requested or specified, but all other DHCPv6 options are
+allowed. This is normally performed automatically when the
+<br>
+IPv6 Router Advertises that the client should perform this
+operation. This option is only needed when dhcpcd is not
+processing IPv6RA messages and the need for DHCPv6 <br>
+Information Request exists.</p>
+
+<p style="margin-top: 1em">-S, --static value <br>
+Configures a static DHCP value. If you set ip_address then
+dhcpcd will not attempt to obtain a lease and just use the
+value for the address with an infinite lease time.</p>
+
+<p style="margin-top: 1em">Here is an example which
+configures a static address, routes and dns. <br>
+dhcpcd -S ip_address=192.168.0.10/24 -S routers=192.168.0.1
+-S domain_name_servers=192.168.0.1 eth0</p>
+
+<p style="margin-top: 1em">You cannot presently set static
+DHCPv6 values. Use the -e, --env option instead.</p>
+
+<p style="margin-top: 1em">-t, --timeout seconds <br>
+Timeout after seconds, instead of the default 30. A setting
+of 0 seconds causes dhcpcd to wait forever to get a lease.
+If dhcpcd is working on a single interface then <br>
+dhcpcd will exit when a timeout occurs, otherwise dhcpcd
+will fork into the background.</p>
+
+<p style="margin-top: 1em">-u, --userclass class <br>
+Tags the DHCPv4 message with the userclass class. DHCP
+servers use this to give members of the class DHCP options
+other than the default, without having to know things <br>
+like hardware address or hostname.</p>
+
+<p style="margin-top: 1em">-v, --vendor code,value <br>
+Add an encapsulated vendor option. code should be between 1
+and 254 inclusive. To add a raw vendor string, omit code but
+keep the comma. Examples.</p>
+
+<p style="margin-top: 1em">Set the vendor option 01 with an
+IP address. <br>
+dhcpcd -v 01,192.168.0.2 eth0 <br>
+Set the vendor option 02 with a hex code. <br>
+dhcpcd -v 02,01:02:03:04:05 eth0 <br>
+Set the vendor option 03 with an IP address as a string.
+<br>
+dhcpcd -v 03, <br>
+Set un-encapsulated vendor option to hello world. <br>
+dhcpcd -v ,&quot;hello world&quot; eth0</p>
+
+<p style="margin-top: 1em">--version <br>
+Display both program version and copyright information.
+dhcpcd then exits before doing any configuration.</p>
+
+<p style="margin-top: 1em">-w Wait for an address to be
+assigned before forking to the background. Does not take an
+argument, unlike the below option. -fl -waitip option.</p>
+
+<p style="margin-top: 1em">--waitip [4 | 6] <br>
+Wait for an address to be assigned before forking to the
+background. 4 means wait for an IPv4 address to be assigned.
+6 means wait for an IPv6 address to be assigned. If <br>
+no argument is given, dhcpcd will wait for any address
+protocol to be assigned. It is possible to wait for more
+than one address protocol and dhcpcd will only fork to the
+<br>
+background when all waiting conditions are satisfied.</p>
+
+<p style="margin-top: 1em">-x, --exit [interface] <br>
+This will signal an existing dhcpcd process running on the
+interface to exit. If no interface is specified, then the
+above is applied to all interfaces. See the -p, <br>
+--persistent option to control configuration persistence on
+exit, which is enabled by default in dhcpcd.conf(5). dhcpcd
+then waits until this process has exited.</p>
+
+<p style="margin-top: 1em">-y, --reboot seconds <br>
+Allow reboot seconds before moving to the discover phase if
+we have an old lease to use. Allow reboot seconds before
+starting fallback states from the discover phase. <br>
+IPv4LL is started when the first reboot timeout is reached.
+The default is 5 seconds. A setting of 0 seconds causes
+dhcpcd to skip the reboot phase and go straight into <br>
+discover. This has no effect on DHCPv6 other than skipping
+the reboot phase.</p>
+
+<p style="margin-top: 1em">Restricting behaviour <br>
+dhcpcd will try to do as much as it can by default. However,
+there are sometimes situations where you don&rsquo;t want
+the things to be configured exactly how the the DHCP server
+wants. <br>
+Here are some options that deal with turning these bits
+off.</p>
+
+<p style="margin-top: 1em">-1, --oneshot <br>
+Exit after configuring an interface. Use the -w, --waitip
+option to specify which protocol(s) to configure before
+exiting.</p>
+
+<p style="margin-top: 1em">-4, --ipv4only <br>
+Configure IPv4 only.</p>
+
+<p style="margin-top: 1em">-6, --ipv6only <br>
+Configure IPv6 only.</p>
+
+<p style="margin-top: 1em">-A, --noarp <br>
+Don&rsquo;t request or claim the address by ARP. This also
+disables IPv4LL.</p>
+
+<p style="margin-top: 1em">-B, --nobackground <br>
+Don&rsquo;t run in the background when we acquire a lease.
+This is mainly useful for running under the control of
+another process, such as a debugger or a network
+manager.</p>
+
+<p style="margin-top: 1em">-C, --nohook script <br>
+Don&rsquo;t run this hook script. Matches full name, or
+prefixed with 2 numbers optionally ending with .sh.</p>
+
+<p style="margin-top: 1em">So to stop dhcpcd from touching
+your DNS settings you would do:- <br>
+dhcpcd -C resolv.conf eth0</p>
+
+<p style="margin-top: 1em">-G, --nogateway <br>
+Don&rsquo;t set any default routes.</p>
+
+<p style="margin-top: 1em">-H, --xidhwaddr <br>
+Use the last four bytes of the hardware address as the DHCP
+xid instead of a randomly generated number.</p>
+
+<p style="margin-top: 1em">-J, --broadcast <br>
+Instructs the DHCP server to broadcast replies back to the
+client. Normally this is only set for non Ethernet
+interfaces, such as FireWire and InfiniBand. In most <br>
+instances, dhcpcd will set this automatically.</p>
+
+<p style="margin-top: 1em">-K, --nolink <br>
+Don&rsquo;t receive link messages for carrier status. You
+should only have to use this with buggy device drivers or
+running dhcpcd through a network manager.</p>
+
+<p style="margin-top: 1em">-L, --noipv4ll <br>
+Don&rsquo;t use IPv4LL (aka APIPA, aka Bonjour, aka
+ZeroConf).</p>
+
+<p style="margin-top: 1em">-O, --nooption option <br>
+Removes the option from the DHCP message before
+processing.</p>
+
+<p style="margin-top: 1em">-P, -FL -printpidfile <br>
+Print the pidfile dhcpcd will use based on commmand-line
+arguments to stdout.</p>
+
+<p style="margin-top: 1em">-Q, --require option <br>
+Requires the option to be present in all DHCP messages,
+otherwise the message is ignored. To enforce that dhcpcd
+only responds to DHCP servers and not BOOTP servers, you
+<br>
+can -Q dhcp_message_type.</p>
+
+<p style="margin-top: 1em">-q, --quiet <br>
+Quiet dhcpcd on the command line, only warnings and errors
+will be displayed. The messages are still logged though.</p>
+
+<p style="margin-top: 1em">-T, --test <br>
+On receipt of DHCP messages just call
+/lib/dhcpcd/dhcpcd-run-hooks with the reason of TEST which
+echos the DHCP variables found in the message to the
+console. The inter&acirc; <br>
+face configuration isn&rsquo;t touched and neither are any
+configuration files. The rapid_commit option is not sent in
+TEST mode so that the server does not lease an address. <br>
+To test INFORM the interface needs to be configured with the
+desired address before starting dhcpcd.</p>
+
+<p style="margin-top: 1em">-U, --dumplease interface <br>
+Dumps the last lease for the interface to stdout. If
+omitted, standard input is used to read a DHCP wire
+formatted message. Use the -4 or -6 flags to specify an
+address <br>
+family.</p>
+
+<p style="margin-top: 1em">-V, --variables <br>
+Display a list of option codes, the associated variable and
+encoding for use in dhcpcd-run-hooks(8). Variables are
+prefixed with new_ and old_ unless the option number is <br>
+-. Variables without an option are part of the DHCP message
+and cannot be directly requested.</p>
+
+<p style="margin-top: 1em">-W, --whitelist address[/cidr]
+<br>
+Only accept packets from address[/cidr]. -X, --blacklist is
+ignored if -W, --whitelist is set.</p>
+
+<p style="margin-top: 1em">-X, --blacklist address[/cidr]
+<br>
+Ignore all packets from address[/cidr].</p>
+
+<p style="margin-top: 1em">-Z, --denyinterfaces pattern
+<br>
+When discovering interfaces, the interface name must not
+match pattern which is a space or comma separated list of
+patterns passed to fnmatch(3).</p>
+
+<p style="margin-top: 1em">-z, --allowinterfaces pattern
+<br>
+When discovering interfaces, the interface name must match
+pattern which is a space or comma separated list of patterns
+passed to fnmatch(3). If the same interface is <br>
+matched in -Z, --denyinterfaces then it is still denied.</p>
+
+<p style="margin-top: 1em">--nodev <br>
+Don&rsquo;t load any /dev management modules.</p>
+
+<p style="margin-top: 1em">3RDPARTY LINK MANAGEMENT <br>
+Some interfaces require configuration by 3rd parties, such
+as PPP or VPN. When an interface configuration in dhcpcd is
+marked as STATIC or INFORM without an address then dhcpcd
+<br>
+will monitor the interface until an address is added or
+removed from it and act accordingly. For point to point
+interfaces (like PPP), a default route to its destination is
+auto&acirc; <br>
+matically added to the configuration. If the point to point
+interface is configured for INFORM, then dhcpcd unicasts
+INFORM to the destination, otherwise it defaults to
+STATIC.</p>
+
+<p style="margin-top: 1em">NOTES <br>
+dhcpcd requires a Berkley Packet Filter, or BPF device on
+BSD based systems and a Linux Socket Filter, or LPF device
+on Linux based systems for all IPv4 configuration.</p>
+
+<p style="margin-top: 1em">If restricting dhcpcd to a
+single interface and optionally address family via the
+command-line then all futher calls to dhcpcd to rebind,
+reconfigure or exit need to include the <br>
+same restrictive flags so that dhcpcd knows which process to
+signal.</p>
+
+<p style="margin-top: 1em">FILES <br>
+/etc/dhcpcd.conf <br>
+Configuration file for dhcpcd. If you always use the same
+options, put them here.</p>
+
+<p style="margin-top: 1em">/etc/dhcpcd.duid <br>
+Text file that holds the DUID used to identify the host.</p>
+
+<p style="margin-top: 1em">/etc/dhcpcd.secret <br>
+Text file that holds a secret key known only to the
+host.</p>
+
+<p style="margin-top: 1em">/lib/dhcpcd/dhcpcd-run-hooks
+<br>
+Bourne shell script that is run to configure or de-configure
+an interface.</p>
+
+
+<p style="margin-top: 1em">/lib/x86_64-linux-gnu/dhcpcd/dev
+<br>
+/dev management modules.</p>
+
+<p style="margin-top: 1em">/lib/dhcpcd/dhcpcd-hooks <br>
+A directory containing bourne shell scripts that are run by
+the above script. Each script can be disabled by using the
+-C, --nohook option described above.</p>
+
+
+<p style="margin-top: 1em">/var/lib/dhcpcd5/dhcpcd-interface-ssid.lease
+<br>
+The actual DHCP message sent by the server. We use this when
+reading the last lease and use the files mtime as when it
+was issued.</p>
+
+
+<p style="margin-top: 1em">/var/lib/dhcpcd5/dhcpcd-interface-ssid.lease6
+<br>
+The actual DHCPv6 message sent by the server. We use this
+when reading the last lease and use the files mtime as when
+it was issued.</p>
+
+
+<p style="margin-top: 1em">/var/lib/dhcpcd5/dhcpcd-rdm.monotonic
+<br>
+Stores the monotonic counter used in the replay field in
+Authentication Options.</p>
+
+<p style="margin-top: 1em">/var/run/dhcpcd.pid <br>
+Stores the PID of dhcpcd running on all interfaces.</p>
+
+<p style="margin-top: 1em">/var/run/dhcpcd-interface.pid
+<br>
+Stores the PID of dhcpcd running on the interface.</p>
+
+<p style="margin-top: 1em">/var/run/dhcpcd.sock <br>
+Control socket to the master daemon.</p>
+
+<p style="margin-top: 1em">/var/run/dhcpcd.unpriv.sock <br>
+Unpriviledged socket to the master daemon, only allows state
+retrieval.</p>
+
+<p style="margin-top: 1em">/var/run/dhcpcd-interface.sock
+<br>
+Control socket to per interface daemon.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+fnmatch(3), if_nametoindex(3), dhcpcd.conf(5),
+resolv.conf(5), dhcpcd-run-hooks(8), resolvconf(8)</p>
+
+<p style="margin-top: 1em">STANDARDS <br>
+RFC 951, RFC 1534, RFC 2104, RFC 2131, RFC 2132, RFC 2563,
+RFC 2855, RFC 3004, RFC 3118, RFC 3203, RFC 3315, RFC 3361,
+RFC 3633, RFC 3396, RFC 3397, RFC 3442, RFC 3495, RFC 3925,
+<br>
+RFC 3927, RFC 4039, RFC 4075, RFC 4242, RFC 4361, RFC 4390,
+RFC 4702, RFC 4074, RFC 4861, RFC 4833, RFC 4941, RFC 5227,
+RFC 5942, RFC 5969, RFC 6106, RFC 6334, RFC 6603, RFC 6704,
+<br>
+RFC 7217, RFC 7550.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Roy Marples &lt;roy@marples.name&gt;</p>
+
+<p style="margin-top: 1em">BUGS <br>
+Please report them to <br>
+http://roy.marples.name/projects/dhcpcd</p>
+
+<p style="margin-top: 1em">BSD January 14, 2016 BSD</p>
+<hr>
+</body>
+</html>

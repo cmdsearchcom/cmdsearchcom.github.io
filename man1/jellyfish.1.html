@@ -1,0 +1,611 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:19:43 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>JELLYFISH(1) k-mer counter JELLYFISH(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+Jellyfish is a software to count k-mers in DNA
+sequences.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+jellyfish count [-oprefix] [-mmerlength] [-tthreads]
+[-shashsize] [--both-strands] fasta [fasta ... ] <br>
+jellyfish merge hash1 hash2 ... <br>
+jellyfish dump hash <br>
+jellyfish stats hash <br>
+jellyfish histo [-hhigh] [-llow] [-iincrement] hash <br>
+jellyfish query hash <br>
+jellyfish cite</p>
+
+<p style="margin-top: 1em">Plus equivalent version for
+Quake mode: qhisto, qdump and qmerge.</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+Jellyfish is a k-mer counter based on a multi-threaded hash
+table implementation.</p>
+
+<p style="margin-top: 1em">COUNTING AND MERGING <br>
+To count k-mers, use a command like:</p>
+
+<p style="margin-top: 1em">jellyfish count -m 22 -o output
+-c 3 -s 10000000 -t 32 input.fasta</p>
+
+<p style="margin-top: 1em">This will count the the 22-mers
+in input.fasta with 32 threads. The counter field in the
+hash uses only 3 bits and the hash has at least 10 million
+entries.</p>
+
+<p style="margin-top: 1em">The output files will be named
+output_0, output_1, etc. (the prefix is specified with the
+-o switch). If the hash is large enough (has specified by
+the -s switch) to fit all the <br>
+k-mers, there will be only one output file named output_0.
+If the hash filled up before all the mers were read, the
+hash is dumped to disk, zeroed out and reading in mers <br>
+resumes. Multiple intermediary files will be present on the
+disks, named output_0, output_1, etc.</p>
+
+<p style="margin-top: 1em">To obtain correct results from
+the other sub-commands (such as histo, stats, etc.), the
+multiple output files, if any, need to be merged into one
+with the merge command. For <br>
+example with the following command:</p>
+
+<p style="margin-top: 1em">jellyfish merge -o output.jf
+output_*</p>
+
+<p style="margin-top: 1em">Should you get many intermediary
+output files (say hundreds), the size of the hash table is
+too small. Rerunning Jellyfish with a larger size (option
+-s) is probably faster than <br>
+merging all the intermediary files.</p>
+
+<p style="margin-top: 1em">ORIENTATION <br>
+When the orientation of the sequences in the input fasta
+file is not known, e.g. in sequencing reads, using
+--both-strands (-C) makes the most sense.</p>
+
+<p style="margin-top: 1em">For any k-mer m, its canonical
+representation is m itself or its reverse-complement,
+whichever comes first lexicographically. With the option -C,
+only the canonical representa&acirc; <br>
+tion of the mers are stored in the hash and the count value
+is the number of occurrences of both the mer and its
+reverse-complement.</p>
+
+<p style="margin-top: 1em">CHOOSING THE HASH SIZE <br>
+To achieve the best performance, a minimum number of
+intermediary files should be written to disk. So the
+parameter -s should be chosen to fit as many k-mers as
+possible (ideally <br>
+all of them) while still fitting in memory.</p>
+
+<p style="margin-top: 1em">We consider to examples:
+counting mers in sequencing reads and in a finished
+genome.</p>
+
+<p style="margin-top: 1em">First, suppose we count k-mers
+in short sequencing reads: there are n reads and there is an
+average of 1 error per reads where each error generates k
+unique mers. If the genome <br>
+size is G, the size of the hash (option -s) to fit all
+k-mers at once is estimated to: $(G + k*n)/0.8$. The
+division by 0.8 compensates for the maximum usage of
+approximately <br>
+$80%$ of the hash table.</p>
+
+<p style="margin-top: 1em">On the other hand, when counting
+k-mers in an assembled sequence of length G, setting -s to G
+is appropriate.</p>
+
+<p style="margin-top: 1em">As a matter of convenience,
+Jellyfish understands ISO suffixes for the size of the hash.
+Hence &rsquo;-s 10M&rsquo; stands 10 million entries while
+&rsquo;-s 50G&rsquo; stands for 50 billion entries.</p>
+
+<p style="margin-top: 1em">The actual memory usage of the
+hash table can be computed as follow. The actual size of the
+hash will be rounded up to the next power of 2: s=2^l. The
+parameter r is such that <br>
+the maximum reprobe value (-p) plus one is less than 2^r.
+Then the memory usage per entry in the hash is (in bits, not
+bytes) 2k-l+r+1. The total memory usage of the hash table
+<br>
+in bytes is: 2^l*(2k-l+r+1)/8.</p>
+
+<p style="margin-top: 1em">CHOOSING THE COUNTING FIELD SIZE
+<br>
+To save space, the hash table supports variable length
+counter, i.e. a k-mer occurring only a few times will use a
+small counter, a k-mer occurring many times will used
+multiple <br>
+entries in the hash.</p>
+
+<p style="margin-top: 1em">Important: the size of the
+couting field does NOT change the result, it only impacts
+the amount of memory used. In particular, there is no
+maximum value in the hash. Even if the <br>
+counting field uses 5 bits, a k-mer occuring 2 million times
+will have a value reported of 2 million (i.e., it is not
+capped at 2^5).</p>
+
+<p style="margin-top: 1em">The -c specify the length (in
+bits) of the counting field. The trade off is as follows: a
+low value will save space per entry in the hash but can
+potentially increase the number <br>
+of entries used, hence maybe requiring a larger hash.</p>
+
+<p style="margin-top: 1em">In practice, use a value for -c
+so that most of you k-mers require only 1 entry. For
+example, to count k-mers in a genome, where most of the
+sequence is unique, use -c1 or -c2. <br>
+For sequencing reads, use a value for -c large enough to
+counts up to twice the coverage. For example, if the
+coverage is 10X, choose a counter length of 5 (-c5) as $2^5
+&gt; 20$.</p>
+
+<p style="margin-top: 1em">SUBCOMMANDS AND OPTIONS <br>
+COUNT <br>
+Usage: jellyfish count [options] file:path+</p>
+
+<p style="margin-top: 1em">Count k-mers or qmers in fasta
+or fastq files</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-m, --mer-len=uint32 <br>
+*Length of mer</p>
+
+<p style="margin-top: 1em">-s, --size=uint64 <br>
+*Hash size</p>
+
+<p style="margin-top: 1em">-t, --threads=uint32 <br>
+Number of threads (1)</p>
+
+<p style="margin-top: 1em">-o, --output=string <br>
+Output prefix (mer_counts)</p>
+
+<p style="margin-top: 1em">-c, --counter-len=Length <br>
+in bits Length of counting field (7)</p>
+
+<p style="margin-top: 1em">--out-counter-len=Length <br>
+in bytes Length of counter field in output (4)</p>
+
+<p style="margin-top: 1em">-C,--both-strands <br>
+Count both strand, canonical representation (false)</p>
+
+<p style="margin-top: 1em">-p, --reprobes=uint32 <br>
+Maximum number of reprobes (62)</p>
+
+<p style="margin-top: 1em">-r,--raw <br>
+Write raw database (false)</p>
+
+<p style="margin-top: 1em">-q,--quake <br>
+Quake compatibility mode (false)</p>
+
+<p style="margin-top: 1em">--quality-start=uint32 <br>
+Starting ASCII for quality values (64)</p>
+
+<p style="margin-top: 1em">--min-quality=uint32 <br>
+Minimum quality. A base with lesser quality becomes an N
+(0)</p>
+
+<p style="margin-top: 1em">-L, --lower-count=uint64 <br>
+Don&rsquo;t output k-mer with count &lt; lower-count</p>
+
+<p style="margin-top: 1em">-U, --upper-count=uint64 <br>
+Don&rsquo;t output k-mer with count &gt; upper-count</p>
+
+<p style="margin-top: 1em">--matrix=Matrix <br>
+file Hash function binary matrix</p>
+
+<p style="margin-top: 1em">--timing=Timing <br>
+file Print timing information</p>
+
+<p style="margin-top: 1em">--stats=Stats <br>
+file Print stats</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">-h,--help <br>
+This message</p>
+
+<p style="margin-top: 1em">--full-help <br>
+Detailed help</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">STATS <br>
+Usage: jellyfish stats [options] db:path</p>
+
+<p style="margin-top: 1em">Statistics</p>
+
+<p style="margin-top: 1em">Display some statistics about
+the k-mers in the hash:</p>
+
+<p style="margin-top: 1em">Unique: Number of k-mers which
+occur only once. Distinct: Number of k-mers, not counting
+multiplicity. Total: Number of k-mers, including
+multiplicity. Max_count: Maximum num&acirc; <br>
+ber of occurrence of a k-mer.</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-L, --lower-count=uint64 <br>
+Don&rsquo;t consider k-mer with count &lt; lower-count</p>
+
+<p style="margin-top: 1em">-U, --upper-count=uint64 <br>
+Don&rsquo;t consider k-mer with count &gt; upper-count</p>
+
+<p style="margin-top: 1em">-v,--verbose <br>
+Verbose (false)</p>
+
+<p style="margin-top: 1em">-o, --output=string <br>
+Output file</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">-h,--help <br>
+This message</p>
+
+<p style="margin-top: 1em">--full-help <br>
+Detailed help</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">HISTO <br>
+Usage: jellyfish histo [options] db:path</p>
+
+<p style="margin-top: 1em">Create an histogram of k-mer
+occurrences</p>
+
+<p style="margin-top: 1em">Create an histogram with the
+number of k-mers having a given count. In bucket
+&rsquo;i&rsquo; are tallied the k-mers which have a count
+&rsquo;c&rsquo; satisfying &rsquo;low+i*inc &lt;= c &lt;
+low+(i+1)*inc&rsquo;. Buck&acirc; <br>
+ets in the output are labeled by the low end point
+(low+i*inc).</p>
+
+<p style="margin-top: 1em">The last bucket in the output
+behaves as a catchall: it tallies all k-mers with a count
+greater or equal to the low end point of this bucket.</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-l, --low=uint64 <br>
+Low count value of histogram (1)</p>
+
+<p style="margin-top: 1em">-h, --high=uint64 <br>
+High count value of histogram (10000)</p>
+
+<p style="margin-top: 1em">-i, --increment=uint64 <br>
+Increment value for buckets (1)</p>
+
+<p style="margin-top: 1em">-t, --threads=uint32 <br>
+Number of threads (1)</p>
+
+<p style="margin-top: 1em">-f,--full <br>
+Full histo. Don&rsquo;t skip count 0. (false)</p>
+
+<p style="margin-top: 1em">-o, --output=string <br>
+Output file</p>
+
+<p style="margin-top: 1em">-v,--verbose <br>
+Output information (false)</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">--help <br>
+This message</p>
+
+<p style="margin-top: 1em">--full-help <br>
+Detailed help</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">DUMP <br>
+Usage: jellyfish dump [options] db:path</p>
+
+<p style="margin-top: 1em">Dump k-mer counts</p>
+
+<p style="margin-top: 1em">By default, dump in a fasta
+format where the header is the count and the sequence is the
+sequence of the k-mer. The column format is a 2 column
+output: k-mer count.</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-c,--column <br>
+Column format (false)</p>
+
+<p style="margin-top: 1em">-t,--tab <br>
+Tab separator (false)</p>
+
+<p style="margin-top: 1em">-L, --lower-count=uint64 <br>
+Don&rsquo;t output k-mer with count &lt; lower-count</p>
+
+<p style="margin-top: 1em">-U, --upper-count=uint64 <br>
+Don&rsquo;t output k-mer with count &gt; upper-count</p>
+
+<p style="margin-top: 1em">-o, --output=string <br>
+Output file</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">-h,--help <br>
+This message</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">MERGE <br>
+Usage: jellyfish merge [options] input:string+</p>
+
+<p style="margin-top: 1em">Merge jellyfish databases</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-s, --buffer-size=Buffer <br>
+length Length in bytes of input buffer (10000000)</p>
+
+<p style="margin-top: 1em">-o, --output=string <br>
+Output file (mer_counts_merged.jf)</p>
+
+<p style="margin-top: 1em">--out-counter-len=uint32 <br>
+Length (in bytes) of counting field in output (4)</p>
+
+<p style="margin-top: 1em">--out-buffer-size=uint64 <br>
+Size of output buffer per thread (10000000)</p>
+
+<p style="margin-top: 1em">-v,--verbose <br>
+Be verbose (false)</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">-h,--help <br>
+This message</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">QUERY <br>
+Usage: jellyfish query [options] db:path</p>
+
+<p style="margin-top: 1em">Query from a compacted
+database</p>
+
+<p style="margin-top: 1em">Query a hash. It reads k-mers
+from the standard input and write the counts on the standard
+output.</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-C,--both-strands <br>
+Both strands (false)</p>
+
+<p style="margin-top: 1em">-c,--cary-bit <br>
+Value field as the cary bit information (false)</p>
+
+<p style="margin-top: 1em">-i, --input=file <br>
+Input file</p>
+
+<p style="margin-top: 1em">-o, --output=file <br>
+Output file</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">-h,--help <br>
+This message</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">QHISTO <br>
+Usage: jellyfish qhisto [options] db:string</p>
+
+<p style="margin-top: 1em">Create an histogram of k-mer
+occurences</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-l, --low=double <br>
+Low count value of histogram (0.0)</p>
+
+<p style="margin-top: 1em">-h, --high=double <br>
+High count value of histogram (10000.0)</p>
+
+<p style="margin-top: 1em">-i, --increment=double <br>
+Increment value for buckets (1.0)</p>
+
+<p style="margin-top: 1em">-f,--full <br>
+Full histo. Don&rsquo;t skip count 0. (false)</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">--help <br>
+This message</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">QDUMP <br>
+Usage: jellyfish qdump [options] db:path</p>
+
+<p style="margin-top: 1em">Dump k-mer from a qmer
+database</p>
+
+<p style="margin-top: 1em">By default, dump in a fasta
+format where the header is the count and the sequence is the
+sequence of the k-mer. The column format is a 2 column
+output: k-mer count.</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-c,--column <br>
+Column format (false)</p>
+
+<p style="margin-top: 1em">-t,--tab <br>
+Tab separator (false)</p>
+
+<p style="margin-top: 1em">-L, --lower-count=double <br>
+Don&rsquo;t output k-mer with count &lt; lower-count</p>
+
+<p style="margin-top: 1em">-U, --upper-count=double <br>
+Don&rsquo;t output k-mer with count &gt; upper-count</p>
+
+<p style="margin-top: 1em">-v,--verbose <br>
+Be verbose (false)</p>
+
+<p style="margin-top: 1em">-o, --output=string <br>
+Output file</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">-h,--help <br>
+This message</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">QMERGE <br>
+Usage: jellyfish merge [options] db:string+</p>
+
+<p style="margin-top: 1em">Merge quake databases</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-s, --size=uint64 <br>
+*Merged hash table size</p>
+
+<p style="margin-top: 1em">-m, --mer-len=uint32 <br>
+*Mer length</p>
+
+<p style="margin-top: 1em">-o, --output=string <br>
+Output file (merged.jf)</p>
+
+<p style="margin-top: 1em">-p, --reprobes=uint32 <br>
+Maximum number of reprobes (62)</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">-h,--help <br>
+This message</p>
+
+<p style="margin-top: 1em">--full-help <br>
+Detailed help</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">CITE <br>
+Usage: jellyfish cite [options]</p>
+
+<p style="margin-top: 1em">How to cite Jellyfish&rsquo;s
+paper</p>
+
+<p style="margin-top: 1em">Citation of paper</p>
+
+<p style="margin-top: 1em">Options (default value in (),
+*required):</p>
+
+<p style="margin-top: 1em">-b,--bibtex <br>
+Bibtex format (false)</p>
+
+<p style="margin-top: 1em">-o, --output=string <br>
+Output file</p>
+
+<p style="margin-top: 1em">--usage <br>
+Usage</p>
+
+<p style="margin-top: 1em">-h,--help <br>
+This message</p>
+
+<p style="margin-top: 1em">-V,--version <br>
+Version</p>
+
+<p style="margin-top: 1em">VERSION <br>
+Version: 1.1.4 of 2010/10/1</p>
+
+<p style="margin-top: 1em">BUGS <br>
+* jellyfish merge has not been parallelized and is
+relatively slow.</p>
+
+<p style="margin-top: 1em">* The hash table does not grow
+in memory automatically and jellyfish merge is not called
+automatically on the intermediary files (if any).</p>
+
+<p style="margin-top: 1em">COPYRIGHT &amp; LICENSE <br>
+Copyright <br>
+(C)2010, Guillaume Marcais guillaume@marcais.net and Carl
+Kingsford carlk@umiacs.umd.edu.</p>
+
+<p style="margin-top: 1em">License <br>
+This program is free software: you can redistribute it
+and/or modify it under the terms of the GNU General Public
+License as published by the Free Software Foundation, <br>
+either version 3 of the License, or (at your option) any
+later version. <br>
+This program is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR <br>
+PURPOSE. See the GNU General Public License for more
+details. <br>
+You should have received a copy of the GNU General Public
+License along with this program. If not, see
+http://www.gnu.org/licenses/.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Guillaume Marcais <br>
+University of Maryland <br>
+gmarcais@umd.edu</p>
+
+<p style="margin-top: 1em">Carl Kingsford <br>
+University of Maryland <br>
+carlk@umiacs.umd.edu</p>
+
+<p style="margin-top: 1em">k-mer counter 2010/10/1
+JELLYFISH(1)</p>
+<hr>
+</body>
+</html>

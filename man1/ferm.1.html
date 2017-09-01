@@ -1,0 +1,2030 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:09:24 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>FERM(1) FIREWALL RULES MADE EASY FERM(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+ferm - a firewall rule parser for linux</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+ferm options inputfile</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+ferm is a frontend for iptables. It reads the rules from a
+structured configuration file and calls iptables(8) to
+insert them into the running kernel.</p>
+
+<p style="margin-top: 1em">ferm&rsquo;s goal is to make
+firewall rules easy to write and easy to read. It tries to
+reduce the tedious task of writing down rules, thus enabling
+the firewall administrator to spend <br>
+more time on developing good rules than the proper
+implementation of the rule.</p>
+
+<p style="margin-top: 1em">To achieve this, ferm uses a
+simple but powerful configuration language, which allows
+variables, functions, arrays, blocks. It also allows you to
+include other files, allowing <br>
+you to create libraries of commonly used structures and
+functions.</p>
+
+<p style="margin-top: 1em">ferm, pronounced
+&quot;firm&quot;, stands for &quot;For Easy Rule
+Making&quot;.</p>
+
+<p style="margin-top: 1em">CAUTION <br>
+This manual page does not indend to teach you how
+firewalling works and how to write good rules. There is
+already enough documentation on this topic.</p>
+
+<p style="margin-top: 1em">INTRODUCTION <br>
+Let&rsquo;s start with a simple example:</p>
+
+<p style="margin-top: 1em">chain INPUT { <br>
+proto tcp ACCEPT; <br>
+}</p>
+
+<p style="margin-top: 1em">This will add a rule to the
+predefined input chain, matching and accepting all tcp
+packets. Ok, let&rsquo;s make it more complicated:</p>
+
+<p style="margin-top: 1em">chain (INPUT OUTPUT) { <br>
+proto (udp tcp) ACCEPT; <br>
+}</p>
+
+<p style="margin-top: 1em">This will insert 4 rules, namely
+2 in chain input, and 2 in chain output, matching and
+accepting both udp and tcp packets. Normally you would type
+this:</p>
+
+<p style="margin-top: 1em">iptables -A INPUT -p tcp -j
+ACCEPT <br>
+iptables -A OUTPUT -p tcp -j ACCEPT <br>
+iptables -A INPUT -p udp -j ACCEPT <br>
+iptables -A OUTPUT -p udp -j ACCEPT</p>
+
+<p style="margin-top: 1em">Note how much less typing we
+need to do? :-)</p>
+
+<p style="margin-top: 1em">Basically, this is all there is
+to it, although you can make it quite more complex.
+Something to look at:</p>
+
+<p style="margin-top: 1em">chain INPUT { <br>
+policy ACCEPT; <br>
+daddr 10.0.0.0/8 proto tcp dport ! ftp jump mychain sport
+:1023 TOS 4 settos 8 mark 2; <br>
+daddr 10.0.0.0/8 proto tcp dport ftp REJECT; <br>
+}</p>
+
+<p style="margin-top: 1em">My point here is, that *you*
+need to make nice rules, keep them readable to you and
+others, and not make it into a mess.</p>
+
+<p style="margin-top: 1em">It would aid the reader if the
+resulting firewall rules were placed here for reference.
+Also, you could include the nested version with better
+readability.</p>
+
+<p style="margin-top: 1em">Try using comments to show what
+you are doing:</p>
+
+<p style="margin-top: 1em"># this line enables transparent
+http-proxying for the internal network: <br>
+proto tcp if eth0 daddr ! 192.168.0.0/255.255.255.0 <br>
+dport http REDIRECT to-ports 3128;</p>
+
+<p style="margin-top: 1em">You will be thankful for it
+later!</p>
+
+<p style="margin-top: 1em">chain INPUT { <br>
+policy ACCEPT; <br>
+interface (eth0 ppp0) { <br>
+# deny access to notorius hackers, return here if no match
+<br>
+# was found to resume normal firewalling <br>
+jump badguys;</p>
+
+<p style="margin-top: 1em">protocol tcp jump fw_tcp; <br>
+protocol udp jump fw_udp; <br>
+} <br>
+}</p>
+
+<p style="margin-top: 1em">The more you nest, the better it
+looks. Make sure the order you specify is correct, you would
+not want to do this:</p>
+
+<p style="margin-top: 1em">chain FORWARD { <br>
+proto ! udp DROP; <br>
+proto tcp dport ftp ACCEPT; <br>
+}</p>
+
+<p style="margin-top: 1em">because the second rule will
+never match. Best way is to specify first everyting that is
+allowed, and then deny everything else. Look at the examples
+for more good snapshots. <br>
+Most people do something like this:</p>
+
+<p style="margin-top: 1em">proto tcp { <br>
+dport ( <br>
+ssh http ftp <br>
+) ACCEPT; <br>
+dport 1024:65535 ! syn ACCEPT; <br>
+DROP; <br>
+}</p>
+
+<p style="margin-top: 1em">STRUCTURE OF A FIREWALL FILE
+<br>
+The structure of a proper firewall file looks like
+simplified C-code. Only a few syntactic characters are used
+in ferm- configuration files. Besides these special
+caracters, <br>
+ferm uses &rsquo;keys&rsquo; and &rsquo;values&rsquo;, think
+of them as options and parameters, or as variables and
+values, whatever.</p>
+
+<p style="margin-top: 1em">With these words, you define the
+characteristics of your firewall. Every firewall consists of
+two things: First, look if network traffic matches certain
+conditions, and second, <br>
+what to do with that traffic.</p>
+
+<p style="margin-top: 1em">You may specify conditions that
+are valid for the kernel interface program you are using,
+probably iptables(8). For instance, in iptables, when you
+are trying to match tcp <br>
+packets, you would say:</p>
+
+<p style="margin-top: 1em">iptables --protocol tcp</p>
+
+<p style="margin-top: 1em">In ferm, this will become:</p>
+
+<p style="margin-top: 1em">protocol tcp;</p>
+
+<p style="margin-top: 1em">Just typing this in ferm
+doesn&rsquo;t do anything, you need to tell ferm (actually,
+you need to tell iptables(8) and the kernel) what to do with
+any traffic that matches this <br>
+condition:</p>
+
+<p style="margin-top: 1em">iptables --protocol tcp -j
+ACCEPT</p>
+
+<p style="margin-top: 1em">Or, translated to ferm:</p>
+
+<p style="margin-top: 1em">protocol tcp ACCEPT;</p>
+
+<p style="margin-top: 1em">The ; character is at the end of
+every ferm rule. Ferm ignores line breaks, meaning the above
+example is identical to the following:</p>
+
+<p style="margin-top: 1em">protocol tcp <br>
+ACCEPT;</p>
+
+<p style="margin-top: 1em">Here&rsquo;s a list of the
+special characters:</p>
+
+<p style="margin-top: 1em">; This character finalizes a
+rule.</p>
+
+<p style="margin-top: 1em">Separated by semicolons, you may
+write multiple rules in one line, although this decreases
+readability:</p>
+
+<p style="margin-top: 1em">protocol tcp ACCEPT; protocol
+udp DROP;</p>
+
+<p style="margin-top: 1em">{} The nesting symbol defines a
+&rsquo;block&rsquo; of rules.</p>
+
+<p style="margin-top: 1em">The curly brackets contain any
+number of nested rules. All matches before the block are
+carried forward to these.</p>
+
+<p style="margin-top: 1em">The closing curly bracket
+finalizes the rule set. You should not write a
+&rsquo;;&rsquo; after that, because that would be an empty
+rule.</p>
+
+<p style="margin-top: 1em">Example:</p>
+
+<p style="margin-top: 1em">chain INPUT proto icmp { <br>
+icmp-type echo-request ACCEPT; <br>
+DROP; <br>
+}</p>
+
+<p style="margin-top: 1em">This block shows two rules
+inside a block, which will both be merged with anything in
+front of it, so you will get two rules:</p>
+
+<p style="margin-top: 1em">iptables -A INPUT -p icmp
+--icmp-type echo-request -j ACCEPT <br>
+iptables -A INPUT -p icmp -j DROP</p>
+
+<p style="margin-top: 1em">There can be multiple nesting
+levels:</p>
+
+<p style="margin-top: 1em">chain INPUT { <br>
+proto icmp { <br>
+icmp-type echo-request ACCEPT; <br>
+DROP; <br>
+} <br>
+daddr 172.16.0.0/12 REJECT; <br>
+}</p>
+
+<p style="margin-top: 1em">Note that the
+&rsquo;REJECT&rsquo; rule is not affected by &rsquo;proto
+icmp&rsquo;, although there is no &rsquo;;&rsquo; after the
+closing curly brace. Translated to iptables:</p>
+
+<p style="margin-top: 1em">iptables -A INPUT -p icmp
+--icmp-type echo-request -j ACCEPT <br>
+iptables -A INPUT -p icmp -j DROP <br>
+iptables -A INPUT -d 172.16.0.0/12 -j REJECT</p>
+
+<p style="margin-top: 1em">$ Variable expansion. Replaces
+&rsquo;$FOO&rsquo; by the value of the variable. See the
+section VARIABLES for details.</p>
+
+<p style="margin-top: 1em">&amp; Function call. See the
+section FUNCTIONS for details.</p>
+
+<p style="margin-top: 1em">() The array symbol. Using the
+parentheses, you can define a &rsquo;list&rsquo; of values
+that should be applied for the key to the left of it.</p>
+
+<p style="margin-top: 1em">Example:</p>
+
+<p style="margin-top: 1em">protocol ( tcp udp icmp )</p>
+
+<p style="margin-top: 1em">this will result in three
+rules:</p>
+
+<p style="margin-top: 1em">... -p tcp ... <br>
+... -p udp ... <br>
+... -p icmp ...</p>
+
+<p style="margin-top: 1em">Only values can be
+&rsquo;listed&rsquo;, so you cannot do something like
+this:</p>
+
+<p style="margin-top: 1em">proto tcp ( ACCEPT LOG );</p>
+
+<p style="margin-top: 1em">but you can do this:</p>
+
+<p style="margin-top: 1em">chain (INPUT OUTPUT FORWARD)
+proto (icmp udp tcp) DROP;</p>
+
+<p style="margin-top: 1em">(which will result in nine
+rules!)</p>
+
+<p style="margin-top: 1em">Values are separated by spaces.
+The array symbol is both left- and right-associative, in
+contrast with the nesting block, which is left-associative
+only.</p>
+
+<p style="margin-top: 1em">&quot; # &quot; The comment
+symbol. Anything that follows this symbol up to the end of
+line is ignored.</p>
+
+
+<p style="margin-top: 1em">&quot;&lsquo;command&lsquo;&quot;
+<br>
+Execute the command in a shell, and insert the process
+output. See the section backticks for details.</p>
+
+<p style="margin-top: 1em">&rsquo;string&rsquo; <br>
+Quote a string which may contain whitespaces, the dollar
+sign etc.</p>
+
+<p style="margin-top: 1em">LOG log-prefix &rsquo; hey, this
+is my log prefix!&rsquo;;</p>
+
+<p style="margin-top: 1em">&quot;string&quot; <br>
+Quote a string (see above), but variable references with a
+dollar sign are evaluated:</p>
+
+<p style="margin-top: 1em">DNAT to
+&quot;$myhost:$myport&quot;;</p>
+
+<p style="margin-top: 1em">Keywords <br>
+In the previous section, we already introduced some basic
+keywords like &quot;chain&quot;, &quot;protocol&quot; and
+&quot;ACCEPT&quot;. Let&rsquo;s explore their nature.</p>
+
+<p style="margin-top: 1em">There are three kinds of
+keywords:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; location
+keywords define where a rule will be created. Example:
+&quot;table&quot;, &quot;chain&quot;.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; match keywords
+perform a test on all passing packets. The current rule is
+without effect if one (or more) of the matches does not
+pass. Example: &quot;proto&quot;, &quot;daddr&quot;.</p>
+
+<p style="margin-top: 1em">Most matches are followed by a
+parameter: &quot;proto tcp&quot;, &quot;daddr
+172.16.0.0/12&quot;.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; target keywords
+state what to do with a packet. Example: &quot;ACCEPT&quot;,
+&quot;REJECT&quot;, &quot;jump&quot;.</p>
+
+<p style="margin-top: 1em">Some targets define more
+keywords to specify details: &quot;REJECT reject-with
+icmp-net-unreachable&quot;.</p>
+
+<p style="margin-top: 1em">Every rule consists of a
+location and a target, plus any number of matches:</p>
+
+<p style="margin-top: 1em">table filter # location <br>
+proto tcp dport (http https) # match <br>
+ACCEPT; # target</p>
+
+<p style="margin-top: 1em">Strictly speaking, there is a
+fourth kind: ferm keywords (which control ferm&rsquo;s
+internal behaviour), but they will be explained later.</p>
+
+<p style="margin-top: 1em">Parameters <br>
+Many keywords take parameters. These can be specified as
+literals, variable references or lists (arrays):</p>
+
+<p style="margin-top: 1em">proto udp <br>
+saddr $TRUSTED_HOSTS; <br>
+proto tcp dport (http https ssh); <br>
+LOG log-prefix &quot;funky wardriver alert: &quot;;</p>
+
+<p style="margin-top: 1em">Some of them can be negated
+(lists cannot be negated):</p>
+
+<p style="margin-top: 1em">proto !esp; <br>
+proto udp dport !domain;</p>
+
+<p style="margin-top: 1em">Keywords which take no
+parameters are negated by a prefixed &rsquo;!&rsquo;:</p>
+
+<p style="margin-top: 1em">proto tcp !syn;</p>
+
+<p style="margin-top: 1em">Read iptables(8) to see where
+the ! can be used.</p>
+
+<p style="margin-top: 1em">BASIC KEYWORDS <br>
+Location keywords <br>
+domain [ip|ip6] <br>
+Set the domain. &quot;ip&quot; is default and means
+&quot;IPv4&quot; (iptables). &quot;ip6&quot; is for IPv6
+support, using &quot;ip6tables&quot;.</p>
+
+<p style="margin-top: 1em">table [filter|nat|mangle] <br>
+Specifies which netfilter table this rule will be inserted
+to: &quot;filter&quot; (default), &quot;nat&quot; or
+&quot;mangle&quot;.</p>
+
+<p style="margin-top: 1em">chain [chain-name] <br>
+Specifies the netfilter chain (within the current table)
+this rule will be inserted to. Common predefined chain names
+are &quot;INPUT&quot;, &quot;OUTPUT&quot;,
+&quot;FORWARD&quot;, &quot;PREROUTING&quot;, <br>
+&quot;POSTROUTING&quot;, depending on the table. See the
+netfilter documentation for details.</p>
+
+<p style="margin-top: 1em">If you specify a non-existing
+chain here, ferm will add the rule to a custom chain with
+that name.</p>
+
+<p style="margin-top: 1em">policy [ACCEPT|DROP|..] <br>
+Specifies the default policy for the current chain (built-in
+only). Can be one of the built-in targets (ACCEPT, DROP,
+REJECT, ...). A packet that matches no rules in a <br>
+chain will be treated as specified by the policy.</p>
+
+<p style="margin-top: 1em">To avoid ambiguity, always
+specify the policies of all predefined chains
+explicitly.</p>
+
+<p style="margin-top: 1em">@subchain
+[&quot;CHAIN-NAME&quot;] { ... } <br>
+Works like the normal block operators (i.e. without the
+@subchain keyword), except that ferm moves rules within the
+curly braces into a new custom chain. The name for <br>
+this chain is chosen automatically by ferm.</p>
+
+<p style="margin-top: 1em">In many cases, this is faster
+than just a block, because the kernel may skip a huge block
+of rules when a precondition is false. Imagine the following
+example:</p>
+
+<p style="margin-top: 1em">table filter chain INPUT { <br>
+saddr (1.2.3.4 2.3.4.5 3.4.5.6 4.5.6.7 5.6.7.8) { <br>
+proto tcp dport (http https ssh) ACCEPT; <br>
+proto udp dport domain ACCEPT; <br>
+} <br>
+}</p>
+
+<p style="margin-top: 1em">This generates 20 rules. When a
+packet arrives which does not pass the saddr match, it
+nonetheless checks all 20 rules. With @subchain, this check
+is done once, resulting <br>
+in faster network filtering and less CPU load:</p>
+
+<p style="margin-top: 1em">table filter chain INPUT { <br>
+saddr (1.2.3.4 2.3.4.5 3.4.5.6 4.5.6.7 5.6.7.8) @subchain {
+<br>
+proto tcp dport (http https ssh) ACCEPT; <br>
+proto udp dport domain ACCEPT; <br>
+} <br>
+}</p>
+
+<p style="margin-top: 1em">Optionally, you may define the
+name of the sub chain:</p>
+
+<p style="margin-top: 1em">saddr (1.2.3.4 2.3.4.5 3.4.5.6)
+@subchain &quot;foobar&quot; { <br>
+proto tcp dport (http https ssh) ACCEPT; <br>
+proto udp dport domain ACCEPT; <br>
+}</p>
+
+<p style="margin-top: 1em">The name can either be a quoted
+string literal, or an expanded ferm expression such as
+@cat(&quot;interface_&quot;, $iface) or
+@substr($var,0,20).</p>
+
+<p style="margin-top: 1em">You can achieve the same by
+explicitly declaring a custom chain, but you may feel that
+using @subchain requires less typing.</p>
+
+<p style="margin-top: 1em">@gotosubchain
+[&quot;CHAIN-NAME&quot;] { ... } <br>
+Works like @subchain except that instead of using jump
+target it uses goto target. See discussion below for the
+difference between these two targets.</p>
+
+<p style="margin-top: 1em">Basic iptables match keywords
+<br>
+interface [interface-name] <br>
+Define the interface name, your outside network card, like
+eth0, or dialup like ppp1, or whatever device you want to
+match for passing packets. It is equivalent to the <br>
+&quot;-i&quot; switch in iptables(8).</p>
+
+<p style="margin-top: 1em">outerface [interface-name] <br>
+Same as interface, only for matching the outgoing interface
+for a packet, as in iptables(8).</p>
+
+<p style="margin-top: 1em">protocol
+[protocol-name|protocol-number] <br>
+Currently supported by the kernel are tcp, udp and icmp, or
+their respective numbers.</p>
+
+<p style="margin-top: 1em">saddr|daddr [address-spec] <br>
+Matches on packets originating from the specified address
+(saddr) or targeted at the address (daddr).</p>
+
+<p style="margin-top: 1em">Examples:</p>
+
+<p style="margin-top: 1em">saddr 192.168/8 ACCEPT; #
+(identical to the next one:) <br>
+saddr 192.168.0.0/255.255.255.0 ACCEPT; <br>
+daddr my.domain.com ACCEPT;</p>
+
+<p style="margin-top: 1em">fragment <br>
+Specify that only fragmented IP packets should be matched.
+When packets are larger that the maximum packet size your
+system can handle (called Maximum Transmission Unit <br>
+or MTU) they will be chopped into bits and sent one by one
+as single packets. See ifconfig(8) if you want to find the
+MTU for your system (the default is usually 1500 <br>
+bytes).</p>
+
+<p style="margin-top: 1em">Fragments are frequently used in
+DOS attacks, because there is no way of finding out the
+origin of a fragment packet.</p>
+
+<p style="margin-top: 1em">sport|dport [port-spec] <br>
+Matches on packets on the specified TCP or UDP port.
+&quot;sport&quot; matches the source port, and dport matches
+the destination port.</p>
+
+<p style="margin-top: 1em">This match can be used only
+after you specified &quot;protocol tcp&quot; or
+&quot;protocol udp&quot;, because only these two protocols
+actually have ports.</p>
+
+<p style="margin-top: 1em">And some examples of valid
+ports/ranges:</p>
+
+<p style="margin-top: 1em">dport 80 ACCEPT; <br>
+dport http ACCEPT; <br>
+dport ssh:http ACCEPT; <br>
+dport 0:1023 ACCEPT; # equivalent to :1023 <br>
+dport 1023:65535 ACCEPT;</p>
+
+<p style="margin-top: 1em">syn Specify that the SYN flag in
+a tcp package should be matched, which are used to build new
+tcp connections. You can identify incoming connections with
+this, and decide <br>
+wether you want to allow it or not. Packets that do not have
+this flag are probably from an already established
+connection, so it&rsquo;s considered reasonably safe to let
+<br>
+these through.</p>
+
+<p style="margin-top: 1em">module [module-name] <br>
+Load an iptables module. Most modules provide more match
+keywords. We&rsquo;ll get to that later.</p>
+
+<p style="margin-top: 1em">Basic target keywords <br>
+jump [custom-chain-name] <br>
+Jumps to a custom chain. If no rule in the custom chain
+matched, netfilter returns to the next rule in the previous
+chain.</p>
+
+<p style="margin-top: 1em">goto [custom-chain-name] <br>
+Go to a custom chain. Unlike the jump option, RETURN will
+not continue processing in this chain but instead in the
+chain that called us via jump.</p>
+
+<p style="margin-top: 1em">ACCEPT Accepts matching
+packets.</p>
+
+<p style="margin-top: 1em">DROP Drop matching packets
+without further notice.</p>
+
+<p style="margin-top: 1em">REJECT Rejects matching packets,
+i.e. send an ICMP packet to the sender, which is
+port-unreachable by default. You may specify another ICMP
+type.</p>
+
+<p style="margin-top: 1em">REJECT; # default to
+icmp-port-unreachable <br>
+REJECT reject-with icmp-net-unreachable;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -j REJECT
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">RETURN Finish the current chain
+and return to the calling chain (if &quot;jump
+[custom-chain-name]&quot; was used).</p>
+
+<p style="margin-top: 1em">NOP No action at all.</p>
+
+<p style="margin-top: 1em">ADDITIONAL KEYWORDS <br>
+Netfilter is modular. Modules may provide additional targets
+and match keywords. The list of netfilter modules is
+constantly growing, and ferm tries to keep up with
+supporting <br>
+them all. This chapter describes modules which are currently
+supported.</p>
+
+<p style="margin-top: 1em">iptables match modules <br>
+account Account traffic for all hosts in defined
+network/netmask. This is one of the match modules which
+behave like a target, i.e. you will mostly have to use the
+NOP target.</p>
+
+<p style="margin-top: 1em">mod account aname mynetwork
+aaddr 192.168.1.0/24 ashort NOP;</p>
+
+<p style="margin-top: 1em">addrtype <br>
+Check the address type; either source address or destination
+address.</p>
+
+<p style="margin-top: 1em">mod addrtype src-type BROADCAST;
+<br>
+mod addrtype dst-type LOCAL;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -m addrtype
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">ah Checks the SPI header in an
+AH packet.</p>
+
+<p style="margin-top: 1em">mod ah ahspi 0x101; <br>
+mod ah ahspi ! 0x200:0x2ff;</p>
+
+<p style="margin-top: 1em">Additional arguments for
+IPv6:</p>
+
+<p style="margin-top: 1em">mod ah ahlen 32 ACCEPT; <br>
+mod ah ahlen !32 ACCEPT; <br>
+mod ah ahres ACCEPT;</p>
+
+<p style="margin-top: 1em">bpf Match using Linux Socket
+Filter.</p>
+
+<p style="margin-top: 1em">mod bpf bytecode &quot;4,48 0 0
+9,21 0 1 6,6 0 0 1,6 0 0 0&quot;;</p>
+
+<p style="margin-top: 1em">comment Adds a comment of up to
+256 characters to a rule, without an effect. Note that
+unlike ferm comments (&rsquo;#&rsquo;), this one will show
+up in &quot;iptables -L&quot;.</p>
+
+<p style="margin-top: 1em">mod comment comment &quot;This
+is my comment.&quot; ACCEPT;</p>
+
+<p style="margin-top: 1em">condition <br>
+Matches if a value in /proc/net/ipt_condition/NAME is 1
+(path is /proc/net/ip6t_condition/NAME for the ip6
+domain).</p>
+
+<p style="margin-top: 1em">mod condition condition (abc
+def) ACCEPT; <br>
+mod condition condition !foo ACCEPT;</p>
+
+<p style="margin-top: 1em">connbytes <br>
+Match by how many bytes or packets a connection (or one of
+the two flows constituting the connection) have tranferred
+so far, or by average bytes per packet.</p>
+
+<p style="margin-top: 1em">mod connbytes connbytes 65536:
+connbytes-dir both connbytes-mode bytes ACCEPT; <br>
+mod connbytes connbytes !1024:2048 connbytes-dir reply
+connbytes-mode packets ACCEPT;</p>
+
+<p style="margin-top: 1em">Valid values for connbytes-dir:
+original, reply, both; for connbytes-mode: packets, bytes,
+avgpkt.</p>
+
+<p style="margin-top: 1em">connlabel <br>
+Module matches or adds connlabels to a connection.</p>
+
+<p style="margin-top: 1em">mod connlabel label
+&quot;name&quot;; <br>
+mod connlabel label &quot;name&quot; set;</p>
+
+<p style="margin-top: 1em">connlimit <br>
+Allows you to restrict the number of parallel TCP
+connections to a server per client IP address (or address
+block).</p>
+
+<p style="margin-top: 1em">mod connlimit connlimit-above 4
+REJECT; <br>
+mod connlimit connlimit-above !4 ACCEPT; <br>
+mod connlimit connlimit-above 4 connlimit-mask 24
+REJECT;</p>
+
+<p style="margin-top: 1em">connmark <br>
+Check the mark field associated with the connection, set by
+the CONNMARK target.</p>
+
+<p style="margin-top: 1em">mod connmark mark 64; <br>
+mod connmark mark 6/7;</p>
+
+<p style="margin-top: 1em">conntrack <br>
+Check connection tracking information.</p>
+
+<p style="margin-top: 1em">mod conntrack ctstate
+(ESTABLISHED RELATED); <br>
+mod conntrack ctproto tcp; <br>
+mod conntrack ctorigsrc 192.168.0.2; <br>
+mod conntrack ctorigdst 1.2.3.0/24; <br>
+mod conntrack ctorigsrcport 67; <br>
+mod conntrack ctorigdstport 22; <br>
+mod conntrack ctreplsrc 2.3.4.5; <br>
+mod conntrack ctrepldst ! 3.4.5.6; <br>
+mod conntrack ctstatus ASSURED; <br>
+mod conntrack ctexpire 60; <br>
+mod conntrack ctexpire 180:240;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -m conntrack
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">cpu Match cpu handling this
+packet.</p>
+
+<p style="margin-top: 1em">mod cpu cpu 0;</p>
+
+<p style="margin-top: 1em">dccp Check DCCP (Datagram
+Congestion Control Protocol) specific attributes. This
+module is automatically loaded when you use &quot;protocol
+dccp&quot;.</p>
+
+<p style="margin-top: 1em">proto dccp sport 1234 dport 2345
+ACCEPT; <br>
+proto dccp dccp-types (SYNCACK ACK) ACCEPT; <br>
+proto dccp dccp-types !REQUEST DROP; <br>
+proto dccp dccp-option 2 ACCEPT;</p>
+
+<p style="margin-top: 1em">dscp Match the 6 bit DSCP field
+within the TOS field.</p>
+
+<p style="margin-top: 1em">mod dscp dscp 11; <br>
+mod dscp dscp-class AF41;</p>
+
+<p style="margin-top: 1em">dst Match the parameters in
+Destination Options header (IPv6).</p>
+
+<p style="margin-top: 1em">mod dst dst-len 10; <br>
+mod dst dst-opts (type1 type2 ...);</p>
+
+<p style="margin-top: 1em">ecn Match the ECN bits of an
+IPv4 TCP header.</p>
+
+<p style="margin-top: 1em">mod ecn ecn-tcp-cwr; <br>
+mod ecn ecn-tcp-ece; <br>
+mod ecn ecn-ip-ect 2;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -m ecn
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">esp Checks the SPI header in an
+ESP packet.</p>
+
+<p style="margin-top: 1em">mod esp espspi 0x101; <br>
+mod esp espspi ! 0x200:0x2ff;</p>
+
+<p style="margin-top: 1em">eui64 &quot;This module matches
+the EUI-64 part of a stateless autoconfigured IPv6 address.
+It compares the EUI-64 derived from the source MAC address
+in Ehternet frame with the <br>
+lower 64 bits of the IPv6 source address. But
+&quot;Universal/Local&quot; bit is not compared. This module
+doesn&rsquo;t match other link layer frame, and is only
+valid in the <br>
+PREROUTING, INPUT and FORWARD chains.&quot;</p>
+
+<p style="margin-top: 1em">mod eui64 ACCEPT;</p>
+
+<p style="margin-top: 1em">fuzzy &quot;This module matches
+a rate limit based on a fuzzy logic controller
+[FLC].&quot;</p>
+
+<p style="margin-top: 1em">mod fuzzy lower-limit 10
+upper-limit 20 ACCEPT;</p>
+
+<p style="margin-top: 1em">hbh Matches the Hop-by-Hop
+Options header (ip6).</p>
+
+<p style="margin-top: 1em">mod hbh hbh-len 8 ACCEPT; <br>
+mod hbh hbh-len !8 ACCEPT; <br>
+mod hbh hbh-opts (1:4 2:8) ACCEPT;</p>
+
+<p style="margin-top: 1em">hl Matches the Hop Limit field
+(ip6).</p>
+
+<p style="margin-top: 1em">mod hl hl-eq (8 10) ACCEPT; <br>
+mod hl hl-eq !5 ACCEPT; <br>
+mod hl hl-gt 15 ACCEPT; <br>
+mod hl hl-lt 2 ACCEPT;</p>
+
+<p style="margin-top: 1em">helper Checks which conntrack
+helper module tracks this connection. The port may be
+specified with &quot;-portnr&quot;.</p>
+
+<p style="margin-top: 1em">mod helper helper irc ACCEPT;
+<br>
+mod helper helper ftp-21 ACCEPT;</p>
+
+<p style="margin-top: 1em">icmp Check ICMP specific
+attributes. This module is automatically loaded when you use
+&quot;protocol icmp&quot;.</p>
+
+<p style="margin-top: 1em">proto icmp icmp-type
+echo-request ACCEPT;</p>
+
+<p style="margin-top: 1em">This option can also be used in
+be ip6 domain, although this is called icmpv6 in
+ip6tables.</p>
+
+<p style="margin-top: 1em">Use &quot;iptables -p icmp
+&quot;-h&quot;&quot; to obtain a list of valid ICMP
+types.</p>
+
+<p style="margin-top: 1em">iprange Match a range of IPv4
+addresses.</p>
+
+<p style="margin-top: 1em">mod iprange src-range
+192.168.2.0-192.168.3.255; <br>
+mod iprange dst-range ! 192.168.6.0-192.168.6.255;</p>
+
+<p style="margin-top: 1em">ipv4options <br>
+Match on IPv4 header options like source routing, record
+route, timestamp and router-alert.</p>
+
+<p style="margin-top: 1em">mod ipv4options ssrr ACCEPT;
+<br>
+mod ipv4options lsrr ACCEPT; <br>
+mod ipv4options no-srr ACCEPT; <br>
+mod ipv4options !rr ACCEPT; <br>
+mod ipv4options !ts ACCEPT; <br>
+mod ipv4options !ra ACCEPT; <br>
+mod ipv4options !any-opt ACCEPT;</p>
+
+<p style="margin-top: 1em">ipv6header <br>
+Matches the IPv6 extension header (ip6).</p>
+
+<p style="margin-top: 1em">mod ipv6header header !(hop
+frag) ACCEPT; <br>
+mod ipv6header header (auth dst) ACCEPT;</p>
+
+<p style="margin-top: 1em">hashlimit <br>
+Similar to &rsquo;mod limit&rsquo;, but adds the ability to
+add per-destination or per-port limits managed in a hash
+table.</p>
+
+<p style="margin-top: 1em">mod hashlimit hashlimit
+10/minute hashlimit-burst 30/minute <br>
+hashlimit-mode dstip hashlimit-name foobar ACCEPT;</p>
+
+<p style="margin-top: 1em">Possible values for
+hashlimit-mode: dstip dstport srcip srcport (or a list with
+more than one of these).</p>
+
+<p style="margin-top: 1em">There are more possible
+settings, type &quot;iptables -m hashlimit -h&quot; for
+documentation.</p>
+
+<p style="margin-top: 1em">ipvs Match IPVS connection
+properties.</p>
+
+<p style="margin-top: 1em">mod ipvs ipvs ACCEPT; # packet
+belongs to an IPVS connection <br>
+mod ipvs vproto tcp ACCEPT; # VIP protocol to match; by
+number or name, e.g. &quot;tcp <br>
+mod ipvs vaddr 1.2.3.4/24 ACCEPT; # VIP address to match
+<br>
+mod ipvs vport http ACCEPT; # VIP port to match <br>
+mod ipvs vdir ORIGINAL ACCEPT; # flow direction of packet
+<br>
+mod ipvs vmethod GATE ACCEPT; # IPVS forwarding method used
+<br>
+mod ipvs vportctl 80; # VIP port of the controlling
+connection to match</p>
+
+<p style="margin-top: 1em">length Check the package
+length.</p>
+
+<p style="margin-top: 1em">mod length length 128; # exactly
+128 bytes <br>
+mod length length 512:768; # range <br>
+mod length length ! 256; # negated</p>
+
+<p style="margin-top: 1em">limit Limits the packet
+rate.</p>
+
+<p style="margin-top: 1em">mod limit limit 1/second; <br>
+mod limit limit 15/minute limit-burst 10;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -m limit
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">mac Match the source MAC
+address.</p>
+
+<p style="margin-top: 1em">mod mac mac-source
+01:23:45:67:89;</p>
+
+<p style="margin-top: 1em">mark Matches packets based on
+their netfilter mark field. This may be a 32 bit integer
+between 0 and 4294967295.</p>
+
+<p style="margin-top: 1em">mod mark mark 42;</p>
+
+<p style="margin-top: 1em">mh Matches the mobility header
+(domain ip6).</p>
+
+<p style="margin-top: 1em">proto mh mh-type binding-update
+ACCEPT;</p>
+
+<p style="margin-top: 1em">multiport <br>
+Match a set of source or destination ports (UDP and TCP
+only).</p>
+
+<p style="margin-top: 1em">mod multiport source-ports
+(https ftp); <br>
+mod multiport destination-ports (mysql domain);</p>
+
+<p style="margin-top: 1em">This rule has a big advantage
+over &quot;dport&quot; and &quot;sport&quot;: it generates
+only one rule for up to 15 ports instead of one rule for
+every port.</p>
+
+<p style="margin-top: 1em">nth Match every
+&rsquo;n&rsquo;th packet.</p>
+
+<p style="margin-top: 1em">mod nth every 3; <br>
+mod nth counter 5 every 2; <br>
+mod nth start 2 every 3; <br>
+mod nth start 5 packet 2 every 6;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -m nth
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">osf Match packets depending on
+the operating system of the sender.</p>
+
+<p style="margin-top: 1em">mod osf genre Linux; <br>
+mod osf ! genre FreeBSD ttl 1 log 1;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -m osf
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">owner Check information about
+the packet creator, namely user id, group id, process id,
+session id and command name.</p>
+
+<p style="margin-top: 1em">mod owner uid-owner 0; <br>
+mod owner gid-owner 1000; <br>
+mod owner pid-owner 5432; <br>
+mod owner sid-owner 6543; <br>
+mod owner cmd-owner &quot;sendmail&quot;;</p>
+
+<p style="margin-top: 1em">(&quot;cmd-owner&quot;,
+&quot;pid-owner&quot; and &quot;sid-owner&quot; require
+special kernel patches not included in the vanilla Linux
+kernel)</p>
+
+<p style="margin-top: 1em">physdev Matches the physical
+device on which a packet entered or is about to leave the
+machine. This is useful for bridged interfaces.</p>
+
+<p style="margin-top: 1em">mod physdev physdev-in ppp1;
+<br>
+mod physdev physdev-out eth2; <br>
+mod physdev physdev-is-in; <br>
+mod physdev physdev-is-out; <br>
+mod physdev physdev-is-bridged;</p>
+
+<p style="margin-top: 1em">pkttype Check the link-layer
+packet type.</p>
+
+<p style="margin-top: 1em">mod pkttype pkt-type unicast;
+<br>
+mod pkttype pkt-type broadcase; <br>
+mod pkttype pkt-type multicast;</p>
+
+<p style="margin-top: 1em">policy Matches IPsec policy
+being applied to this packet.</p>
+
+<p style="margin-top: 1em">mod policy dir out pol ipsec
+ACCEPT; <br>
+mod policy strict reqid 23 spi 0x10 proto ah ACCEPT; <br>
+mod policy mode tunnel tunnel-src 192.168.1.2 ACCEPT; <br>
+mod policy mode tunnel tunnel-dst 192.168.2.1 ACCEPT; <br>
+mod policy strict next reqid 24 spi 0x11 ACCEPT;</p>
+
+<p style="margin-top: 1em">Note that the keyword proto is
+also used as a shorthand version of protocol (built-in match
+module). You can fix this conflict by always using the long
+keyword protocol.</p>
+
+<p style="margin-top: 1em">psd Detect TCP/UDP port
+scans.</p>
+
+<p style="margin-top: 1em">mod psd psd-weight-threshold 21
+psd-delay-threshold 300 <br>
+psd-lo-ports-weight 3 psd-hi-ports-weight 1 DROP;</p>
+
+<p style="margin-top: 1em">quota Implements network quotas
+by decrementing a byte counter with each packet.</p>
+
+<p style="margin-top: 1em">mod quota quota 65536
+ACCEPT;</p>
+
+<p style="margin-top: 1em">random Match a random percentage
+of all packets.</p>
+
+<p style="margin-top: 1em">mod random average 70;</p>
+
+<p style="margin-top: 1em">realm Match the routing realm.
+Useful in environments using BGP.</p>
+
+<p style="margin-top: 1em">mod realm realm 3;</p>
+
+<p style="margin-top: 1em">recent Temporarily mark source
+IP addresses.</p>
+
+<p style="margin-top: 1em">mod recent set; <br>
+mod recent rcheck seconds 60; <br>
+mod recent set rsource name &quot;badguy&quot;; <br>
+mod recent set rdest; <br>
+mod recent rcheck rsource name &quot;badguy&quot; seconds
+60; <br>
+mod recent update seconds 120 hitcount 3 rttl;</p>
+
+<p style="margin-top: 1em">This netfilter module has a
+design flaw: although it is implemented as a match module,
+it has target-like behaviour when using the &quot;set&quot;
+keyword.</p>
+
+
+<p style="margin-top: 1em">&lt;http://snowman.net/projects/ipt_recent/&gt;</p>
+
+<p style="margin-top: 1em">rpfilter <br>
+Checks a reply to the packet would be sent via the same
+interface it arrived on. Packets from the loopback interface
+are always permitted.</p>
+
+<p style="margin-top: 1em">mod rpfilter proto tcp loose
+RETURN; <br>
+mod rpfilter validmark accept-local RETURN; <br>
+mod rpfilter invert DROP;</p>
+
+<p style="margin-top: 1em">This netfilter module is the
+preferred way to perform reverse path filtering for IPv6,
+and a powerful alternative to checks controlled by sysctl
+<br>
+net.ipv4.conf.*.rp_filter.</p>
+
+<p style="margin-top: 1em">rt Match the IPv6 routing header
+(ip6 only).</p>
+
+<p style="margin-top: 1em">mod rt rt-type 2 rt-len 20
+ACCEPT; <br>
+mod rt rt-type !2 rt-len !20 ACCEPT; <br>
+mod rt rt-segsleft 2:3 ACCEPT; <br>
+mod rt rt-segsleft !4:5 ACCEPT; <br>
+mod rt rt-0-res rt-0-addrs (::1 ::2) rt-0-not-strict
+ACCEPT;</p>
+
+<p style="margin-top: 1em">sctp Check SCTP (Stream Control
+Transmission Protocol) specific attributes. This module is
+automatically loaded when you use &quot;protocol
+sctp&quot;.</p>
+
+<p style="margin-top: 1em">proto sctp sport 1234 dport 2345
+ACCEPT; <br>
+proto sctp chunk-types only DATA:Be ACCEPT; <br>
+proto sctp chunk-types any (INIT INIT_ACK) ACCEPT; <br>
+proto sctp chunk-types !all (HEARTBEAT) ACCEPT;</p>
+
+<p style="margin-top: 1em">Use &quot;iptables -p sctp
+&quot;-h&quot;&quot; to obtain a list of valid chunk
+types.</p>
+
+<p style="margin-top: 1em">set Checks the source or
+destination IP/Port/MAC against a set.</p>
+
+<p style="margin-top: 1em">mod set set badguys src
+DROP;</p>
+
+<p style="margin-top: 1em">See
+&lt;http://ipset.netfilter.org/&gt; for more
+information.</p>
+
+<p style="margin-top: 1em">state Checks the connection
+tracking state.</p>
+
+<p style="margin-top: 1em">mod state state INVALID DROP;
+<br>
+mod state state (ESTABLISHED RELATED) ACCEPT;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -m state
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">statistic <br>
+Successor of nth and random, currently undocumented in the
+iptables(8) man page.</p>
+
+<p style="margin-top: 1em">mod statistic mode random
+probability 0.8 ACCEPT; <br>
+mod statistic mode nth every 5 packet 0 DROP;</p>
+
+<p style="margin-top: 1em">string Matches a string.</p>
+
+<p style="margin-top: 1em">mod string string &quot;foo
+bar&quot; ACCEPT; <br>
+mod string algo kmp from 64 to 128 hex-string
+&quot;deadbeef&quot; ACCEPT;</p>
+
+<p style="margin-top: 1em">tcp Checks TCP specific
+attributes. This module is automatically loaded when you use
+&quot;protocol tcp&quot;.</p>
+
+<p style="margin-top: 1em">proto tcp sport 1234; <br>
+proto tcp dport 2345; <br>
+proto tcp tcp-flags (SYN ACK) SYN; <br>
+proto tcp tcp-flags ! (SYN ACK) SYN; <br>
+proto tcp tcp-flags ALL (RST ACK); <br>
+proto tcp syn; <br>
+proto tcp tcp-option 2; <br>
+proto tcp mss 512;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -p tcp
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">tcpmss Check the TCP MSS field
+of a SYN or SYN/ACK packet.</p>
+
+<p style="margin-top: 1em">mod tcpmss mss 123 ACCEPT; <br>
+mod tcpmss mss 234:567 ACCEPT;</p>
+
+<p style="margin-top: 1em">time Check if the time a packet
+arrives is in given range.</p>
+
+<p style="margin-top: 1em">mod time timestart 12:00; <br>
+mod time timestop 13:30; <br>
+mod time days (Mon Wed Fri); <br>
+mod time datestart 2005:01:01; <br>
+mod time datestart 2005:01:01:23:59:59; <br>
+mod time datestop 2005:04:01; <br>
+mod time monthday (30 31); <br>
+mod time weekdays (Wed Thu); <br>
+mod time timestart 12:00 utc; <br>
+mod time timestart 12:00 localtz;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -m time
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">tos Matches a packet on the
+specified TOS-value.</p>
+
+<p style="margin-top: 1em">mod tos tos Minimize-Cost
+ACCEPT; <br>
+mod tos tos !Normal-Service ACCEPT;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -m tos
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">ttl Matches the ttl (time to
+live) field in the IP header.</p>
+
+<p style="margin-top: 1em">mod ttl ttl-eq 12; # ttl equals
+<br>
+mod ttl ttl-gt 10; # ttl greater than <br>
+mod ttl ttl-lt 16; # ttl less than</p>
+
+<p style="margin-top: 1em">u32 Compares raw data from the
+packet. You can specify more than one filter in a ferm list;
+these are not expanded into multiple rules.</p>
+
+<p style="margin-top: 1em">mod u32 u32
+&rsquo;6&amp;0xFF=1&rsquo; ACCEPT; <br>
+mod u32 u32 (&rsquo;27&amp;0x8f=7&rsquo;
+&rsquo;31=0x527c4833&rsquo;) DROP;</p>
+
+<p style="margin-top: 1em">unclean Matches packets which
+seem malformed or unusual. This match has no further
+parameters.</p>
+
+<p style="margin-top: 1em">iptables target modules <br>
+The following additional targets are available in ferm,
+provided that you enabled them in your kernel:</p>
+
+<p style="margin-top: 1em">CHECKSUM <br>
+Compute packet checksum.</p>
+
+<p style="margin-top: 1em">CHECKSUM checksum-fill;</p>
+
+<p style="margin-top: 1em">CLASSIFY <br>
+Set the CBQ class.</p>
+
+<p style="margin-top: 1em">CLASSIFY set-class 3:50;</p>
+
+<p style="margin-top: 1em">CLUSTERIP <br>
+Configure a simple cluster of nodes that share a certain IP
+and MAC address. Connections are statically distributed
+between the nodes.</p>
+
+<p style="margin-top: 1em">CLUSTERIP new hashmode sourceip
+clustermac 00:12:34:45:67:89 <br>
+total-nodes 4 local-node 2 hash-init 12345;</p>
+
+<p style="margin-top: 1em">CONNMARK <br>
+Sets the netfilter mark value associated with a
+connection.</p>
+
+<p style="margin-top: 1em">CONNMARK set-xmark 42/0xff; <br>
+CONNMARK set-mark 42; <br>
+CONNMARK save-mark; <br>
+CONNMARK restore-mark; <br>
+CONNMARK save-mark nfmask 0xff ctmask 0xff; <br>
+CONNMARK save-mark mask 0x7fff; <br>
+CONNMARK restore-mark mask 0x8000; <br>
+CONNMARK and-mark 0x7; <br>
+CONNMARK or-mark 0x4; <br>
+CONNMARK xor-mark 0x7; <br>
+CONNMARK and-mark 0x7;</p>
+
+<p style="margin-top: 1em">CONNSECMARK <br>
+This module copies security markings from packets to
+connections (if unlabeled), and from connections back to
+packets (also only if unlabeled). Typically used in <br>
+conjunction with SECMARK, it is only valid in the mangle
+table.</p>
+
+<p style="margin-top: 1em">CONNSECMARK save; <br>
+CONNSECMARK restore;</p>
+
+<p style="margin-top: 1em">DNAT to
+[ip-address|ip-range|ip-port-range] <br>
+Change the destination address of the packet.</p>
+
+<p style="margin-top: 1em">DNAT to 10.0.0.4; <br>
+DNAT to 10.0.0.4:80; <br>
+DNAT to 10.0.0.4:1024-2048; <br>
+DNAT to 10.0.1.1-10.0.1.20;</p>
+
+<p style="margin-top: 1em">DNPT Provides stateless
+destination IPv6-to-IPv6 Network Prefix Translation.</p>
+
+<p style="margin-top: 1em">DNPT src-pfx 2001:42::/16
+dst-pfx 2002:42::/16;</p>
+
+<p style="margin-top: 1em">ECN This target allows to
+selectively work around known ECN blackholes. It can only be
+used in the mangle table.</p>
+
+<p style="margin-top: 1em">ECN ecn-tcp-remove;</p>
+
+<p style="margin-top: 1em">HL Modify the IPv6 Hop Limit
+field (ip6/mangle only).</p>
+
+<p style="margin-top: 1em">HL hl-set 5; <br>
+HL hl-dec 2; <br>
+HL hl-inc 1;</p>
+
+<p style="margin-top: 1em">HMARK Like MARK, i.e. set the
+fwmark, but the mark is calculated from hashing packet
+selector at choice.</p>
+
+<p style="margin-top: 1em">HMARK hmark-tuple
+&quot;src&quot; hmark-mod &quot;1&quot; hmark-offset
+&quot;1&quot; <br>
+hmark-src-prefix 192.168.1.0/24 hmark-dst-prefix
+192.168.2.0/24 <br>
+hmark-sport-mask 0x1234 hmark-dport-mask 0x2345 <br>
+hmark-spi-mask 0xdeadbeef hmark-proto-mask 0x42 hmark-rnd
+0xcoffee;</p>
+
+<p style="margin-top: 1em">IDLETIMER <br>
+This target can be used to identify when interfaces have
+been idle for a certain period of time.</p>
+
+<p style="margin-top: 1em">IDLETIMER timeout 60 label
+&quot;foo&quot;;</p>
+
+<p style="margin-top: 1em">IPV4OPTSSTRIP <br>
+Strip all the IP options from a packet. This module does not
+take any options.</p>
+
+<p style="margin-top: 1em">IPV4OPTSSTRIP;</p>
+
+<p style="margin-top: 1em">LED This creates an LED-trigger
+that can then be attached to system indicator lights, to
+blink or illuminate them when certain packets pass through
+the system.</p>
+
+<p style="margin-top: 1em">LED led-trigger-id
+&quot;foo&quot; led-delay 100 led-always-blink;</p>
+
+<p style="margin-top: 1em">LOG Log all packets that match
+this rule in the kernel log. Be carefull with log flooding.
+Note that this is a &quot;non-terminating target&quot;, i.e.
+rule traversal continues at the <br>
+next rule.</p>
+
+<p style="margin-top: 1em">LOG log-level warning log-prefix
+&quot;Look at this: &quot;; <br>
+LOG log-tcp-sequence log-tcp-options; <br>
+LOG log-ip-options;</p>
+
+<p style="margin-top: 1em">MARK Sets the netfilter mark
+field for the packet (a 32 bit integer between 0 and
+4294967295):</p>
+
+<p style="margin-top: 1em">MARK set-mark 42; <br>
+MARK set-xmark 7/3; <br>
+MARK and-mark 31; <br>
+MARK or-mark 1; <br>
+MARK xor-mark 12;</p>
+
+<p style="margin-top: 1em">MASQUERADE <br>
+Masquerades matching packets. Optionally followed by a port
+or port-range for iptables. Specify as &quot;123&quot;,
+&quot;123-456&quot; or &quot;123:456&quot;. The port range
+parameter specifies what <br>
+local ports masqueraded connections should originate
+from.</p>
+
+<p style="margin-top: 1em">MASQUERADE; <br>
+MASQUERADE to-ports 1234:2345; <br>
+MASQUERADE to-ports 1234:2345 random;</p>
+
+<p style="margin-top: 1em">MIRROR Experimental
+demonstration target which inverts the source and
+destination fields in the IP header.</p>
+
+<p style="margin-top: 1em">MIRROR;</p>
+
+<p style="margin-top: 1em">NETMAP Map a whole network onto
+another network in the nat table.</p>
+
+<p style="margin-top: 1em">NETMAP to 192.168.2.0/24;</p>
+
+<p style="margin-top: 1em">NOTRACK Disable connection
+tracking for all packets matching that rule.</p>
+
+<p style="margin-top: 1em">proto tcp dport (135:139 445)
+NOTRACK;</p>
+
+<p style="margin-top: 1em">RATEEST <br>
+RATEEST rateest-name &quot;foo&quot; rateest-interval 60s
+rateest-ewmalog 100;</p>
+
+<p style="margin-top: 1em">proto tcp dport (135:139 445)
+NOTRACK;</p>
+
+<p style="margin-top: 1em">NFLOG Log packets over netlink;
+this is the successor of ULOG.</p>
+
+<p style="margin-top: 1em">NFLOG nflog-group 5 nflog-prefix
+&quot;Look at this: &quot;; <br>
+NFLOG nflog-range 256; <br>
+NFLOG nflog-threshold 10;</p>
+
+<p style="margin-top: 1em">NFQUEUE Userspace queueing,
+requires nfnetlink_queue kernel support.</p>
+
+<p style="margin-top: 1em">proto tcp dport ftp NFQUEUE
+queue-num 20;</p>
+
+<p style="margin-top: 1em">QUEUE Userspace queueing, the
+predecessor to NFQUEUE. All packets go to queue 0.</p>
+
+<p style="margin-top: 1em">proto tcp dport ftp QUEUE;</p>
+
+<p style="margin-top: 1em">REDIRECT to-ports [ports] <br>
+Transparent proxying: alter the destination IP of the packet
+to the machine itself.</p>
+
+<p style="margin-top: 1em">proto tcp dport http REDIRECT
+to-ports 3128; <br>
+proto tcp dport http REDIRECT to-ports 3128 random;</p>
+
+<p style="margin-top: 1em">SAME Similar to SNAT, but a
+client is mapped to the same source IP for all its
+connections.</p>
+
+<p style="margin-top: 1em">SAME to 1.2.3.4-1.2.3.7; <br>
+SAME to 1.2.3.8-1.2.3.15 nodst; <br>
+SAME to 1.2.3.16-1.2.3.31 random;</p>
+
+<p style="margin-top: 1em">SECMARK This is used to set the
+security mark value associated with the packet for use by
+security subsystems such as SELinux. It is only valid in the
+mangle table.</p>
+
+<p style="margin-top: 1em">SECMARK selctx
+&quot;system_u:object_r:httpd_packet_t:s0&quot;;</p>
+
+<p style="margin-top: 1em">SET [add-set|del-set] [setname]
+[flag(s)] <br>
+Add the IP to the specified set. See
+&lt;http://ipset.netfilter.org/&gt;</p>
+
+<p style="margin-top: 1em">proto icmp icmp-type
+echo-request SET add-set badguys src; <br>
+SET add-set &quot;foo&quot; timeout 60 exist;</p>
+
+<p style="margin-top: 1em">SNAT to
+[ip-address|ip-range|ip-port-range] <br>
+Change the source address of the packet.</p>
+
+<p style="margin-top: 1em">SNAT to 1.2.3.4; <br>
+SNAT to 1.2.3.4:20000-30000; <br>
+SNAT to 1.2.3.4 random;</p>
+
+<p style="margin-top: 1em">SNPT Provides stateless source
+IPv6-to-IPv6 Network Prefix Translation.</p>
+
+<p style="margin-top: 1em">SNPT src-pfx 2001:42::/16
+dst-pfx 2002:42::/16;</p>
+
+<p style="margin-top: 1em">SYNPROXY <br>
+TCP 3-way handshake proxy: let the firewall handle the TCP
+3-way handshake and only establish connection with the
+server socket once the client handshake has finished.</p>
+
+<p style="margin-top: 1em">SYNPROXY wscale 7 mss 1460
+timestamp sack-perm</p>
+
+<p style="margin-top: 1em">TCPMSS Alter the MSS value of
+TCP SYN packets.</p>
+
+<p style="margin-top: 1em">TCPMSS set-mss 1400; <br>
+TCPMSS clamp-mss-to-pmtu;</p>
+
+<p style="margin-top: 1em">TCPOPTSTRIP <br>
+This target will strip TCP options off a TCP packet.</p>
+
+<p style="margin-top: 1em">TCPOPTSTRIP strip-options
+(option1 option2 ...);</p>
+
+<p style="margin-top: 1em">TOS set-tos [value] <br>
+Set the tcp package Type Of Service bit to this value. This
+will be used by whatever traffic scheduler is willing to,
+mostly your own linux-machine, but maybe more. The <br>
+original tos-bits are blanked and overwritten by this
+value.</p>
+
+<p style="margin-top: 1em">TOS set-tos Maximize-Throughput;
+<br>
+TOS and-tos 7; <br>
+TOS or-tos 1; <br>
+TOS xor-tos 4;</p>
+
+<p style="margin-top: 1em">Type &quot;iptables -j TOS
+-h&quot; for details.</p>
+
+<p style="margin-top: 1em">TTL Modify the TTL header
+field.</p>
+
+<p style="margin-top: 1em">TTL ttl-set 16; <br>
+TTL ttl-dec 1; # decrease by 1 <br>
+TTL ttl-inc 4; # increase by 4</p>
+
+<p style="margin-top: 1em">ULOG Log packets to a userspace
+program.</p>
+
+<p style="margin-top: 1em">ULOG ulog-nlgroup 5 ulog-prefix
+&quot;Look at this: &quot;; <br>
+ULOG ulog-cprange 256; <br>
+ULOG ulog-qthreshold 10;</p>
+
+<p style="margin-top: 1em">OTHER DOMAINS <br>
+Since version 2.0, ferm supports not only ip and ip6, but
+also arp (ARP tables) and eb (ethernet bridging tables). The
+concepts are similar to iptables.</p>
+
+<p style="margin-top: 1em">arptables keywords <br>
+source-ip, destination-ip <br>
+Matches the source or destination IPv4 address. Same as
+saddr and daddr in the ip domain.</p>
+
+<p style="margin-top: 1em">source-mac, destination-mac <br>
+Matches the source or destination MAC address.</p>
+
+<p style="margin-top: 1em">interface, outerface <br>
+Input and output interface.</p>
+
+<p style="margin-top: 1em">h-length <br>
+Hardware length of the packet.</p>
+
+<p style="margin-top: 1em">chain INPUT h-length 64
+ACCEPT;</p>
+
+<p style="margin-top: 1em">opcode Operation code, for
+details see the iptables(8).</p>
+
+<p style="margin-top: 1em">opcode 9 ACCEPT;</p>
+
+<p style="margin-top: 1em">h-type Hardware type.</p>
+
+<p style="margin-top: 1em">h-type 1 ACCEPT;</p>
+
+<p style="margin-top: 1em">proto-type <br>
+Protocol type.</p>
+
+<p style="margin-top: 1em">proto-type 0x800 ACCEPT;</p>
+
+<p style="margin-top: 1em">Mangling <br>
+The keywords mangle-ip-s, mangle-ip-d, mangle-mac-s,
+mangle-mac-d, mangle-target may be used for ARP mangling.
+See iptables(8) for details.</p>
+
+<p style="margin-top: 1em">ebtables keywords <br>
+proto Matches the protocol which created the frame, e.g.
+IPv4 or PPP. For a list, see /etc/ethertypes.</p>
+
+<p style="margin-top: 1em">interface, outerface <br>
+Physical input and output interface.</p>
+
+<p style="margin-top: 1em">logical-in, logical-out <br>
+The logical bridge interface.</p>
+
+<p style="margin-top: 1em">saddr, daddr <br>
+Matches source or destination MAC address.</p>
+
+<p style="margin-top: 1em">Match modules <br>
+The following match modules are supported: 802.3, arp, ip,
+mark_m, pkttype, stp, vlan, log.</p>
+
+<p style="margin-top: 1em">Target extensions <br>
+The following target extensions are supported: arpreply,
+dnat, mark, redirect, snat.</p>
+
+<p style="margin-top: 1em">Please note that there is a
+conflict between --mark from the mark_m match module and -j
+mark. Since both would be implemented with the ferm keyword
+mark, we decided to <br>
+solve this by writing the target&rsquo;s name in uppercase,
+like in the other domains. The following example rewrites
+mark 1 to 2:</p>
+
+<p style="margin-top: 1em">mark 1 MARK 2;</p>
+
+<p style="margin-top: 1em">ADVANCED FEATURES <br>
+Variables <br>
+In complex firewall files, it is helpful to use variables,
+e.g. to give a network interface a meaningful name.</p>
+
+<p style="margin-top: 1em">To set variables, write:</p>
+
+<p style="margin-top: 1em">@def $DEV_INTERNET = eth0; <br>
+@def $PORTS = (http ftp); <br>
+@def $MORE_PORTS = ($PORTS 8080);</p>
+
+<p style="margin-top: 1em">In the real ferm code, variables
+are used like any other keyword parameter:</p>
+
+<p style="margin-top: 1em">chain INPUT interface
+$DEV_INTERNET proto tcp dport $MORE_PORTS ACCEPT;</p>
+
+<p style="margin-top: 1em">Note that variables can only be
+used in keyword parameters (&quot;192.168.1.1&quot;,
+&quot;http&quot;); they cannot contain ferm keywords like
+&quot;proto&quot; or &quot;interface&quot;.</p>
+
+<p style="margin-top: 1em">Variables are only valid in the
+current block:</p>
+
+<p style="margin-top: 1em">@def $DEV_INTERNET = eth1; <br>
+chain INPUT { <br>
+proto tcp { <br>
+@def $DEV_INTERNET = ppp0; <br>
+interface $DEV_INTERNET dport http ACCEPT; <br>
+} <br>
+interface $DEV_INTERNET DROP; <br>
+}</p>
+
+<p style="margin-top: 1em">will be expanded to:</p>
+
+<p style="margin-top: 1em">chain INPUT { <br>
+proto tcp { <br>
+interface ppp0 dport http ACCEPT; <br>
+} <br>
+interface eth1 DROP; <br>
+}</p>
+
+<p style="margin-top: 1em">The &quot;def $DEV_INTERNET =
+ppp0&quot; is only valid in the &quot;proto tcp&quot; block;
+the parent block still knows &quot;set $DEV_INTERNET =
+eth1&quot;.</p>
+
+<p style="margin-top: 1em">Include files are special -
+variables declared in an included file are still available
+in the calling block. This is useful when you include a file
+which only declares variables.</p>
+
+<p style="margin-top: 1em">Automatic variables <br>
+Some variables are set internally by ferm. Ferm scripts can
+use them just like any other variable.</p>
+
+<p style="margin-top: 1em">$FILENAME <br>
+The name of the configuration file relative to the directory
+ferm was started in.</p>
+
+<p style="margin-top: 1em">$FILEBNAME <br>
+The base name of the configuration file.</p>
+
+<p style="margin-top: 1em">$DIRNAME <br>
+The directory of the configuration file.</p>
+
+<p style="margin-top: 1em">$DOMAIN The current domain. One
+of ip, ip6, arp, eb.</p>
+
+<p style="margin-top: 1em">$TABLE The current netfilter
+table.</p>
+
+<p style="margin-top: 1em">$CHAIN The current netfilter
+chain.</p>
+
+<p style="margin-top: 1em">$LINE The line of the current
+script. It can be used like this:</p>
+
+<p style="margin-top: 1em">@def &amp;log($msg) = { <br>
+LOG log-prefix &quot;rule=$msg:$LINE &quot;; <br>
+} <br>
+. <br>
+. <br>
+. <br>
+&amp;log(&quot;log message&quot;);</p>
+
+<p style="margin-top: 1em">Functions <br>
+Functions are similar to variables, except that they may
+have parameters, and they provide ferm commands, not
+values.</p>
+
+<p style="margin-top: 1em">@def &amp;FOO() = proto (tcp
+udp) dport domain; <br>
+&amp;FOO() ACCEPT;</p>
+
+<p style="margin-top: 1em">@def &amp;TCP_TUNNEL($port,
+$dest) = { <br>
+table filter chain FORWARD interface ppp0 proto tcp dport
+$port daddr $dest outerface eth0 ACCEPT; <br>
+table nat chain PREROUTING interface ppp0 proto tcp dport
+$port daddr 1.2.3.4 DNAT to $dest; <br>
+}</p>
+
+<p style="margin-top: 1em">&amp;TCP_TUNNEL(http,
+192.168.1.33); <br>
+&amp;TCP_TUNNEL(ftp, 192.168.1.30); <br>
+&amp;TCP_TUNNEL((ssh smtp), 192.168.1.2);</p>
+
+<p style="margin-top: 1em">A function call which contains a
+block (like &rsquo;{...}&rsquo;) must be the last command in
+a ferm rule, i.e. it must be followed by &rsquo;;&rsquo;.
+The &rsquo;&amp;FOO()&rsquo; example does not contain a
+block, <br>
+thus you may write &rsquo;ACCEPT&rsquo; after the call. To
+circumvent this, you can reorder the keywords:</p>
+
+<p style="margin-top: 1em">@def &amp;IPSEC() = { proto (esp
+ah); proto udp dport 500; } <br>
+chain INPUT ACCEPT &amp;IPSEC();</p>
+
+<p style="margin-top: 1em">Backticks <br>
+With backticks, you may use the output of an external
+command:</p>
+
+<p style="margin-top: 1em">@def $DNSSERVERS = &lsquo;grep
+nameserver /etc/resolv.conf | awk &rsquo;{print
+$2}&rsquo;&lsquo;; <br>
+chain INPUT proto tcp saddr $DNSSERVERS ACCEPT;</p>
+
+<p style="margin-top: 1em">The command is executed with the
+shell (/bin/sh), just like backticks in perl. ferm does not
+do any variable expansion here.</p>
+
+<p style="margin-top: 1em">The output is then tokenized,
+and saved as a ferm list (array). Lines beginning with
+&rsquo;#&rsquo; are ignored; the other lines may contain any
+number of values, separated by whitespace.</p>
+
+<p style="margin-top: 1em">Includes <br>
+The @include keyword allows you to include external
+files:</p>
+
+<p style="margin-top: 1em">@include
+&rsquo;vars.ferm&rsquo;;</p>
+
+<p style="margin-top: 1em">The file name is relative to the
+calling file, e.g. when including from /etc/ferm/ferm.conf,
+the above statement includes /etc/ferm/vars.ferm. Variables
+and functions declared in <br>
+an included file are still available in the calling
+file.</p>
+
+<p style="margin-top: 1em">include works within a
+block:</p>
+
+<p style="margin-top: 1em">chain INPUT { <br>
+@include &rsquo;input.ferm&rsquo;; <br>
+}</p>
+
+<p style="margin-top: 1em">If you specify a directory (with
+a trailing &rsquo;/&rsquo;), all files in this directory are
+included, sorted alphabetically:</p>
+
+<p style="margin-top: 1em">@include
+&rsquo;ferm.d/&rsquo;;</p>
+
+<p style="margin-top: 1em">The function @glob can be used
+to expand wild cards:</p>
+
+<p style="margin-top: 1em">@include
+@glob(&rsquo;*.include&rsquo;);</p>
+
+<p style="margin-top: 1em">With a trailing pipe symbol,
+ferm executes a shell command and parses its output:</p>
+
+<p style="margin-top: 1em">@include
+&quot;/root/generate_ferm_rules.sh $HOSTNAME|&quot;</p>
+
+<p style="margin-top: 1em">ferm aborts, if return code is
+not 0.</p>
+
+<p style="margin-top: 1em">Conditionals <br>
+The keyword @if introduces a conditional expression:</p>
+
+<p style="margin-top: 1em">@if $condition DROP;</p>
+
+<p style="margin-top: 1em">A value is evaluated true just
+like in Perl: zero, empty list, empty string are false,
+everything else is true. Examples for true values:</p>
+
+<p style="margin-top: 1em">(a b); 1; &rsquo;foo&rsquo;; (0
+0)</p>
+
+<p style="margin-top: 1em">Examples for false values:</p>
+
+<p style="margin-top: 1em">(); 0; &rsquo;0&rsquo;;
+&rsquo;&rsquo;</p>
+
+<p style="margin-top: 1em">There is also @else:</p>
+
+<p style="margin-top: 1em">@if $condition DROP; @else
+REJECT;</p>
+
+<p style="margin-top: 1em">Note the semicolon before the
+@else.</p>
+
+<p style="margin-top: 1em">It is possible to use curly
+braces after either @if or @else:</p>
+
+<p style="margin-top: 1em">@if $condition { <br>
+MARK set-mark 2; <br>
+RETURN; <br>
+} @else { <br>
+MARK set-mark 3; <br>
+}</p>
+
+<p style="margin-top: 1em">Since the closing curly brace
+also finishes the command, there is no need for
+semicolon.</p>
+
+<p style="margin-top: 1em">There is no @elsif, use @else
+@if instead.</p>
+
+<p style="margin-top: 1em">Example:</p>
+
+<p style="margin-top: 1em">@def $have_ipv6 = &lsquo;test -f
+/proc/net/ip6_tables_names &amp;&amp; echo 1 || echo&lsquo;;
+<br>
+@if $have_ipv6 { <br>
+domain ip6 { <br>
+# .... <br>
+} <br>
+}</p>
+
+<p style="margin-top: 1em">Hooks <br>
+To run custom commands, you may install hooks:</p>
+
+<p style="margin-top: 1em">@hook pre &quot;echo 0
+&gt;/proc/sys/net/ipv4/conf/eth0/forwarding&quot;; <br>
+@hook post &quot;echo 1
+&gt;/proc/sys/net/ipv4/conf/eth0/forwarding&quot;; <br>
+@hook flush &quot;echo 0
+&gt;/proc/sys/net/ipv4/conf/eth0/forwarding&quot;;</p>
+
+<p style="margin-top: 1em">The specified command is
+executed using the shell. &quot;pre&quot; means run the
+command before applying the firewall rules, and
+&quot;post&quot; means run the command afterwards.
+&quot;flush&quot; hooks <br>
+are run after ferm has flushed the firewall rules (option
+--flush). You may install any number of hooks.</p>
+
+<p style="margin-top: 1em">BUILT-IN FUNCTIONS <br>
+There are several built-in functions which you might find
+useful.</p>
+
+<p style="margin-top: 1em">@defined($name),
+@defined(&amp;name) <br>
+Tests if the variable or function is defined.</p>
+
+<p style="margin-top: 1em">@def $a = &rsquo;foo&rsquo;;
+<br>
+@if @defined($a) good; <br>
+@if @not(@defined($a)) bad; <br>
+@if @defined(&amp;funcname) good;</p>
+
+<p style="margin-top: 1em">@eq(a,b) <br>
+Tests two values for equality. Example:</p>
+
+<p style="margin-top: 1em">@if @eq($DOMAIN, ip6) DROP;</p>
+
+<p style="margin-top: 1em">@ne(a,b) <br>
+Similar to @eq, this tests for non-equality.</p>
+
+<p style="margin-top: 1em">@not(x) <br>
+Negates a boolean value.</p>
+
+<p style="margin-top: 1em">@resolve((hostname1 hostname2
+...), [type]) <br>
+Usually, host names are resolved by iptables. To let ferm
+resolve host names, use the function @resolve:</p>
+
+<p style="margin-top: 1em">saddr @resolve(my.host.foo)
+proto tcp dport ssh ACCEPT; <br>
+saddr @resolve((another.host.foo third.host.foo)) proto tcp
+dport openvpn ACCEPT; <br>
+daddr @resolve(ipv6.google.com, AAAA) proto tcp dport http
+ACCEPT;</p>
+
+<p style="margin-top: 1em">Note the double parentheses in
+the second line: the inner pair for creating a ferm list,
+and the outer pair as function parameter delimiters.</p>
+
+<p style="margin-top: 1em">The second parameter is
+optional, and specifies the DNS record type. The default is
+&quot;A&quot;.</p>
+
+<p style="margin-top: 1em">Be careful with resolved host
+names in firewall configuration. DNS requests may block the
+firewall configuration for a long time, leaving the machine
+vulnerable, or they may <br>
+fail.</p>
+
+<p style="margin-top: 1em">@cat(a, b, ...) <br>
+Concatenate all parameters into one string.</p>
+
+<p style="margin-top: 1em">@substr(expression, offset,
+length) <br>
+Extracts a substring out of expression and returns it. First
+character is at offset 0. If OFFSET is negative, starts that
+far from the end of the string.</p>
+
+<p style="margin-top: 1em">@length(expression) <br>
+Returns the length in characters of the value of EXPR.</p>
+
+<p style="margin-top: 1em">@basename(path) <br>
+Return the base name of the file for a given path
+(File::Spec::splitpath).</p>
+
+<p style="margin-top: 1em">@dirname(path) <br>
+Return the name of the last directory for a given path,
+assuming the last component is a file name
+(File::Spec::splitpath).</p>
+
+<p style="margin-top: 1em">@glob(path) <br>
+Expand shell wildcards in the given paths (assumed to be
+relative to the current script). Returns a list of matching
+files. This function is useful as parameter of @include.</p>
+
+<p style="margin-top: 1em">@ipfilter(list) <br>
+Filters out the IP addresses that obviously do not match the
+current domain. That is useful to create common variables
+and rules for IPv4 and IPv6:</p>
+
+<p style="margin-top: 1em">@def $TRUSTED_HOSTS =
+(192.168.0.40 2001:abcd:ef::40);</p>
+
+<p style="margin-top: 1em">domain (ip ip6) chain INPUT {
+<br>
+saddr @ipfilter($TRUSTED_HOSTS) proto tcp dport ssh ACCEPT;
+<br>
+}</p>
+
+<p style="margin-top: 1em">RECIPES <br>
+The ./examples/ directory contains numerous ferm
+configuration which can be used to begin a new firewall.
+This sections contains more samples, recipes and tricks.</p>
+
+<p style="margin-top: 1em">Easy port forwarding <br>
+Ferm function make routine tasks quick and easy:</p>
+
+<p style="margin-top: 1em">@def &amp;FORWARD_TCP($proto,
+$port, $dest) = { <br>
+table filter chain FORWARD interface $DEV_WORLD outerface
+$DEV_DMZ daddr $dest proto $proto dport $port ACCEPT; <br>
+table nat chain PREROUTING interface $DEV_WORLD daddr
+$HOST_STATIC proto $proto dport $port DNAT to $dest; <br>
+}</p>
+
+<p style="margin-top: 1em">&amp;FORWARD_TCP(tcp, http,
+192.168.1.2); <br>
+&amp;FORWARD_TCP(tcp, smtp, 192.168.1.3); <br>
+&amp;FORWARD_TCP((tcp udp), domain, 192.168.1.4);</p>
+
+<p style="margin-top: 1em">Remote ferm <br>
+If the target machine is not able to run ferm for some
+reason (maybe an embedded device without Perl), you can edit
+the ferm configuration file on another computer and let ferm
+<br>
+generate a shell script there.</p>
+
+<p style="margin-top: 1em">Example for OpenWRT:</p>
+
+<p style="margin-top: 1em">ferm --remote --shell
+mywrt/ferm.conf &gt;mywrt/firewall.user <br>
+chmod +x mywrt/firewall.user <br>
+scp mywrt/firewall.user mywrt.local.net:/etc/ <br>
+ssh mywrt.local.net /etc/firewall.user</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+--noexec Do not execute the iptables(8) commands, but skip
+instead. This way you can parse your data, use --lines to
+view the output.</p>
+
+<p style="margin-top: 1em">--flush Clears the firewall
+rules and sets the policy of all chains to ACCEPT. ferm
+needs a configuration file for that to determine which
+domains and tables are affected.</p>
+
+<p style="margin-top: 1em">--lines Show the firewall lines
+that were generated from the rules. They will be shown just
+before they are executed, so if you get error messages from
+iptables(8) etc., you <br>
+can see which rule caused the error.</p>
+
+<p style="margin-top: 1em">--interactive <br>
+Apply the firewall rules and ask the user for confirmation.
+Reverts to the previous ruleset if there is no valid user
+response within 30 seconds (see --timeout). <br>
+This is useful for remote firewall administration: you can
+test the rules without fearing to lock yourself out.</p>
+
+<p style="margin-top: 1em">--timeout S If --interactive is
+used, then roll back if there is no valid user response
+after this number of seconds. The default is 30.</p>
+
+<p style="margin-top: 1em">--help Show a brief list of
+available commandline options.</p>
+
+<p style="margin-top: 1em">--version Shows the version
+number of the program.</p>
+
+<p style="margin-top: 1em">--fast Enable fast mode: ferm
+generates an iptables-save(8) file, and installs it with
+iptables-restore(8). This is much faster, because ferm calls
+iptables(8) once for <br>
+every rule by default.</p>
+
+<p style="margin-top: 1em">Fast mode is enabled by default
+since ferm 2.0, deprecating this option.</p>
+
+<p style="margin-top: 1em">--slow Disable fast mode, i.e.
+run iptables(8) for every rule, and don&rsquo;t use
+iptables-restore(8).</p>
+
+<p style="margin-top: 1em">--shell Generate a shell script
+which calls iptables-restore(8) and prints it. Implies
+--fast --lines.</p>
+
+<p style="margin-top: 1em">--remote Generate rules for a
+remote machine. Implies --noexec and --lines. Can be
+combined with --shell.</p>
+
+<p style="margin-top: 1em">--domain {ip|ip6} <br>
+Handle only the specified domain. ferm output may be empty
+if the domain is not configured in the input file.</p>
+
+<p style="margin-top: 1em">--def &rsquo;$name=value&rsquo;
+<br>
+Override a variable defined in the configuration file.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+iptables(8)</p>
+
+<p style="margin-top: 1em">REQUIREMENTS <br>
+Operating system <br>
+Linux 2.4 or newer, with netfilter support and all netfilter
+modules used by your firewall script</p>
+
+<p style="margin-top: 1em">Software <br>
+iptables and perl 5.6</p>
+
+<p style="margin-top: 1em">BUGS <br>
+Bugs? What bugs?</p>
+
+<p style="margin-top: 1em">If you find a bug, please tell
+us: ferm@foo-projects.org</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright (C) 2001-2012 Max Kellermann
+&lt;max@foo-projects.org&gt;, Auke Kok
+&lt;sofar@foo-projects.org&gt;</p>
+
+<p style="margin-top: 1em">This program is free software;
+you can redistribute it and/or modify it under the terms of
+the GNU General Public License as published by the Free
+Software Foundation; either <br>
+version 2 of the License, or (at your option) any later
+version.</p>
+
+<p style="margin-top: 1em">This program is distributed in
+the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR <br>
+PURPOSE. See the GNU General Public License for more
+details.</p>
+
+<p style="margin-top: 1em">You should have received a copy
+of the GNU General Public License along with this program;
+if not, write to the Free Software Foundation, Inc., 59
+Temple Place, Suite 330, <br>
+Boston, MA 02111-1307 USA</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Max Kellermann &lt;max@foo-projects.org&gt;, Auke Kok
+&lt;sofar@foo-projects.org&gt;</p>
+
+<p style="margin-top: 1em">ferm 2.3 2016-03-30 FERM(1)</p>
+<hr>
+</body>
+</html>

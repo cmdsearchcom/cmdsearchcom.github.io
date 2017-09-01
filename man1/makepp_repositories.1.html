@@ -1,0 +1,718 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:23:46 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>MAKEPP_REPOSITORIES(1) Makepp MAKEPP_REPOSITORIES(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+makepp_repositories -- How to use repositories for variant
+builds, for maintaining a central set of sources, and other
+things</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+A repository is a directory or directory hierarchy outside
+of the default directory that contains files which the
+makefile needs in the current directory tree. Makepp can
+<br>
+automatically link files from the repository into the
+current directory tree if they are needed. Repositories
+provide similar functionality to the &quot;VPATH&quot;
+variable, but (unlike <br>
+&quot;VPATH&quot; in other versions of make) you do not have
+to do anything special to your makefile to get them to
+work.</p>
+
+<p style="margin-top: 1em">Repositories are specified with
+the &quot;-R&quot; or &quot;--repository&quot; command line
+option or with the &quot;repository&quot; statement in the
+makefile. Note that if you have a habit of calling <br>
+makepp in different subdirectories of your build tree, it is
+easy to accidentally reimport a repository somewhere else.
+As a safeguard against this, if you use RootMakeppfile, <br>
+makepp will refuse to start if it finds one above or below
+where it would be imported.</p>
+
+<p style="margin-top: 1em">This is somewhat comparable to
+operating system union filesystems (unionfs...) The current
+directory is like the highest level writable layer. All
+repositories are like lower <br>
+read-only layers.</p>
+
+<p style="margin-top: 1em">Repositories are useful in
+several different situations:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; When you want to
+place your object and executable files in a separate
+directory, but the makefile is written to place them in the
+same directory as the sources.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; When you want to
+build the same program two different ways (e.g., with two
+different sets of compilation options, or for two different
+architectures).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; When you
+don&rsquo;t have write access to all or part of the source
+tree.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; When several
+developers are working on the same project, and there is a
+common source repository containing all the sources for the
+project. Each developer can modify only <br>
+the files he needs to change in his local directory without
+affecting the other developers, and makepp will
+automatically fetch the unmodified files from the source
+<br>
+repository.</p>
+
+<p style="margin-top: 1em">Makepp&rsquo;s implementation of
+repositories does not require rewriting of the build
+commands at all, unlike (for example) repositories in cons.
+Makepp puts a symbolic link into the <br>
+directory where the command is expecting it. As long as the
+command does not refer to absolute directories, the exact
+same shell command will work with files from a repository.
+<br>
+This means that it works not only for compilation commands,
+but any kind of command you can think to put in your
+makefile.</p>
+
+<p style="margin-top: 1em">Makepp has another kind of
+mechanism called a build cache which solves some of the same
+sorts of problems as repositories in a different way.
+Depending on your problem, a build <br>
+cache may be more useful than a repository. See
+makepp_build_cache for information about build caches and a
+comparison of build caches and repositories.</p>
+
+<p style="margin-top: 1em">Examples <br>
+Repositories are best explained by several examples of what
+you can do.</p>
+
+<p style="margin-top: 1em">Different compilation
+options</p>
+
+<p style="margin-top: 1em">Suppose you have a simple
+program with a makefile that looks something like this:</p>
+
+<p style="margin-top: 1em">CFLAGS = -O2 <br>
+OBJECTS = a.o b.o c.o <br>
+my_program: $(OBJECTS) <br>
+cc $(inputs) -o $(output)</p>
+
+<p style="margin-top: 1em">%.o: %.c <br>
+cc $(CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">This makefile places the files
+&quot;a.o&quot;, &quot;b.o&quot;, &quot;c.o&quot;, and
+&quot;my_program&quot; in the same directory as the source
+files.</p>
+
+<p style="margin-top: 1em">Sometimes you want to place the
+binary files into a separate directory. For example, you
+might build your program on several different architectures,
+and you don&rsquo;t want the <br>
+binary files on one architecture to be replaced with the
+binary files on the other. Or you might want to make a
+temporary change and recompile without wiping out the
+previous <br>
+compilation results. Without repositories, you would have to
+modify your makefile to place the objects elsewhere.</p>
+
+<p style="margin-top: 1em">With a repository, however, you
+don&rsquo;t have to touch your makefile at all. Consider the
+following sequence of commands:</p>
+
+<p style="margin-top: 1em">% cd my_program_source <br>
+% makepp # Builds using the above makefile, and <br>
+# object files go into the directory <br>
+# my_program_source. <br>
+% cd .. <br>
+% mkdir binary-debug # Make a clean directory for building
+the <br>
+% cd binary-debug # same program with different options.
+<br>
+% makepp -R ../my_program_source CFLAGS=-g <br>
+# Now objects go into binary-debug.</p>
+
+<p style="margin-top: 1em">The first makepp command
+compiles the source files with optimization and puts the
+objects into the directory &quot;my_program_source&quot;,
+because that&rsquo;s what the makefile is supposed to <br>
+do. Now we want to rebuild the program, but we want to
+change the value of &quot;CFLAGS&quot; to compile for debug.
+We specify the new value of &quot;CFLAGS&quot; on the
+command line, and we also <br>
+tell makepp that the &quot;my_program_source&quot; directory
+is a repository using the &quot;-R&quot; option.</p>
+
+<p style="margin-top: 1em">Every time makepp realizes that
+it needs a file that it doesn&rsquo;t already have in
+current directory, it looks in the repository. In this case,
+it first looks for the makefile, <br>
+which doesn&rsquo;t exist in the &quot;binary-debug&quot;
+subdirectory. So it creates a symbolic link to it from the
+makefile in &quot;my_program_source&quot;, and then reads in
+the makefile. Then it <br>
+notices that it needs the file &quot;a.c&quot; in order to
+build &quot;a.o&quot;, and so it links in &quot;a.c&quot;
+from the repository. If &quot;a.c&quot; includes any files
+contained in &quot;my_program_source&quot;, then <br>
+these will be automatically linked in as well. Note: Those
+links are useful for things like debugging, but if you
+don&rsquo;t like them, &quot;makeppclean -R&quot; can remove
+them.</p>
+
+<p style="margin-top: 1em">Running the build command in
+&quot;binary-debug&quot; won&rsquo;t touch any of the files
+in &quot;my_program_source&quot;. Thus from the same set of
+source files, you now have two different copies of the <br>
+program, one compiled with optimization and one compiled for
+debug. And this happened without touching the makefile at
+all.</p>
+
+<p style="margin-top: 1em">The advantage of using
+repositories instead of simply recompiling and overwriting
+the original binaries is that now if we fix our bugs and
+want to go back to the optimized <br>
+version, we don&rsquo;t have to recompile everything. Since
+the original object files are still around, and most of them
+are still valid, we can save a lot of time on recompilation.
+<br>
+This does not make a big difference when only three source
+files are involved, but for a larger build that takes
+minutes or hours to complete, the savings in programmer time
+and <br>
+frustration can be significant.</p>
+
+<p style="margin-top: 1em">Rebuilding one file with a minor
+modification to the compilation commands</p>
+
+<p style="margin-top: 1em">Makepp doesn&rsquo;t fetch only
+source files from the repository. If the object files in the
+repository don&rsquo;t need rebuilding, it will use them.
+For example, consider a slight <br>
+modification to the above makefile:</p>
+
+<p style="margin-top: 1em">CFLAGS := -O2 <br>
+A_CFLAGS := -O6 -funroll-loops</p>
+
+<p style="margin-top: 1em">OBJECTS := a.o b.o c.o</p>
+
+<p style="margin-top: 1em">my_program: $(OBJECTS) <br>
+cc $(inputs) -o $(output)</p>
+
+<p style="margin-top: 1em">%.o: %.c <br>
+cc $(CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">a.o: a.c <br>
+cc $(A_CFLAGS) -c $(input) -o $(output)</p>
+
+<p style="margin-top: 1em">The idea is that &quot;a.o&quot;
+contains the time-critical code, so it is compiled with
+higher optimization than the rest of the objects. Now
+suppose we want to test just how different <br>
+the timing is with different compile options. A repository
+can help with this, too:</p>
+
+<p style="margin-top: 1em">% cd my_program_source <br>
+% makepp # Builds using the above makefile, and <br>
+# object files go into the directory <br>
+# my_program_source. <br>
+% cd .. <br>
+% mkdir no-unrolling # Make a clean directory for building
+the <br>
+% cd no-unrolling # same program with different options.
+<br>
+% makepp -R ../my_program_source A_CFLAGS=-O2 <br>
+% cd .. <br>
+% time no-unrolling/my_program # Benchmark the two versions
+of the program. <br>
+% time my_program_source/my_program</p>
+
+<p style="margin-top: 1em">Makepp proceeds as before,
+linking in a copy of the makefile and then examining the
+object files. Now only the &quot;a.o&quot; module needs
+recompiling, since the options for &quot;b.o&quot; and <br>
+&quot;c.o&quot; haven&rsquo;t changed. Makepp notices that
+it can use &quot;b.o&quot; and &quot;c.o&quot; from the
+repository, so it just links those in. However, it will
+recompile &quot;a.o&quot; in the &quot;no-unrolling&quot;
+<br>
+directory. Once the compilation is finished, the two
+different versions of the program can be benchmarked.</p>
+
+<p style="margin-top: 1em">Rebuilding with a minor
+modification to the source</p>
+
+<p style="margin-top: 1em">Now suppose we want to make a
+change to &quot;a.c&quot; and benchmark the program before
+and after the change. Repositories can help again. Consider
+this sequence of commands:</p>
+
+<p style="margin-top: 1em">% mkdir modified-a <br>
+% cp my_program_source/a.c modified-a <br>
+% cd modified-a <br>
+% emacs a.c # Make some modifications just to this module.
+<br>
+% makepp -R ../my_program_source</p>
+
+<p style="margin-top: 1em">Here we have created a new
+directory that just contains the single source file we want
+to modify. Makepp now takes &quot;a.c&quot; from the
+&quot;modified-a&quot; subdirectory, but uses the copies
+<br>
+of &quot;b&quot; and &quot;c&quot; from the
+&quot;my_program_source&quot; directory. Without changing
+any of the binary files in &quot;my_program_source&quot;, we
+have created a separate copy of the program that <br>
+incorporates our changes to &quot;a.c&quot;. If there are
+other developers using the sources in
+&quot;my_program_source&quot;, they will be unaffected by
+our changes.</p>
+
+<p style="margin-top: 1em">Repositories can thus be used as
+a quick way to build variants of a program, without adding
+complicated conditions to the makefile. None of the files in
+the original directory <br>
+are modified; they are used as needed.</p>
+
+<p style="margin-top: 1em">Using a directory hierarchy</p>
+
+<p style="margin-top: 1em">A repository is actually not
+just a single directory, it&rsquo;s a whole directory
+hierarchy. Suppose you use /our/library as a repository. Now
+/our/library may well contain many <br>
+subdirectories, e.g., /our/library/gui and
+/our/library/network. Consider this command:</p>
+
+<p style="margin-top: 1em">% makepp -R /our/library</p>
+
+<p style="margin-top: 1em">Any commands in the makefile
+that refer to files in the directory ./network will actually
+get files from /our/library/network, and similarly for
+./gui. Makepp automatically <br>
+creates any directories that exist in the repository but not
+in the current directory.</p>
+
+<p style="margin-top: 1em">Linking to any place in the file
+system</p>
+
+<p style="margin-top: 1em">All of the above examples show
+files from a repository being linked into the current
+directory or its subdirectories, but you can actually have
+makepp link them into any place in <br>
+the file system that you have write access to. This is done
+by specifying &quot;-R new-location=old-location&quot;.</p>
+
+<p style="margin-top: 1em">For example, sometimes
+it&rsquo;s a little tedious to type the following:</p>
+
+<p style="margin-top: 1em">mkdir alternate-build <br>
+cd alternate-build <br>
+makepp -R ..</p>
+
+<p style="margin-top: 1em">You can do it all with one
+command, like this:</p>
+
+<p style="margin-top: 1em">makepp -R alternate-build=. -F
+alternate-build</p>
+
+<p style="margin-top: 1em">&quot;-F&quot; or
+&quot;-makeppfile&quot; changes to that directory before
+loading the makefile. You must specify &quot;-R&quot; before
+&quot;-F&quot;. Note that this example puts the new build
+tree inside the <br>
+repository. That will not work if you use a RootMakeppfile
+because makepp safeguards against nested trees. It&rsquo;s
+also not a good idea if you use **, because if you ever
+build in <br>
+the repository it will also find edited and generated files
+in this subtree.</p>
+
+<p style="margin-top: 1em">Assigning a different location
+in the file system may be also useful for more complicated
+builds, where there are several library subdirectories. For
+example, here&rsquo;s a command I <br>
+have used to build variants of one of my programs:</p>
+
+<p style="margin-top: 1em">% makepp -R
+test-build/seescape=/src/seescape -R
+test-build/HLib=/src/HLib -R test-build/H5pp=/src/H5pp -R
+qwt=/src/external_libraries/qwt -F test-build/seescape</p>
+
+<p style="margin-top: 1em">This command loads in files from
+four different repositories, and then cds to the
+./test-build/seescape directory and executes the makefile
+there. Files contained in the <br>
+directory tree beginning with /src/seescape are linked into
+./test-build/seescape. In other words, makepp will
+temporarily link the file /src/seescape/gui/image_canvas.cxx
+to <br>
+./test-build/seescape/gui/image_canvas.cxx when it is
+needed. This command will work even if the
+&quot;test-build&quot; directory doesn&rsquo;t exist yet;
+makepp will create it for you. (But <br>
+you must specify the &quot;-R&quot; options before the
+&quot;-F&quot; option on the command line.)</p>
+
+<p style="margin-top: 1em">Multiple equivalent
+repositories</p>
+
+<p style="margin-top: 1em">Say your project is maintained
+by several fairly autonomous groups. You could have one
+complete repository with all the sources as they are in
+production or at least <br>
+successfully tested. Every group can have a mostly empty
+repository with (part of) the same structure, containing the
+files group members have finished developing.</p>
+
+<p style="margin-top: 1em">Developers&rsquo; current
+directories will have the files they are still working on.
+The group repository will be the first one given and the
+production repository the last one, so <br>
+that it furnishes the files not found in the group
+repository:</p>
+
+<p style="margin-top: 1em">$ makepp
+-R/path/to/group/repository
+-R/path/to/production/repository</p>
+
+<p style="margin-top: 1em">Since this is probably fairly
+static for that directory, you may want to put a file
+.makepprc at its root with the following content:</p>
+
+<p style="margin-top: 1em">-R/path/to/group/repository
+-R/path/to/production/repository</p>
+
+<p style="margin-top: 1em">Or, presuming that it has a
+fixed path, you could write into your makefile:</p>
+
+<p style="margin-top: 1em">repository
+/path/to/production/repository</p>
+
+<p style="margin-top: 1em">and, because options are seen
+before makefiles are read, you can then call just</p>
+
+<p style="margin-top: 1em">$ makepp
+-R/path/to/group/repository</p>
+
+<p style="margin-top: 1em">Repositories as fixed part of
+your build system</p>
+
+<p style="margin-top: 1em">If you know you always use some
+repository you can use the &quot;repository&quot; or
+&quot;vpath&quot; statements in your makefile.</p>
+
+<p style="margin-top: 1em">Caveats with repositories <br>
+When the links get in the way</p>
+
+<p style="margin-top: 1em">For finding your way around your
+file hierarchy and for allowing the debugger to find the
+sources it is useful to have the links used while building.
+But when you want to edit a <br>
+file or resync it with your version control, the links can
+get in the way. That is because the system traverses the
+link and writes to the file in the repository. Unless
+it&rsquo;s <br>
+your personal repository used just for keeping things apart,
+that may not be what you want.</p>
+
+<p style="margin-top: 1em">As a safeguard against
+inadvertent overwriting of public files it is suggested to
+make the sources in the repository unwritable. It might even
+not be enough to remove the write <br>
+bit, because a version control system which insists on your
+locking the files for editing might also do that, but
+temporarily make the file writable while resyncing it. If
+that <br>
+is the case for you, the repository should actually belong
+to a different user.</p>
+
+<p style="margin-top: 1em">There are a few tactics to
+surmount this:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Keep the sources
+you edit in a repository, separate from your build tree.
+Whenever you put a file, which was previously fetched from
+another repository, into this editing <br>
+repository, makepp will notice and fetch it from there,
+provided it is the first repository you specify.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Remember to
+delete any file, before you create a copy for writing. If
+you follow the safeguard suggestion above, forgetting to do
+this will give an error message when <br>
+writing. To help you, the following function
+&quot;delink&quot; will replace one link by a copy of the
+linked file. The first variant is for all kinds of Bournish
+Shells, the second <br>
+one for csh (or at least tcsh):</p>
+
+<p style="margin-top: 1em">$ delink() { { rm $1 &amp;&amp;
+cat &gt;$1; } &lt;$1; } <br>
+% alias delink &rsquo;( rm :1 &amp;&amp; cat &gt;:1; )
+&lt;:1&rsquo;</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If you feel you
+don&rsquo;t need them, you can delete them all, whenever you
+want, e.g. after every makepp run, possibly backgrounded
+(either short or long form):</p>
+
+<p style="margin-top: 1em">makeppclean --recurse
+--only-repository-links <br>
+mppc -rR</p>
+
+<p style="margin-top: 1em">Don&rsquo;t build in a
+repository during use</p>
+
+<p style="margin-top: 1em">A repository is meant to be
+read-only while it is being used as a repository. Makepp
+will not work properly if you change files in your
+repository during the course of a build. <br>
+Nightly builds may be ok for you, if no one else uses the
+repository at that time. Before it starts the build, makepp
+gets a list of all the files that exist in the repository,
+<br>
+and never updates its list, except for files it expects to
+appear.</p>
+
+<p style="margin-top: 1em">If you need a repository
+that&rsquo;s changing as you build, you might want to
+consider makepp&rsquo;s build cache mechanism (see
+makepp_build_cache). Alternatively, you can use a &quot;poor
+<br>
+man&rsquo;s repository&quot;: you can put explicit rules
+into your makefile to create the soft links, like this:</p>
+
+<p style="margin-top: 1em">%.c :
+$(directory_I_wish_was_a_repository)/%.c <br>
+&amp;ln -fs $(input) $(output)</p>
+
+<p style="margin-top: 1em">This works only for source
+files; you can&rsquo;t easily use this to link a file if it
+is already built in the repository, but build it here if
+it&rsquo;s not already built, since there is <br>
+only allowed to be one way to build a file.</p>
+
+<p style="margin-top: 1em">Use only relative filenames</p>
+
+<p style="margin-top: 1em">Repositories work completely
+transparently if the makefiles use only relative filenames.
+In the above example, it&rsquo;s ok if the makefile in
+/src/seescape refers to ../HLib, but <br>
+the above command will not work as expected if it refers to
+/src/HLib. If you need to use absolute file names, you can
+put them into make variables and then override them on the
+<br>
+command line, like this:</p>
+
+<p style="margin-top: 1em">% makepp -R
+test-build/seescape=/src/seescape
+SEESCAPE=/home/holt/test-build/seescape -R
+test-build/HLib=/src/HLib HLIB=/home/holt/test-build/HLib -R
+test-build/H5pp=/src/H5pp H5pp=/home/holt/test-build/H5pp -R
+qwt=/src/external_libraries/qwt
+QWT=/home/holt/test-build/qwt -F test-build/seescape</p>
+
+<p style="margin-top: 1em">The above will work as long as
+the &quot;HLib&quot; directory is referred to as
+&quot;$(HLIB)&quot; in all the makefiles. Note that you have
+to specify absolute paths for the directories, because <br>
+makepp cd&rsquo;s to &quot;test-build/seescape&quot; before
+reading the makefile. This leads to long and complicated
+make commands; use relative paths when possible.</p>
+
+<p style="margin-top: 1em">Makepp must know about all
+dependencies</p>
+
+<p style="margin-top: 1em">Repositories will not work if
+there are hidden dependencies that makepp doesn&rsquo;t know
+about. (In fact, doing a build using repositories, is one
+way of checking for forgotten <br>
+dependencies. But, just for this check, don&rsquo;t combine
+it with a build cache, since fetching something there,
+instead of building it, might hide a forgotten dependency.)
+<br>
+Sometimes these dependencies can be fairly subtle. For
+example, the libtool command will not only create
+&quot;.lo&quot; and &quot;.la&quot; files as listed on the
+command line, but it also may <br>
+create a subdirectory called &quot;.libs&quot; which
+contains the actual object files. To prevent build mistakes,
+makepp refuses to link in a &quot;.la&quot; file from a
+repository. Hopefully in <br>
+the future libtool will be better supported.</p>
+
+<p style="margin-top: 1em">Many hidden dependencies related
+to compilation are caught by the command line scanner. If
+your compiler uses the common Unix compilation flags (e.g.,
+&quot;-I&quot;, &quot;-D&quot;, etc.), then <br>
+makepp will usually figure out where all your include files
+are. You may have to be careful if you have any homegrown
+scripts that create files that makepp doesn&rsquo;t know
+about. <br>
+For correct builds, it is vitally important to list all
+targets and dependencies (or determine them automatically by
+scanning).</p>
+
+<p style="margin-top: 1em">Putting absolute filenames into
+programs</p>
+
+<p style="margin-top: 1em">Repositories will also not work
+if any of the files built contain absolute file names in
+them (e.g., if any of your build commands write out an
+absolute filename). For example, <br>
+it turns out that the &quot;.la&quot; files produced by
+libtool have this property. (If you look at the contents of
+the &quot;.la&quot; file you&rsquo;ll see that the
+dependency list contains absolute <br>
+filenames.) In order to solve this particular problem,
+makepp will not link &quot;.la&quot; files from a
+repository; it will insist on rebuilding them.</p>
+
+<p style="margin-top: 1em">Avoid linking in unnecessary
+directories</p>
+
+<p style="margin-top: 1em">Repositories can be slow on
+startup and use a lot of memory if there are a lot of
+unnecessary files in the repository. For example, if you use
+an automatic HTML documentation <br>
+generator which makes thousands of &quot;.html&quot; files
+from your source code, you may not want to put them in a
+subdirectory of a directory that&rsquo;s used as a
+repository. It&rsquo;s better to <br>
+put them in a different directory tree entirely, so the
+repository mechanism won&rsquo;t load in their names.</p>
+
+<p style="margin-top: 1em">Too Many Files</p>
+
+<p style="margin-top: 1em">The disadvantage of repositories
+is that symbolic links, which the repository mechanism uses,
+are individual files (though they use almost no disk space).
+This is unlike real <br>
+links, but those can&rsquo;t cross file system boundaries.
+In extreme cases the presence of very many symbolic links
+can lead to exhaustion of the number of foreseen files (so
+called <br>
+inodes), even though there is plenty of space left. In this
+case the sysadmin will need to tune the file system.</p>
+
+<p style="margin-top: 1em">Overriding repository copies
+<br>
+If you make any modifications to a file locally, makepp will
+ordinarily realize this and recompile the file using the
+local copy rather than the repository copy.</p>
+
+<p style="margin-top: 1em">If you&rsquo;re using a
+repository to maintain a central code base, and you have
+developers working on local copies which contain only the
+files they have modified, one problem that <br>
+comes up is: what if a developer wants to remove a file from
+his local build but the repository still contains it? If the
+developer removes the local copy, makepp will happily <br>
+put in the copy from the repository, and the build will
+proceed as if the file existed.</p>
+
+<p style="margin-top: 1em">One technique (alas not for user
+root) for this problem is to make the file that you want not
+to include in the build process unreadable, like this:</p>
+
+<p style="margin-top: 1em">chmod a-rw
+file-to-be-excluded</p>
+
+<p style="margin-top: 1em">This will prevent makepp from
+incorporating it from the repository. Makepp also includes
+special code so that unreadable files do not match wildcards
+or pattern rules.</p>
+
+<p style="margin-top: 1em">Similarly, to prevent makepp
+from incorporating an entire subdirectory, make a local
+directory that has the same name but is unwritable. If you
+want makepp to ignore the <br>
+directory entirely, then make it unreadable too. (Read-only
+directories are searched but targets in them are usually not
+built.)</p>
+
+<p style="margin-top: 1em">The other way to do this is
+calling makepp with one or more exclusion options:</p>
+
+<p style="margin-top: 1em">mpp -R /path/to/rep
+--dont-read=/path/to/rep/file-to-be-excluded</p>
+
+<p style="margin-top: 1em">Don&rsquo;t use repositories for
+files which can change! <br>
+Don&rsquo;t try to use a repository for a file which is part
+of your build. For example, you might be tempted to try to
+use repositories to put all of your public .h files in the
+same <br>
+directory, like this:</p>
+
+<p style="margin-top: 1em"># top level makefile <br>
+repository include=module1/include <br>
+repository include=module2/include <br>
+repository include=module3/include <br>
+repository include=module4/include</p>
+
+<p style="margin-top: 1em">This is probably not a good idea
+if any of the .h files are themselves outputs of a program
+(e.g., yacc or some other program that spits out C source
+code), because makepp <br>
+assumes that files in repositories never change. If the
+build needs include/xyz.h, and module2/include/xyz.h
+actually needs to be produced by some program, makepp will
+not know <br>
+to run the program. It&rsquo;s better to use a technique
+like this to put all of your .h files into a common include
+directory:</p>
+
+<p style="margin-top: 1em"># module1/Makeppfile <br>
+../include/%.h : include/%.h <br>
+&amp;cp $(input) $(output) <br>
+# You could also (more efficiently but problematic on
+Windows) do the following: <br>
+# &amp;ln -r $(input) $(output)</p>
+
+<p style="margin-top: 1em">Makepp might still try to build
+files that happen to be in a repository if something asks
+for them directly, but it won&rsquo;t build them on behalf
+of the local directory. The result <br>
+of this can be quite confusing, because it can lead to a
+repository symbolic link being used while its repository
+target is out-of-date, but that target might get updated
+later <br>
+in the build. You can prevent this from happening either by
+making sure that the repository is referred to only through
+the repository path, or by making sure that there is also
+<br>
+a local rule for all the generated repository files.</p>
+
+<p style="margin-top: 1em">Another way to avoid recompiling
+identical files in different directories is to use a build
+cache (see makepp_build_cache for details). A build cache
+does not have the <br>
+restriction that the file may not change.</p>
+
+<p style="margin-top: 1em">perl v5.24.1 2016-11-28
+MAKEPP_REPOSITORIES(1)</p>
+<hr>
+</body>
+</html>

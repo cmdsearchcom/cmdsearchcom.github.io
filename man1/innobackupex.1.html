@@ -1,0 +1,2500 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:18:44 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>INNOBACKUPEX(1) Percona XtraBackup INNOBACKUPEX(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+innobackupex - innobackupex Documentation</p>
+
+<p style="margin-top: 1em">The innobackupex tool is a Perl
+script that acts as a wrapper for the xtrabackup C program.
+It is a patched version of the innobackup Perl script that
+Oracle distributes with the <br>
+InnoDB Hot Backup tool. It enables more functionality by
+integrating xtrabackup and other functions such as file
+copying and streaming, and adds some convenience. It lets
+you <br>
+perform point-in-time backups of InnoDB / XtraDB tables
+together with the schema definitions, MyISAM tables, and
+other portions of the server.</p>
+
+<p style="margin-top: 1em">This manual section explains how
+to use innobackupex in detail.</p>
+
+<p style="margin-top: 1em">THE BACKUP CYCLE - FULL BACKUPS
+<br>
+Creating a Backup with innobackupex <br>
+innobackupex is the tool which provides functionality to
+backup a whole MySQL database instance using the xtrabackup
+in combination with tools like xbstream and xbcrypt.</p>
+
+<p style="margin-top: 1em">To create a full backup, invoke
+the script with the options needed to connect to the server
+and only one argument: the path to the directory where the
+backup will be stored</p>
+
+<p style="margin-top: 1em">$ innobackupex --user=DBUSER
+--password=DBUSERPASS /path/to/BACKUP-DIR/</p>
+
+<p style="margin-top: 1em">and check the last line of the
+output for a confirmation message:</p>
+
+<p style="margin-top: 1em">innobackupex: Backup created in
+directory
+&rsquo;/path/to/BACKUP-DIR/2013-03-25_00-00-09&rsquo; <br>
+innobackupex: MySQL binlog position: filename
+&rsquo;mysql-bin.000003&rsquo;, position 1946 <br>
+111225 00:00:53 innobackupex: completed OK!</p>
+
+<p style="margin-top: 1em">The backup will be stored within
+a time stamped directory created in the provided path,
+/path/to/BACKUP-DIR/2013-03-25_00-00-09 in this particular
+example.</p>
+
+<p style="margin-top: 1em">Under the hood <br>
+innobackupex called xtrabackup binary to backup all the data
+of InnoDB tables (see ../xtrabackup_bin/creating_a_backup
+for details on this process) and copied all the table
+defi&acirc; <br>
+nitions in the database (.frm files), data and files related
+to MyISAM, MERGE (reference to other tables), CSV and
+ARCHIVE tables, along with triggers and database
+configuration <br>
+information to a time stamped directory created in the
+provided path.</p>
+
+<p style="margin-top: 1em">It will also create the
+following files for convenience on the created
+directory.</p>
+
+<p style="margin-top: 1em">Other options to consider <br>
+The --no-timestamp option <br>
+This option tells innobackupex not to create a time stamped
+directory to store the backup:</p>
+
+<p style="margin-top: 1em">$ innobackupex --user=DBUSER
+--password=DBUSERPASS /path/to/BACKUP-DIR/
+--no-timestamp</p>
+
+<p style="margin-top: 1em">innobackupex will create the
+BACKUP-DIR subdirectory (or fail if exists) and store the
+backup inside of it.</p>
+
+<p style="margin-top: 1em">The --defaults-file option <br>
+You can provide other configuration file to innobackupex
+with this option. The only limitation is that it has to be
+the first option passed:</p>
+
+<p style="margin-top: 1em">$ innobackupex
+--defaults-file=/tmp/other-my.cnf --user=DBUSER
+--password=DBUSERPASS /path/to/BACKUP-DIR/</p>
+
+<p style="margin-top: 1em">Preparing a Full Backup with
+innobackupex <br>
+After creating a backup, the data is not ready to be
+restored. There might be uncommitted transactions to be
+undone or transactions in the logs to be replayed. Doing
+those pend&acirc; <br>
+ing operations will make the data files consistent and it is
+the purpose of the prepare stage. Once this has been done,
+the data is ready to be used.</p>
+
+<p style="margin-top: 1em">To prepare a backup with
+innobackupex you have to use the --apply-log and the path to
+the backup directory as an argument:</p>
+
+<p style="margin-top: 1em">$ innobackupex --apply-log
+/path/to/BACKUP-DIR</p>
+
+<p style="margin-top: 1em">and check the last line of the
+output for a confirmation on the process:</p>
+
+<p style="margin-top: 1em">150806 01:01:57 InnoDB: Shutdown
+completed; log sequence number 1609228 <br>
+150806 01:01:57 innobackupex: completed OK!</p>
+
+<p style="margin-top: 1em">If it succeeded, innobackupex
+performed all operations needed, leaving the data ready to
+use immediately.</p>
+
+<p style="margin-top: 1em">Under the hood <br>
+innobackupex started the prepare process by reading the
+configuration from the backup-my.cnf file in the backup
+directory.</p>
+
+<p style="margin-top: 1em">After that, innobackupex
+replayed the committed transactions in the log files (some
+transactions could have been done while the backup was being
+done) and rolled back the uncom&acirc; <br>
+mitted ones. Once this is done, all the information lay in
+the tablespace (the InnoDB files), and the log files are
+re-created.</p>
+
+<p style="margin-top: 1em">This implies calling xtrabackup
+--prepare twice. More details of this process are shown in
+the xtrabackup section.</p>
+
+<p style="margin-top: 1em">Note that this preparation is
+not suited for incremental backups. If you perform it on the
+base of an incremental backup, you will not be able to
+&quot;add&quot; the increments. See incre&acirc; <br>
+mental_backups_innobackupex.</p>
+
+<p style="margin-top: 1em">Other options to consider <br>
+The --use-memory option <br>
+The preparing process can be speed up by using more memory
+in it. It depends on the free or available RAM on your
+system, it defaults to 100MB. In general, the more memory
+avail&acirc; <br>
+able to the process, the better. The amount of memory used
+in the process can be specified by multiples of bytes:</p>
+
+<p style="margin-top: 1em">$ innobackupex --apply-log
+--use-memory=4G /path/to/BACKUP-DIR</p>
+
+<p style="margin-top: 1em">Restoring a Full Backup with
+innobackupex <br>
+For convenience, innobackupex has a --copy-back option,
+which performs the restoration of a backup to the
+server&rsquo;s datadir</p>
+
+<p style="margin-top: 1em">$ innobackupex --copy-back
+/path/to/BACKUP-DIR</p>
+
+<p style="margin-top: 1em">It will copy all the
+data-related files back to the server&rsquo;s datadir,
+determined by the server&rsquo;s my.cnf configuration file.
+You should check the last line of the output for a <br>
+success message:</p>
+
+<p style="margin-top: 1em">innobackupex: Finished copying
+back files.</p>
+
+<p style="margin-top: 1em">111225 01:08:13 innobackupex:
+completed OK!</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+The datadir must be empty; Percona XtraBackup innobackupex
+--copy-back option will not copy over existing files unless
+innobackupex --force-non-empty-directories option is <br>
+specified. Also it&rsquo;s important to note that MySQL
+server needs to be shut down before restore is performed.
+You can&rsquo;t restore to a datadir of a running mysqld
+instance (except <br>
+when importing a partial backup).</p>
+
+<p style="margin-top: 1em">As files&rsquo; attributes will
+be preserved, in most cases you will need to change the
+files&rsquo; ownership to mysql before starting the database
+server, as they will be owned by the user <br>
+who created the backup:</p>
+
+<p style="margin-top: 1em">$ chown -R mysql:mysql
+/var/lib/mysql</p>
+
+<p style="margin-top: 1em">Also note that all of these
+operations will be done as the user calling innobackupex,
+you will need write permissions on the server&rsquo;s
+datadir.</p>
+
+<p style="margin-top: 1em">OTHER TYPES OF BACKUPS <br>
+Incremental Backups with innobackupex <br>
+As not all information changes between each backup, the
+incremental backup strategy uses this to reduce the storage
+needs and the duration of making a backup.</p>
+
+<p style="margin-top: 1em">This can be done because each
+InnoDB page has a log sequence number, LSN, which acts as a
+version number of the entire database. Every time the
+database is modified, this number <br>
+gets incremented.</p>
+
+<p style="margin-top: 1em">An incremental backup copies all
+pages since a specific LSN.</p>
+
+<p style="margin-top: 1em">Once the pages have been put
+together in their respective order, applying the logs will
+recreate the process that affected the database, yielding
+the data at the moment of the <br>
+most recently created backup.</p>
+
+<p style="margin-top: 1em">Creating an Incremental Backups
+with innobackupex <br>
+First, you need to make a full backup as the BASE for
+subsequent incremental backups:</p>
+
+<p style="margin-top: 1em">$ innobackupex /data/backups</p>
+
+<p style="margin-top: 1em">This will create a timestamped
+directory in /data/backups. Assuming that the backup is done
+last day of the month, BASEDIR would be
+/data/backups/2013-03-31_23-01-18, for exam&acirc; <br>
+ple.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+You can use the innobackupex --no-timestamp option to
+override this behavior and the backup will be created in the
+given directory.</p>
+
+<p style="margin-top: 1em">If you check at the
+xtrabackup-checkpoints file in BASE-DIR, you should see
+something like:</p>
+
+<p style="margin-top: 1em">backup_type = full-backuped <br>
+from_lsn = 0 <br>
+to_lsn = 1291135</p>
+
+<p style="margin-top: 1em">To create an incremental backup
+the next day, use the --incremental option and provide the
+BASEDIR:</p>
+
+<p style="margin-top: 1em">$ innobackupex --incremental
+/data/backups --incremental-basedir=BASEDIR</p>
+
+<p style="margin-top: 1em">and another timestamped
+directory will be created in /data/backups, in this example,
+/data/backups/2013-04-01_23-01-18 containing the incremental
+backup. We will call this INCRE&acirc; <br>
+MENTAL-DIR-1.</p>
+
+<p style="margin-top: 1em">If you check at the
+xtrabackup-checkpoints file in INCREMENTAL-DIR-1, you should
+see something like:</p>
+
+<p style="margin-top: 1em">backup_type = incremental <br>
+from_lsn = 1291135 <br>
+to_lsn = 1352113</p>
+
+<p style="margin-top: 1em">Creating another incremental
+backup the next day will be analogous, but this time the
+previous incremental one will be base:</p>
+
+<p style="margin-top: 1em">$ innobackupex --incremental
+/data/backups --incremental-basedir=INCREMENTAL-DIR-1</p>
+
+<p style="margin-top: 1em">yielding (in this example)
+/data/backups/2013-04-02_23-01-18. We will use
+INCREMENTAL-DIR-2 instead for simplicity.</p>
+
+<p style="margin-top: 1em">At this point, the
+xtrabackup-checkpoints file in INCREMENTAL-DIR-2 should
+contain something like:</p>
+
+<p style="margin-top: 1em">backup_type = incremental <br>
+from_lsn = 1352113 <br>
+to_lsn = 1358967</p>
+
+<p style="margin-top: 1em">As it was said before, an
+incremental backup only copy pages with a LSN greater than a
+specific value. Providing the LSN would have produced
+directories with the same data <br>
+inside:</p>
+
+<p style="margin-top: 1em">innobackupex --incremental
+/data/backups --incremental-lsn=1291135 <br>
+innobackupex --incremental /data/backups
+--incremental-lsn=1358967</p>
+
+<p style="margin-top: 1em">This is a very useful way of
+doing an incremental backup, since not always the base or
+the last incremental will be available in the system.</p>
+
+<p style="margin-top: 1em">WARNING: <br>
+This procedure only affects XtraDB or InnoDB-based tables.
+Other tables with a different storage engine, e.g. MyISAM,
+will be copied entirely each time an incremental backup <br>
+is performed.</p>
+
+<p style="margin-top: 1em">Preparing an Incremental Backup
+with innobackupex <br>
+Preparing incremental backups is a bit different than full
+ones. This is, perhaps, the stage where more attention is
+needed:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; First, only the
+committed transactions must be replayed on each backup. This
+will merge the base full backup with the incremental
+ones.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Then, the
+uncommitted transaction must be rolled back in order to have
+a ready-to-use backup.</p>
+
+<p style="margin-top: 1em">If you replay the committed
+transactions and rollback the uncommitted ones on the base
+backup, you will not be able to add the incremental ones. If
+you do this on an incremental <br>
+one, you won&rsquo;t be able to add data from that moment
+and the remaining increments.</p>
+
+<p style="margin-top: 1em">Having this in mind, the
+procedure is very straight-forward using the --redo-only
+option, starting with the base backup:</p>
+
+<p style="margin-top: 1em">innobackupex --apply-log
+--redo-only BASE-DIR</p>
+
+<p style="margin-top: 1em">You should see an output similar
+to:</p>
+
+<p style="margin-top: 1em">120103 22:00:12 InnoDB: Shutdown
+completed; log sequence number 1291135 <br>
+120103 22:00:12 innobackupex: completed OK!</p>
+
+<p style="margin-top: 1em">Then, the first incremental
+backup can be applied to the base backup, by issuing:</p>
+
+<p style="margin-top: 1em">innobackupex --apply-log
+--redo-only BASE-DIR --incremental-dir=INCREMENTAL-DIR-1</p>
+
+<p style="margin-top: 1em">You should see an output similar
+to the previous one but with corresponding LSN:</p>
+
+<p style="margin-top: 1em">120103 22:08:43 InnoDB: Shutdown
+completed; log sequence number 1358967 <br>
+120103 22:08:43 innobackupex: completed OK!</p>
+
+<p style="margin-top: 1em">If no --incremental-dir is set,
+innobackupex will use the most recent subdirectory created
+in the basedir.</p>
+
+<p style="margin-top: 1em">At this moment, BASE-DIR
+contains the data up to the moment of the first incremental
+backup. Note that the full data will always be in the
+directory of the base backup, as we are <br>
+appending the increments to it.</p>
+
+<p style="margin-top: 1em">Repeat the procedure with the
+second one:</p>
+
+<p style="margin-top: 1em">innobackupex --apply-log
+BASE-DIR --incremental-dir=INCREMENTAL-DIR-2</p>
+
+<p style="margin-top: 1em">If the &quot;completed OK!&quot;
+message was shown, the final data will be in the base backup
+directory, BASE-DIR.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+--redo-only should be used when merging all incrementals
+except the last one. That&rsquo;s why the previous line
+doesn&rsquo;t contain the --redo-only option. Even if the
+--redo-only was <br>
+used on the last step, backup would still be consistent but
+in that case server would perform the rollback phase.</p>
+
+<p style="margin-top: 1em">You can use this procedure to
+add more increments to the base, as long as you do it in the
+chronological order that the backups were done. If you merge
+the incrementals in the <br>
+wrong order, the backup will be useless. If you have doubts
+about the order that they must be applied, you can check the
+file xtrabackup_checkpoints at the directory of each one,
+<br>
+as shown in the beginning of this section.</p>
+
+<p style="margin-top: 1em">Once you merge the base with all
+the increments, you can prepare it to roll back the
+uncommitted transactions:</p>
+
+<p style="margin-top: 1em">innobackupex --apply-log
+BASE-DIR</p>
+
+<p style="margin-top: 1em">Now your backup is ready to be
+used immediately after restoring it. This preparation step
+is optional. However, if you restore without doing the
+prepare, the database server will <br>
+begin to rollback uncommitted transactions, the same work it
+would do if a crash had occurred. This results in delay as
+the database server starts, and you can avoid the delay if
+<br>
+you do the prepare.</p>
+
+<p style="margin-top: 1em">Note that the iblog* files will
+not be created by innobackupex, if you want them to be
+created, use xtrabackup --prepare on the directory.
+Otherwise, the files will be created by <br>
+the server once started.</p>
+
+<p style="margin-top: 1em">Restoring Incremental Backups
+with innobackupex <br>
+After preparing the incremental backups, the base directory
+contains the same as a full one. For restoring it you can
+use:</p>
+
+<p style="margin-top: 1em">innobackupex --copy-back
+BASE-DIR</p>
+
+<p style="margin-top: 1em">and you may have to change the
+ownership as detailed on restoring_a_backup_ibk.</p>
+
+<p style="margin-top: 1em">Incremental Streaming Backups
+using xbstream and tar <br>
+Incremental streaming backups can be performed with the
+xbstream streaming option. Currently backups are packed in
+custom xbstream format. With this feature taking a BASE
+backup <br>
+is needed as well.</p>
+
+<p style="margin-top: 1em">Taking a base backup:</p>
+
+<p style="margin-top: 1em">innobackupex /data/backups</p>
+
+<p style="margin-top: 1em">Taking a local backup:</p>
+
+<p style="margin-top: 1em">innobackupex --incremental
+--incremental-lsn=LSN-number --stream=xbstream ./ &gt;
+incremental.xbstream</p>
+
+<p style="margin-top: 1em">Unpacking the backup:</p>
+
+<p style="margin-top: 1em">xbstream -x &lt;
+incremental.xbstream</p>
+
+<p style="margin-top: 1em">Taking a local backup and
+streaming it to the remote server and unpacking it:</p>
+
+<p style="margin-top: 1em">innobackupex --incremental
+--incremental-lsn=LSN-number --stream=xbstream ./ | / <br>
+ssh user@hostname &quot; cat - | xbstream -x -C &gt;
+/backup-dir/&quot;</p>
+
+<p style="margin-top: 1em">Partial Backups <br>
+Percona XtraBackup features partial backups, which means
+that you may backup only some specific tables or databases.
+The tables you back up must be in separate tablespaces, as a
+<br>
+result of being created or altered after you enabled the
+innodb_file_per_table option on the server.</p>
+
+<p style="margin-top: 1em">There is only one caveat about
+partial backups: do not copy back the prepared backup.
+Restoring partial backups should be done by importing the
+tables, not by using the tradi&acirc; <br>
+tional --copy-back option. Although there are some scenarios
+where restoring can be done by copying back the files, this
+may be lead to database inconsistencies in many cases and
+<br>
+it is not the recommended way to do it.</p>
+
+<p style="margin-top: 1em">Creating Partial Backups <br>
+There are three ways of specifying which part of the whole
+data will be backed up: regular expressions (--include),
+enumerating the tables in a file (--tables-file) or
+providing <br>
+a list of databases (--databases).</p>
+
+<p style="margin-top: 1em">Using the --include option <br>
+The regular expression provided to this will be matched
+against the fully qualified table name, including the
+database name, in the form databasename.tablename.</p>
+
+<p style="margin-top: 1em">For example,</p>
+
+<p style="margin-top: 1em">$ innobackupex
+--include=&rsquo;^mydatabase[.]mytable&rsquo;
+/path/to/backup</p>
+
+<p style="margin-top: 1em">The command above will create a
+timestamped directory with the usual files that innobackupex
+creates, but only the data files related to the tables
+matched.</p>
+
+<p style="margin-top: 1em">Note that this option is passed
+to xtrabackup --tables and is matched against each table of
+each database, the directories of each database will be
+created even if they are <br>
+empty.</p>
+
+<p style="margin-top: 1em">Using the --tables-file option
+<br>
+The text file provided (the path) to this option can contain
+multiple table names, one per line, in the
+databasename.tablename format.</p>
+
+<p style="margin-top: 1em">For example,</p>
+
+<p style="margin-top: 1em">$ echo
+&quot;mydatabase.mytable&quot; &gt; /tmp/tables.txt <br>
+$ innobackupex --tables-file=/tmp/tables.txt
+/path/to/backup</p>
+
+<p style="margin-top: 1em">The command above will create a
+timestamped directory with the usual files that innobackupex
+creates, but only containing the data-files related to the
+tables specified in the <br>
+file.</p>
+
+<p style="margin-top: 1em">This option is passed to
+xtrabackup --tables-file and, unlike the --tables option,
+only directories of databases of the selected tables will be
+created.</p>
+
+<p style="margin-top: 1em">Using the --databases option
+<br>
+This option accepts either a space-separated list of the
+databases and tables to backup - in the
+databasename[.tablename] form - or a file containing the
+list at one element per <br>
+line.</p>
+
+<p style="margin-top: 1em">For example,</p>
+
+<p style="margin-top: 1em">$ innobackupex
+--databases=&quot;mydatabase.mytable mysql&quot;
+/path/to/backup</p>
+
+<p style="margin-top: 1em">The command above will create a
+timestamped directory with the usual files that innobackupex
+creates, but only containing the data-files related to
+mytable in the mydatabase <br>
+directory and the mysql directory with the entire mysql
+database.</p>
+
+<p style="margin-top: 1em">Preparing Partial Backups <br>
+For preparing partial backups, the procedure is analogous to
+restoring individual tables : apply the logs and use the
+--export option:</p>
+
+<p style="margin-top: 1em">$ innobackupex --apply-log
+--export /path/to/partial/backup</p>
+
+<p style="margin-top: 1em">You may see warnings in the
+output about tables that don&rsquo;t exist. This is because
+InnoDB -based engines stores its data dictionary inside the
+tablespace files besides the .frm <br>
+files. innobackupex will use xtrabackup to remove the
+missing tables (those who weren&rsquo;t selected in the
+partial backup) from the data dictionary in order to avoid
+future warnings <br>
+or errors:</p>
+
+<p style="margin-top: 1em">111225 0:54:06 InnoDB: Error:
+table &rsquo;mydatabase/mytablenotincludedinpartialb&rsquo;
+<br>
+InnoDB: in InnoDB data dictionary has tablespace id 6, <br>
+InnoDB: but tablespace with that id or name does not exist.
+It will be removed from data dictionary.</p>
+
+<p style="margin-top: 1em">You should also see the
+notification of the creation of a file needed for importing
+(.exp file) for each table included in the partial
+backup:</p>
+
+<p style="margin-top: 1em">xtrabackup: export option is
+specified. <br>
+xtrabackup: export metadata of table
+&rsquo;employees/departments&rsquo; to file
+&lsquo;.//departments.exp&lsquo; (2 indexes) <br>
+xtrabackup: name=PRIMARY, id.low=80, page=3 <br>
+xtrabackup: name=dept_name, id.low=81, page=4</p>
+
+<p style="margin-top: 1em">Note that you can use the
+--export option with --apply-log to an already-prepared
+backup in order to create the .exp files.</p>
+
+<p style="margin-top: 1em">Finally, check the for the
+confirmation message in the output:</p>
+
+<p style="margin-top: 1em">111225 00:54:18 innobackupex:
+completed OK!</p>
+
+<p style="margin-top: 1em">Restoring Partial Backups <br>
+Restoring should be done by restoring individual tables in
+the partial backup to the server.</p>
+
+<p style="margin-top: 1em">It can also be done by copying
+back the prepared backup to a &quot;clean&quot; datadir (in
+that case, make sure to include the mysql database). System
+database can be created with:</p>
+
+<p style="margin-top: 1em">$ sudo mysql_install_db
+--user=mysql</p>
+
+<p style="margin-top: 1em">Compact Backups <br>
+When doing the backup of InnoDB tables it&rsquo;s possible
+to omit the secondary index pages. This will make the
+backups more compact and this way they will take less space
+on disk. <br>
+The downside of this is that the backup prepare process
+takes longer as those secondary indexes need to be
+recreated. Difference in backup size depends on the size of
+the sec&acirc; <br>
+ondary indexes.</p>
+
+<p style="margin-top: 1em">For example full backup taken
+without and with the --compact option:</p>
+
+<p style="margin-top: 1em">#backup size without --compact
+<br>
+2.0G 2013-02-01_10-18-38</p>
+
+<p style="margin-top: 1em">#backup size taken with
+--compact option <br>
+1.4G 2013-02-01_10-29-48</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+Compact backups are not supported for system table space, so
+in order to work correctly innodb-file-per-table option
+should be enabled.</p>
+
+<p style="margin-top: 1em">This feature was introduced in
+Percona XtraBackup 2.1.</p>
+
+<p style="margin-top: 1em">Creating Compact Backups <br>
+To make a compact backup innobackupex needs to be started
+with the --compact option:</p>
+
+<p style="margin-top: 1em">$ innobackupex --compact
+/data/backups</p>
+
+<p style="margin-top: 1em">This will create a timestamped
+directory in /data/backups.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+You can use the innobackupex --no-timestamp option to
+override this behavior and the backup will be created in the
+given directory.</p>
+
+<p style="margin-top: 1em">If you check at the
+xtrabackup_checkpoints file in BASE-DIR, you should see
+something like:</p>
+
+<p style="margin-top: 1em">backup_type = full-backuped <br>
+from_lsn = 0 <br>
+to_lsn = 2888984349 <br>
+last_lsn = 2888984349 <br>
+compact = 1</p>
+
+<p style="margin-top: 1em">When --compact wasn&rsquo;t used
+compact value will be 0. This way it&rsquo;s easy to check
+if the backup contains the secondary index pages or not.</p>
+
+<p style="margin-top: 1em">Preparing Compact Backups <br>
+Preparing the compact require rebuilding the indexes as
+well. In order to prepare the backup a new option
+--rebuild-indexes should be used with --apply-logs:</p>
+
+<p style="margin-top: 1em">$ innobackupex --apply-log
+--rebuild-indexes /data/backups/2013-02-01_10-29-48</p>
+
+<p style="margin-top: 1em">Output, beside the standard
+innobackupex output, should contain the information about
+indexes being rebuilt, like:</p>
+
+<p style="margin-top: 1em">130201 10:40:20 InnoDB: Waiting
+for the background threads to start <br>
+Rebuilding indexes for table sbtest/sbtest1 (space id: 10)
+<br>
+Found index k_1 <br>
+Dropping 1 index(es). <br>
+Rebuilding 1 index(es). <br>
+Rebuilding indexes for table sbtest/sbtest2 (space id: 11)
+<br>
+Found index k_1 <br>
+Found index c <br>
+Found index k <br>
+Found index c_2 <br>
+Dropping 4 index(es). <br>
+Rebuilding 4 index(es).</p>
+
+<p style="margin-top: 1em">Since Percona XtraBackup has no
+information when applying an incremental backup to a compact
+full one, on whether there will be more incremental backups
+applied to it later or <br>
+not, rebuilding indexes needs to be explicitly requested by
+a user whenever a full backup with some incremental backups
+merged is ready to be restored. Rebuilding indexes
+uncon&acirc; <br>
+ditionally on every incremental backup merge is not an
+option, since it is an expensive operation.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+To process individual tables in parallel when rebuilding
+indexes, innobackupex --rebuild-threads option can be used
+to specify the number of threads started by Percona
+Xtra&acirc; <br>
+Backup when rebuilding secondary indexes on --apply-log
+--rebuild-indexes. Each thread rebuilds indexes for a single
+.ibd tablespace at a time.</p>
+
+<p style="margin-top: 1em">Restoring Compact Backups <br>
+innobackupex has a --copy-back option, which performs the
+restoration of a backup to the server&rsquo;s datadir</p>
+
+<p style="margin-top: 1em">$ innobackupex --copy-back
+/path/to/BACKUP-DIR</p>
+
+<p style="margin-top: 1em">It will copy all the
+data-related files back to the server&rsquo;s datadir,
+determined by the server&rsquo;s my.cnf configuration file.
+You should check the last line of the output for a <br>
+success message:</p>
+
+<p style="margin-top: 1em">innobackupex: Finished copying
+back files. <br>
+130201 11:08:13 innobackupex: completed OK!</p>
+
+<p style="margin-top: 1em">Other Reading <br>
+&Acirc;&middot; Feature preview: Compact backups in Percona
+XtraBackup</p>
+
+<p style="margin-top: 1em">Encrypted Backups <br>
+Percona XtraBackup has implemented support for encrypted
+backups. It can be used to encrypt/decrypt local or
+streaming backup with xbstream option (streaming tar backups
+are not <br>
+supported) in order to add another layer of protection to
+the backups. Encryption is done with the libgcrypt
+library.</p>
+
+<p style="margin-top: 1em">Creating Encrypted Backups <br>
+To make an encrypted backup following options need to be
+specified (options --encrypt-key and --encrypt-key-file are
+mutually exclusive, i.e. just one of them needs to be
+pro&acirc; <br>
+vided):</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--encryption=ALGORITHM - currently supported algorithms are:
+AES128, AES192 and AES256</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--encrypt-key=ENCRYPTION_KEY - proper length encryption key
+to use. It is not recommended to use this option where there
+is uncontrolled access to the machine as the command <br>
+line and thus the key can be viewed as part of the process
+info.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--encrypt-key-file=KEYFILE - the name of a file where the
+raw key of the appropriate length can be read from. The file
+must be a simple binary (or text) file that contains <br>
+exactly the key to be used.</p>
+
+<p style="margin-top: 1em">Both --encrypt-key option and
+--encrypt-key-file option can be used to specify the
+encryption key. Encryption key can be generated with command
+like:</p>
+
+<p style="margin-top: 1em">$ openssl rand -base64 24</p>
+
+<p style="margin-top: 1em">Example output of that command
+should look like this:</p>
+
+
+<p style="margin-top: 1em">GCHFLrDFVx6UAsRb88uLVbAVWbK+Yzfs</p>
+
+<p style="margin-top: 1em">This value then can be used as
+the encryption key</p>
+
+<p style="margin-top: 1em">Using the --encrypt-key option
+<br>
+Example of the innobackupex command using the --encrypt-key
+should look like this</p>
+
+<p style="margin-top: 1em">$ innobackupex --encrypt=AES256
+--encrypt-key=&quot;GCHFLrDFVx6UAsRb88uLVbAVWbK+Yzfs&quot;
+/data/backups</p>
+
+<p style="margin-top: 1em">Using the --encrypt-key-file
+option <br>
+Example of the innobackupex command using the
+--encrypt-key-file should look like this</p>
+
+<p style="margin-top: 1em">$ innobackupex --encrypt=AES256
+--encrypt-key-file=/data/backups/keyfile /data/backups</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+Depending on the text editor used for making the KEYFILE,
+text file in some cases can contain the CRLF and this will
+cause the key size to grow and thus making it invalid. <br>
+Suggested way to do this would be to create the file with:
+echo -n &quot;GCHFLrDFVx6UAsRb88uLVbAVWbK+Yzfs&quot; &gt;
+/data/backups/keyfile</p>
+
+<p style="margin-top: 1em">Both of these examples will
+create a timestamped directory in /data/backups containing
+the encrypted backup.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+You can use the innobackupex --no-timestamp option to
+override this behavior and the backup will be created in the
+given directory.</p>
+
+<p style="margin-top: 1em">Optimizing the encryption
+process <br>
+Two new options have been introduced with the encrypted
+backups that can be used to speed up the encryption process.
+These are --encrypt-threads and --encrypt-chunk-size. By
+<br>
+using the --encrypt-threads option multiple threads can be
+specified to be used for encryption in parallel. Option
+--encrypt-chunk-size can be used to specify the size (in
+bytes) <br>
+of the working encryption buffer for each encryption thread
+(default is 64K).</p>
+
+<p style="margin-top: 1em">Decrypting Encrypted Backups
+<br>
+Backups can be decrypted with xbcrypt. Following one-liner
+can be used to encrypt the whole folder:</p>
+
+<p style="margin-top: 1em">$ for i in &lsquo;find . -iname
+&quot;*.xbcrypt&quot;&lsquo;; do xbcrypt -d
+--encrypt-key-file=/root/secret_key --encrypt-algo=AES256
+&lt; $i &gt; $(dirname $i)/$(basename $i .xbcrypt)
+&amp;&amp; rm $i; done</p>
+
+<p style="margin-top: 1em">Percona XtraBackup innobackupex
+--decrypt option has been implemented that can be used to
+decrypt the backups:</p>
+
+<p style="margin-top: 1em">$ innobackupex --decrypt=AES256
+--encrypt-key=&quot;GCHFLrDFVx6UAsRb88uLVbAVWbK+Yzfs&quot;
+/data/backups/2015-03-18_08-31-35/</p>
+
+<p style="margin-top: 1em">Percona XtraBackup doesn&rsquo;t
+automatically remove the encrypted files. In order to clean
+up the backup directory users should remove the *.xbcrypt
+files.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+innobackupex --parallel can be used with innobackupex
+--decrypt option to decrypt multiple files
+simultaneously.</p>
+
+<p style="margin-top: 1em">When the files have been
+decrypted backup can be prepared.</p>
+
+<p style="margin-top: 1em">Preparing Encrypted Backups <br>
+After the backups have been decrypted, they can be prepared
+the same way as the standard full backups with the
+--apply-logs option:</p>
+
+<p style="margin-top: 1em">$ innobackupex --apply-log
+/data/backups/2015-03-18_08-31-35/</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+Percona XtraBackup doesn&rsquo;t automatically remove the
+encrypted files. In order to clean up the backup directory
+users should remove the *.xbcrypt files.</p>
+
+<p style="margin-top: 1em">Restoring Encrypted Backups <br>
+innobackupex has a --copy-back option, which performs the
+restoration of a backup to the server&rsquo;s datadir</p>
+
+<p style="margin-top: 1em">$ innobackupex --copy-back
+/path/to/BACKUP-DIR</p>
+
+<p style="margin-top: 1em">It will copy all the
+data-related files back to the server&rsquo;s datadir,
+determined by the server&rsquo;s my.cnf configuration file.
+You should check the last line of the output for a <br>
+success message:</p>
+
+<p style="margin-top: 1em">innobackupex: Finished copying
+back files. <br>
+150318 11:08:13 innobackupex: completed OK!</p>
+
+<p style="margin-top: 1em">Other Reading <br>
+&Acirc;&middot; The Libgcrypt Reference Manual</p>
+
+<p style="margin-top: 1em">ADVANCED FEATURES <br>
+Streaming and Compressing Backups <br>
+Streaming mode, supported by Percona XtraBackup, sends
+backup to STDOUT in special tar or xbstream format instead
+of copying files to the backup directory.</p>
+
+<p style="margin-top: 1em">This allows you to use other
+programs to filter the output of the backup, providing
+greater flexibility for storage of the backup. For example,
+compression is achieved by piping <br>
+the output to a compression utility. One of the benefits of
+streaming backups and using Unix pipes is that the backups
+can be automatically encrypted.</p>
+
+<p style="margin-top: 1em">To use the streaming feature,
+you must use the --stream, providing the format of the
+stream (tar or xbstream ) and where to store the temporary
+files:</p>
+
+<p style="margin-top: 1em">$ innobackupex --stream=tar
+/tmp</p>
+
+<p style="margin-top: 1em">innobackupex starts xtrabackup
+in --log-stream mode in a child process, and redirects its
+log to a temporary file. It then uses xbstream to stream all
+of the data files to STD&acirc; <br>
+OUT, in a special xbstream format. See ../xbstream/xbstream
+for details. After it finishes streaming all of the data
+files to STDOUT, it stops xtrabackup and streams the saved
+<br>
+log file too.</p>
+
+<p style="margin-top: 1em">When compression is enabled,
+xtrabackup compresses all output data, except the meta and
+non-InnoDB files which are not compressed, using the
+specified compression algorithm. The <br>
+only currently supported algorithm is quicklz. The resulting
+files have the qpress archive format, i.e. every *.qp file
+produced by xtrabackup is essentially a one-file qpress <br>
+archive and can be extracted and uncompressed by the qpress
+file archiver which is available from Percona Software
+repositories.</p>
+
+<p style="margin-top: 1em">Using xbstream as a stream
+option, backups can be copied and compressed in parallel
+which can significantly speed up the backup process. In case
+backups were both compressed and <br>
+encrypted, they&rsquo;ll need to decrypted first in order to
+be uncompressed.</p>
+
+<p style="margin-top: 1em">Examples using xbstream <br>
+Store the complete backup directly to a single file:</p>
+
+<p style="margin-top: 1em">$ innobackupex --stream=xbstream
+/root/backup/ &gt; /root/backup/backup.xbstream</p>
+
+<p style="margin-top: 1em">To stream and compress the
+backup:</p>
+
+<p style="margin-top: 1em">$ innobackupex --stream=xbstream
+--compress /root/backup/ &gt;
+/root/backup/backup.xbstream</p>
+
+<p style="margin-top: 1em">To unpack the backup to the
+/root/backup/ directory:</p>
+
+<p style="margin-top: 1em">$ xbstream -x &lt;
+backup.xbstream -C /root/backup/</p>
+
+<p style="margin-top: 1em">To send the compressed backup to
+another host and unpack it:</p>
+
+<p style="margin-top: 1em">$ innobackupex --compress
+--stream=xbstream /root/backup/ | ssh user@otherhost
+&quot;xbstream -x -C /root/backup/&quot;</p>
+
+<p style="margin-top: 1em">Examples using tar <br>
+Store the complete backup directly to a tar archive:</p>
+
+<p style="margin-top: 1em">$ innobackupex --stream=tar
+/root/backup/ &gt; /root/backup/out.tar</p>
+
+<p style="margin-top: 1em">To send the tar archive to
+another host:</p>
+
+<p style="margin-top: 1em">$ innobackupex --stream=tar ./ |
+ssh user@destination &nbsp;&quot;cat - &gt;
+/data/backups/backup.tar&quot;</p>
+
+<p style="margin-top: 1em">WARNING: <br>
+To extract Percona XtraBackup&rsquo;s archive you must use
+tar with -i option:</p>
+
+<p style="margin-top: 1em">$ tar -xizf backup.tar.gz</p>
+
+<p style="margin-top: 1em">Compress with your preferred
+compression tool:</p>
+
+<p style="margin-top: 1em">$ innobackupex --stream=tar ./ |
+gzip - &gt; backup.tar.gz <br>
+$ innobackupex --stream=tar ./ | bzip2 - &gt;
+backup.tar.bz2</p>
+
+<p style="margin-top: 1em">Note that the streamed backup
+will need to be prepared before restoration. Streaming mode
+does not prepare the backup.</p>
+
+<p style="margin-top: 1em">Taking Backups in Replication
+Environments <br>
+There are options specific to back up from a replication
+slave.</p>
+
+<p style="margin-top: 1em">The --slave-info option <br>
+This option is useful when backing up a replication slave
+server. It prints the binary log position and name of the
+master server. It also writes this information to the
+xtra&acirc; <br>
+backup_slave_info file as a CHANGE MASTER statement.</p>
+
+<p style="margin-top: 1em">This is useful for setting up a
+new slave for this master can be set up by starting a slave
+server on this backup and issuing the statement saved in the
+xtrabackup_slave_info <br>
+file. More details of this procedure can be found in
+replication_howto.</p>
+
+<p style="margin-top: 1em">The --safe-slave-backup option
+<br>
+In order to assure a consistent replication state, this
+option stops the slave SQL thread and wait to start backing
+up until Slave_open_temp_tables in SHOW STATUS is zero. If
+<br>
+there are no open temporary tables, the backup will take
+place, otherwise the SQL thread will be started and stopped
+until there are no open temporary tables. The backup will
+<br>
+fail if Slave_open_temp_tables does not become zero after
+--safe-slave-backup-timeout seconds (defaults to 300
+seconds). The slave SQL thread will be restarted when the
+backup <br>
+finishes.</p>
+
+<p style="margin-top: 1em">Using this option is always
+recommended when taking backups from a slave server.</p>
+
+<p style="margin-top: 1em">WARNING: <br>
+Make sure your slave is a true replica of the master before
+using it as a source for backup. A good tool to validate a
+slave is pt-table-checksum.</p>
+
+<p style="margin-top: 1em">Accelerating the backup process
+<br>
+Accelerating with --parallel copy and --compress-threads
+<br>
+When performing a local backup or the streaming backup with
+xbstream option, multiple files can be copied concurrently
+by using the --parallel option. This option specifies the
+<br>
+number of threads created by xtrabackup to copy data
+files.</p>
+
+<p style="margin-top: 1em">To take advantage of this option
+either the multiple tablespaces option must be enabled
+(innodb_file_per_table) or the shared tablespace must be
+stored in multiple ibdata files <br>
+with the innodb_data_file_path option. Having multiple files
+for the database (or splitting one into many) doesn&rsquo;t
+have a measurable impact on performance.</p>
+
+<p style="margin-top: 1em">As this feature is implemented
+at a file level, concurrent file transfer can sometimes
+increase I/O throughput when doing a backup on highly
+fragmented data files, due to the <br>
+overlap of a greater number of random read requests. You
+should consider tuning the filesystem also to obtain the
+maximum performance (e.g. checking fragmentation).</p>
+
+<p style="margin-top: 1em">If the data is stored on a
+single file, this option will have no effect.</p>
+
+<p style="margin-top: 1em">To use this feature, simply add
+the option to a local backup, for example:</p>
+
+<p style="margin-top: 1em">$ innobackupex --parallel=4
+/path/to/backup</p>
+
+<p style="margin-top: 1em">By using the xbstream in
+streaming backups you can additionally speed up the
+compression process by using the --compress-threads option.
+This option specifies the number of <br>
+threads created by xtrabackup for for parallel data
+compression. The default value for this option is 1.</p>
+
+<p style="margin-top: 1em">To use this feature, simply add
+the option to a local backup, for example</p>
+
+<p style="margin-top: 1em">$ innobackupex --stream=xbstream
+--compress --compress-threads=4 ./ &gt; backup.xbstream</p>
+
+<p style="margin-top: 1em">Before applying logs, compressed
+files will need to be uncompressed.</p>
+
+<p style="margin-top: 1em">Accelerating with --rsync option
+<br>
+In order to speed up the backup process and to minimize the
+time FLUSH TABLES WITH READ LOCK is blocking the writes,
+option innobackupex --rsync should be used. When this option
+<br>
+is specified, innobackupex uses rsync to copy all non-InnoDB
+files instead of spawning a separate cp for each file, which
+can be much faster for servers with a large number of <br>
+databases or tables. innobackupex will call the rsync twice,
+once before the FLUSH TABLES WITH READ LOCK and once during
+to minimize the time the read lock is being held. During
+<br>
+the second rsync call, it will only synchronize the changes
+to non-transactional data (if any) since the first call
+performed before the FLUSH TABLES WITH READ LOCK. Note that
+<br>
+Percona XtraBackup will use Backup locks where available as
+a lightweight alternative to FLUSH TABLES WITH READ LOCK.
+This feature is available in Percona Server 5.6+. Percona
+<br>
+XtraBackup uses this automatically to copy non-InnoDB data
+to avoid blocking DML queries that modify InnoDB tables.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+This option cannot be used together with innobackupex
+--remote-host or innobackupex --stream options.</p>
+
+<p style="margin-top: 1em">Throttling backups with
+innobackupex <br>
+Although innobackupex does not block your database&rsquo;s
+operation, any backup can add load to the system being
+backed up. On systems that do not have much spare I/O
+capacity, it <br>
+might be helpful to throttle the rate at which innobackupex
+reads and writes InnoDB data. You can do this with the
+--throttle option.</p>
+
+<p style="margin-top: 1em">This option is passed directly
+to xtrabackup binary and only limits the operations on the
+logs and files of InnoDB tables. It doesn&rsquo;t have an
+effect on reading or writing files <br>
+from tables with other storage engine.</p>
+
+<p style="margin-top: 1em">One way of checking the current
+I/O operations at a system is with iostat command. See
+throttling_backups_xbk for details of how throttling
+works.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+innobackupex --throttle option works only during the backup
+phase, ie. it will not work with innobackupex --apply-log
+and innobackupex --copy-back options.</p>
+
+<p style="margin-top: 1em">The --throttle option is similar
+to the --sleep option in mysqlbackup and should be used
+instead of it, as --sleep will be ignored.</p>
+
+<p style="margin-top: 1em">Restoring Individual Tables <br>
+In server versions prior to 5.6, it is not possible to copy
+tables between servers by copying the files, even with
+innodb_file_per_table. However, with the Percona XtraBackup,
+<br>
+you can export individual tables from any InnoDB database,
+and import them into Percona Server with XtraDB or MySQL 5.6
+(The source doesn&rsquo;t have to be XtraDB or or MySQL 5.6,
+but <br>
+the destination does). This only works on individual .ibd
+files, and cannot export a table that is not contained in
+its own .ibd file.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+If you&rsquo;re running Percona Server version older than
+5.5.10-20.1, variable innodb_expand_import should be used
+instead of innodb_import_table_from_xtrabackup.</p>
+
+<p style="margin-top: 1em">Exporting tables <br>
+Exporting is done in the preparation stage, not at the
+moment of creating the backup. Once a full backup is
+created, prepare it with the --export option:</p>
+
+<p style="margin-top: 1em">$ innobackupex --apply-log
+--export /path/to/backup</p>
+
+<p style="margin-top: 1em">This will create for each InnoDB
+with its own tablespace a file with .exp extension. An
+output of this procedure would contain:</p>
+
+<p style="margin-top: 1em">.. <br>
+xtrabackup: export option is specified. <br>
+xtrabackup: export metadata of table
+&rsquo;mydatabase/mytable&rsquo; to file <br>
+&lsquo;./mydatabase/mytable.exp&lsquo; (1 indexes) <br>
+..</p>
+
+<p style="margin-top: 1em">Now you should see a .exp file
+in the target directory:</p>
+
+<p style="margin-top: 1em">$ find /data/backups/mysql/
+-name export_test.* <br>
+/data/backups/mysql/test/export_test.exp <br>
+/data/backups/mysql/test/export_test.ibd <br>
+/data/backups/mysql/test/export_test.cfg</p>
+
+<p style="margin-top: 1em">These three files are all you
+need to import the table into a server running Percona
+Server with XtraDB or MySQL 5.6.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+MySQL uses .cfg file which contains InnoDB dictionary dump
+in special format. This format is different from the .exp
+one which is used in XtraDB for the same purpose. Strictly
+<br>
+speaking, a .cfg file is not required to import a tablespace
+to MySQL 5.6 or Percona Server 5.6. A tablespace will be
+imported successfully even if it is from another server,
+<br>
+but InnoDB will do schema validation if the corresponding
+.cfg file is present in the same directory.</p>
+
+<p style="margin-top: 1em">Each .exp (or .cfg) file will be
+used for importing that table.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+InnoDB does a slow shutdown (i.e. full purge + change buffer
+merge) on --export, otherwise the tablespaces wouldn&rsquo;t
+be consistent and thus couldn&rsquo;t be imported. All the
+usual <br>
+performance considerations apply: sufficient buffer pool
+(i.e. --use-memory, 100MB by default) and fast enough
+storage, otherwise it can take a prohibitive amount of time
+for <br>
+export to complete.</p>
+
+<p style="margin-top: 1em">Importing tables <br>
+To import a table to other server, first create a new table
+with the same structure as the one that will be imported at
+that server:</p>
+
+<p style="margin-top: 1em">OTHERSERVER|mysql&gt; CREATE
+TABLE mytable (...) ENGINE=InnoDB;</p>
+
+<p style="margin-top: 1em">then discard its tablespace:</p>
+
+<p style="margin-top: 1em">OTHERSERVER|mysql&gt; ALTER
+TABLE mydatabase.mytable DISCARD TABLESPACE;</p>
+
+<p style="margin-top: 1em">After this, copy mytable.ibd and
+mytable.exp ( or mytable.cfg if importing to MySQL 5.6)
+files to database&rsquo;s home, and import its
+tablespace:</p>
+
+<p style="margin-top: 1em">OTHERSERVER|mysql&gt; ALTER
+TABLE mydatabase.mytable IMPORT TABLESPACE;</p>
+
+<p style="margin-top: 1em">Once this is executed, data in
+the imported table will be available.</p>
+
+<p style="margin-top: 1em">Point-In-Time recovery <br>
+Recovering up to particular moment in database&rsquo;s
+history can be done with innobackupex and the binary logs of
+the server.</p>
+
+<p style="margin-top: 1em">Note that the binary log
+contains the operations that modified the database from a
+point in the past. You need a full datadir as a base, and
+then you can apply a series of opera&acirc; <br>
+tions from the binary log to make the data match what it was
+at the point in time you want.</p>
+
+<p style="margin-top: 1em">For taking the snapshot, we will
+use innobackupex for a full backup:</p>
+
+<p style="margin-top: 1em">$ innobackupex /path/to/backup
+--no-timestamp</p>
+
+<p style="margin-top: 1em">(the --no-timestamp option is
+for convenience in this example) and we will prepare it to
+be ready for restoration:</p>
+
+<p style="margin-top: 1em">$ innobackupex --apply-log
+/path/to/backup</p>
+
+<p style="margin-top: 1em">For more details on these
+procedures, see creating_a_backup_ibk and
+preparing_a_backup_ibk.</p>
+
+<p style="margin-top: 1em">Now, suppose that time has
+passed, and you want to restore the database to a certain
+point in the past, having in mind that there is the
+constraint of the point where the snap&acirc; <br>
+shot was taken.</p>
+
+<p style="margin-top: 1em">To find out what is the
+situation of binary logging in the server, execute the
+following queries:</p>
+
+<p style="margin-top: 1em">mysql&gt; SHOW BINARY LOGS; <br>
++------------------+-----------+ <br>
+| Log_name | File_size | <br>
++------------------+-----------+ <br>
+| mysql-bin.000001 | 126 | <br>
+| mysql-bin.000002 | 1306 | <br>
+| mysql-bin.000003 | 126 | <br>
+| mysql-bin.000004 | 497 | <br>
++------------------+-----------+</p>
+
+<p style="margin-top: 1em">and</p>
+
+<p style="margin-top: 1em">mysql&gt; SHOW MASTER STATUS;
+<br>
+
++------------------+----------+--------------+------------------+
+<br>
+| File | Position | Binlog_Do_DB | Binlog_Ignore_DB | <br>
+
++------------------+----------+--------------+------------------+
+<br>
+| mysql-bin.000004 | 497 | | | <br>
+
++------------------+----------+--------------+------------------+</p>
+
+<p style="margin-top: 1em">The first query will tell you
+which files contain the binary log and the second one which
+file is currently being used to record changes, and the
+current position within it. <br>
+Those files are stored usually in the datadir (unless other
+location is specified when the server is started with the
+--log-bin= option).</p>
+
+<p style="margin-top: 1em">To find out the position of the
+snapshot taken, see the xtrabackup_binlog_info at the
+backup&rsquo;s directory:</p>
+
+<p style="margin-top: 1em">$ cat
+/path/to/backup/xtrabackup_binlog_info <br>
+mysql-bin.000003 57</p>
+
+<p style="margin-top: 1em">This will tell you which file
+was used at moment of the backup for the binary log and its
+position. That position will be the effective one when you
+restore the backup:</p>
+
+<p style="margin-top: 1em">$ innobackupex --copy-back
+/path/to/backup</p>
+
+<p style="margin-top: 1em">As the restoration will not
+affect the binary log files (you may need to adjust file
+permissions, see restoring_a_backup_ibk), the next step is
+extracting the queries from the <br>
+binary log with mysqlbinlog starting from the position of
+the snapshot and redirecting it to a file</p>
+
+<p style="margin-top: 1em">$ mysqlbinlog
+/path/to/datadir/mysql-bin.000003
+/path/to/datadir/mysql-bin.000004 --start-position=57 &gt;
+mybinlog.sql</p>
+
+<p style="margin-top: 1em">Note that if you have multiple
+files for the binary log, as in the example, you have to
+extract the queries with one process, as shown above.</p>
+
+<p style="margin-top: 1em">Inspect the file with the
+queries to determine which position or date corresponds to
+the point-in-time wanted. Once determined, pipe it to the
+server. Assuming the point is <br>
+11-12-25 01:00:00:</p>
+
+<p style="margin-top: 1em">$ mysqlbinlog
+/path/to/datadir/mysql-bin.000003
+/path/to/datadir/mysql-bin.000004 --start-position=57
+--stop-datetime=&quot;11-12-25 01:00:00&quot; | mysql -u
+root -p</p>
+
+<p style="margin-top: 1em">and the database will be rolled
+forward up to that Point-In-Time.</p>
+
+<p style="margin-top: 1em">Improved FLUSH TABLES WITH READ
+LOCK handling <br>
+When taking backups, FLUSH TABLES WITH READ LOCK is being
+used before the non-InnoDB files are being backed up to
+ensure backup is being consistent. FLUSH TABLES WITH READ
+LOCK <br>
+can be run even though there may be a running query that has
+been executing for hours. In this case everything will be
+locked up in Waiting for table flush or Waiting for master
+<br>
+to send event states. Killing the FLUSH TABLES WITH READ
+LOCK does not correct this issue either. In this case the
+only way to get the server operating normally again is to
+kill <br>
+off the long running queries that blocked it to begin with.
+This means that if there are long running queries FLUSH
+TABLES WITH READ LOCK can get stuck, leaving server in <br>
+read-only mode until waiting for these queries to
+complete.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+All described in this section has no effect when backup
+locks are used. Percona XtraBackup will use Backup locks
+where available as a lightweight alternative to FLUSH TABLES
+<br>
+WITH READ LOCK. This feature is available in Percona Server
+5.6+. Percona XtraBackup uses this automatically to copy
+non-InnoDB data to avoid blocking DML queries that modify
+<br>
+InnoDB tables.</p>
+
+<p style="margin-top: 1em">In order to prevent this from
+happening two things have been implemented:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; innobackupex can
+wait for a good moment to issue the global lock.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; innobackupex can
+kill all or only SELECT queries which are preventing the
+global lock from being acquired</p>
+
+<p style="margin-top: 1em">Waiting for queries to finish
+<br>
+Good moment to issue a global lock is the moment when there
+are no long queries running. But waiting for a good moment
+to issue the global lock for extended period of time
+isn&rsquo;t <br>
+always good approach, as it can extend the time needed for
+backup to take place. To prevent innobackupex from waiting
+to issue FLUSH TABLES WITH READ LOCK for too long, new <br>
+option has been implemented: innobackupex
+--ftwrl-wait-timeout option can be used to limit the waiting
+time. If the good moment to issue the lock did not happen
+during this time, <br>
+innobackupex will give up and exit with an error message and
+backup will not be taken. Zero value for this option turns
+off the feature (which is default).</p>
+
+<p style="margin-top: 1em">Another possibility is to
+specify the type of query to wait on. In this case
+innobackupex --ftwrl-wait-query-type. Possible values are
+all and update. When all is used innobacku&acirc; <br>
+pex will wait for all long running queries (execution time
+longer than allowed by innobackupex --ftwrl-wait-threshold)
+to finish before running the FLUSH TABLES WITH READ LOCK.
+<br>
+When update is used innobackupex will wait on
+UPDATE/ALTER/REPLACE/INSERT queries to finish.</p>
+
+<p style="margin-top: 1em">Although time needed for
+specific query to complete is hard to predict, we can assume
+that queries that are running for a long time already will
+likely not be completed soon, and <br>
+queries which are running for a short time will likely be
+completed shortly. innobackupex can use the value of
+innobackupex --ftwrl-wait-threshold option to specify which
+query <br>
+is long running and will likely block global lock for a
+while. In order to use this option xtrabackup user should
+have PROCESS and SUPER privileges.</p>
+
+<p style="margin-top: 1em">Killing the blocking queries
+<br>
+Second option is to kill all the queries which prevent
+global lock from being acquired. In this case all the
+queries which run longer than FLUSH TABLES WITH READ LOCK
+are possi&acirc; <br>
+ble blockers. Although all queries can be killed, additional
+time can be specified for the short running queries to
+complete. This can be specified by innobackupex <br>
+--kill-long-queries-timeout option. This option specifies
+the time for queries to complete, after the value is
+reached, all the running queries will be killed. Default
+value is <br>
+zero, which turns this feature off.</p>
+
+<p style="margin-top: 1em">innobackupex
+--kill-long-query-type option can be used to specify all or
+only SELECT queries that are preventing global lock from
+being acquired. In order to use this option <br>
+xtrabackup user should have PROCESS and SUPER
+privileges.</p>
+
+<p style="margin-top: 1em">Options summary <br>
+&Acirc;&middot; --ftwrl-wait-timeout=N (seconds) - how long
+to wait for a good moment. Default is 0, not to wait.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--ftwrl-wait-query-type={all|update} - which long queries
+should be finished before FLUSH TABLES WITH READ LOCK is
+run. Default is all.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--ftwrl-wait-threshold=N (seconds) - how long query should
+be running before we consider it long running and potential
+blocker of global lock.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--kill-long-queries-timeout=N (seconds) - how many time we
+give for queries to complete after FLUSH TABLES WITH READ
+LOCK is issued before start to kill. Default if 0, not to
+<br>
+kill.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot;
+--kill-long-query-type={all|select} - which queries should
+be killed once kill-long-queries-timeout has expired.</p>
+
+<p style="margin-top: 1em">Example <br>
+Running the innobackupex with the following options:</p>
+
+<p style="margin-top: 1em">$ innobackupex
+--ftwrl-wait-threshold=40 --ftwrl-wait-query-type=all
+--ftwrl-wait-timeout=180 --kill-long-queries-timeout=20
+--kill-long-query-type=all /data/backups/</p>
+
+<p style="margin-top: 1em">will cause innobackupex to spend
+no longer than 3 minutes waiting for all queries older than
+40 seconds to complete. After FLUSH TABLES WITH READ LOCK is
+issued, innobackupex <br>
+will wait 20 seconds for lock to be acquired. If lock is
+still not acquired after 20 seconds, it will kill all
+queries which are running longer that the FLUSH TABLES WITH
+READ <br>
+LOCK.</p>
+
+<p style="margin-top: 1em">Store backup history on the
+server <br>
+Percona XtraBackup supports storing the backups history on
+the server. This feature was implemented in Percona
+XtraBackup 2.2. Storing backup history on the server was
+imple&acirc; <br>
+mented to provide users with additional information about
+backups that are being taken. Backup history information
+will be stored in the PERCONA_SCHEMA.XTRABACKUP_HISTORY
+table.</p>
+
+<p style="margin-top: 1em">To use this feature three new
+innobackupex options have been implemented:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; innobackupex
+--history =&lt;name&gt; : This option enables the history
+feature and allows the user to specify a backup series name
+that will be placed within the history record.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; innobackupex
+--incremental-history-name =&lt;name&gt; : This option
+allows an incremental backup to be made based on a specific
+history series by name. innobackupex will search the <br>
+history table looking for the most recent (highest to_lsn)
+backup in the series and take the to_lsn value to use as
+it&rsquo;s starting lsn. This is mutually exclusive with
+innoback&acirc; <br>
+upex --incremental-history-uuid, innobackupex
+--incremental-basedir and innobackupex --incremental-lsn
+options. If no valid LSN can be found (no series by that
+name) innobacku&acirc; <br>
+pex will return with an error.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; innobackupex
+--incremental-history-uuid =&lt;uuid&gt; : Allows an
+incremental backup to be made based on a specific history
+record identified by UUID. innobackupex will search the <br>
+history table looking for the record matching UUID and take
+the to_lsn value to use as it&rsquo;s starting LSN. This
+options is mutually exclusive with innobackupex
+--incremen&acirc; <br>
+tal-basedir, innobackupex --incremental-lsn and innobackupex
+--incremental-history-name options. If no valid LSN can be
+found (no record by that UUID or missing to_lsn), <br>
+innobackupex will return with an error.</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+Backup that&rsquo;s currently being performed will NOT exist
+in the xtrabackup_history table within the resulting backup
+set as the record will not be added to that table until <br>
+after the backup has been taken.</p>
+
+<p style="margin-top: 1em">If you want access to backup
+history outside of your backup set in the case of some
+catastrophic event, you will need to either perform a
+mysqldump, partial backup or SELECT * on <br>
+the history table after innobackupex completes and store the
+results with you backup set.</p>
+
+<p style="margin-top: 1em">Privileges <br>
+User performing the backup will need following
+privileges:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; CREATE privilege
+in order to create the PERCONA_SCHEMA.xtrabackup_history
+database and table.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; INSERT privilege
+in order to add history records to the
+PERCONA_SCHEMA.xtrabackup_history table.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; SELECT privilege
+in order to use innobackupex --incremental-history-name or
+innobackupex --incremental-history-uuid in order for the
+feature to look up the innodb_to_lsn values <br>
+in the PERCONA_SCHEMA.xtrabackup_history table.</p>
+
+
+<p style="margin-top: 1em">PERCONA_SCHEMA.XTRABACKUP_HISTORY
+table <br>
+This table contains the information about the previous
+server backups. Information about the backups will only be
+written if the backup was taken with innobackupex --history
+<br>
+option.</p>
+
+
+<p style="margin-top: 1em">&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&not;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc;Column Name &acirc; Description &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;uuid &acirc; Unique backup id &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;name &acirc; User provided name of backup series.
+There may be multiple &acirc; <br>
+&acirc; &acirc; entries with the same name used to identify
+related backups in &acirc; <br>
+&acirc; &acirc; a series. &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;tool_name &acirc; Name of tool used to take backup
+&acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;tool_command &acirc; Exact command line given to the
+tool with --password and &acirc; <br>
+&acirc; &acirc; --encryption_key obfuscated &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;tool_version &acirc; Version of tool used to take
+backup &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acute;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;</p>
+
+<p style="margin-top: 1em">&acirc;ibbackup_version &acirc;
+Version of the xtrabackup binary used to take backup &acirc;
+<br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;server_version &acirc; Server version on which backup
+was taken &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;start_time &acirc; Time at the start of the backup
+&acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;end_time &acirc; Time at the end of the backup
+&acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;lock_time &acirc; Amount of time, in seconds, spent
+calling and holding locks &acirc; <br>
+&acirc; &acirc; for FLUSH TABLES WITH READ LOCK &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;binlog_pos &acirc; Binlog file and position at end of
+FLUSH TABLES WITH READ LOCK &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;innodb_from_lsn &acirc; LSN at beginning of backup
+which can be used to determine &acirc; <br>
+&acirc; &acirc; prior backups &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;innodb_to_lsn &acirc; LSN at end of backup which can
+be used as the starting lsn for &acirc; <br>
+&acirc; &acirc; the next incremental &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;partial &acirc; Is this a partial backup, if N that
+means that it&rsquo;s the full &acirc; <br>
+&acirc; &acirc; backup &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;incremental &acirc; Is this an incremental backup
+&acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;format &acirc; Description of result format (file,
+tar, xbstream) &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;compact &acirc; Is this a compact backup &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;compressed &acirc; Is this a compressed backup
+&acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&frac14;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+<br>
+&acirc;encrypted &acirc; Is this an encrypted backup &acirc;
+<br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acute;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;</p>
+
+<p style="margin-top: 1em">Limitations <br>
+&Acirc;&middot; innobackupex --history option must be
+specified only on the innobackupex command line and not
+within a configuration file in order to be effective.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; innobackupex
+--incremental-history-name and innobackupex
+--incremental-history-uuid options must be specified only on
+the innobackupex command line and not within a
+configura&acirc; <br>
+tion file in order to be effective.</p>
+
+<p style="margin-top: 1em">IMPLEMENTATION <br>
+How innobackupex Works <br>
+From Percona XtraBackup version 2.3 innobackupex is has been
+rewritten in C and set up as a symlink to the xtrabackup.
+innobackupex supports all features and syntax as 2.2
+ver&acirc; <br>
+sion did, but it is now deprecated and will be removed in
+next major release. Syntax for new features will not be
+added to the innobackupex, only to the xtrabackup.</p>
+
+<p style="margin-top: 1em">The following describes the
+rationale behind innobackupex actions.</p>
+
+<p style="margin-top: 1em">Making a Backup <br>
+If no mode is specified, innobackupex will assume the backup
+mode.</p>
+
+<p style="margin-top: 1em">By default, it starts xtrabackup
+with the --suspend-at-end option, and lets it copy the
+InnoDB data files. When xtrabackup finishes that,
+innobackupex sees it create the xtra&acirc; <br>
+backup_suspended_2 file and executes FLUSH TABLES WITH READ
+LOCK. xtrabackup will use Backup locks where available as a
+lightweight alternative to FLUSH TABLES WITH READ LOCK. <br>
+This feature is available in Percona Server 5.6+. Percona
+XtraBackup uses this automatically to copy non-InnoDB data
+to avoid blocking DML queries that modify InnoDB tables.
+Then <br>
+it begins copying the rest of the files.</p>
+
+<p style="margin-top: 1em">innobackupex will then check
+MySQL variables to determine which features are supported by
+server. Special interest are backup locks, changed page
+bitmaps, GTID mode, etc. If <br>
+everything goes well, the binary is started as a child
+process.</p>
+
+<p style="margin-top: 1em">innobackupex will wait for
+slaves in a replication setup if the option
+--safe-slave-backup is set and will flush all tables with
+READ LOCK, preventing all MyISAM tables from <br>
+writing (unless option --no-lock is specified).</p>
+
+<p style="margin-top: 1em">NOTE: <br>
+Locking is done only for MyISAM and other non-InnoDB tables,
+and only after Percona XtraBackup is finished backing up all
+InnoDB/XtraDB data and logs. Percona XtraBackup will <br>
+use Backup locks where available as a lightweight
+alternative to FLUSH TABLES WITH READ LOCK. This feature is
+available in Percona Server 5.6+. Percona XtraBackup uses
+this <br>
+automatically to copy non-InnoDB data to avoid blocking DML
+queries that modify InnoDB tables.</p>
+
+<p style="margin-top: 1em">Once this is done, the backup of
+the files will begin. It will backup .frm, .MRG, .MYD, .MYI,
+.TRG, .TRN, .ARM, .ARZ, .CSM, .CSV, .par, and .opt
+files.</p>
+
+<p style="margin-top: 1em">When all the files are backed
+up, it resumes ibbackup and wait until it finishes copying
+the transactions done while the backup was done. Then, the
+tables are unlocked, the slave <br>
+is started (if the option --safe-slave-backup was used) and
+the connection with the server is closed. Then, it removes
+the xtrabackup_suspended_2 file and permits xtrabackup to
+<br>
+exit.</p>
+
+<p style="margin-top: 1em">It will also create the
+following files in the directory of the backup:</p>
+
+<p style="margin-top: 1em">xtrabackup_checkpoints <br>
+containing the LSN and the type of backup;</p>
+
+<p style="margin-top: 1em">xtrabackup_binlog_info <br>
+containing the position of the binary log at the moment of
+backing up;</p>
+
+<p style="margin-top: 1em">xtrabackup_binlog_pos_innodb
+<br>
+containing the position of the binary log at the moment of
+backing up relative to InnoDB transactions;</p>
+
+<p style="margin-top: 1em">xtrabackup_slave_info <br>
+containing the MySQL binlog position of the master server in
+a replication setup via SHOW SLAVE STATUS if the
+--slave-info option is passed;</p>
+
+<p style="margin-top: 1em">backup-my.cnf <br>
+containing only the my.cnf options required for the backup.
+For example, innodb_data_file_path,
+innodb_log_files_in_group, innodb_log_file_size,
+innodb_fast_checksum, inn&acirc; <br>
+odb_page_size, innodb_log_block_size;</p>
+
+<p style="margin-top: 1em">xtrabackup_binary <br>
+containing the binary used for the backup;</p>
+
+<p style="margin-top: 1em">mysql-stderr <br>
+containing the STDERR of mysqld during the process and</p>
+
+<p style="margin-top: 1em">mysql-stdout <br>
+containing the STDOUT of the server.</p>
+
+<p style="margin-top: 1em">Finally, the binary log position
+will be printed to STDERR and innobackupex will exit
+returning 0 if all went OK.</p>
+
+<p style="margin-top: 1em">Note that the STDERR of
+innobackupex is not written in any file. You will have to
+redirect it to a file, e.g., innobackupex OPTIONS 2&gt;
+backupout.log.</p>
+
+<p style="margin-top: 1em">Restoring a backup <br>
+To restore a backup with innobackupex the --copy-back option
+must be used.</p>
+
+<p style="margin-top: 1em">innobackupex will read from the
+my.cnf the variables datadir, innodb_data_home_dir,
+innodb_data_file_path, innodb_log_group_home_dir and check
+that the directories exist.</p>
+
+<p style="margin-top: 1em">It will copy the MyISAM tables,
+indexes, etc. (.frm, .MRG, .MYD, .MYI, .TRG, .TRN, .ARM,
+.ARZ, .CSM, .CSV, par and .opt files) first, InnoDB tables
+and indexes next and the log <br>
+files at last. It will preserve file&rsquo;s attributes when
+copying them, you may have to change the files&rsquo;
+ownership to mysql before starting the database server, as
+they will be <br>
+owned by the user who created the backup.</p>
+
+<p style="margin-top: 1em">Alternatively, the --move-back
+option may be used to restore a backup. This option is
+similar to --copy-back with the only difference that instead
+of copying files it moves them <br>
+to their target locations. As this option removes backup
+files, it must be used with caution. It is useful in cases
+when there is not enough free disk space to hold both data
+<br>
+files and their backup copies.</p>
+
+<p style="margin-top: 1em">REFERENCES <br>
+The innobackupex Option Reference <br>
+This page documents all of the command-line options for the
+innobackupex.</p>
+
+<p style="margin-top: 1em">Options <br>
+--apply-log <br>
+Prepare a backup in BACKUP-DIR by applying the transaction
+log file named xtrabackup_logfile located in the same
+directory. Also, create new transaction logs. The InnoDB
+<br>
+configuration is read from the file backup-my.cnf created by
+innobackupex when the backup was made. innobackupex
+--apply-log uses InnoDB configuration from backup-my.cnf
+<br>
+by default, or from --defaults-file, if specified. InnoDB
+configuration in this context means server variables that
+affect data format, i.e. innodb_page_size, inn&acirc; <br>
+odb_log_block_size, etc. Location-related variables, like
+innodb_log_group_home_dir or innodb_data_file_path are
+always ignored by --apply-log, so preparing a backup <br>
+always works with data files from the backup directory,
+rather than any external ones.</p>
+
+<p style="margin-top: 1em">--backup-locks <br>
+This option controls if backup locks should be used instead
+of FLUSH TABLES WITH READ LOCK on the backup stage. The
+option has no effect when backup locks are not sup&acirc;
+<br>
+ported by the server. This option is enabled by default,
+disable with --no-backup-locks.</p>
+
+<p style="margin-top: 1em">--close-files <br>
+Do not keep files opened. This option is passed directly to
+xtrabackup. When xtrabackup opens tablespace it normally
+doesn&rsquo;t close its file handle in order to handle the
+<br>
+DDL operations correctly. However, if the number of
+tablespaces is really huge and can not fit into any limit,
+there is an option to close file handles once they are no
+<br>
+longer accessed. Percona XtraBackup can produce inconsistent
+backups with this option enabled. Use at your own risk.</p>
+
+<p style="margin-top: 1em">--compact <br>
+Create a compact backup with all secondary index pages
+omitted. This option is passed directly to xtrabackup. See
+the xtrabackup documentation for details.</p>
+
+<p style="margin-top: 1em">--compress <br>
+This option instructs xtrabackup to compress backup copies
+of InnoDB data files. It is passed directly to the
+xtrabackup child process. See the xtrabackup documentation
+<br>
+for details.</p>
+
+<p style="margin-top: 1em">--compress-threads=# <br>
+This option specifies the number of worker threads that will
+be used for parallel compression. It is passed directly to
+the xtrabackup child process. See the xtrabackup <br>
+documentation for details.</p>
+
+<p style="margin-top: 1em">--compress-chunk-size=# <br>
+This option specifies the size of the internal working
+buffer for each compression thread, measured in bytes. It is
+passed directly to the xtrabackup child process. The <br>
+default value is 64K. See the xtrabackup documentation for
+details.</p>
+
+<p style="margin-top: 1em">--copy-back <br>
+Copy all the files in a previously made backup from the
+backup directory to their original locations. Percona
+XtraBackup innobackupex --copy-back option will not copy
+over <br>
+existing files unless innobackupex
+--force-non-empty-directories option is specified.</p>
+
+<p style="margin-top: 1em">--databases=LIST <br>
+This option specifies the list of databases that
+innobackupex should back up. The option accepts a string
+argument or path to file that contains the list of databases
+to <br>
+back up. The list is of the form
+&quot;databasename1[.table_name1]
+databasename2[.table_name2] . . .&quot;. If this option is
+not specified, all databases containing MyISAM and
+Inn&acirc; <br>
+oDB tables will be backed up. Please make sure that
+--databases contains all of the InnoDB databases and tables,
+so that all of the innodb.frm files are also backed up. In
+<br>
+case the list is very long, this can be specified in a file,
+and the full path of the file can be specified instead of
+the list. (See option --tables-file.)</p>
+
+<p style="margin-top: 1em">--decompress <br>
+Decompresses all files with the .qp extension in a backup
+previously made with the --compress option. The innobackupex
+--parallel option will allow multiple files to be <br>
+decrypted and/or decompressed simultaneously. In order to
+decompress, the qpress utility MUST be installed and
+accessible within the path. Percona XtraBackup doesn&rsquo;t
+auto&acirc; <br>
+matically remove the compressed files. In order to clean up
+the backup directory users should remove the *.qp files
+manually.</p>
+
+<p style="margin-top: 1em">--decrypt=ENCRYPTION-ALGORITHM
+<br>
+Decrypts all files with the .xbcrypt extension in a backup
+previously made with --encrypt option. The innobackupex
+--parallel option will allow multiple files to be <br>
+decrypted and/or decompressed simultaneously.</p>
+
+<p style="margin-top: 1em">--defaults-file=[MY.CNF] <br>
+This option accepts a string argument that specifies what
+file to read the default MySQL options from. Must be given
+as the first option on the command-line.</p>
+
+<p style="margin-top: 1em">--defaults-extra-file=[MY.CNF]
+<br>
+This option specifies what extra file to read the default
+MySQL options from before the standard defaults-file. Must
+be given as the first option on the command-line.</p>
+
+<p style="margin-top: 1em">--defaults-group=GROUP-NAME <br>
+This option accepts a string argument that specifies the
+group which should be read from the configuration file. This
+is needed if you use mysqld_multi. This can also be <br>
+used to indicate groups other than mysqld and
+xtrabackup.</p>
+
+<p style="margin-top: 1em">--encrypt=ENCRYPTION_ALGORITHM
+<br>
+This option instructs xtrabackup to encrypt backup copies of
+InnoDB data files using the algorithm specified in the
+ENCRYPTION_ALGORITHM. It is passed directly to the <br>
+xtrabackup child process. See the xtrabackup documentation
+for more details.</p>
+
+<p style="margin-top: 1em">--encrypt-key=ENCRYPTION_KEY
+<br>
+This option instructs xtrabackup to use the given
+ENCRYPTION_KEY when using the --encrypt option. It is passed
+directly to the xtrabackup child process. See the xtrabackup
+<br>
+documentation for more details.</p>
+
+
+<p style="margin-top: 1em">--encrypt-key-file=ENCRYPTION_KEY_FILE
+<br>
+This option instructs xtrabackup to use the encryption key
+stored in the given ENCRYPTION_KEY_FILE when using the
+--encrypt option. It is passed directly to the xtrabackup
+<br>
+child process. See the xtrabackup documentation for more
+details.</p>
+
+<p style="margin-top: 1em">--encrypt-threads=# <br>
+This option specifies the number of worker threads that will
+be used for parallel encryption. It is passed directly to
+the xtrabackup child process. See the xtrabackup <br>
+documentation for more details.</p>
+
+<p style="margin-top: 1em">--encrypt-chunk-size=# <br>
+This option specifies the size of the internal working
+buffer for each encryption thread, measured in bytes. It is
+passed directly to the xtrabackup child process. See the
+<br>
+xtrabackup documentation for more details.</p>
+
+<p style="margin-top: 1em">--export <br>
+This option is passed directly to xtrabackup --export
+option. It enables exporting individual tables for import
+into another server. See the xtrabackup documentation for
+<br>
+details.</p>
+
+<p style="margin-top: 1em">--extra-lsndir=DIRECTORY <br>
+This option accepts a string argument that specifies the
+directory in which to save an extra copy of the
+xtrabackup_checkpoints file. It is passed directly to
+xtrabackup&rsquo;s <br>
+--extra-lsndir option. See the xtrabackup documentation for
+details.</p>
+
+<p style="margin-top: 1em">--force-non-empty-directories
+<br>
+When specified, it makes innobackupex --copy-back option or
+innobackupex --move-back option transfer files to non-empty
+directories. No existing files will be overwritten. <br>
+If --copy-back or --move-back has to copy a file from the
+backup directory which already exists in the destination
+directory, it will still fail with an error.</p>
+
+<p style="margin-top: 1em">--galera-info <br>
+This options creates the xtrabackup_galera_info file which
+contains the local node state at the time of the backup.
+Option should be used when performing the backup of <br>
+Percona-XtraDB-Cluster. Has no effect when backup locks are
+used to create the backup.</p>
+
+<p style="margin-top: 1em">--help This option displays a
+help screen and exits.</p>
+
+<p style="margin-top: 1em">--history=NAME <br>
+This option enables the tracking of backup history in the
+PERCONA_SCHEMA.xtrabackup_history table. An optional history
+series name may be specified that will be placed <br>
+with the history record for the current backup being
+taken.</p>
+
+<p style="margin-top: 1em">--host=HOST <br>
+This option accepts a string argument that specifies the
+host to use when connecting to the database server with
+TCP/IP. It is passed to the mysql child process without <br>
+alteration. See mysql --help for details.</p>
+
+<p style="margin-top: 1em">--ibbackup=IBBACKUP-BINARY <br>
+This option specifies which xtrabackup binary should be
+used. The option accepts a string argument. IBBACKUP-BINARY
+should be the command used to run Percona XtraBackup. <br>
+The option can be useful if the xtrabackup binary is not in
+your search path or working directory. If this option is not
+specified, innobackupex attempts to determine the <br>
+binary to use automatically.</p>
+
+<p style="margin-top: 1em">--include=REGEXP <br>
+This option is a regular expression to be matched against
+table names in databasename.tablename format. It is passed
+directly to xtrabackup&rsquo;s xtrabackup --tables option.
+<br>
+See the xtrabackup documentation for details.</p>
+
+<p style="margin-top: 1em">--incremental <br>
+This option tells xtrabackup to create an incremental
+backup, rather than a full one. It is passed to the
+xtrabackup child process. When this option is specified,
+either <br>
+--incremental-lsn or --incremental-basedir can also be
+given. If neither option is given, option
+--incremental-basedir is passed to xtrabackup by default,
+set to the first <br>
+timestamped backup directory in the backup base
+directory.</p>
+
+<p style="margin-top: 1em">--incremental-basedir=DIRECTORY
+<br>
+This option accepts a string argument that specifies the
+directory containing the full backup that is the base
+dataset for the incremental backup. It is used with the <br>
+--incremental option.</p>
+
+<p style="margin-top: 1em">--incremental-dir=DIRECTORY <br>
+This option accepts a string argument that specifies the
+directory where the incremental backup will be combined with
+the full backup to make a new full backup. It is used <br>
+with the --incremental option.</p>
+
+<p style="margin-top: 1em">--incremental-history-name=NAME
+<br>
+This option specifies the name of the backup series stored
+in the PERCONA_SCHEMA.xtrabackup_history history record to
+base an incremental backup on. Percona Xtrabackup <br>
+will search the history table looking for the most recent
+(highest innodb_to_lsn), successful backup in the series and
+take the to_lsn value to use as the starting lsn for <br>
+the incremental backup. This will be mutually exclusive with
+innobackupex --incremental-history-uuid,:option:innobackupex
+--incremental-basedir and innobackupex --incre&acirc; <br>
+mental-lsn. If no valid lsn can be found (no series by that
+name, no successful backups by that name) xtrabackup will
+return with an error. It is used with the <br>
+innobackupex --incremental option.</p>
+
+<p style="margin-top: 1em">--incremental-history-uuid=UUID
+<br>
+This option specifies the UUID of the specific history
+record stored in the PERCONA_SCHEMA.xtrabackup_history to
+base an incremental backup on. innobackupex
+--incremen&acirc; <br>
+tal-history-name,:optionL&lsquo;innobackupex
+--incremental-basedir&lsquo; and innobackupex
+--incremental-lsn. If no valid lsn can be found (no success
+record with that uuid) xtra&acirc; <br>
+backup will return with an error. It is used with the
+innobackupex --incremental option.</p>
+
+<p style="margin-top: 1em">--incremental-lsn=LSN <br>
+This option accepts a string argument that specifies the log
+sequence number (LSN) to use for the incremental backup. It
+is used with the --incremental option. It is used <br>
+instead of specifying --incremental-basedir. For databases
+created by MySQL and Percona Server 5.0-series versions,
+specify the as two 32-bit integers in high:low format. <br>
+For databases created in 5.1 and later, specify the LSN as a
+single 64-bit integer.</p>
+
+
+<p style="margin-top: 1em">--kill-long-queries-timeout=SECONDS
+<br>
+This option specifies the number of seconds innobackupex
+waits between starting FLUSH TABLES WITH READ LOCK and
+killing those queries that block it. Default is 0 seconds,
+<br>
+which means innobackupex will not attempt to kill any
+queries. In order to use this option xtrabackup user should
+have PROCESS and SUPER privileges. Where supported
+(Per&acirc; <br>
+cona Server 5.6+) xtrabackup will automatically use Backup
+Locks as a lightweight alternative to FLUSH TABLES WITH READ
+LOCK to copy non-InnoDB data to avoid blocking DML <br>
+queries that modify InnoDB tables.</p>
+
+
+<p style="margin-top: 1em">--kill-long-query-type=all|select
+<br>
+This option specifies which types of queries should be
+killed to unblock the global lock. Default is
+&quot;all&quot;.</p>
+
+<p style="margin-top: 1em">--ftwrl-wait-timeout=SECONDS
+<br>
+This option specifies time in seconds that innobackupex
+should wait for queries that would block FLUSH TABLES WITH
+READ LOCK before running it. If there are still such <br>
+queries when the timeout expires, innobackupex terminates
+with an error. Default is 0, in which case innobackupex does
+not wait for queries to complete and starts FLUSH <br>
+TABLES WITH READ LOCK immediately. Where supported (Percona
+Server 5.6+) xtrabackup will automatically use Backup Locks
+as a lightweight alternative to FLUSH TABLES WITH <br>
+READ LOCK to copy non-InnoDB data to avoid blocking DML
+queries that modify InnoDB tables.</p>
+
+<p style="margin-top: 1em">--ftwrl-wait-threshold=SECONDS
+<br>
+This option specifies the query run time threshold which is
+used by innobackupex to detect long-running queries with a
+non-zero value of innobackupex --ftwrl-wait-timeout. <br>
+FLUSH TABLES WITH READ LOCK is not started until such
+long-running queries exist. This option has no effect if
+--ftwrl-wait-timeout is 0. Default value is 60 seconds. <br>
+Where supported (Percona Server 5.6+) xtrabackup will
+automatically use Backup Locks as a lightweight alternative
+to FLUSH TABLES WITH READ LOCK to copy non-InnoDB data to
+<br>
+avoid blocking DML queries that modify InnoDB tables.</p>
+
+
+<p style="margin-top: 1em">--ftwrl-wait-query-type=all|update
+<br>
+This option specifies which types of queries are allowed to
+complete before innobackupex will issue the global lock.
+Default is all.</p>
+
+<p style="margin-top: 1em">--log-copy-interval=# <br>
+This option specifies time interval between checks done by
+log copying thread in milliseconds.</p>
+
+<p style="margin-top: 1em">--move-back <br>
+Move all the files in a previously made backup from the
+backup directory to their original locations. As this option
+removes backup files, it must be used with caution.</p>
+
+<p style="margin-top: 1em">--no-lock <br>
+Use this option to disable table lock with FLUSH TABLES WITH
+READ LOCK. Use it only if ALL your tables are InnoDB and you
+DO NOT CARE about the binary log position of the <br>
+backup. This option shouldn&rsquo;t be used if there are any
+DDL statements being executed or if any updates are
+happening on non-InnoDB tables (this includes the system
+MyISAM <br>
+tables in the mysql database), otherwise it could lead to an
+inconsistent backup. Where supported (Percona Server 5.6+)
+xtrabackup will automatically use Backup Locks as a <br>
+lightweight alternative to FLUSH TABLES WITH READ LOCK to
+copy non-InnoDB data to avoid blocking DML queries that
+modify InnoDB tables. If you are considering to use <br>
+--no-lock because your backups are failing to acquire the
+lock, this could be because of incoming replication events
+preventing the lock from succeeding. Please try using <br>
+--safe-slave-backup to momentarily stop the replication
+slave thread, this may help the backup to succeed and you
+then don&rsquo;t need to resort to using this option.
+xtra&acirc; <br>
+backup_binlog_info is not created when --no-lock option is
+used (because SHOW MASTER STATUS may be inconsistent), but
+under certain conditions xtrabackup_binlog_pos_innodb <br>
+can be used instead to get consistent binlog coordinates as
+described in working_with_binlogs.</p>
+
+<p style="margin-top: 1em">--no-timestamp <br>
+This option prevents creation of a time-stamped subdirectory
+of the BACKUP-ROOT-DIR given on the command line. When it is
+specified, the backup is done in BACKUP-ROOT-DIR <br>
+instead.</p>
+
+<p style="margin-top: 1em">--no-version-check <br>
+This option disables the version check which is enabled by
+the --version-check option.</p>
+
+<p style="margin-top: 1em">--parallel=NUMBER-OF-THREADS
+<br>
+This option accepts an integer argument that specifies the
+number of threads the xtrabackup child process should use to
+back up files concurrently. Note that this option <br>
+works on file level, that is, if you have several .ibd
+files, they will be copied in parallel. If your tables are
+stored together in a single tablespace file, it will have
+<br>
+no effect. This option will allow multiple files to be
+decrypted and/or decompressed simultaneously. In order to
+decompress, the qpress utility MUST be installed and <br>
+accessable within the path. This process will remove the
+original compressed/encrypted files and leave the results in
+the same location. It is passed directly to xtra&acirc; <br>
+backup&rsquo;s xtrabackup --parallel option. See the
+xtrabackup documentation for details</p>
+
+<p style="margin-top: 1em">--password=PASSWORD <br>
+This option accepts a string argument specifying the
+password to use when connecting to the database. It is
+passed to the mysql child process without alteration. See
+mysql <br>
+--help for details.</p>
+
+<p style="margin-top: 1em">--port=PORT <br>
+This option accepts a string argument that specifies the
+port to use when connecting to the database server with
+TCP/IP. It is passed to the mysql child process. It is <br>
+passed to the mysql child process without alteration. See
+mysql --help for details.</p>
+
+<p style="margin-top: 1em">--rebuild-indexes <br>
+This option only has effect when used together with the
+--apply-log option and is passed directly to xtrabackup.
+When used, makes xtrabackup rebuild all secondary indexes
+<br>
+after applying the log. This option is normally used to
+prepare compact backups. See the xtrabackup documentation
+for more information.</p>
+
+
+<p style="margin-top: 1em">--rebuild-threads=NUMBER-OF-THREADS
+<br>
+This option only has effect when used together with the
+--apply-log and --rebuild-indexes option and is passed
+directly to xtrabackup. When used, xtrabackup processes <br>
+tablespaces in parallel with the specified number of threads
+when rebuilding indexes. See the xtrabackup documentation
+for more information.</p>
+
+<p style="margin-top: 1em">--redo-only <br>
+This option should be used when preparing the base full
+backup and when merging all incrementals except the last
+one. It is passed directly to xtrabackup&rsquo;s xtrabackup
+<br>
+--apply-log-only option. This forces xtrabackup to skip the
+&quot;rollback&quot; phase and do a &quot;redo&quot; only.
+This is necessary if the backup will have incremental
+changes applied to <br>
+it later. See the xtrabackup documentation for details.</p>
+
+<p style="margin-top: 1em">--rsync <br>
+Uses the rsync utility to optimize local file transfers.
+When this option is specified, innobackupex uses rsync to
+copy all non-InnoDB files instead of spawning a separate
+<br>
+cp for each file, which can be much faster for servers with
+a large number of databases or tables. This option cannot be
+used together with --stream.</p>
+
+<p style="margin-top: 1em">--safe-slave-backup <br>
+When specified, innobackupex will stop the slave SQL thread
+just before running FLUSH TABLES WITH READ LOCK and wait to
+start backup until Slave_open_temp_tables in SHOW <br>
+STATUS is zero. If there are no open temporary tables, the
+backup will take place, otherwise the SQL thread will be
+started and stopped until there are no open temporary <br>
+tables. The backup will fail if Slave_open_temp_tables does
+not become zero after innobackupex
+--safe-slave-backup-timeout seconds. The slave SQL thread
+will be restarted <br>
+when the backup finishes.</p>
+
+
+<p style="margin-top: 1em">--safe-slave-backup-timeout=SECONDS
+<br>
+How many seconds innobackupex --safe-slave-backup should
+wait for Slave_open_temp_tables to become zero. Defaults to
+300 seconds.</p>
+
+<p style="margin-top: 1em">--scpopt = SCP-OPTIONS <br>
+This option accepts a string argument that specifies the
+command line options to pass to scp when the option
+--remost-host is specified. If the option is not specified,
+<br>
+the default options are -Cp -c arcfour.</p>
+
+<p style="margin-top: 1em">--slave-info <br>
+This option is useful when backing up a replication slave
+server. It prints the binary log position and name of the
+master server. It also writes this information to the <br>
+xtrabackup_slave_info file as a CHANGE MASTER command. A new
+slave for this master can be set up by starting a slave
+server on this backup and issuing a CHANGE MASTER com&acirc;
+<br>
+mand with the binary log position saved in the
+xtrabackup_slave_info file.</p>
+
+<p style="margin-top: 1em">--socket <br>
+This option accepts a string argument that specifies the
+socket to use when connecting to the local database server
+with a UNIX domain socket. It is passed to the mysql <br>
+child process without alteration. See mysql --help for
+details.</p>
+
+<p style="margin-top: 1em">--sshopt=SSH-OPTIONS <br>
+This option accepts a string argument that specifies the
+command line options to pass to ssh when the option
+--remost-host is specified.</p>
+
+<p style="margin-top: 1em">--stream=STREAMNAME <br>
+This option accepts a string argument that specifies the
+format in which to do the streamed backup. The backup will
+be done to STDOUT in the specified format. Currently, <br>
+supported formats are tar and xbstream. Uses xbstream, which
+is available in Percona XtraBackup distributions. If you
+specify a path after this option, it will be inter&acirc;
+<br>
+preted as the value of tmpdir</p>
+
+<p style="margin-top: 1em">--tables-file=FILE <br>
+This option accepts a string argument that specifies the
+file in which there are a list of names of the form
+database.table, one per line. The option is passed directly
+to <br>
+xtrabackup &rsquo;s --tables-file option.</p>
+
+<p style="margin-top: 1em">--throttle=IOS <br>
+This option accepts an integer argument that specifies the
+number of I/O operations (i.e., pairs of read+write) per
+second. It is passed directly to xtrabackup&rsquo;s
+xtra&acirc; <br>
+backup --throttle option. NOTE: This option works only
+during the backup phase, ie. it will not work with
+innobackupex --apply-log and innobackupex --copy-back
+options.</p>
+
+<p style="margin-top: 1em">--tmpdir=DIRECTORY <br>
+This option accepts a string argument that specifies the
+location where a temporary file will be stored. It may be
+used when --stream is specified. For these options, the <br>
+transaction log will first be stored to a temporary file,
+before streaming or copying to a remote host. This option
+specifies the location where that temporary file will <br>
+be stored. If the option is not specified, the default is to
+use the value of tmpdir read from the server configuration.
+innobackupex is passing the tmpdir value specified <br>
+in my.cnf as the --target-dir option to the xtrabackup
+binary. Both [mysqld] and [xtrabackup] groups are read from
+my.cnf. If there is tmpdir in both, then the value being
+<br>
+used depends on the order of those group in my.cnf.</p>
+
+<p style="margin-top: 1em">--use-memory=# <br>
+This option accepts a string argument that specifies the
+amount of memory in bytes for xtrabackup to use for crash
+recovery while preparing a backup. Multiples are sup&acirc;
+<br>
+ported providing the unit (e.g. 1MB, 1M, 1GB, 1G). It is
+used only with the option --apply-log. It is passed directly
+to xtrabackup&rsquo;s xtrabackup --use-memory option. See
+<br>
+the xtrabackup documentation for details.</p>
+
+<p style="margin-top: 1em">--user=USER <br>
+This option accepts a string argument that specifies the
+user (i.e., the MySQL username used when connecting to the
+server) to login as, if that&rsquo;s not the current user.
+It <br>
+is passed to the mysql child process without alteration. See
+mysql --help for details.</p>
+
+<p style="margin-top: 1em">--version <br>
+This option displays the innobackupex version and copyright
+notice and then exits.</p>
+
+<p style="margin-top: 1em">--version-check <br>
+When this option is specified, innobackupex will perform a
+version check against the server on the backup stage after
+creating a server connection.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Percona LLC and/or its affiliates</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+2009-2016, Percona LLC and/or its affiliates</p>
+
+<p style="margin-top: 1em">2.3.5 May 16, 2017
+INNOBACKUPEX(1)</p>
+<hr>
+</body>
+</html>

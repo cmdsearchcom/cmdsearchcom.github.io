@@ -1,0 +1,232 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:14:58 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>PVMOVE(8) System Manager&rsquo;s Manual PVMOVE(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+pvmove &acirc; move physical extents</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+pvmove [--abort] [--alloc AllocationPolicy] [--atomic]
+[-b|--background] [--commandprofile ProfileName]
+[-d|--debug] [-h|--help] [-i|--interval Seconds]
+[--noudevsync] [--report&acirc; <br>
+format {basic|json}] [-v|--verbose] [-n|--name
+LogicalVolume] [SourcePhysicalVolume[:PE[-PE]...]
+[DestinationPhysicalVolume[:PE[-PE]...]...]]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+pvmove allows you to move the allocated physical extents
+(PEs) on SourcePhysicalVolume to one or more other physical
+volumes (PVs). You can optionally specify a source
+Logi&acirc; <br>
+calVolume in which case only extents used by that LV will be
+moved to free (or specified) extents on
+DestinationPhysicalVolume(s). If no
+DestinationPhysicalVolume is specified, <br>
+the normal allocation rules for the Volume Group are
+used.</p>
+
+<p style="margin-top: 1em">If pvmove gets interrupted for
+any reason (e.g. the machine crashes) then run pvmove again
+without any PhysicalVolume arguments to restart any moves
+that were in progress from <br>
+the last checkpoint. Alternatively use pvmove --abort at any
+time to abort. The resulting location of logical volumes
+after an abort is issued depends on whether the --atomic
+<br>
+option was used when starting the pvmove process.</p>
+
+<p style="margin-top: 1em">You can run more than one pvmove
+at once provided they are moving data off different
+SourcePhysicalVolumes, but additional pvmoves will ignore
+any Logical Volumes already in the <br>
+process of being changed, so some data might not get
+moved.</p>
+
+<p style="margin-top: 1em">pvmove works as follows:</p>
+
+<p style="margin-top: 1em">1. A temporary
+&rsquo;pvmove&rsquo; Logical Volume is created to store
+details of all the data movements required.</p>
+
+<p style="margin-top: 1em">2. Every Logical Volume in the
+Volume Group is searched for contiguous data that need
+moving according to the command line arguments. For each
+piece of data found, a new segment <br>
+is added to the end of the pvmove LV. This segment takes the
+form of a temporary mirror to copy the data from the
+original location to a newly-allocated location. The
+original <br>
+LV is updated to use the new temporary mirror segment in the
+pvmove LV instead of accessing the data directly.</p>
+
+<p style="margin-top: 1em">3. The Volume Group metadata is
+updated on disk.</p>
+
+<p style="margin-top: 1em">4. The first segment of the
+pvmove Logical Volume is activated and starts to mirror the
+first part of the data. Only one segment is mirrored at once
+as this is usually more <br>
+efficient.</p>
+
+<p style="margin-top: 1em">5. A daemon repeatedly checks
+progress at the specified time interval. When it detects
+that the first temporary mirror is in-sync, it breaks that
+mirror so that only the new <br>
+location for that data gets used and writes a checkpoint
+into the Volume Group metadata on disk. Then it activates
+the mirror for the next segment of the pvmove LV.</p>
+
+<p style="margin-top: 1em">6. When there are no more
+segments left to be mirrored, the temporary Logical Volume
+is removed and the Volume Group metadata is updated so that
+the Logical Volumes reflect the <br>
+new data locations.</p>
+
+<p style="margin-top: 1em">Note that this new process
+cannot support the original LVM1 type of on-disk metadata.
+Metadata can be converted using vgconvert(8).</p>
+
+<p style="margin-top: 1em">If the --atomic option is used,
+a slightly different approach is used for the move. Again, a
+temporary &rsquo;pvmove&rsquo; logical volume is created to
+store the details of all the data <br>
+movements required. This temporary LV contains all the
+segments of the various LVs that need to be moved. However
+this time, an identical logical volume is allocated that
+con&acirc; <br>
+tains the same number of segments and a mirror is created to
+copy the contents from the first temporary LV to the second.
+When a complete copy is accomplished, the temporary <br>
+logical volumes are removed, leaving behind the segments on
+the destination physical volume. If an abort is issued
+during the move, all logical volumes being moved will remain
+<br>
+on the source physical volume.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+See lvm(8) for common options.</p>
+
+<p style="margin-top: 1em">--abort <br>
+Abort any moves in progress. If the --atomic option was used
+to start the pvmove, all logical volumes will remain on the
+source physical volume. Otherwise, those seg&acirc; <br>
+ments that have completed the move will stay on the
+destination physical volume, while those that have not will
+remain on the source physical volume.</p>
+
+<p style="margin-top: 1em">--atomic <br>
+Make the entire operation atomic. That is, ensure that all
+affected logical volumes are moved to the destination
+physical volume together; unless the move has been <br>
+aborted. If the move has been aborted, all logical volumes
+will remain on the source physical volume.</p>
+
+<p style="margin-top: 1em">--noudevsync <br>
+Disable udev synchronisation. The process will not wait for
+notification from udev. It will continue irrespective of any
+possible udev processing in the background. You <br>
+should only use this if udev is not running or has rules
+that ignore the devices LVM2 creates.</p>
+
+<p style="margin-top: 1em">-b, --background <br>
+Run the daemon in the background.</p>
+
+<p style="margin-top: 1em">-i, --interval Seconds <br>
+Report progress as a percentage at regular intervals.</p>
+
+<p style="margin-top: 1em">-n, --name LogicalVolume <br>
+Move only the extents belonging to LogicalVolume from
+SourcePhysicalVolume instead of all allocated extents to the
+destination physical volume(s).</p>
+
+<p style="margin-top: 1em">Examples <br>
+To move all Physical Extents that are used by simple Logical
+Volumes on /dev/sdb1 to free Physical Extents elsewhere in
+the Volume Group use:</p>
+
+<p style="margin-top: 1em">pvmove /dev/sdb1</p>
+
+<p style="margin-top: 1em">Additionally, a specific
+destination device /dev/sdc1 can be specified like this:</p>
+
+<p style="margin-top: 1em">pvmove /dev/sdb1 /dev/sdc1</p>
+
+<p style="margin-top: 1em">To perform the action only on
+extents belonging to the single Logical Volume lvol1 do
+this:</p>
+
+<p style="margin-top: 1em">pvmove -n lvol1 /dev/sdb1
+/dev/sdc1</p>
+
+<p style="margin-top: 1em">Rather than moving the contents
+of the entire device, it is possible to move a range of
+Physical Extents - for example numbers 1000 to 1999
+inclusive on /dev/sdb1 - like this:</p>
+
+<p style="margin-top: 1em">pvmove /dev/sdb1:1000-1999</p>
+
+<p style="margin-top: 1em">A range can also be specified as
+start+length, so</p>
+
+<p style="margin-top: 1em">pvmove /dev/sdb1:1000+1000</p>
+
+<p style="margin-top: 1em">also refers to 1000 Physical
+Extents starting from Physical Extent number 1000. (Counting
+starts from 0, so this refers to the 1001st to the 2000th
+inclusive.)</p>
+
+<p style="margin-top: 1em">To move a range of Physical
+Extents to a specific location (which must have sufficient
+free extents) use the form:</p>
+
+<p style="margin-top: 1em">pvmove /dev/sdb1:1000-1999
+/dev/sdc1</p>
+
+<p style="margin-top: 1em">or</p>
+
+<p style="margin-top: 1em">pvmove /dev/sdb1:1000-1999
+/dev/sdc1:0-999</p>
+
+<p style="margin-top: 1em">If the source and destination
+are on the same disk, the anywhere allocation policy would
+be needed, like this:</p>
+
+<p style="margin-top: 1em">pvmove --alloc anywhere
+/dev/sdb1:1000-1999 /dev/sdb1:0-999</p>
+
+<p style="margin-top: 1em">The part of a specific Logical
+Volume present within in a range of Physical Extents can
+also be picked out and moved, like this:</p>
+
+<p style="margin-top: 1em">pvmove -n lvol1
+/dev/sdb1:1000-1999 /dev/sdc1</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+lvm(8), vgconvert(8) pvs(8)</p>
+
+<p style="margin-top: 1em">Sistina Software UK LVM TOOLS
+2.02.166(2)-RHEL7 (2016-11-16) PVMOVE(8)</p>
+<hr>
+</body>
+</html>

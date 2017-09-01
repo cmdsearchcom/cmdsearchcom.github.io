@@ -1,0 +1,785 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:25:40 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>MK-SLAVE-PREFETCH(1) User Contributed Perl Documentation
+MK-SLAVE-PREFETCH(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+mk-slave-prefetch - Pipeline relay logs on a MySQL slave to
+pre-warm caches.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+Usage: mk-slave-prefetch [OPTION...] [FILE]</p>
+
+<p style="margin-top: 1em">mk-slave-prefetch pipelines
+relay logs to pre-warm the slave&rsquo;s caches.</p>
+
+<p style="margin-top: 1em">Example:</p>
+
+<p style="margin-top: 1em">mk-slave-prefetch</p>
+
+<p style="margin-top: 1em">mk-slave-prefetch --statistics
+&gt; /path/to/saved/statistics</p>
+
+<p style="margin-top: 1em">mk-slave-prefetch
+/path/to/saved/statistics</p>
+
+<p style="margin-top: 1em">RISKS <br>
+The following section is included to inform users about the
+potential risks, whether known or unknown, of using this
+tool. The two main categories of risks are those created by
+<br>
+the nature of the tool (e.g. read-only tools vs. read-write
+tools) and those created by bugs.</p>
+
+<p style="margin-top: 1em">mk-slave-prefetch is read-only
+by default, and is generally low-risk. It does execute SQL
+statements, but these should be SELECT only. Despite this,
+it might be a good idea to <br>
+make it connect to MySQL with a user account that has
+minimal privileges. Here is an example of how to grant the
+necessary privileges:</p>
+
+<p style="margin-top: 1em">GRANT SELECT, REPLICATION
+CLIENT, REPLICATION SLAVE ON *.* <br>
+TO &rsquo;prefetch&rsquo;@&rsquo;%&rsquo; IDENTIFIED BY
+&rsquo;sp33dmeup!&rsquo;;</p>
+
+<p style="margin-top: 1em">At the time of this release, we
+know of no bugs that could cause serious harm to users.</p>
+
+<p style="margin-top: 1em">The authoritative source for
+updated information is always the online issue tracking
+system. Issues that affect this tool will be marked as such.
+You can see a list of such <br>
+issues at the following URL:
+&lt;http://www.maatkit.org/bugs/mk-slave-prefetch&gt;.</p>
+
+<p style="margin-top: 1em">See also &quot;BUGS&quot; for
+more information on filing bugs and getting help.</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+mk-slave-prefetch reads the slave&rsquo;s relay log slightly
+ahead of where the slave&rsquo;s SQL thread is reading,
+converts statements into &quot;SELECT&quot;, and executes
+them. In theory, this <br>
+should help alleviate the effects of the slave&rsquo;s
+single-threaded SQL execution. It will help take advantage
+of multiple CPUs and disks by pre-reading the data from
+disk, so the <br>
+data is already in the cache when the slave SQL thread
+executes the un-modified version of the statement.</p>
+
+<p style="margin-top: 1em">&quot;mk-slave-prefetch&quot;
+learns how long it takes statements to execute, and
+doesn&rsquo;t try to execute those that take a very long
+time. You can ask it to print what it has learned <br>
+after it executes. You can also specify a filename on the
+command line. The file should contain the statistics printed
+by a previous run. These will be used to pre-populate <br>
+the statistics so it doesn&rsquo;t have to re-learn.</p>
+
+<p style="margin-top: 1em">This program is based on
+concepts I heard Paul Tuckfield explain at the November 2006
+MySQL Camp un-conference. However, the code is my own work.
+I have not seen any other <br>
+implementation of Paul&rsquo;s idea.</p>
+
+<p style="margin-top: 1em">DOES IT WORK? <br>
+Does it work? Does it actually speed up the slave?</p>
+
+<p style="margin-top: 1em">That depends on your workload,
+hardware, and other factors. It might work when the
+following are true:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The
+slave&rsquo;s data is much larger than memory, and the
+workload is mostly randomly scattered small (single-row is
+ideal) changes.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; There are lots
+of high-concurrency &quot;UPDATE&quot; and
+&quot;DELETE&quot; statements on the master.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The slave SQL
+thread is I/O-bound, but the slave overall has plenty of
+spare I/O capacity (definitely more than one disk
+spindle).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The slave uses
+InnoDB or another storage engine with row-level locking.</p>
+
+<p style="margin-top: 1em">It does not speed up replication
+on my slaves, which mostly have large queries like
+&quot;INSERT .. SELECT .. GROUP BY&quot;. In my benchmarks
+it seemed to make no difference at all, <br>
+positive or negative.</p>
+
+<p style="margin-top: 1em">On the wrong workload or slave
+configuration, this technique might actually make the slaves
+slower. Your mileage will vary.</p>
+
+<p style="margin-top: 1em">User-contributed benchmarks are
+welcome.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+Specify at least one of &quot;--print&quot;,
+&quot;--execute&quot; or &quot;--stop&quot;.</p>
+
+<p style="margin-top: 1em">This tool accepts additional
+command-line arguments. Refer to the &quot;SYNOPSIS&quot;
+and usage information for details.</p>
+
+<p style="margin-top: 1em">--ask-pass <br>
+Prompt for a password when connecting to MySQL.</p>
+
+<p style="margin-top: 1em">--charset <br>
+short form: -A; type: string</p>
+
+<p style="margin-top: 1em">Default character set. If the
+value is utf8, sets Perl&rsquo;s binmode on STDOUT to utf8,
+passes the mysql_enable_utf8 option to DBD::mysql, and runs
+SET NAMES UTF8 after <br>
+connecting to MySQL. Any other value sets binmode on STDOUT
+without the utf8 layer, and runs SET NAMES after connecting
+to MySQL.</p>
+
+<p style="margin-top: 1em">--check-interval <br>
+type: Array; default: 16,1,1024</p>
+
+<p style="margin-top: 1em">How often to check the slave:
+init,min,max. This many relay log events should pass before
+checking the output of &quot;SHOW SLAVE STATUS&quot;. The
+syntax is a three-number range: <br>
+initial, minimum, and maximum. You should be able to leave
+this at the defaults.</p>
+
+<p style="margin-top: 1em">&quot;mk-slave-prefetch&quot;
+varies the check interval in powers of two, depending on
+whether it decides the check was necessary.</p>
+
+<p style="margin-top: 1em">--config <br>
+type: Array</p>
+
+<p style="margin-top: 1em">Read this comma-separated list
+of config files; if specified, this must be the first option
+on the command line.</p>
+
+<p style="margin-top: 1em">--[no]continue-on-error <br>
+default: yes</p>
+
+<p style="margin-top: 1em">Continue parsing even if there
+is an error.</p>
+
+<p style="margin-top: 1em">--daemonize <br>
+Fork to the background and detach from the shell. POSIX
+operating systems only.</p>
+
+<p style="margin-top: 1em">--database <br>
+short form: -D; type: string</p>
+
+<p style="margin-top: 1em">The database to use for the
+connection. The initial connection will be to this database,
+but mk-slave-prefetch will issue &quot;USE&quot; statements
+as required by the binary log <br>
+events.</p>
+
+<p style="margin-top: 1em">This database is also used as
+the default database for &quot;--secondary-indexes&quot; if
+the database cannot automatically be determined from the
+query.</p>
+
+<p style="margin-top: 1em">--defaults-file <br>
+short form: -F; type: string</p>
+
+<p style="margin-top: 1em">Only read mysql options from the
+given file. You must give an absolute pathname.</p>
+
+<p style="margin-top: 1em">--dry-run <br>
+Ignore replication checks and just read and rewrite the
+relay log events.</p>
+
+<p style="margin-top: 1em">This option make
+mk-slave-prefetch ignore all relay log related checks for
+position, slave lag, etc. and simply causes the tool to read
+and rewrite all the events in the <br>
+relay log. A connection to the slave server is still
+required.</p>
+
+<p style="margin-top: 1em">--errors <br>
+cumulative: yes</p>
+
+<p style="margin-top: 1em">Print queries that caused
+errors. If specified once, at exit; if twice, in
+realtime.</p>
+
+<p style="margin-top: 1em">If you specify this option once,
+you will see a report at the end of the script execution,
+showing the normalized queries and the number of times they
+were seen. If you <br>
+specify this option twice, you will see the errors printed
+out as they occur, but no normalized report at the end of
+execution.</p>
+
+<p style="margin-top: 1em">--execute <br>
+Execute the transformed queries to warm the caches.</p>
+
+<p style="margin-top: 1em">--help <br>
+Show help and exit.</p>
+
+<p style="margin-top: 1em">--host <br>
+short form: -h; type: string</p>
+
+<p style="margin-top: 1em">Connect to host.</p>
+
+<p style="margin-top: 1em">--[no]inject-columns <br>
+default: yes</p>
+
+<p style="margin-top: 1em">Inject &quot;(columns)&quot;
+into INSERT/REPLACE that don&rsquo;t specify them.</p>
+
+<p style="margin-top: 1em">Normally this query cannot be
+rewritten because mk-slave-prefetch doesn&rsquo;t know which
+columns the values refer to: &quot;INSERT INTO tbl VALUES
+(1,2)&quot;. This option causes mk- <br>
+slave-prefetch to &quot;SHOW CREATE TABLE&quot; the table
+from the query, get its columns and inject these columns
+into the query, like: &quot;INSERT INTO tbl
+(&lsquo;col1&lsquo;,&lsquo;col2&lsquo;) VALUES (1,2)&quot;.
+<br>
+This allows the query to be written as a SELECT and
+prefetched.</p>
+
+<p style="margin-top: 1em">Columns for each unique
+database.table are cached, so this operation may fail if an
+&quot;ALTER TABLE&quot; statement changes the order or name
+of any columns.</p>
+
+<p style="margin-top: 1em">--io-lag <br>
+type: size; default: 1k</p>
+
+<p style="margin-top: 1em">How many bytes to lag the slave
+I/O thread. This helps avoid &quot;mysqlbinlog&quot; reading
+right off the end of the relay log file.</p>
+
+<p style="margin-top: 1em">--log <br>
+type: string</p>
+
+<p style="margin-top: 1em">Print all output to this file
+when daemonized.</p>
+
+<p style="margin-top: 1em">--max-query-time <br>
+type: float; default: 1</p>
+
+<p style="margin-top: 1em">Do not run queries longer than
+this many seconds; fractions allowed. If
+&quot;mk-slave-prefetch&quot; predicts the query will take
+longer to execute, it will skip the query. This is <br>
+based on the theory that pre-warming the cache is most
+beneficial for short queries.</p>
+
+<p style="margin-top: 1em">&quot;mk-slave-prefetch&quot;
+learns how long queries require to execute. It keeps an
+average over the last &quot;--query-sample-size&quot;
+samples of each query. The averages are based on an <br>
+abstracted version of the query, with specific parameters
+replaced by placeholders. The result is a sort of
+&quot;fingerprint&quot; for the query, not executable SQL.
+You can see the <br>
+learned statistics with the &quot;--statistics&quot;
+option.</p>
+
+<p style="margin-top: 1em">You can pre-load query
+fingerprints, and average execution times, from a file. This
+way you don&rsquo;t have to wait for
+&quot;mk-slave-prefetch&quot; to learn all over every time
+you start <br>
+it. Just specify the file on the command line. The format
+should be the same as the output from
+&quot;--statistics&quot;.</p>
+
+<p style="margin-top: 1em">You might also want to filter
+out some statements completely, or let only some statements
+through. See the &quot;--reject-regexp&quot; and
+&quot;--permit-regexp&quot; options.</p>
+
+<p style="margin-top: 1em">If &quot;mk-slave-prefetch&quot;
+hasn&rsquo;t seen a query&rsquo;s fingerprint before, and
+thus doesn&rsquo;t know how long it will take to execute, it
+wraps it in a subquery, like this:</p>
+
+<p style="margin-top: 1em">SELECT 1 FROM ( &lt;query&gt; )
+AS X LIMIT 1;</p>
+
+<p style="margin-top: 1em">This helps avoid fetching a lot
+of data back to the client when a query is very large. It
+requires a version of MySQL that supports subqueries
+(version 4.1 and newer). If <br>
+yours doesn&rsquo;t, the subquery trick can&rsquo;t be used,
+so the query might fetch a lot of data back to the
+client.</p>
+
+<p style="margin-top: 1em">Once a query&rsquo;s fingerprint
+has been seen, so it&rsquo;s known that the query
+isn&rsquo;t enormously slow, &quot;mk-slave-prefetch&quot;
+just rewrites the &quot;SELECT&quot; list for efficiency.
+(Avoiding <br>
+the subquery reduces the query&rsquo;s overhead for short
+queries). The rewritten query will then look like the
+following;</p>
+
+<p style="margin-top: 1em">SELECT
+ISNULL(COALESCE(&lt;columns&gt;)) FROM ...</p>
+
+<p style="margin-top: 1em">--num-prefix <br>
+Abstract away numeric table name prefixes. This causes the
+following two queries to &quot;fingerprint&quot; to the same
+thing:</p>
+
+<p style="margin-top: 1em">select from 1_2_users; <br>
+select from 2_3_users;</p>
+
+<p style="margin-top: 1em">--offset <br>
+type: size; default: 128</p>
+
+<p style="margin-top: 1em">How many bytes
+&quot;mk-slave-prefetch&quot; will try to stay in front of
+the slave SQL thread. It will not execute log events it
+doesn&rsquo;t think are at least this far ahead of the SQL
+<br>
+thread. See also &quot;--window&quot;.</p>
+
+<p style="margin-top: 1em">--password <br>
+short form: -p; type: string</p>
+
+<p style="margin-top: 1em">Password to use when
+connecting.</p>
+
+<p style="margin-top: 1em">--permit-regexp <br>
+type: string</p>
+
+<p style="margin-top: 1em">Permit queries matching this
+Perl regexp. This is a filter for log events. The regular
+expression is matched against the raw log event, before any
+transformations are <br>
+applied. If specified, this option will permit only log
+events matching the regular expression.</p>
+
+<p style="margin-top: 1em">--pid <br>
+type: string</p>
+
+<p style="margin-top: 1em">Create the given PID file when
+daemonized. The file contains the process ID of the
+daemonized instance. The PID file is removed when the
+daemonized instance exits. The <br>
+program checks for the existence of the PID file when
+starting; if it exists and the process with the matching PID
+exists, the program exits.</p>
+
+<p style="margin-top: 1em">--port <br>
+short form: -P; type: int</p>
+
+<p style="margin-top: 1em">Port number to use for
+connection.</p>
+
+<p style="margin-top: 1em">--print <br>
+Print the transformed relay log events to standard
+output.</p>
+
+<p style="margin-top: 1em">--print-nonrewritten <br>
+Print queries that could not be transformed into
+&quot;SELECT&quot;.</p>
+
+<p style="margin-top: 1em">--progress <br>
+type: int</p>
+
+<p style="margin-top: 1em">Print progress information every
+X events. The information is the current log file and
+position, plus a summary of the statistics gathered.</p>
+
+<p style="margin-top: 1em">--query-sample-size <br>
+type: int; default: 4</p>
+
+<p style="margin-top: 1em">Average query exec time over
+this many queries. The last &quot;N&quot; queries with a
+given fingerprint are averaged together to get the average
+query execution time (see <br>
+&quot;--max-query-time&quot;).</p>
+
+<p style="margin-top: 1em">--reject-regexp <br>
+type: string</p>
+
+<p style="margin-top: 1em">Reject queries matching this
+Perl regexp. Similar to &quot;--permit-regexp&quot;, but has
+the opposite effect: log events must not match the regular
+expression.</p>
+
+<p style="margin-top: 1em">--relay-log <br>
+type: string</p>
+
+<p style="margin-top: 1em">Read only the specified relay
+log file; - to read from STDIN.</p>
+
+<p style="margin-top: 1em">By default mk-slave-prefetch
+reads the &quot;Relay_Log_File&quot; reported by &quot;SHOW
+SLAVE STATUS&quot;. This option allows you to specify a
+relay log file that has already be converted to <br>
+text by &quot;mysqlbinlog&quot;. The tool will exit after
+reading and parsing this file.</p>
+
+<p style="margin-top: 1em">This option is useful with
+&quot;--dry-run&quot; and &quot;--print&quot; if you want to
+see how the tool would rewrite the relay log&rsquo;s events
+without executing them or having to wait for a <br>
+lagged slave.</p>
+
+<p style="margin-top: 1em">--relay-log-dir <br>
+type: string</p>
+
+<p style="margin-top: 1em">Open the slave&rsquo;s
+&quot;Relay_Log_File&quot; relative to this directory.</p>
+
+<p style="margin-top: 1em">Unless this option is specified,
+mk-slave-prefetch automatically determines the directory
+that relay logs are in by first looking at the
+&quot;relay_log&quot; system variable to see if <br>
+it specifies a path. If it does, this path is used; if it
+does not, then the &quot;datadir&quot; variable value is
+used.</p>
+
+<p style="margin-top: 1em">This option is ignored if an
+explicit &quot;--relay-log&quot; is specified.</p>
+
+<p style="margin-top: 1em">--run-time <br>
+type: time</p>
+
+<p style="margin-top: 1em">How long
+&quot;mk-slave-prefetch&quot; should run before exiting. The
+default is to run forever.</p>
+
+<p style="margin-top: 1em">--secondary-indexes <br>
+Prefetch secondary indexes for pipelined queries.</p>
+
+<p style="margin-top: 1em">--sentinel <br>
+type: string; default: /tmp/mk-slave-prefetch-sentinel</p>
+
+<p style="margin-top: 1em">Exit if this file exists.</p>
+
+<p style="margin-top: 1em">--set-vars <br>
+type: string; default: wait_timeout=10000</p>
+
+<p style="margin-top: 1em">Set these MySQL variables.
+Immediately after connecting to MySQL, this string will be
+appended to SET and executed.</p>
+
+<p style="margin-top: 1em">--sleep <br>
+type: time; default: 1s</p>
+
+<p style="margin-top: 1em">Sleep time before checking for
+new events.</p>
+
+<p style="margin-top: 1em">When mk-slave-prefetch is done
+reading all the events in a relay log, it sleeps this amount
+of time before checking for new events.</p>
+
+<p style="margin-top: 1em">This option is automatically set
+to zero if both &quot;--relay-log&quot; and
+&quot;--dry-run&quot; are specified.</p>
+
+<p style="margin-top: 1em">--socket <br>
+short form: -S; type: string</p>
+
+<p style="margin-top: 1em">Socket file to use for
+connection.</p>
+
+<p style="margin-top: 1em">--statistics <br>
+Print execution statistics after exiting. The statistics are
+in two sections: counters, and queries. The counters simply
+count the number of times events occur. You may <br>
+see the following counters:</p>
+
+<p style="margin-top: 1em">NAME MEANING <br>
+======================
+======================================= <br>
+mysqlbinlog Executed mysqlbinlog to read log events. <br>
+events The total number of relay log events. <br>
+not_far_enough_ahead An event was not at least
+L&lt;&quot;--offset&quot;&gt; <br>
+bytes ahead of the SQL thread. <br>
+too_far_ahead An event was more than
+L&lt;&quot;--offset&quot;&gt; <br>
++ L&lt;&quot;--window&quot;&gt; bytes ahead of the SQL
+thread. <br>
+too_close_to_io_thread An event was less than
+L&lt;&quot;--io-lag&quot;&gt; bytes <br>
+away from the I/O thread&rsquo;s position. <br>
+event_not_allowed An event wasn&rsquo;t a SET, USE, INSERT,
+<br>
+UPDATE, DELETE or REPLACE query. <br>
+event_filtered_out An event was filtered out because of <br>
+L&lt;&quot;--permit-regexp&quot;&gt; or
+L&lt;&quot;--reject-regexp&quot;&gt;. <br>
+same_timestamp A SET TIMESTAMP event was ignored because
+<br>
+it had the same timestamp as the last one. <br>
+do_query A transformed event was executed <br>
+or printed. <br>
+query_error An executed query had an error. <br>
+query_too_long An event was not executed because its <br>
+average query length exceeded <br>
+L&lt;&quot;--max-query-time&quot;&gt;. <br>
+query_not_rewritten A query could not be rewritten to a <br>
+SELECT. <br>
+master_pos_wait The tool waited for the SQL thread to <br>
+catch up. <br>
+show_slave_status The tool queried SHOW SLAVE STATUS. <br>
+load_data_infile The tool found a LOAD DATA INFILE query
+<br>
+and unlinked (deleted) the temp file. <br>
+could_not_unlink The tool failed to unlink a temp file. <br>
+sleep The tool slept for a second because the <br>
+slave&rsquo;s SQL thread was not running, or <br>
+because it read past the end of the log.</p>
+
+<p style="margin-top: 1em">After the counters,
+&quot;mk-slave-prefetch&quot; prints information about each
+query fingerprint it has seen, two lines per fingerprint.
+The first line contains the query&rsquo;s <br>
+fingerprint. The second line contains the number of times
+the fingerprint was seen, number of times executed, the sum
+of the execution times, and the average execution time <br>
+over the last &quot;--query-sample-size&quot; samples.</p>
+
+<p style="margin-top: 1em">--stop <br>
+Stop running instances by creating the
+&quot;--sentinel&quot; file.</p>
+
+<p style="margin-top: 1em">--threads <br>
+type: int; default: 2</p>
+
+<p style="margin-top: 1em">Number of concurrent threads to
+use for pipelining queries.</p>
+
+<p style="margin-top: 1em">--tmpdir <br>
+type: string; default: /dev/null</p>
+
+<p style="margin-top: 1em">Where to create temp files for
+&quot;LOAD DATA INFILE&quot; queries. The default will cause
+&quot;mysqlbinlog&quot; to skip the file and the associated
+&quot;LOAD DATA INFILE&quot; command entirely.</p>
+
+<p style="margin-top: 1em">If &quot;mk-slave-prefetch&quot;
+sees a &quot;LOAD DATA INFILE&quot; command (which it
+won&rsquo;t if this is left at the default), it will try to
+remove the temporary file, then skip the event.</p>
+
+<p style="margin-top: 1em">--user <br>
+short form: -u; type: string</p>
+
+<p style="margin-top: 1em">User for login if not current
+user.</p>
+
+<p style="margin-top: 1em">--version <br>
+Show version and exit.</p>
+
+<p style="margin-top: 1em">--window <br>
+type: size; default: 4k</p>
+
+<p style="margin-top: 1em">The max bytes ahead of the slave
+&quot;mk-slave-prefetch&quot; should get. Defines the window
+within which &quot;mk-slave-prefetch&quot; considers a query
+OK to execute. The window begins at <br>
+the slave SQL thread&rsquo;s last known position plus
+&quot;--offset&quot; bytes, and extends for the specified
+number of bytes.</p>
+
+<p style="margin-top: 1em">If &quot;mk-slave-prefetch&quot;
+sees a log event that is too far in the future, it will
+increment the &quot;too_far_ahead&quot; counter and wait for
+the slave SQL thread to catch up (which <br>
+increments the &quot;master_pos_wait&quot; counter). If an
+event isn&rsquo;t far enough ahead of the SQL thread, it
+will be discarded and the &quot;not_far_enough_ahead&quot;
+counter increments.</p>
+
+<p style="margin-top: 1em">Watching the mentioned
+statistics can help you understand how to tune the window.
+You want &quot;mk-slave-prefetch&quot; to run just ahead of
+the SQL thread, not throwing out a lot of <br>
+events for being too far ahead or not far enough ahead.</p>
+
+<p style="margin-top: 1em">DSN OPTIONS <br>
+These DSN options are used to create a DSN. Each option is
+given like &quot;option=value&quot;. The options are
+case-sensitive, so P and p are not the same option. There
+cannot be <br>
+whitespace before or after the &quot;=&quot; and if the
+value contains whitespace it must be quoted. DSN options are
+comma-separated. See the maatkit manpage for full
+details.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; A</p>
+
+<p style="margin-top: 1em">dsn: charset; copy: yes</p>
+
+<p style="margin-top: 1em">Default character set.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; D</p>
+
+<p style="margin-top: 1em">dsn: database; copy: yes</p>
+
+<p style="margin-top: 1em">Default database.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; F</p>
+
+<p style="margin-top: 1em">dsn: mysql_read_default_file;
+copy: yes</p>
+
+<p style="margin-top: 1em">Only read default options from
+the given file</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; h</p>
+
+<p style="margin-top: 1em">dsn: host; copy: yes</p>
+
+<p style="margin-top: 1em">Connect to host.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; p</p>
+
+<p style="margin-top: 1em">dsn: password; copy: yes</p>
+
+<p style="margin-top: 1em">Password to use when
+connecting.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; P</p>
+
+<p style="margin-top: 1em">dsn: port; copy: yes</p>
+
+<p style="margin-top: 1em">Port number to use for
+connection.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; S</p>
+
+<p style="margin-top: 1em">dsn: mysql_socket; copy: yes</p>
+
+<p style="margin-top: 1em">Socket file to use for
+connection.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; u</p>
+
+<p style="margin-top: 1em">dsn: user; copy: yes</p>
+
+<p style="margin-top: 1em">User for login if not current
+user.</p>
+
+<p style="margin-top: 1em">DOWNLOADING <br>
+You can download Maatkit from Google Code at
+&lt;http://code.google.com/p/maatkit/&gt;, or you can get
+any of the tools easily with a command like the
+following:</p>
+
+<p style="margin-top: 1em">wget
+http://www.maatkit.org/get/toolname <br>
+or <br>
+wget http://www.maatkit.org/trunk/toolname</p>
+
+<p style="margin-top: 1em">Where &quot;toolname&quot; can
+be replaced with the name (or fragment of a name) of any of
+the Maatkit tools. Once downloaded, they&rsquo;re ready to
+run; no installation is needed. The first <br>
+URL gets the latest released version of the tool, and the
+second gets the latest trunk code from Subversion.</p>
+
+<p style="margin-top: 1em">ENVIRONMENT <br>
+The environment variable &quot;MKDEBUG&quot; enables verbose
+debugging output in all of the Maatkit tools:</p>
+
+<p style="margin-top: 1em">MKDEBUG=1 mk-....</p>
+
+<p style="margin-top: 1em">SYSTEM REQUIREMENTS <br>
+You need Perl, DBI, DBD::mysql, and some core packages that
+ought to be installed in any reasonably new version of
+Perl.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+For a list of known bugs see
+&lt;http://www.maatkit.org/bugs/mk-slave-prefetch&gt;.</p>
+
+<p style="margin-top: 1em">Please use Google Code Issues
+and Groups to report bugs or request support:
+&lt;http://code.google.com/p/maatkit/&gt;. You can also join
+#maatkit on Freenode to discuss Maatkit.</p>
+
+<p style="margin-top: 1em">Please include the complete
+command-line used to reproduce the problem you are seeing,
+the version of all MySQL servers involved, the complete
+output of the tool when run with <br>
+&quot;--version&quot;, and if possible, debugging output
+produced by running with the &quot;MKDEBUG=1&quot;
+environment variable.</p>
+
+<p style="margin-top: 1em">COPYRIGHT, LICENSE AND WARRANTY
+<br>
+This program is copyright 2007-2011 Baron Schwartz. Feedback
+and improvements are welcome.</p>
+
+<p style="margin-top: 1em">THIS PROGRAM IS PROVIDED
+&quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A <br>
+PARTICULAR PURPOSE.</p>
+
+<p style="margin-top: 1em">This program is free software;
+you can redistribute it and/or modify it under the terms of
+the GNU General Public License as published by the Free
+Software Foundation, version 2; <br>
+OR the Perl Artistic License. On UNIX and similar systems,
+you can issue &lsquo;man perlgpl&rsquo; or &lsquo;man
+perlartistic&rsquo; to read these licenses.</p>
+
+<p style="margin-top: 1em">You should have received a copy
+of the GNU General Public License along with this program;
+if not, write to the Free Software Foundation, Inc., 59
+Temple Place, Suite 330, <br>
+Boston, MA 02111-1307 USA.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Baron Schwartz, Daniel Nichter</p>
+
+<p style="margin-top: 1em">ABOUT MAATKIT <br>
+This tool is part of Maatkit, a toolkit for power users of
+MySQL. Maatkit was created by Baron Schwartz; Baron and
+Daniel Nichter are the primary code contributors. Both are
+<br>
+employed by Percona. Financial support for Maatkit
+development is primarily provided by Percona and its
+clients.</p>
+
+<p style="margin-top: 1em">VERSION <br>
+This manual page documents Ver 1.0.21 Distrib 7540
+$Revision: 7531 $.</p>
+
+<p style="margin-top: 1em">perl v5.24.1 2011-06-08
+MK-SLAVE-PREFETCH(1)</p>
+<hr>
+</body>
+</html>

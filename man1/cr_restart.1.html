@@ -1,0 +1,451 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:01:15 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>CR_RESTART(1) User Commands CR_RESTART(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+cr_restart - restarts a process, process group, or session
+from a checkpoint file.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+cr_restart [options] [checkpoint_file]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+cr_restart restarts a process (or set of processes) from a
+checkpoint file created with cr_checkpoint(1).</p>
+
+<p style="margin-top: 1em">A restarted process has all of
+the attributes they had at checkpoint time, including its
+process id. If any needed resources cannot be attained for
+the processes in a checkpoint <br>
+file (ex: a pid is in use), cr_restart will fail. If a
+process group or session is restarted, all parent/child
+relations and pipes, etc., between the processes in the
+checkpoint <br>
+will be correctly restored.</p>
+
+<p style="margin-top: 1em">If the stdin/stdout/stderr of
+any restarted process was directed to a terminal at
+checkpoint time, it is redirected to the controlling
+terminal of the cr_restart program.</p>
+
+<p style="margin-top: 1em">The current working directory of
+a restarted process is the same as when it was checkpointed,
+regardless of where the context file is located, or where
+cr_restart is invoked.</p>
+
+<p style="margin-top: 1em">The cr_restart process becomes
+the parent of the &rsquo;eldest&rsquo; process in any
+restarted job. This means that getppid(2) may return a
+different value to the eldest process after <br>
+restart. When the eldest restarted process exits (or dies
+from a signal), cr_restart will exit with the same error
+code (or kill itself with the same signal), so it is largely
+<br>
+invisible (it is necessary to keep cr_restart
+&lsquo;in-between&rsquo; your shell and restarted processes,
+however, as most Unix shells get quite confused if they
+observe their children <br>
+changing process ids).</p>
+
+<p style="margin-top: 1em">Signals <br>
+By default restarted processes begin to run after the
+restart is complete. Alternatively, you may specify that
+they be stopped (via --stop), or terminated/aborted/killed
+(via <br>
+--term, --abort, or --kill). This is done by sending the
+appropriate signal to every process that is part of the
+restart. If the processes were stopped at the time the
+check&acirc; <br>
+point was requested, then --cont may be used to send SIGCONT
+to all processes after the restart is completed.</p>
+
+<p style="margin-top: 1em">Error handling <br>
+By default cr_restart will block until the restarted process
+has completed, and will exit with the same exit value as the
+restarted process (even if the restarted process died <br>
+with a fatal signal). This can make it nearly impossible to
+determine if a non-zero exit from cr_restart is due to a
+failure to restart, or is the exit code of a correctly <br>
+restarted process. The simple approach of looking for
+&rsquo;Restart failed:&rsquo; is not reliable. Therefore,
+the --run-on-* family of flags are available to supply
+alternative (or sup&acirc; <br>
+plementary) error handling. When any of the --run-on-* flags
+is passed, a hook is installed for the given category of
+failure (or success), as defined below. When an error (or
+<br>
+success) is detected and a corresponding hook is installed,
+the hook is run via the system(3) function. If the exit code
+of the hook is non-zero, then cr_restart returns this <br>
+value, suppressing any error message that would otherwise be
+generated. If no hook is installed, the hook is an empty
+string, or if the hook returns an exit code of zero, then
+<br>
+an explanatory error message is printed and an exit code
+related to the errno value at the time of failure is
+returned.</p>
+
+
+<p style="margin-top: 1em">--run-on-success=&rsquo;cmd&rsquo;
+<br>
+Runs the given command as soon as the restarted process(es)
+are known to be running. If the return value of
+&rsquo;cmd&rsquo; is non-zero, this also results in
+cr_restart terminating <br>
+without waiting on termination of the restarted
+process(es).</p>
+
+
+<p style="margin-top: 1em">--run-on-fail-args=&rsquo;cmd&rsquo;
+<br>
+Runs the given command if the arguments are invalid. This
+includes the case in which the given context file is missing
+or unreadable.</p>
+
+
+<p style="margin-top: 1em">--run-on-fail-temp=&rsquo;cmd&rsquo;
+<br>
+Runs the given command if a &quot;temporary&quot; failure is
+detected. This includes the case of a required pid being in
+use.</p>
+
+
+<p style="margin-top: 1em">--run-on-fail-perm=&rsquo;cmd&rsquo;
+<br>
+Runs the given command if a &quot;permanent&quot; failure is
+detected. This is most commonly due to a corrupted context
+file.</p>
+
+
+<p style="margin-top: 1em">--run-on-fail-env=&rsquo;cmd&rsquo;
+<br>
+Runs the given command if an &quot;environmental&quot;
+failure is detected. This includes when files required for
+restarting are missing or inaccessible.</p>
+
+
+<p style="margin-top: 1em">--run-on-failure=&rsquo;cmd&rsquo;
+<br>
+This installs the given command for all of the
+--run-on-fail-* hooks.</p>
+
+<p style="margin-top: 1em">File relocation <br>
+By default, files and directories are saved &lsquo;by
+reference&rsquo;, storing their full pathname in the context
+file. This includes files associated with a process via
+open(2) and/or <br>
+mmap(2) and directories associated via opendir(3) or as the
+current working directory. Use of --relocate oldpath=newpath
+allows remapping of such paths to new locations at <br>
+restart-time.</p>
+
+<p style="margin-top: 1em">When parsing the --relocate
+argument the sequences &lsquo;=&rsquo; and &lsquo;\&rsquo;
+are interpreted as &lsquo;=&rsquo; and &lsquo;&acute;,
+respectively, to allow for paths that contain the
+&lsquo;=&rsquo; character. The &lsquo;&acute; charac&acirc;
+<br>
+ter is not special in any other context. (Note that command
+shells also have special treatment of &lsquo;&acute; and you
+may therefore need quotes or additional &lsquo;&acute;
+characters to pass the <br>
+argument you intend.)</p>
+
+<p style="margin-top: 1em">When file or directory
+associations are restored, the oldpath is compared to the
+saved fullpath of each file or directory. If it matches the
+leading components of the path, the <br>
+matching portion is replaced by the value of newpath. Note
+that oldpath must match entire path components, and only
+leading components. Therefore an oldpath of /tmp/foo will
+<br>
+match /tmp/foo or /tmp/foo/1, but will not match to
+/tmp/fooz (not matching the full component fooz) or to
+/var/tmp/foo (not matching the leading component /var.)</p>
+
+<p style="margin-top: 1em">It is important to be aware the
+the saved fullpaths in a context file are the canonical
+paths. Therefore the oldpath you provide must also be a
+canonical path, though the new&acirc; <br>
+path doesn&rsquo;t need to be. For instance, if /tmp is a
+symbolic link to /var/tmp, then if your application opens
+the file /tmp/work/1234 the path stored in the context file
+will be <br>
+/var/tmp/work/1234. Therefore, <br>
+--relocate /tmp/work=/tmp/play <br>
+would not work as desired, but either of the following
+would: <br>
+--relocate /var/tmp/work=/tmp/play <br>
+--relocate /var/tmp/work=/var/tmp/play</p>
+
+<p style="margin-top: 1em">If the --relocate option is
+passed multiple times, all are applied to restored file or
+directory associations, but only the first match is applied
+to any given path. Currently a <br>
+maximum of 16 relocations is supported.</p>
+
+<p style="margin-top: 1em">PID and related identifiers <br>
+By default, processes are restarted with the same pid and
+thread id (as returned by getpid(2), and gettid(2)
+respectively). This default ensures that processes and
+threads that <br>
+signal each other and processes that wait on children will
+continue to function correctly. However, this prevents
+restarting concurrent instances of the same context
+file.</p>
+
+<p style="margin-top: 1em">By default, the process group
+and session (as returned by getpgrp(2), and getsid(2)) are
+set to those of the cr_restart program. This ensures that
+job control via the <br>
+requester&rsquo;s session leader (typically a login shell)
+will continue to function correctly. However, this
+interferes with any job control or process group signaling
+that may be <br>
+take place among the restarted processes.</p>
+
+<p style="margin-top: 1em">There are options to
+individually control whether the pid, process group and
+session are restored to their saved values or assume new
+values (the process group and session inher&acirc; <br>
+ited from cr_restart and a fresh pid obtained from fork(2)).
+There is no separate control for the thread ids, as they
+must always follow the same policy as the pid. The
+follow&acirc; <br>
+ing describes each option, along with outlining some of the
+risks associated with the non-default ones:</p>
+
+<p style="margin-top: 1em">--restore-pid <br>
+(default) This causes pid and thread ids to be restored to
+their saved values.</p>
+
+<p style="margin-top: 1em">--no-restore-pid <br>
+This causes pid and thread ids to assume new values. Any
+multi-threaded process has the possibility of using
+functions like tkill(2) which will not behave as desired if
+<br>
+the thread ids are not restored. Similarly, any
+multi-process application may make use of kill(2) or
+waitpid(2), among others, that require restored pids for
+correct <br>
+operation. It is also worth noting that many versions of
+glibc will cache the result of getpid(), which may result in
+calls after restore returning the original value, <br>
+even though the pid was changed by the restart.</p>
+
+<p style="margin-top: 1em">--restore-pgid <br>
+This causes the process group ids to be restored to their
+saved values. This is required for correct operation of any
+multi-process application that may perform signal or <br>
+wait operations on process groups (as by passing a negative
+pid value to kill(2) or waitpid(2), among others), or which
+uses process groups for POSIX job control opera&acirc; <br>
+tions. This is NOT the default behavior because restoring
+the process group ids will prevent job control by the
+requester&rsquo;s shell (or other controlling process).</p>
+
+<p style="margin-top: 1em">--no-restore-pgid <br>
+(default) This causes the restarted processes to join the
+process group of the cr_restart process.</p>
+
+<p style="margin-top: 1em">--restore-sid <br>
+This causes the session ids to be restored to their saved
+values. This is required, for instance, for systems that are
+performing batch accounting based on the session <br>
+id.</p>
+
+<p style="margin-top: 1em">--no-restore-sid <br>
+(default) This causes the restarted processes to join the
+session of the cr_restart process.</p>
+
+<p style="margin-top: 1em">Note that use of --restore-pgid
+or --restore-sid will produce an error in the case that the
+required identifiers are in use in the system. This includes
+the possibility that <br>
+they conflict the the process group or session of
+cr_restart.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+General options: <br>
+-?, --help <br>
+print this help message.</p>
+
+<p style="margin-top: 1em">-v, --version <br>
+print version information.</p>
+
+<p style="margin-top: 1em">-q, --quiet <br>
+suppress error/warning messages to stderr.</p>
+
+<p style="margin-top: 1em">Options for source location of
+the checkpoint: <br>
+-d, --dir DIR <br>
+checkpoint read from directory DIR, with one
+&rsquo;context.ID&rsquo; file per process
+(unimplemented).</p>
+
+<p style="margin-top: 1em">-f, --file FILE <br>
+checkpoint read from FILE.</p>
+
+<p style="margin-top: 1em">-F, --fd FD <br>
+checkpoint read from an open file descriptor.</p>
+
+<p style="margin-top: 1em">Options in this group are
+mutually exclusive. If no option is given from this group,
+the default is to take the final argument as FILE.</p>
+
+<p style="margin-top: 1em">Options for signal sent to
+process(es) after restart: <br>
+--run no signal sent: continue execution (default).</p>
+
+<p style="margin-top: 1em">-S, --signal NUM <br>
+signal NUM sent to all processes/threads.</p>
+
+<p style="margin-top: 1em">--stop SIGSTOP sent to all
+processes.</p>
+
+<p style="margin-top: 1em">--term SIGTERM sent to all
+processes.</p>
+
+<p style="margin-top: 1em">--abort <br>
+SIGABRT sent to all processes.</p>
+
+<p style="margin-top: 1em">--kill SIGKILL sent to all
+processes.</p>
+
+<p style="margin-top: 1em">--cont SIGCONT sent to all
+processes.</p>
+
+<p style="margin-top: 1em">Options in this group are
+mutually exclusive. If more than one is given then only the
+last will be honored.</p>
+
+<p style="margin-top: 1em">Options for checkpoints of
+restarted process(es): <br>
+--omit-maybe <br>
+use a heuristic to omit cr_restart from checkpoints
+(default)</p>
+
+<p style="margin-top: 1em">--omit-always <br>
+always omit cr_restart from checkpoints</p>
+
+<p style="margin-top: 1em">--omit-never <br>
+never omit cr_restart from checkpoints</p>
+
+<p style="margin-top: 1em">Options for alternate error
+handling: <br>
+--run-on-success=&rsquo;cmd&rsquo; <br>
+run the given command on success</p>
+
+
+<p style="margin-top: 1em">--run-on-fail-args=&rsquo;cmd&rsquo;
+<br>
+run the given command invalid arguments</p>
+
+
+<p style="margin-top: 1em">--run-on-fail-temp=&rsquo;cmd&rsquo;
+<br>
+run the given command on &rsquo;temporary&rsquo; failure</p>
+
+
+<p style="margin-top: 1em">--run-on-fail-env=&rsquo;cmd&rsquo;
+<br>
+run the given command on &rsquo;environmental&rsquo;
+failure</p>
+
+
+<p style="margin-top: 1em">--run-on-fail-perm=&rsquo;cmd&rsquo;
+<br>
+run the given command on &rsquo;permanent&rsquo; failure</p>
+
+
+<p style="margin-top: 1em">--run-on-failure=&rsquo;cmd&rsquo;
+<br>
+run the given command on any failure</p>
+
+<p style="margin-top: 1em">Options for relocation: <br>
+--relocate OLDPATH=NEWPATH <br>
+map paths of files and directories to new locations by
+prefix replacement.</p>
+
+<p style="margin-top: 1em">Options for restoring pid,
+process group and session ids</p>
+
+<p style="margin-top: 1em">--restore-pid <br>
+restore pids to saved values (default).</p>
+
+<p style="margin-top: 1em">--no-restore-pid <br>
+restart with new pids.</p>
+
+<p style="margin-top: 1em">--restore-pgid <br>
+restore pgid to saved values.</p>
+
+<p style="margin-top: 1em">--no-restore-pgid <br>
+restart with new pgids (default).</p>
+
+<p style="margin-top: 1em">--restore-sid <br>
+restore sid to saved values.</p>
+
+<p style="margin-top: 1em">--no-restore-sid <br>
+restart with new sids (default).</p>
+
+<p style="margin-top: 1em">Options in each
+restore/no-restore pair are mutually exclusive. If both are
+given then only the last will be honored.</p>
+
+<p style="margin-top: 1em">Options for kernel log messages
+(default is --kmsg-error): <br>
+--kmsg-none <br>
+don&rsquo;t report any kernel messages.</p>
+
+<p style="margin-top: 1em">--kmsg-error <br>
+on restart failure, report on stderr any kernel messages
+associated with the restart request.</p>
+
+<p style="margin-top: 1em">--kmsg-warning <br>
+report on stderr any kernel messages associated with the
+restart request, regardless of success or failure. Messages
+generated in the absence of failure are considered to <br>
+be warnings.</p>
+
+<p style="margin-top: 1em">Options in this group are
+mutually exclusive. If more than one is given then only the
+last will be honored. Note that --quiet suppresses all
+stderr output, including <br>
+these messages.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Jason Duell, Paul Hargrove, and Eric Roman, Lawrence
+Berkeley National Laboratory.</p>
+
+<p style="margin-top: 1em">REPORTING BUGS <br>
+Bug reports may be filed on the web at
+http://mantis.lbl.gov/bugzilla.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+cr_run(1), cr_checkpoint(1),</p>
+
+<p style="margin-top: 1em">Berkeley Lab Checkpoint/Restart
+August 2016 CR_RESTART(1)</p>
+<hr>
+</body>
+</html>

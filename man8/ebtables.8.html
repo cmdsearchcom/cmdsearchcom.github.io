@@ -1,0 +1,1043 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:10:42 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>EBTABLES(8) System Manager&rsquo;s Manual
+EBTABLES(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+ebtables (v2.0.10-4) - Ethernet bridge frame table
+administration</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+ebtables [-t table ] -[ACDI] chain rule specification [match
+extensions] [watcher extensions] target <br>
+ebtables [-t table ] -P chain ACCEPT | DROP | RETURN <br>
+ebtables [-t table ] -F [chain] <br>
+ebtables [-t table ] -Z [chain] <br>
+ebtables [-t table ] -L [-Z] [chain] [ [--Ln] | [--Lx] ]
+[--Lc] [--Lmac2] <br>
+ebtables [-t table ] -N chain [-P ACCEPT | DROP | RETURN]
+<br>
+ebtables [-t table ] -X [chain] <br>
+ebtables [-t table ] -E old-chain-name new-chain-name <br>
+ebtables [-t table ] --init-table <br>
+ebtables [-t table ] [--atomic-file file] --atomic-commit
+<br>
+ebtables [-t table ] [--atomic-file file] --atomic-init <br>
+ebtables [-t table ] [--atomic-file file] --atomic-save</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+ebtables is an application program used to set up and
+maintain the tables of rules (inside the Linux kernel) that
+inspect Ethernet frames. It is analogous to the iptables
+appli&acirc; <br>
+cation, but less complicated, due to the fact that the
+Ethernet protocol is much simpler than the IP protocol.</p>
+
+<p style="margin-top: 1em">CHAINS <br>
+There are three ebtables tables with built-in chains in the
+Linux kernel. These tables are used to divide functionality
+into different sets of rules. Each set of rules is called
+<br>
+a chain. Each chain is an ordered list of rules that can
+match Ethernet frames. If a rule matches an Ethernet frame,
+then a processing specification tells what to do with that
+<br>
+matching frame. The processing specification is called a
+&rsquo;target&rsquo;. However, if the frame does not match
+the current rule in the chain, then the next rule in the
+chain is examined <br>
+and so forth. The user can create new (user-defined) chains
+that can be used as the &rsquo;target&rsquo; of a rule.
+User-defined chains are very useful to get better
+performance over the <br>
+linear traversal of the rules and are also essential for
+structuring the filtering rules into well-organized and
+maintainable sets of rules.</p>
+
+<p style="margin-top: 1em">TARGETS <br>
+A firewall rule specifies criteria for an Ethernet frame and
+a frame processing specification called a target. When a
+frame matches a rule, then the next action performed by the
+<br>
+kernel is specified by the target. The target can be one of
+these values: ACCEPT, DROP, CONTINUE, RETURN, an
+&rsquo;extension&rsquo; (see below) or a jump to a
+user-defined chain.</p>
+
+<p style="margin-top: 1em">ACCEPT means to let the frame
+through. DROP means the frame has to be dropped. In the
+BROUTING chain however, the ACCEPT and DROP target have
+different meanings (see the info <br>
+provided for the -t option). CONTINUE means the next rule
+has to be checked. This can be handy, f.e., to know how many
+frames pass a certain point in the chain, to log those <br>
+frames or to apply multiple targets on a frame. RETURN means
+stop traversing this chain and resume at the next rule in
+the previous (calling) chain. For the extension targets <br>
+please refer to the TARGET EXTENSIONS section of this man
+page.</p>
+
+<p style="margin-top: 1em">TABLES <br>
+As stated earlier, there are three ebtables tables in the
+Linux kernel. The table names are filter, nat and broute. Of
+these three tables, the filter table is the default table
+<br>
+that the command operates on. If you are working with the
+filter table, then you can drop the &rsquo;-t filter&rsquo;
+argument to the ebtables command. However, you will need to
+provide <br>
+the -t argument for the other two tables. Moreover, the -t
+argument must be the first argument on the ebtables command
+line, if used.</p>
+
+<p style="margin-top: 1em">-t, --table <br>
+filter is the default table and contains three built-in
+chains: INPUT (for frames destined for the bridge itself, on
+the level of the MAC destination address), OUTPUT (for <br>
+locally-generated or (b)routed frames) and FORWARD (for
+frames being forwarded by the bridge). <br>
+nat is mostly used to change the mac addresses and contains
+three built-in chains: PREROUTING (for altering frames as
+soon as they come in), OUTPUT (for altering locally <br>
+generated or (b)routed frames before they are bridged) and
+POSTROUTING (for altering frames as they are about to go
+out). A small note on the naming of chains PREROUTING <br>
+and POSTROUTING: it would be more accurate to call them
+PREFORWARDING and POSTFORWARDING, but for all those who come
+from the iptables world to ebtables it is easier to <br>
+have the same names. Note that you can change the name (-E)
+if you don&rsquo;t like the default. <br>
+broute is used to make a brouter, it has one built-in chain:
+BROUTING. The targets DROP and ACCEPT have a special meaning
+in the broute table (these names are used <br>
+instead of more descriptive names to keep the implementation
+generic). DROP actually means the frame has to be routed,
+while ACCEPT means the frame has to be bridged. The <br>
+BROUTING chain is traversed very early. However, it is only
+traversed by frames entering on a bridge port that is in
+forwarding state. Normally those frames would be <br>
+bridged, but you can decide otherwise here. The redirect
+target is very handy here.</p>
+
+<p style="margin-top: 1em">EBTABLES COMMAND LINE ARGUMENTS
+<br>
+After the initial ebtables &rsquo;-t table&rsquo; command
+line argument, the remaining arguments can be divided into
+several groups. These groups are commands, miscellaneous
+commands, rule <br>
+specifications, match extensions, watcher extensions and
+target extensions.</p>
+
+<p style="margin-top: 1em">COMMANDS <br>
+The ebtables command arguments specify the actions to
+perform on the table defined with the -t argument. If you do
+not use the -t argument to name a table, the commands apply
+to <br>
+the default filter table. Only one command may be used on
+the command line at a time, except when the commands -L and
+-Z are combined, the commands -N and -P are combined, or
+<br>
+when --atomic-file is used.</p>
+
+<p style="margin-top: 1em">-A, --append <br>
+Append a rule to the end of the selected chain.</p>
+
+<p style="margin-top: 1em">-D, --delete <br>
+Delete the specified rule or rules from the selected chain.
+There are two ways to use this command. The first is by
+specifying an interval of rule numbers to delete <br>
+(directly after -D). Syntax: start_nr[:end_nr] (use -L --Ln
+to list the rules with their rule number). When end_nr is
+omitted, all rules starting from start_nr are <br>
+deleted. Using negative numbers is allowed, for more details
+about using negative numbers, see the -I command. The second
+usage is by specifying the complete rule as it <br>
+would have been specified when it was added. Only the first
+encountered rule that is the same as this specified rule, in
+other words the matching rule with the lowest <br>
+(positive) rule number, is deleted.</p>
+
+<p style="margin-top: 1em">-C, --change-counters <br>
+Change the counters of the specified rule or rules from the
+selected chain. There are two ways to use this command. The
+first is by specifying an interval of rule numbers <br>
+to do the changes on (directly after -C). Syntax:
+start_nr[:end_nr] (use -L --Ln to list the rules with their
+rule number). The details are the same as for the -D
+com&acirc; <br>
+mand. The second usage is by specifying the complete rule as
+it would have been specified when it was added. Only the
+counters of the first encountered rule that is the <br>
+same as this specified rule, in other words the matching
+rule with the lowest (positive) rule number, are changed. In
+the first usage, the counters are specified directly <br>
+after the interval specification, in the second usage
+directly after -C. First the packet counter is specified,
+then the byte counter. If the specified counters start <br>
+with a &rsquo;+&rsquo;, the counter values are added to the
+respective current counter values. If the specified counters
+start with a &rsquo;-&rsquo;, the counter values are
+decreased from the <br>
+respective current counter values. No bounds checking is
+done. If the counters don&rsquo;t start with &rsquo;+&rsquo;
+or &rsquo;-&rsquo;, the current counters are changed to the
+specified counters.</p>
+
+<p style="margin-top: 1em">-I, --insert <br>
+Insert the specified rule into the selected chain at the
+specified rule number. If the rule number is not specified,
+the rule is added at the head of the chain. If the <br>
+current number of rules equals N, then the specified number
+can be between -N and N+1. For a positive number i, it holds
+that i and i-N-1 specify the same place in the <br>
+chain where the rule should be inserted. The rule number 0
+specifies the place past the last rule in the chain and
+using this number is therefore equivalent to using the <br>
+-A command. Rule numbers structly smaller than 0 can be
+useful when more than one rule needs to be inserted in a
+chain.</p>
+
+<p style="margin-top: 1em">-P, --policy <br>
+Set the policy for the chain to the given target. The policy
+can be ACCEPT, DROP or RETURN.</p>
+
+<p style="margin-top: 1em">-F, --flush <br>
+Flush the selected chain. If no chain is selected, then
+every chain will be flushed. Flushing a chain does not
+change the policy of the chain, however.</p>
+
+<p style="margin-top: 1em">-Z, --zero <br>
+Set the counters of the selected chain to zero. If no chain
+is selected, all the counters are set to zero. The -Z
+command can be used in conjunction with the -L command. <br>
+When both the -Z and -L commands are used together in this
+way, the rule counters are printed on the screen before they
+are set to zero.</p>
+
+<p style="margin-top: 1em">-L, --list <br>
+List all rules in the selected chain. If no chain is
+selected, all chains are listed. <br>
+The following options change the output of the -L command.
+<br>
+--Ln <br>
+Places the rule number in front of every rule. This option
+is incompatible with the --Lx option. <br>
+--Lc <br>
+Shows the counters at the end of each rule displayed by the
+-L command. Both a frame counter (pcnt) and a byte counter
+(bcnt) are displayed. The frame counter shows how <br>
+many frames have matched the specific rule, the byte counter
+shows the sum of the frame sizes of these matching frames.
+Using this option in combination with the --Lx <br>
+option causes the counters to be written out in the
+&rsquo;-c &lt;pcnt&gt; &lt;bcnt&gt;&rsquo; option format.
+<br>
+--Lx <br>
+Changes the output so that it produces a set of ebtables
+commands that construct the contents of the chain, when
+specified. If no chain is specified, ebtables commands to
+<br>
+construct the contents of the table are given, including
+commands for creating the user-defined chains (if any). You
+can use this set of commands in an ebtables boot or <br>
+reload script. For example the output could be used at
+system startup. The --Lx option is incompatible with the
+--Ln listing option. Using the --Lx option together with
+<br>
+the --Lc option will cause the counters to be written out in
+the &rsquo;-c &lt;pcnt&gt; &lt;bcnt&gt;&rsquo; option
+format. <br>
+--Lmac2 <br>
+Shows all MAC addresses with the same length, adding leading
+zeroes if necessary. The default representation omits
+leading zeroes in the addresses.</p>
+
+<p style="margin-top: 1em">-N, --new-chain <br>
+Create a new user-defined chain with the given name. The
+number of user-defined chains is limited only by the number
+of possible chain names. A user-defined chain name <br>
+has a maximum length of 31 characters. The standard policy
+of the user-defined chain is ACCEPT. The policy of the new
+chain can be initialized to a different standard tar&acirc;
+<br>
+get by using the -P command together with the -N command. In
+this case, the chain name does not have to be specified for
+the -P command.</p>
+
+<p style="margin-top: 1em">-X, --delete-chain <br>
+Delete the specified user-defined chain. There must be no
+remaining references (jumps) to the specified chain,
+otherwise ebtables will refuse to delete it. If no chain is
+<br>
+specified, all user-defined chains that aren&rsquo;t
+referenced will be removed.</p>
+
+<p style="margin-top: 1em">-E, --rename-chain <br>
+Rename the specified chain to a new name. Besides renaming a
+user-defined chain, you can rename a standard chain to a
+name that suits your taste. For example, if you like <br>
+PREFORWARDING more than PREROUTING, then you can use the -E
+command to rename the PREROUTING chain. If you do rename one
+of the standard ebtables chain names, please be <br>
+sure to mention this fact should you post a question on the
+ebtables mailing lists. It would be wise to use the standard
+name in your post. Renaming a standard ebtables <br>
+chain in this fashion has no effect on the structure or
+functioning of the ebtables kernel table.</p>
+
+<p style="margin-top: 1em">--init-table <br>
+Replace the current table data by the initial table
+data.</p>
+
+<p style="margin-top: 1em">--atomic-init <br>
+Copy the kernel&rsquo;s initial data of the table to the
+specified file. This can be used as the first action, after
+which rules are added to the file. The file can be specified
+<br>
+using the --atomic-file command or through the
+EBTABLES_ATOMIC_FILE environment variable.</p>
+
+<p style="margin-top: 1em">--atomic-save <br>
+Copy the kernel&rsquo;s current data of the table to the
+specified file. This can be used as the first action, after
+which rules are added to the file. The file can be specified
+<br>
+using the --atomic-file command or through the
+EBTABLES_ATOMIC_FILE environment variable.</p>
+
+<p style="margin-top: 1em">--atomic-commit <br>
+Replace the kernel table data with the data contained in the
+specified file. This is a useful command that allows you to
+load all your rules of a certain table into the <br>
+kernel at once, saving the kernel a lot of precious time and
+allowing atomic updates of the tables. The file which
+contains the table data is constructed by using either <br>
+the --atomic-init or the --atomic-save command to generate a
+starting file. After that, using the --atomic-file command
+when constructing rules or setting the EBTA&acirc; <br>
+BLES_ATOMIC_FILE environment variable allows you to extend
+the file and build the complete table before committing it
+to the kernel. This command can be very useful in <br>
+boot scripts to populate the ebtables tables in a fast
+way.</p>
+
+<p style="margin-top: 1em">MISCELLANOUS COMMANDS <br>
+-V, --version <br>
+Show the version of the ebtables userspace program.</p>
+
+<p style="margin-top: 1em">-h, --help [list of module
+names] <br>
+Give a brief description of the command syntax. Here you can
+also specify names of extensions and ebtables will try to
+write help about those extensions. E.g. ebtables -h <br>
+snat log ip arp. Specify list_extensions to list all
+extensions supported by the userspace utility.</p>
+
+<p style="margin-top: 1em">-j, --jump target <br>
+The target of the rule. This is one of the following values:
+ACCEPT, DROP, CONTINUE, RETURN, a target extension (see
+TARGET EXTENSIONS) or a user-defined chain name.</p>
+
+<p style="margin-top: 1em">--atomic-file file <br>
+Let the command operate on the specified file. The data of
+the table to operate on will be extracted from the file and
+the result of the operation will be saved back into <br>
+the file. If specified, this option should come before the
+command specification. An alternative that should be
+preferred, is setting the EBTABLES_ATOMIC_FILE environment
+<br>
+variable.</p>
+
+<p style="margin-top: 1em">-M, --modprobe program <br>
+When talking to the kernel, use this program to try to
+automatically load missing kernel modules.</p>
+
+<p style="margin-top: 1em">--concurrent <br>
+Use a file lock to support concurrent scripts updating the
+ebtables kernel tables.</p>
+
+<p style="margin-top: 1em">RULE SPECIFICATIONS <br>
+The following command line arguments make up a rule
+specification (as used in the add and delete commands). A
+&quot;!&quot; option before the specification inverts the
+test for that speci&acirc; <br>
+fication. Apart from these standard rule specifications
+there are some other command line arguments of interest. See
+both the MATCH EXTENSIONS and the WATCHER EXTENSIONS
+below.</p>
+
+<p style="margin-top: 1em">-p, --protocol [!] protocol <br>
+The protocol that was responsible for creating the frame.
+This can be a hexadecimal number, above 0x0600, a name (e.g.
+ARP ) or LENGTH. The protocol field of the Ether&acirc; <br>
+net frame can be used to denote the length of the header
+(802.2/802.3 networks). When the value of that field is
+below or equals 0x0600, the value equals the size of the
+<br>
+header and shouldn&rsquo;t be used as a protocol number.
+Instead, all frames where the protocol field is used as the
+length field are assumed to be of the same
+&rsquo;protocol&rsquo;. The <br>
+protocol name used in ebtables for these frames is LENGTH.
+<br>
+The file /etc/ethertypes can be used to show readable
+characters instead of hexadecimal numbers for the protocols.
+For example, 0x0800 will be represented by IPV4. The <br>
+use of this file is not case sensitive. See that file for
+more information. The flag --proto is an alias for this
+option.</p>
+
+<p style="margin-top: 1em">-i, --in-interface [!] name <br>
+The interface (bridge port) via which a frame is received
+(this option is useful in the INPUT, FORWARD, PREROUTING and
+BROUTING chains). If the interface name ends with <br>
+&rsquo;+&rsquo;, then any interface name that begins with
+this name (disregarding &rsquo;+&rsquo;) will match. The
+flag --in-if is an alias for this option.</p>
+
+<p style="margin-top: 1em">--logical-in [!] name <br>
+The (logical) bridge interface via which a frame is received
+(this option is useful in the INPUT, FORWARD, PREROUTING and
+BROUTING chains). If the interface name ends <br>
+with &rsquo;+&rsquo;, then any interface name that begins
+with this name (disregarding &rsquo;+&rsquo;) will
+match.</p>
+
+<p style="margin-top: 1em">-o, --out-interface [!] name
+<br>
+The interface (bridge port) via which a frame is going to be
+sent (this option is useful in the OUTPUT, FORWARD and
+POSTROUTING chains). If the interface name ends with <br>
+&rsquo;+&rsquo;, then any interface name that begins with
+this name (disregarding &rsquo;+&rsquo;) will match. The
+flag --out-if is an alias for this option.</p>
+
+<p style="margin-top: 1em">--logical-out [!] name <br>
+The (logical) bridge interface via which a frame is going to
+be sent (this option is useful in the OUTPUT, FORWARD and
+POSTROUTING chains). If the interface name ends <br>
+with &rsquo;+&rsquo;, then any interface name that begins
+with this name (disregarding &rsquo;+&rsquo;) will
+match.</p>
+
+<p style="margin-top: 1em">-s, --source [!] address[/mask]
+<br>
+The source MAC address. Both mask and address are written as
+6 hexadecimal numbers separated by colons. Alternatively one
+can specify Unicast, Multicast, Broadcast or BGA <br>
+(Bridge Group Address): <br>
+Unicast=00:00:00:00:00:00/01:00:00:00:00:00,
+Multicast=01:00:00:00:00:00/01:00:00:00:00:00,
+Broadcast=ff:ff:ff:ff:ff:ff/ff:ff:ff:ff:ff:ff or <br>
+BGA=01:80:c2:00:00:00/ff:ff:ff:ff:ff:ff. Note that a
+broadcast address will also match the multicast
+specification. The flag --src is an alias for this
+option.</p>
+
+<p style="margin-top: 1em">-d, --destination [!]
+address[/mask] <br>
+The destination MAC address. See -s (above) for more details
+on MAC addresses. The flag --dst is an alias for this
+option.</p>
+
+<p style="margin-top: 1em">-c, --set-counter pcnt bcnt <br>
+If used with -A or -I, then the packet and byte counters of
+the new rule will be set to pcnt, resp. bcnt. If used with
+the -C or -D commands, only rules with a packet and <br>
+byte count equal to pcnt, resp. bcnt will match.</p>
+
+<p style="margin-top: 1em">MATCH EXTENSIONS <br>
+Ebtables extensions are dynamically loaded into the
+userspace tool, there is therefore no need to explicitly
+load them with a -m option like is done in iptables. These
+exten&acirc; <br>
+sions deal with functionality supported by kernel modules
+supplemental to the core ebtables code.</p>
+
+<p style="margin-top: 1em">802_3 <br>
+Specify 802.3 DSAP/SSAP fields or SNAP type. The protocol
+must be specified as LENGTH (see the option -p above).</p>
+
+<p style="margin-top: 1em">--802_3-sap [!] sap <br>
+DSAP and SSAP are two one byte 802.3 fields. The bytes are
+always equal, so only one byte (hexadecimal) is needed as an
+argument.</p>
+
+<p style="margin-top: 1em">--802_3-type [!] type <br>
+If the 802.3 DSAP and SSAP values are 0xaa then the SNAP
+type field must be consulted to determine the payload
+protocol. This is a two byte (hexadecimal) argument. Only
+<br>
+802.3 frames with DSAP/SSAP 0xaa are checked for type.</p>
+
+<p style="margin-top: 1em">among <br>
+Match a MAC address or MAC/IP address pair versus a list of
+MAC addresses and MAC/IP address pairs. A list entry has the
+following format: xx:xx:xx:xx:xx:xx[=ip.ip.ip.ip][,]. <br>
+Multiple list entries are separated by a comma, specifying
+an IP address corresponding to the MAC address is optional.
+Multiple MAC/IP address pairs with the same MAC address but
+<br>
+different IP address (and vice versa) can be specified. If
+the MAC address doesn&rsquo;t match any entry from the list,
+the frame doesn&rsquo;t match the rule (unless &quot;!&quot;
+was used).</p>
+
+<p style="margin-top: 1em">--among-dst [!] list <br>
+Compare the MAC destination to the given list. If the
+Ethernet frame has type IPv4 or ARP, then comparison with
+MAC/IP destination address pairs from the list is
+possible.</p>
+
+<p style="margin-top: 1em">--among-src [!] list <br>
+Compare the MAC source to the given list. If the Ethernet
+frame has type IPv4 or ARP, then comparison with MAC/IP
+source address pairs from the list is possible.</p>
+
+<p style="margin-top: 1em">--among-dst-file [!] file <br>
+Same as --among-dst but the list is read in from the
+specified file.</p>
+
+<p style="margin-top: 1em">--among-src-file [!] file <br>
+Same as --among-src but the list is read in from the
+specified file.</p>
+
+<p style="margin-top: 1em">arp <br>
+Specify (R)ARP fields. The protocol must be specified as ARP
+or RARP.</p>
+
+<p style="margin-top: 1em">--arp-opcode [!] opcode <br>
+The (R)ARP opcode (decimal or a string, for more details see
+ebtables -h arp).</p>
+
+<p style="margin-top: 1em">--arp-htype [!] hardware type
+<br>
+The hardware type, this can be a decimal or the string
+Ethernet (which sets type to 1). Most (R)ARP packets have
+Eternet as hardware type.</p>
+
+<p style="margin-top: 1em">--arp-ptype [!] protocol type
+<br>
+The protocol type for which the (r)arp is used (hexadecimal
+or the string IPv4, denoting 0x0800). Most (R)ARP packets
+have protocol type IPv4.</p>
+
+<p style="margin-top: 1em">--arp-ip-src [!] address[/mask]
+<br>
+The (R)ARP IP source address specification.</p>
+
+<p style="margin-top: 1em">--arp-ip-dst [!] address[/mask]
+<br>
+The (R)ARP IP destination address specification.</p>
+
+<p style="margin-top: 1em">--arp-mac-src [!] address[/mask]
+<br>
+The (R)ARP MAC source address specification.</p>
+
+<p style="margin-top: 1em">--arp-mac-dst [!] address[/mask]
+<br>
+The (R)ARP MAC destination address specification.</p>
+
+<p style="margin-top: 1em">[!] --arp-gratuitous <br>
+Checks for ARP gratuitous packets: checks equality of IPv4
+source address and IPv4 destination address inside the ARP
+header.</p>
+
+<p style="margin-top: 1em">ip <br>
+Specify IPv4 fields. The protocol must be specified as
+IPv4.</p>
+
+<p style="margin-top: 1em">--ip-source [!] address[/mask]
+<br>
+The source IP address. The flag --ip-src is an alias for
+this option.</p>
+
+<p style="margin-top: 1em">--ip-destination [!]
+address[/mask] <br>
+The destination IP address. The flag --ip-dst is an alias
+for this option.</p>
+
+<p style="margin-top: 1em">--ip-tos [!] tos <br>
+The IP type of service, in hexadecimal numbers. IPv4.</p>
+
+<p style="margin-top: 1em">--ip-protocol [!] protocol <br>
+The IP protocol. The flag --ip-proto is an alias for this
+option.</p>
+
+<p style="margin-top: 1em">--ip-source-port [!]
+port1[:port2] <br>
+The source port or port range for the IP protocols 6 (TCP),
+17 (UDP), 33 (DCCP) or 132 (SCTP). The --ip-protocol option
+must be specified as TCP, UDP, DCCP or SCTP. If <br>
+port1 is omitted, 0:port2 is used; if port2 is omitted but a
+colon is specified, port1:65535 is used. The flag --ip-sport
+is an alias for this option.</p>
+
+<p style="margin-top: 1em">--ip-destination-port [!]
+port1[:port2] <br>
+The destination port or port range for ip protocols 6 (TCP),
+17 (UDP), 33 (DCCP) or 132 (SCTP). The --ip-protocol option
+must be specified as TCP, UDP, DCCP or SCTP. If <br>
+port1 is omitted, 0:port2 is used; if port2 is omitted but a
+colon is specified, port1:65535 is used. The flag --ip-dport
+is an alias for this option.</p>
+
+<p style="margin-top: 1em">ip6 <br>
+Specify IPv6 fields. The protocol must be specified as
+IPv6.</p>
+
+<p style="margin-top: 1em">--ip6-source [!] address[/mask]
+<br>
+The source IPv6 address. The flag --ip6-src is an alias for
+this option.</p>
+
+<p style="margin-top: 1em">--ip6-destination [!]
+address[/mask] <br>
+The destination IPv6 address. The flag --ip6-dst is an alias
+for this option.</p>
+
+<p style="margin-top: 1em">--ip6-tclass [!] tclass <br>
+The IPv6 traffic class, in hexadecimal numbers.</p>
+
+<p style="margin-top: 1em">--ip6-protocol [!] protocol <br>
+The IP protocol. The flag --ip6-proto is an alias for this
+option.</p>
+
+<p style="margin-top: 1em">--ip6-source-port [!]
+port1[:port2] <br>
+The source port or port range for the IPv6 protocols 6
+(TCP), 17 (UDP), 33 (DCCP) or 132 (SCTP). The --ip6-protocol
+option must be specified as TCP, UDP, DCCP or SCTP. If <br>
+port1 is omitted, 0:port2 is used; if port2 is omitted but a
+colon is specified, port1:65535 is used. The flag
+--ip6-sport is an alias for this option.</p>
+
+<p style="margin-top: 1em">--ip6-destination-port [!]
+port1[:port2] <br>
+The destination port or port range for IPv6 protocols 6
+(TCP), 17 (UDP), 33 (DCCP) or 132 (SCTP). The --ip6-protocol
+option must be specified as TCP, UDP, DCCP or SCTP. <br>
+If port1 is omitted, 0:port2 is used; if port2 is omitted
+but a colon is specified, port1:65535 is used. The flag
+--ip6-dport is an alias for this option.</p>
+
+<p style="margin-top: 1em">--ip6-icmp-type [!]
+{type[:type]/code[:code]|typename} <br>
+Specify ipv6-icmp type and code to match. Ranges for both
+type and code are supported. Type and code are separated by
+a slash. Valid numbers for type and range are 0 to <br>
+255. To match a single type including all valid codes,
+symbolic names can be used instead of numbers. The list of
+known type names is shown by the command <br>
+ebtables --help ip6 <br>
+This option is only valid for --ip6-prococol ipv6-icmp.</p>
+
+<p style="margin-top: 1em">limit <br>
+This module matches at a limited rate using a token bucket
+filter. A rule using this extension will match until this
+limit is reached. It can be used with the --log watcher to
+<br>
+give limited logging, for example. Its use is the same as
+the limit match of iptables.</p>
+
+<p style="margin-top: 1em">--limit [value] <br>
+Maximum average matching rate: specified as a number, with
+an optional /second, /minute, /hour, or /day suffix; the
+default is 3/hour.</p>
+
+<p style="margin-top: 1em">--limit-burst [number] <br>
+Maximum initial number of packets to match: this number gets
+recharged by one every time the limit specified above is not
+reached, up to this number; the default is 5.</p>
+
+<p style="margin-top: 1em">mark_m <br>
+--mark [!] [value][/mask] <br>
+Matches frames with the given unsigned mark value. If a
+value and mask are specified, the logical AND of the mark
+value of the frame and the user-specified mask is taken <br>
+before comparing it with the user-specified mark value. When
+only a mark value is specified, the packet only matches when
+the mark value of the frame equals the user-spec&acirc; <br>
+ified mark value. If only a mask is specified, the logical
+AND of the mark value of the frame and the user-specified
+mask is taken and the frame matches when the result <br>
+of this logical AND is non-zero. Only specifying a mask is
+useful to match multiple mark values.</p>
+
+<p style="margin-top: 1em">pkttype <br>
+--pkttype-type [!] type <br>
+Matches on the Ethernet &quot;class&quot; of the frame,
+which is determined by the generic networking code. Possible
+values: broadcast (MAC destination is the broadcast
+address), <br>
+multicast (MAC destination is a multicast address), host
+(MAC destination is the receiving network device), or
+otherhost (none of the above).</p>
+
+<p style="margin-top: 1em">stp <br>
+Specify stp BPDU (bridge protocol data unit) fields. The
+destination address (-d) must be specified as the bridge
+group address (BGA). For all options for which a range of
+val&acirc; <br>
+ues can be specified, it holds that if the lower bound is
+omitted (but the colon is not), then the lowest possible
+lower bound for that option is used, while if the upper
+bound <br>
+is omitted (but the colon again is not), the highest
+possible upper bound for that option is used.</p>
+
+<p style="margin-top: 1em">--stp-type [!] type <br>
+The BPDU type (0-255), recognized non-numerical types are
+config, denoting a configuration BPDU (=0), and tcn,
+denothing a topology change notification BPDU (=128).</p>
+
+<p style="margin-top: 1em">--stp-flags [!] flag <br>
+The BPDU flag (0-255), recognized non-numerical flags are
+topology-change, denoting the topology change flag (=1), and
+topology-change-ack, denoting the topology change <br>
+acknowledgement flag (=128).</p>
+
+<p style="margin-top: 1em">--stp-root-prio [!]
+[prio][:prio] <br>
+The root priority (0-65535) range.</p>
+
+<p style="margin-top: 1em">--stp-root-addr [!]
+[address][/mask] <br>
+The root mac address, see the option -s for more
+details.</p>
+
+<p style="margin-top: 1em">--stp-root-cost [!]
+[cost][:cost] <br>
+The root path cost (0-4294967295) range.</p>
+
+<p style="margin-top: 1em">--stp-sender-prio [!]
+[prio][:prio] <br>
+The BPDU&rsquo;s sender priority (0-65535) range.</p>
+
+<p style="margin-top: 1em">--stp-sender-addr [!]
+[address][/mask] <br>
+The BPDU&rsquo;s sender mac address, see the option -s for
+more details.</p>
+
+<p style="margin-top: 1em">--stp-port [!] [port][:port]
+<br>
+The port identifier (0-65535) range.</p>
+
+<p style="margin-top: 1em">--stp-msg-age [!] [age][:age]
+<br>
+The message age timer (0-65535) range.</p>
+
+<p style="margin-top: 1em">--stp-max-age [!] [age][:age]
+<br>
+The max age timer (0-65535) range.</p>
+
+<p style="margin-top: 1em">--stp-hello-time [!]
+[time][:time] <br>
+The hello time timer (0-65535) range.</p>
+
+<p style="margin-top: 1em">--stp-forward-delay [!]
+[delay][:delay] <br>
+The forward delay timer (0-65535) range.</p>
+
+<p style="margin-top: 1em">vlan <br>
+Specify 802.1Q Tag Control Information fields. The protocol
+must be specified as 802_1Q (0x8100).</p>
+
+<p style="margin-top: 1em">--vlan-id [!] id <br>
+The VLAN identifier field (VID). Decimal number from 0 to
+4095.</p>
+
+<p style="margin-top: 1em">--vlan-prio [!] prio <br>
+The user priority field, a decimal number from 0 to 7. The
+VID should be set to 0 (&quot;null VID&quot;) or unspecified
+(in the latter case the VID is deliberately set to 0).</p>
+
+<p style="margin-top: 1em">--vlan-encap [!] type <br>
+The encapsulated Ethernet frame type/length. Specified as a
+hexadecimal number from 0x0000 to 0xFFFF or as a symbolic
+name from /etc/ethertypes.</p>
+
+<p style="margin-top: 1em">WATCHER EXTENSIONS <br>
+Watchers only look at frames passing by, they don&rsquo;t
+modify them nor decide to accept the frames or not. These
+watchers only see the frame if the frame matches the rule,
+and they <br>
+see it before the target is executed.</p>
+
+<p style="margin-top: 1em">log <br>
+The log watcher writes descriptive data about a frame to the
+syslog.</p>
+
+<p style="margin-top: 1em">--log <br>
+Log with the default loggin options: log-level= info,
+log-prefix=&quot;&quot;, no ip logging, no arp logging.</p>
+
+<p style="margin-top: 1em">--log-level level <br>
+Defines the logging level. For the possible values, see
+ebtables -h log. The default level is info.</p>
+
+<p style="margin-top: 1em">--log-prefix text <br>
+Defines the prefix text to be printed at the beginning of
+the line with the logging information.</p>
+
+<p style="margin-top: 1em">--log-ip <br>
+Will log the ip information when a frame made by the ip
+protocol matches the rule. The default is no ip information
+logging.</p>
+
+<p style="margin-top: 1em">--log-ip6 <br>
+Will log the ipv6 information when a frame made by the ipv6
+protocol matches the rule. The default is no ipv6
+information logging.</p>
+
+<p style="margin-top: 1em">--log-arp <br>
+Will log the (r)arp information when a frame made by the
+(r)arp protocols matches the rule. The default is no (r)arp
+information logging.</p>
+
+<p style="margin-top: 1em">nflog <br>
+The nflog watcher passes the packet to the loaded logging
+backend in order to log the packet. This is usually used in
+combination with nfnetlink_log as logging backend, which
+<br>
+will multicast the packet through a netlink socket to the
+specified multicast group. One or more userspace processes
+may subscribe to the group to receive the packets.</p>
+
+<p style="margin-top: 1em">--nflog <br>
+Log with the default logging options</p>
+
+<p style="margin-top: 1em">--nflog-group nlgroup <br>
+The netlink group (1 - 2^32-1) to which packets are (only
+applicable for nfnetlink_log). The default value is 1.</p>
+
+<p style="margin-top: 1em">--nflog-prefix prefix <br>
+A prefix string to include in the log message, up to 30
+characters long, useful for distinguishing messages in the
+logs.</p>
+
+<p style="margin-top: 1em">--nflog-range size <br>
+The number of bytes to be copied to userspace (only
+applicable for nfnetlink_log). nfnetlink_log instances may
+specify their own range, this option overrides it.</p>
+
+<p style="margin-top: 1em">--nflog-threshold size <br>
+Number of packets to queue inside the kernel before sending
+them to userspace (only applicable for nfnetlink_log).
+Higher values result in less overhead per packet, but <br>
+increase delay until the packets reach userspace. The
+default value is 1.</p>
+
+<p style="margin-top: 1em">ulog <br>
+The ulog watcher passes the packet to a userspace logging
+daemon using netlink multicast sockets. This differs from
+the log watcher in the sense that the complete packet is
+sent <br>
+to userspace instead of a descriptive text and that netlink
+multicast sockets are used instead of the syslog. This
+watcher enables parsing of packets with userspace programs,
+<br>
+the physical bridge in and out ports are also included in
+the netlink messages. The ulog watcher module accepts 2
+parameters when the module is loaded into the kernel (e.g.
+with <br>
+modprobe): nlbufsiz specifies how big the buffer for each
+netlink multicast group is. If you say nlbufsiz=8192, for
+example, up to eight kB of packets will get accumulated in
+the <br>
+kernel until they are sent to userspace. It is not possible
+to allocate more than 128kB. Please also keep in mind that
+this buffer size is allocated for each nlgroup you are <br>
+using, so the total kernel memory usage increases by that
+factor. The default is 4096. flushtimeout specifies after
+how many hundredths of a second the queue should be flushed,
+<br>
+even if it is not full yet. The default is 10 (one tenth of
+a second).</p>
+
+<p style="margin-top: 1em">--ulog <br>
+Use the default settings: ulog-prefix=&quot;&quot;,
+ulog-nlgroup=1, ulog-cprange=4096, ulog-qthreshold=1.</p>
+
+<p style="margin-top: 1em">--ulog-prefix text <br>
+Defines the prefix included with the packets sent to
+userspace.</p>
+
+<p style="margin-top: 1em">--ulog-nlgroup group <br>
+Defines which netlink group number to use (a number from 1
+to 32). Make sure the netlink group numbers used for the
+iptables ULOG target differ from those used for the <br>
+ebtables ulog watcher. The default group number is 1.</p>
+
+<p style="margin-top: 1em">--ulog-cprange range <br>
+Defines the maximum copy range to userspace, for packets
+matching the rule. The default range is 0, which means the
+maximum copy range is given by nlbufsiz. A maximum <br>
+copy range larger than 128*1024 is meaningless as the
+packets sent to userspace have an upper size limit of
+128*1024.</p>
+
+<p style="margin-top: 1em">--ulog-qthreshold threshold <br>
+Queue at most threshold number of packets before sending
+them to userspace with a netlink socket. Note that packets
+can be sent to userspace before the queue is full, this <br>
+happens when the ulog kernel timer goes off (the frequency
+of this timer depends on flushtimeout).</p>
+
+<p style="margin-top: 1em">TARGET EXTENSIONS <br>
+arpreply <br>
+The arpreply target can be used in the PREROUTING chain of
+the nat table. If this target sees an ARP request it will
+automatically reply with an ARP reply. The used MAC address
+<br>
+for the reply can be specified. The protocol must be
+specified as ARP. When the ARP message is not an ARP request
+or when the ARP request isn&rsquo;t for an IP address on an
+Ethernet <br>
+network, it is ignored by this target (CONTINUE). When the
+ARP request is malformed, it is dropped (DROP).</p>
+
+<p style="margin-top: 1em">--arpreply-mac address <br>
+Specifies the MAC address to reply with: the Ethernet source
+MAC and the ARP payload source MAC will be filled in with
+this address.</p>
+
+<p style="margin-top: 1em">--arpreply-target target <br>
+Specifies the standard target. After sending the ARP reply,
+the rule still has to give a standard target so ebtables
+knows what to do with the ARP request. The default <br>
+target is DROP.</p>
+
+<p style="margin-top: 1em">dnat <br>
+The dnat target can only be used in the BROUTING chain of
+the broute table and the PREROUTING and OUTPUT chains of the
+nat table. It specifies that the destination MAC address
+<br>
+has to be changed.</p>
+
+<p style="margin-top: 1em">--to-destination address <br>
+Change the destination MAC address to the specified address.
+The flag --to-dst is an alias for this option.</p>
+
+<p style="margin-top: 1em">--dnat-target target <br>
+Specifies the standard target. After doing the dnat, the
+rule still has to give a standard target so ebtables knows
+what to do with the dnated frame. The default target <br>
+is ACCEPT. Making it CONTINUE could let you use multiple
+target extensions on the same frame. Making it DROP only
+makes sense in the BROUTING chain but using the redirect
+<br>
+target is more logical there. RETURN is also allowed. Note
+that using RETURN in a base chain is not allowed (for
+obvious reasons).</p>
+
+<p style="margin-top: 1em">mark <br>
+The mark target can be used in every chain of every table.
+It is possible to use the marking of a frame/packet in both
+ebtables and iptables, if the bridge-nf code is compiled
+<br>
+into the kernel. Both put the marking at the same place.
+This allows for a form of communication between ebtables and
+iptables.</p>
+
+<p style="margin-top: 1em">--mark-set value <br>
+Mark the frame with the specified non-negative value.</p>
+
+<p style="margin-top: 1em">--mark-or value <br>
+Or the frame with the specified non-negative value.</p>
+
+<p style="margin-top: 1em">--mark-and value <br>
+And the frame with the specified non-negative value.</p>
+
+<p style="margin-top: 1em">--mark-xor value <br>
+Xor the frame with the specified non-negative value.</p>
+
+<p style="margin-top: 1em">--mark-target target <br>
+Specifies the standard target. After marking the frame, the
+rule still has to give a standard target so ebtables knows
+what to do. The default target is ACCEPT. Making it <br>
+CONTINUE can let you do other things with the frame in
+subsequent rules of the chain.</p>
+
+<p style="margin-top: 1em">redirect <br>
+The redirect target will change the MAC target address to
+that of the bridge device the frame arrived on. This target
+can only be used in the BROUTING chain of the broute table
+<br>
+and the PREROUTING chain of the nat table. In the BROUTING
+chain, the MAC address of the bridge port is used as
+destination address, in the PREROUTING chain, the MAC
+address of <br>
+the bridge is used.</p>
+
+<p style="margin-top: 1em">--redirect-target target <br>
+Specifies the standard target. After doing the MAC redirect,
+the rule still has to give a standard target so ebtables
+knows what to do. The default target is ACCEPT. Mak&acirc;
+<br>
+ing it CONTINUE could let you use multiple target extensions
+on the same frame. Making it DROP in the BROUTING chain will
+let the frames be routed. RETURN is also allowed. <br>
+Note that using RETURN in a base chain is not allowed.</p>
+
+<p style="margin-top: 1em">snat <br>
+The snat target can only be used in the POSTROUTING chain of
+the nat table. It specifies that the source MAC address has
+to be changed.</p>
+
+<p style="margin-top: 1em">--to-source address <br>
+Changes the source MAC address to the specified address. The
+flag --to-src is an alias for this option.</p>
+
+<p style="margin-top: 1em">--snat-target target <br>
+Specifies the standard target. After doing the snat, the
+rule still has to give a standard target so ebtables knows
+what to do. The default target is ACCEPT. Making it <br>
+CONTINUE could let you use multiple target extensions on the
+same frame. Making it DROP doesn&rsquo;t make sense, but you
+could do that too. RETURN is also allowed. Note that <br>
+using RETURN in a base chain is not allowed.</p>
+
+<p style="margin-top: 1em">--snat-arp <br>
+Also change the hardware source address inside the arp
+header if the packet is an arp message and the hardware
+address length in the arp header is 6 bytes.</p>
+
+<p style="margin-top: 1em">FILES <br>
+/etc/ethertypes /run/ebtables.lock</p>
+
+<p style="margin-top: 1em">ENVIRONMENT VARIABLES <br>
+EBTABLES_ATOMIC_FILE</p>
+
+<p style="margin-top: 1em">MAILINGLISTS <br>
+See http://netfilter.org/mailinglists.html</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+iptables(8), brctl(8), ifconfig(8), route(8)</p>
+
+<p style="margin-top: 1em">See http://ebtables.sf.net</p>
+
+<p style="margin-top: 1em">December 2011 EBTABLES(8)</p>
+<hr>
+</body>
+</html>

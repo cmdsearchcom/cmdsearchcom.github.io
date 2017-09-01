@@ -1,0 +1,288 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:20:46 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>knockd(1) knockd(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+knockd - port-knock server</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+knockd [options]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+knockd is a port-knock server. It listens to all traffic on
+an ethernet (or PPP) interface, looking for special
+&quot;knock&quot; sequences of port-hits. A client makes
+these port-hits <br>
+by sending a TCP (or UDP) packet to a port on the server.
+This port need not be open -- since knockd listens at the
+link-layer level, it sees all traffic even if it&rsquo;s
+destined <br>
+for a closed port. When the server detects a specific
+sequence of port-hits, it runs a command defined in its
+configuration file. This can be used to open up holes in a
+fire&acirc; <br>
+wall for quick access.</p>
+
+<p style="margin-top: 1em">COMMANDLINE OPTIONS <br>
+-i, --interface &lt;int&gt; <br>
+Specify an interface to listen on. The default is eth0.</p>
+
+<p style="margin-top: 1em">-d, --daemon <br>
+Become a daemon. This is usually desired for normal
+server-like operation.</p>
+
+<p style="margin-top: 1em">-c, --config &lt;file&gt; <br>
+Specify an alternate location for the config file. Default
+is /etc/knockd.conf.</p>
+
+<p style="margin-top: 1em">-D, --debug <br>
+Ouput debugging messages.</p>
+
+<p style="margin-top: 1em">-l, --lookup <br>
+Lookup DNS names for log entries. This may be a security
+risk! See section SECURITY NOTES.</p>
+
+<p style="margin-top: 1em">-v, --verbose <br>
+Output verbose status messages.</p>
+
+<p style="margin-top: 1em">-V, --version <br>
+Display the version.</p>
+
+<p style="margin-top: 1em">-h, --help <br>
+Syntax help.</p>
+
+<p style="margin-top: 1em">CONFIGURATION <br>
+knockd reads all knock/event sets from a configuration file.
+Each knock/event begins with a title marker, in the form
+[name], where name is the name of the event that will <br>
+appear in the log. A special marker, [options], is used to
+define global options.</p>
+
+<p style="margin-top: 1em">Example #1: <br>
+This example uses two knocks. The first will allow the
+knocker to access port 22 (SSH), and the second will close
+the port when the knocker is complete. As you can see, <br>
+this could be useful if you run a very restrictive (DENY
+policy) firewall and would like to access it discreetly.</p>
+
+<p style="margin-top: 1em">[options] <br>
+logfile = /var/log/knockd.log</p>
+
+<p style="margin-top: 1em">[openSSH] <br>
+sequence = 7000,8000,9000 <br>
+seq_timeout = 10 <br>
+tcpflags = syn <br>
+command = /usr/sbin/iptables -A INPUT -s %IP% --dport 22 -j
+ACCEPT</p>
+
+<p style="margin-top: 1em">[closeSSH] <br>
+sequence = 9000,8000,7000 <br>
+seq_timeout = 10 <br>
+tcpflags = syn <br>
+command = /usr/sbin/iptables -D INPUT -s %IP% --dport 22 -j
+ACCEPT</p>
+
+<p style="margin-top: 1em">Example #2: <br>
+This example uses a single knock to control access to port
+22 (SSH). After receiving a successful knock, the daemon
+will run the start_command, wait for the time speci&acirc;
+<br>
+fied in cmd_timeout, then execute the stop_command. This is
+useful to automatically close the door behind a knocker. The
+knock sequence uses both UDP and TCP ports.</p>
+
+<p style="margin-top: 1em">[options] <br>
+logfile = /var/log/knockd.log</p>
+
+<p style="margin-top: 1em">[opencloseSSH] <br>
+sequence = 2222:udp,3333:tcp,4444:udp <br>
+seq_timeout = 15 <br>
+tcpflags = syn,ack <br>
+start_command = /usr/sbin/iptables -A INPUT -s %IP% -p tcp
+--syn -j ACCEPT <br>
+cmd_timeout = 5 <br>
+stop_command = /usr/sbin/iptables -D INPUT -s %IP% -p tcp
+--syn -j ACCEPT</p>
+
+<p style="margin-top: 1em">Example #3: <br>
+This example doesn&rsquo;t use a single, fixed knock
+sequence to trigger an event, but a set of sequences taken
+from a sequence file (one time sequences), specified by the
+<br>
+one_time_sequences directive. After each successful knock,
+the used sequence will be invalidated and the next sequence
+from the sequence file has to be used for a suc&acirc; <br>
+cessful knock. This prevents an attacker from doing a replay
+attack after having discovered a sequence (eg, while
+sniffing the network).</p>
+
+<p style="margin-top: 1em">[options] <br>
+logfile = /var/log/knockd.log</p>
+
+<p style="margin-top: 1em">[opencloseSMTP] <br>
+one_time_sequences = /etc/knockd/smtp_sequences <br>
+seq_timeout = 15 <br>
+tcpflags = fin,!ack <br>
+start_command = /usr/sbin/iptables -A INPUT -s %IP% -p tcp
+--dport 25 -j ACCEPT <br>
+cmd_timeout = 5 <br>
+stop_command = /usr/sbin/iptables -D INPUT -s %IP% -p tcp
+--dport 25 -j ACCEPT</p>
+
+<p style="margin-top: 1em">CONFIGURATION: GLOBAL DIRECTIVES
+<br>
+UseSyslog <br>
+Log action messages through syslog(). This will insert log
+entries into your /var/log/messages or equivalent.</p>
+
+<p style="margin-top: 1em">LogFile = /path/to/file <br>
+Log actions directly to a file, usually
+/var/log/knockd.log.</p>
+
+<p style="margin-top: 1em">PidFile = /path/to/file <br>
+Pidfile to use when in daemon mode, default:
+/var/run/knockd.pid.</p>
+
+<p style="margin-top: 1em">Interface =
+&lt;interface_name&gt; <br>
+Network interface to listen on. Only its name has to be
+given, not the path to the device (eg, &quot;eth0&quot; and
+not &quot;/dev/eth0&quot;). Default: eth0.</p>
+
+<p style="margin-top: 1em">CONFIGURATION: KNOCK/EVENT
+DIRECTIVES <br>
+Sequence =
+&lt;port1&gt;[:&lt;tcp|udp&gt;],&lt;port2&gt;[:&lt;tcp|udp&gt;][,&lt;port3&gt;[:&lt;tcp|udp&gt;]
+...] <br>
+Specify the sequence of ports in the special knock. If a
+wrong port with the same flags is received, the knock is
+discarded. Optionally, you can define the protocol to be
+<br>
+used on a per-port basis (default is TCP).</p>
+
+<p style="margin-top: 1em">One_Time_Sequences =
+/path/to/one_time_sequences_file <br>
+File containing the one time sequences to be used. Instead
+of using a fixed sequence, knockd will read the sequence to
+be used from that file. After each successful <br>
+knock attempt this sequence will be disabled by writing a
+&rsquo;#&rsquo; character at the first position of the line
+containing the used sequence. That used sequence will then
+be <br>
+replaced by the next valid sequence from the file.</p>
+
+<p style="margin-top: 1em">Because the first character is
+replaced by a &rsquo;#&rsquo;, it is recommended that you
+leave a space at the beginning of each line. Otherwise the
+first digit in your knock sequence <br>
+will be overwritten with a &rsquo;#&rsquo; after it has been
+used.</p>
+
+<p style="margin-top: 1em">Each line in the one time
+sequences file contains exactly one sequence and has the
+same format as the one for the Sequence directive. Lines
+beginning with a &rsquo;#&rsquo; character <br>
+will be ignored.</p>
+
+<p style="margin-top: 1em">Note: Do not edit the file while
+knockd is running!</p>
+
+<p style="margin-top: 1em">Seq_Timeout = &lt;timeout&gt;
+<br>
+Time to wait for a sequence to complete in seconds. If the
+time elapses before the knock is complete, it is
+discarded.</p>
+
+<p style="margin-top: 1em">TCPFlags =
+fin|syn|rst|psh|ack|urg <br>
+Only pay attention to packets that have this flag set. When
+using TCP flags, knockd will IGNORE tcp packets that
+don&rsquo;t match the flags. This is different than the
+normal <br>
+behavior, where an incorrect packet would invalidate the
+entire knock, forcing the client to start over. Using
+&quot;TCPFlags = syn&quot; is useful if you are testing over
+an SSH <br>
+connection, as the SSH traffic will usually interfere with
+(and thus invalidate) the knock.</p>
+
+<p style="margin-top: 1em">Separate multiple flags with
+commas (eg, TCPFlags = syn,ack,urg). Flags can be explicitly
+excluded by a &quot;!&quot; (eg, TCPFlags = syn,!ack).</p>
+
+<p style="margin-top: 1em">Target = &lt;ip-address&gt; <br>
+Use the specified IP address instead of the address
+determined for the Interface when matching the Sequence.
+This is useful if knockd is running on a router and you want
+<br>
+to do something in response to an actual connection attempt
+to a routed host - e.g., invoking etherwake to send the host
+a WOL packet.</p>
+
+<p style="margin-top: 1em">Start_Command = &lt;command&gt;
+<br>
+Specify the command to be executed when a client makes the
+correct port-knock. All instances of %IP% will be replaced
+with the knocker&rsquo;s IP address. The Command
+direc&acirc; <br>
+tive is an alias for Start_Command.</p>
+
+<p style="margin-top: 1em">Cmd_Timeout = &lt;timeout&gt;
+<br>
+Time to wait (in seconds) between Start_Command and
+Stop_Command. This directive is optional, only required if
+Stop_Command is used.</p>
+
+<p style="margin-top: 1em">Stop_Command = &lt;command&gt;
+<br>
+Specify the command to be executed when Cmd_Timeout seconds
+have passed since Start_Command has been executed. All
+instances of %IP% will be replaced with the knocker&rsquo;s
+<br>
+IP address. This directive is optional.</p>
+
+<p style="margin-top: 1em">SECURITY NOTES <br>
+Using the -l or --lookup commandline option to resolve DNS
+names for log entries may be a security risk! An attacker
+may find out the first port of a sequence if he can monitor
+<br>
+the DNS traffic of the host running knockd. Also a host
+supposed to be stealth (eg, dropping packets to closed TCP
+ports instead of replying with an ACK+RST packet) may give
+<br>
+itself away by resolving a DNS name if an attacker manages
+to hit the first (unknown) port of a sequence.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+knock is the accompanying port-knock client, though telnet
+or netcat could be used for simple TCP knocks instead. For
+more advanced knocks, see hping, sendip or packit.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Judd Vinet &lt;jvinet@zeroflux.org&gt;</p>
+
+<p style="margin-top: 1em">knockd 0.7 June 26, 2005
+knockd(1)</p>
+<hr>
+</body>
+</html>

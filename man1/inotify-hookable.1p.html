@@ -1,0 +1,164 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:18:45 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>HOOKABLE(1p) User Contributed Perl Documentation
+HOOKABLE(1p)</p>
+
+<p style="margin-top: 1em">NAME <br>
+inotify-hookable - blocking command-line interface to
+inotify</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+Watch a directory, tell us when things change in it:</p>
+
+<p style="margin-top: 1em">inotify-hookable
+--watch-directories /tmp/watch-this</p>
+
+<p style="margin-top: 1em">Watch a git tree, some configs,
+and a repository of static assets, restart the webserver or
+compress those assets if anything changes:</p>
+
+<p style="margin-top: 1em">inotify-hookable
+--watch-directories /etc/uwsgi --watch-directories
+/git_tree/central --watch-directories /etc/app-config
+--watch-directories /git_tree/static_assets
+--on-modify-path-command
+&quot;^(/etc/uwsgi|/git_tree/central|/etc/app-config)=sudo
+/etc/init.d/uwsgi restart&quot; --on-modify-path-command
+&quot;^/git_tree/static_assets=(cd /git_tree/static_assets
+&amp;&amp; compress_static_assets)&quot;</p>
+
+<p style="margin-top: 1em">Or watch specific files:</p>
+
+<p style="margin-top: 1em">inotify-hookable --watch-files
+/var/www/cgi-bin/mod_perl_handler --on-modify-command
+&quot;apachectl restart&quot;</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This simple command-line program is my replacement for the
+functionality offered by Plack&rsquo;s
+Filesys::Notify::Simple. I found that on very large git
+trees Plack would spend an <br>
+inordinate amount watching the filesystem for changes.</p>
+
+<p style="margin-top: 1em">This program uses
+Linux::Inotify2, so the kernel will notify it instantly when
+something changes (actually it&rsquo;s so fast that we have
+to work around how fast it sends us events).</p>
+
+<p style="margin-top: 1em">The result is that you can run
+this e.g. in a screen session and have it watch your
+development environment, and your webserver will have begun
+restarting before your finger <br>
+leaves the save button.</p>
+
+<p style="margin-top: 1em">vim and emacs temporary files
+are ignored by default (see &quot;--ignore-paths&quot;.) so
+you can edit your files without your server restarting
+unnecessarily.</p>
+
+<p style="margin-top: 1em">Currently the command-line
+interface for this is the only one that really makes sense,
+this module is entirely blocking (although it could probably
+run in another process via POE <br>
+or something). Patches welcome.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+Note that boolean options can be negated with
+&quot;--no-OPTION&quot;, e.g. &quot;--no-r&quot; or
+&quot;--no-recursive&quot; to turn off the
+&quot;--recursive&quot; option which is on by default.</p>
+
+<p style="margin-top: 1em">&quot;-w&quot; or
+&quot;--watch-directories&quot; <br>
+Specify this to watch a directory, you can give this however
+many times you like to watch lots of directories.</p>
+
+<p style="margin-top: 1em">&quot;-f&quot; or
+&quot;--watch-files&quot; <br>
+Watch a file, specify multiple times for multiple files. You
+can watch files and directories in the same command.</p>
+
+<p style="margin-top: 1em">&quot;-r&quot; or
+&quot;--recursive&quot; <br>
+If you supply this any directory you give will be
+recursively watched. This is on by default.</p>
+
+<p style="margin-top: 1em">&quot;-c&quot; or
+&quot;--on-modify-command&quot; <br>
+A command that will be run when something is modified.</p>
+
+<p style="margin-top: 1em">&quot;-C&quot; or
+&quot;--on-modify-path-command&quot; <br>
+A key-value pair where the key is a regex that&rsquo;ll be
+matched against a modified path, and the value is a command
+that&rsquo;ll be run. See the &quot;SYNOPSIS&quot; for an
+example.</p>
+
+<p style="margin-top: 1em">Useful for e.g. restarting a
+webserver if you modify directory A but compressing some
+static assets if you modify directory B.</p>
+
+<p style="margin-top: 1em">&quot;-t&quot; or
+&quot;--buffer-time&quot; <br>
+Linux will send you inotify events really fast, so fast that
+if you run something like:</p>
+
+<p style="margin-top: 1em">touch foo bar</p>
+
+<p style="margin-top: 1em">You might get an event for foo
+in one batch, followed by an event for bar later on.</p>
+
+<p style="margin-top: 1em">To deal with this we enter a
+loop when we start getting events and sleep for a default of
+100 microseconds, as long as we keep getting events we keep
+sleeping for 100 <br>
+microseconds, but as soon as we haven&rsquo;t received
+anything new we fire off our event handlers.</p>
+
+<p style="margin-top: 1em">&quot;-i&quot; or
+&quot;--ignore-paths&quot; <br>
+Regexes for files/directories to ignore events for. By
+default this is set to regexes for vim and emacs temporary
+files, &quot;qr{..*sw.&quot; and &quot;qr{. <br>
+The regexes match after any &quot;/&quot; in the path or the
+beginning of the string.</p>
+
+<p style="margin-top: 1em">&quot;-d&quot; or
+&quot;--debug&quot; <br>
+Spew out some verbose debug output while running.</p>
+
+<p style="margin-top: 1em">ACKNOWLEDGMENT <br>
+This module was originally developed at and for Booking.com.
+With approval from Booking.com, this module was generalized
+and put on CPAN, for which the authors would like to <br>
+express their gratitude.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+&Atilde;var Arnfj&Atilde;&para;r&Atilde;&deg; Bjarmason
+&lt;avar@cpan.org&gt;</p>
+
+<p style="margin-top: 1em">perl v5.22.1 2016-02-17
+HOOKABLE(1p)</p>
+<hr>
+</body>
+</html>

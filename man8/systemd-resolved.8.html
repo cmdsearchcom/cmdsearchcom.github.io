@@ -1,0 +1,237 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:16:39 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>SYSTEMD-RESOLVED.SERVICE(8) systemd-resolved.service
+SYSTEMD-RESOLVED.SERVICE(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+systemd-resolved.service, systemd-resolved - Network Name
+Resolution manager</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+systemd-resolved.service</p>
+
+
+<p style="margin-top: 1em">/usr/lib/systemd/systemd-resolved</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+systemd-resolved is a system service that provides network
+name resolution to local applications. It implements a
+caching and validating DNS/DNSSEC stub resolver, as well as
+an <br>
+LLMNR resolver and responder. Local applications may submit
+network name resolution requests via three interfaces:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The native,
+fully-featured API systemd-resolved exposes on the bus. See
+the API Documentation[1] for details. Usage of this API is
+generally recommended to clients as it is <br>
+asynchronous and fully featured (for example, properly
+returns DNSSEC validation status and interface scope for
+addresses as necessary for supporting link-local
+networking).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The glibc
+getaddrinfo(3) API as defined by RFC3493[2] and its related
+resolver functions, including gethostbyname(3). This API is
+widely supported, including beyond the Linux <br>
+platform. In its current form it does not expose DNSSEC
+validation status information however, and is synchronous
+only. This API is backed by the glibc Name Service Switch
+<br>
+(nss(5)). Usage of the glibc NSS module nss-resolve(8) is
+required in order to allow glibc&rsquo;s NSS resolver
+functions to resolve host names via systemd-resolved.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Additionally,
+systemd-resolved provides a local DNS stub listener on IP
+address 127.0.0.53 on the local loopback interface. Programs
+issuing DNS requests directly, bypassing <br>
+any local API may be directed to this stub, in order to
+connect them to systemd-resolved. Note however that it is
+strongly recommended that local programs use the glibc NSS
+<br>
+or bus APIs instead (as described above), as various network
+resolution concepts (such as link-local addressing, or LLMNR
+Unicode domains) cannot be mapped to the unicast DNS <br>
+protocol.</p>
+
+<p style="margin-top: 1em">The DNS servers contacted are
+determined from the global settings in
+/etc/systemd/resolved.conf, the per-link static settings in
+/etc/systemd/network/*.network files, the <br>
+per-link dynamic settings received over DHCP and any DNS
+server information made available by other system services.
+See resolved.conf(5) and systemd.network(5) for details
+about <br>
+systemd&rsquo;s own configuration files for DNS servers. To
+improve compatibility, /etc/resolv.conf is read in order to
+discover configured system DNS servers, but only if it is
+not a <br>
+symlink to /run/systemd/resolve/resolv.conf (see below).</p>
+
+<p style="margin-top: 1em">systemd-resolved synthesizes DNS
+resource records (RRs) for the following cases:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The local,
+configured hostname is resolved to all locally configured IP
+addresses ordered by their scope, or &acirc; if none are
+configured &acirc; the IPv4 address 127.0.0.2 (which is <br>
+on the local loopback) and the IPv6 address ::1 (which is
+the local host).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The hostnames
+&quot;localhost&quot; and &quot;localhost.localdomain&quot;
+(as well as any hostname ending in &quot;.localhost&quot; or
+&quot;.localhost.localdomain&quot;) are resolved to the IP
+addresses 127.0.0.1 <br>
+and ::1.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The hostname
+&quot;gateway&quot; is resolved to all current default
+routing gateway addresses, ordered by their metric. This
+assigns a stable hostname to the current gateway, useful
+<br>
+for referencing it independently of the current network
+configuration state.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The mappings
+defined in /etc/hosts are resolved to their configured
+addresses and back.</p>
+
+<p style="margin-top: 1em">Lookup requests are routed to
+the available DNS servers and LLMNR interfaces according to
+the following rules:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Lookups for the
+special hostname &quot;localhost&quot; are never routed to
+the network. (A few other, special domains are handled the
+same way.)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Single-label
+names are routed to all local interfaces capable of IP
+multicasting, using the LLMNR protocol. Lookups for IPv4
+addresses are only sent via LLMNR on IPv4, and <br>
+lookups for IPv6 addresses are only sent via LLMNR on IPv6.
+Lookups for the locally configured host name and the
+&quot;gateway&quot; host name are never routed to LLMNR.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Multi-label
+names are routed to all local interfaces that have a DNS
+sever configured, plus the globally configured DNS server if
+there is one. Address lookups from the <br>
+link-local address range are never routed to DNS.</p>
+
+<p style="margin-top: 1em">If lookups are routed to
+multiple interfaces, the first successful response is
+returned (thus effectively merging the lookup zones on all
+matching interfaces). If the lookup <br>
+failed on all interfaces, the last failing response is
+returned.</p>
+
+<p style="margin-top: 1em">Routing of lookups may be
+influenced by configuring per-interface domain names. See
+systemd.network(5) for details. Lookups for a hostname
+ending in one of the per-interface <br>
+domains are exclusively routed to the matching
+interfaces.</p>
+
+<p style="margin-top: 1em">See the resolved D-Bus API
+Documentation[1] for information about the APIs
+systemd-resolved provides.</p>
+
+<p style="margin-top: 1em">/ETC/RESOLV.CONF <br>
+Three modes of handling /etc/resolv.conf (see
+resolv.conf(5)) are supported:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; A static file
+/usr/lib/systemd/resolv.conf is provided that lists the
+127.0.0.53 DNS stub (see above) as only DNS server. This
+file may be symlinked from /etc/resolv.conf in <br>
+order to connect all local clients that bypass local DNS
+APIs to systemd-resolved. This mode of operation is
+recommended.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; systemd-resolved
+maintains the /run/systemd/resolve/resolv.conf file for
+compatibility with traditional Linux programs. This file may
+be symlinked from /etc/resolv.conf and <br>
+is always kept up-to-date, containing information about all
+known DNS servers. Note the file format&rsquo;s limitations:
+it does not know a concept of per-interface DNS servers and
+<br>
+hence only contains system-wide DNS server definitions. Note
+that /run/systemd/resolve/resolv.conf should not be used
+directly by applications, but only through a symlink <br>
+from /etc/resolv.conf. If this mode of operation is used
+local clients that bypass any local DNS API will also bypass
+systemd-resolved and will talk directly to the known DNS
+<br>
+servers.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Alternatively,
+/etc/resolv.conf may be managed by other packages, in which
+case systemd-resolved will read it for DNS configuration
+data. In this mode of operation <br>
+systemd-resolved is consumer rather than provider of this
+configuration file.</p>
+
+<p style="margin-top: 1em">Note that the selected mode of
+operation for this file is detected fully automatically,
+depending on whether /etc/resolv.conf is a symlink to
+/run/systemd/resolve/resolv.conf or <br>
+lists 127.0.0.53 as DNS server.</p>
+
+<p style="margin-top: 1em">SIGNALS <br>
+SIGUSR1 <br>
+Upon reception of the SIGUSR1 process signal
+systemd-resolved will dump the contents of all DNS resource
+record caches it maintains into the system logs.</p>
+
+<p style="margin-top: 1em">SIGUSR2 <br>
+Upon reception of the SIGUSR2 process signal
+systemd-resolved will flush all caches it maintains. Note
+that it should normally not be necessary to request this
+explicitly &acirc; <br>
+except for debugging purposes &acirc; as systemd-resolved
+flushes the caches automatically anyway any time the
+host&rsquo;s network configuration changes.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+systemd(1), resolved.conf(5), dnssec-trust-anchors.d(5),
+nss-resolve(8), systemd-resolve(1), resolv.conf(5),
+hosts(5), systemd.network(5),
+systemd-networkd.service(8)</p>
+
+<p style="margin-top: 1em">NOTES <br>
+1. API Documentation <br>
+
+http://www.freedesktop.org/wiki/Software/systemd/resolved</p>
+
+<p style="margin-top: 1em">2. RFC3493 <br>
+https://tools.ietf.org/html/rfc3493</p>
+
+<p style="margin-top: 1em">systemd 231
+SYSTEMD-RESOLVED.SERVICE(8)</p>
+<hr>
+</body>
+</html>

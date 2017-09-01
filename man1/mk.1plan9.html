@@ -1,0 +1,460 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:25:29 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>MK(1plan9) MK(1plan9)</p>
+
+<p style="margin-top: 1em">NAME <br>
+mk - maintain (make) related files</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+mk [ -f mkfile ] ... [ option ... ] [ target ... ]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+Mk uses the dependency rules specified in mkfile to control
+the update (usually by compilation) of targets (usually
+files) from the source files upon which they depend. The
+<br>
+mkfile (default contains a rule for each target that
+identifies the files and other targets upon which it depends
+and an sh(1) script, a recipe, to update the target. The
+script <br>
+is run if the target does not exist or if it is older than
+any of the files it depends on. Mkfile may also contain
+meta-rules that define actions for updating implicit
+targets. <br>
+If no target is specified, the target of the first rule (not
+meta-rule) in mkfile is updated.</p>
+
+<p style="margin-top: 1em">The environment variable $NPROC
+determines how many targets may be updated simultaneously;
+Some operating systems, e.g., Plan 9, set $NPROC
+automatically to the number of CPUs on <br>
+the current machine.</p>
+
+<p style="margin-top: 1em">Options are:</p>
+
+<p style="margin-top: 1em">-a Assume all targets to be out
+of date. Thus, everything is updated. <br>
+-d[egp] Produce debugging output (p is for parsing, g for
+graph building, e for execution). <br>
+-e Explain why each target is made. <br>
+-i Force any missing intermediate targets to be made. <br>
+-k Do as much work as possible in the face of errors. <br>
+-n Print, but do not execute, the commands needed to update
+the targets. <br>
+-s Make the command line arguments sequentially rather than
+in parallel. <br>
+-t Touch (update the modified date of) file targets, without
+executing any recipes. <br>
+-wtarget1,target2,... <br>
+Pretend the modify time for each target is the current time;
+useful in conjunction with -n to learn what updates would be
+triggered by modifying the targets.</p>
+
+<p style="margin-top: 1em">The mkfile <br>
+A mkfile consists of assignments (described under
+&lsquo;Environment&rsquo;) and rules. A rule contains
+targets and a tail. A target is a literal string and is
+normally a file name. The <br>
+tail contains zero or more prerequisites and an optional
+recipe, which is an shell script. Each line of the recipe
+must begin with white space. A rule takes the form</p>
+
+<p style="margin-top: 1em">target: prereq1 prereq2 <br>
+recipe using prereq1, prereq2 to build target</p>
+
+<p style="margin-top: 1em">When the recipe is executed, the
+first character on every line is elided.</p>
+
+<p style="margin-top: 1em">After the colon on the target
+line, a rule may specify attributes, described below.</p>
+
+<p style="margin-top: 1em">A meta-rule has a target of the
+form A%B where A and B are (possibly empty) strings. A
+meta-rule acts as a rule for any potential target whose name
+matches A%B with % replaced <br>
+by an arbitrary string, called the stem. In interpreting a
+meta-rule, the stem is substituted for all occurrences of %
+in the prerequisite names. In the recipe of a meta-rule,
+<br>
+the environment variable $stem contains the string matched
+by the %. For example, a meta-rule to compile a C program
+using 9c(1) might be:</p>
+
+<p style="margin-top: 1em">%: %.c <br>
+9c -c $stem.c <br>
+9l -o $stem $stem.o</p>
+
+<p style="margin-top: 1em">Meta-rules may contain an
+ampersand &amp; rather than a percent sign %. A % matches a
+maximal length string of any characters; an &amp; matches a
+maximal length string of any characters <br>
+except period or slash.</p>
+
+<p style="margin-top: 1em">The text of the mkfile is
+processed as follows. Lines beginning with &lt; followed by
+a file name are replaced by the contents of the named file.
+Lines beginning with &lt;| followed <br>
+by a file name are replaced by the output of the execution
+of the named file. Blank lines and comments, which run from
+unquoted # characters to the following newline, are <br>
+deleted. The character sequence backslash-newline is
+deleted, so long lines in mkfile may be folded. Non-recipe
+lines are processed by substituting for &lsquo;{command} the
+output of <br>
+the command when run by sh. References to variables are
+replaced by the variables&rsquo; values. Special characters
+may be quoted using single quotes &rsquo;&rsquo; as in
+sh(1).</p>
+
+<p style="margin-top: 1em">Assignments and rules are
+distinguished by the first unquoted occurrence of : (rule)
+or = (assignment).</p>
+
+<p style="margin-top: 1em">A later rule may modify or
+override an existing rule under the following
+conditions:</p>
+
+<p style="margin-top: 1em">- If the targets of the rules
+exactly match and one rule contains only a prerequisite
+clause and no recipe, the clause is added to the
+prerequisites of the other rule. If <br>
+either or both targets are virtual, the recipe is always
+executed.</p>
+
+<p style="margin-top: 1em">- If the targets of the rules
+match exactly and the prerequisites do not match and both
+rules contain recipes, mk reports an &lsquo;&lsquo;ambiguous
+recipe&rsquo;&rsquo; error.</p>
+
+<p style="margin-top: 1em">- If the target and
+prerequisites of both rules match exactly, the second rule
+overrides the first.</p>
+
+<p style="margin-top: 1em">Environment <br>
+Rules may make use of shell environment variables. A legal
+reference of the form $OBJ or ${name} is expanded as in
+sh(1). A reference of the form ${name:A%B=C%D}, where A, B,
+<br>
+C, D are (possibly empty) strings, has the value formed by
+expanding $name and substituting C for A and D for B in each
+word in $name that matches pattern A%B.</p>
+
+<p style="margin-top: 1em">Variables can be set by
+assignments of the form <br>
+var=[attr=]value <br>
+Blanks in the value break it into words. Such variables are
+exported to the environment of recipes as they are executed,
+unless U, the only legal attribute attr, is present. <br>
+The initial value of a variable is taken from (in increasing
+order of precedence) the default values below, mk&rsquo;s
+environment, the mkfiles, and any command line assignment as
+an <br>
+argument to mk. A variable assignment argument overrides the
+first (but not any subsequent) assignment to that
+variable.</p>
+
+<p style="margin-top: 1em">The variable MKFLAGS contains
+all the option arguments (arguments starting with or
+containing and MKARGS contains all the targets in the call
+to mk.</p>
+
+<p style="margin-top: 1em">The variable MKSHELL contains
+the shell command line mk uses to run recipes. If the first
+word of the command ends in rc or rcsh, mk uses
+rc(1)&rsquo;s quoting rules; otherwise it <br>
+uses sh(1)&rsquo;s. The MKSHELL variable is consulted when
+the mkfile is read, not when it is executed, so that
+different shells can be used within a single mkfile:</p>
+
+<p style="margin-top: 1em">MKSHELL=$PLAN9/bin/rc <br>
+use-rc:V: <br>
+for(i in a b c) echo $i</p>
+
+<p style="margin-top: 1em">MKSHELL=sh <br>
+use-sh:V: <br>
+for i in a b c; do echo $i; done</p>
+
+<p style="margin-top: 1em">Mkfiles included via &lt; or
+&lt;| (q.v.) see their own private copy of MKSHELL, which
+always starts set to sh .</p>
+
+<p style="margin-top: 1em">Dynamic information may be
+included in the mkfile by using a line of the form</p>
+
+<p style="margin-top: 1em">&lt;|command args</p>
+
+<p style="margin-top: 1em">This runs the command command
+with the given arguments args and pipes its standard output
+to mk to be included as part of the mkfile. For instance,
+the Inferno kernels use this <br>
+technique to run a shell command with an awk script and a
+configuration file as arguments in order for the awk script
+to process the file and output a set of variables and their
+<br>
+values.</p>
+
+<p style="margin-top: 1em">Execution <br>
+During execution, mk determines which targets must be
+updated, and in what order, to build the names specified on
+the command line. It then runs the associated recipes.</p>
+
+<p style="margin-top: 1em">A target is considered up to
+date if it has no prerequisites or if all its prerequisites
+are up to date and it is newer than all its prerequisites.
+Once the recipe for a target <br>
+has executed, the target is considered up to date.</p>
+
+<p style="margin-top: 1em">The date stamp used to determine
+if a target is up to date is computed differently for
+different types of targets. If a target is virtual (the
+target of a rule with the V <br>
+attribute), its date stamp is initially zero; when the
+target is updated the date stamp is set to the most recent
+date stamp of its prerequisites. Otherwise, if a target does
+<br>
+not exist as a file, its date stamp is set to the most
+recent date stamp of its prerequisites, or zero if it has no
+prerequisites. Otherwise, the target is the name of a file
+<br>
+and the target&rsquo;s date stamp is always that
+file&rsquo;s modification date. The date stamp is computed
+when the target is needed in the execution of a rule; it is
+not a static value.</p>
+
+<p style="margin-top: 1em">Nonexistent targets that have
+prerequisites and are themselves prerequisites are treated
+specially. Such a target t is given the date stamp of its
+most recent prerequisite and <br>
+if this causes all the targets which have t as a
+prerequisite to be up to date, t is considered up to date.
+Otherwise, t is made in the normal fashion. The -i flag
+overrides <br>
+this special treatment.</p>
+
+<p style="margin-top: 1em">Files may be made in any order
+that respects the preceding restrictions.</p>
+
+<p style="margin-top: 1em">A recipe is executed by
+supplying the recipe as standard input to the command
+/bin/sh. (Note that unlike make, mk feeds the entire recipe
+to the shell rather than running each <br>
+line of the recipe separately.) The environment is augmented
+by the following variables:</p>
+
+<p style="margin-top: 1em">$alltarget all the targets of
+this rule.</p>
+
+<p style="margin-top: 1em">$newprereq the prerequisites
+that caused this rule to execute.</p>
+
+<p style="margin-top: 1em">$newmember the prerequisites
+that are members of an aggregate that caused this rule to
+execute. When the prerequisites of a rule are members of an
+aggregate, $newprereq con&acirc; <br>
+tains the name of the aggregate and out of date members,
+while $newmember contains only the name of the members.</p>
+
+<p style="margin-top: 1em">$nproc the process slot for this
+recipe. It satisfies 0&acirc;&curren;$nproc&lt;$NPROC.</p>
+
+<p style="margin-top: 1em">$pid the process id for the mk
+executing the recipe.</p>
+
+<p style="margin-top: 1em">$prereq all the prerequisites
+for this rule.</p>
+
+<p style="margin-top: 1em">$stem if this is a meta-rule,
+$stem is the string that matched % or &amp;. Otherwise, it
+is empty. For regular expression meta-rules (see below), the
+variables are set to <br>
+the corresponding subexpressions.</p>
+
+<p style="margin-top: 1em">$target the targets for this
+rule that need to be remade.</p>
+
+<p style="margin-top: 1em">These variables are available
+only during the execution of a recipe, not while evaluating
+the mkfile.</p>
+
+<p style="margin-top: 1em">Unless the rule has the Q
+attribute, the recipe is printed prior to execution with
+recognizable environment variables expanded. Commands
+returning error status cause mk to ter&acirc; <br>
+minate.</p>
+
+<p style="margin-top: 1em">Recipes and backquoted rc
+commands in places such as assignments execute in a copy of
+mk&rsquo;s environment; changes they make to environment
+variables are not visible from mk.</p>
+
+<p style="margin-top: 1em">Variable substitution in a rule
+is done when the rule is read; variable substitution in the
+recipe is done when the recipe is executed. For example:</p>
+
+<p style="margin-top: 1em">bar=a.c <br>
+foo: $bar <br>
+$CC -o foo $bar <br>
+bar=b.c</p>
+
+<p style="margin-top: 1em">will compile b.c into foo, if
+a.c is newer than foo.</p>
+
+<p style="margin-top: 1em">Aggregates <br>
+Names of the form a(b) refer to member b of the aggregate a.
+Currently, the only aggregates supported are 9ar (see 9c(1))
+archives.</p>
+
+<p style="margin-top: 1em">Attributes <br>
+The colon separating the target from the prerequisites may
+be immediately followed by attributes and another colon. The
+attributes are:</p>
+
+<p style="margin-top: 1em">D If the recipe exits with a
+non-null status, the target is deleted.</p>
+
+<p style="margin-top: 1em">E Continue execution if the
+recipe draws errors.</p>
+
+<p style="margin-top: 1em">N If there is no recipe, the
+target has its time updated.</p>
+
+<p style="margin-top: 1em">n The rule is a meta-rule that
+cannot be a target of a virtual rule. Only files match the
+pattern in the target.</p>
+
+<p style="margin-top: 1em">P The characters after the P
+until the terminating : are taken as a program name. It will
+be invoked as sh -c prog &rsquo;arg1&rsquo;
+&rsquo;arg2&rsquo; and should return a zero exit status if
+and <br>
+only if arg1 is up to date with respect to arg2. Date stamps
+are still propagated in the normal way.</p>
+
+<p style="margin-top: 1em">Q The recipe is not printed
+prior to execution.</p>
+
+<p style="margin-top: 1em">R The rule is a meta-rule using
+regular expressions. In the rule, % has no special meaning.
+The target is interpreted as a regular expression as defined
+in regexp(7). The <br>
+prerequisites may contain references to subexpressions in
+form 0 as in the substitute command of sed(1).</p>
+
+<p style="margin-top: 1em">U The targets are considered to
+have been updated even if the recipe did not do so.</p>
+
+<p style="margin-top: 1em">V The targets of this rule are
+marked as virtual. They are distinct from files of the same
+name.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+A simple mkfile to compile a program:</p>
+
+<p style="margin-top: 1em">&lt;/$objtype/mkfile</p>
+
+<p style="margin-top: 1em">prog: a.$O b.$O c.$O <br>
+$LD $LDFLAGS -o $target $prereq</p>
+
+<p style="margin-top: 1em">%.$O: %.c <br>
+$CC $CFLAGS $stem.c</p>
+
+<p style="margin-top: 1em">Override flag settings in the
+mkfile:</p>
+
+<p style="margin-top: 1em">% mk target &rsquo;CFLAGS=-S
+-w&rsquo;</p>
+
+<p style="margin-top: 1em">Maintain a library:</p>
+
+<p style="margin-top: 1em">libc.a(%.$O):N: %.$O <br>
+libc.a: libc.a(abs.$O) libc.a(access.$O) libc.a(alarm.$O)
+... <br>
+ar r libc.a $newmember</p>
+
+<p style="margin-top: 1em">String expression variables to
+derive names from a master list:</p>
+
+<p style="margin-top: 1em">NAMES=alloc arc bquote builtins
+expand main match mk var word <br>
+OBJ=${NAMES:%=%.$O}</p>
+
+<p style="margin-top: 1em">Regular expression
+meta-rules:</p>
+
+<p style="margin-top: 1em">([^/]*)/(.*).$O:R: 1/2.c <br>
+cd $stem1; $CC $CFLAGS $stem2.c</p>
+
+<p style="margin-top: 1em">A correct way to deal with
+yacc(1) grammars. The file lex.c includes the file x.tab.h
+rather than y.tab.h in order to reflect changes in content,
+not just modification time.</p>
+
+<p style="margin-top: 1em">lex.$O: x.tab.h <br>
+x.tab.h: y.tab.h <br>
+cmp -s x.tab.h y.tab.h || cp y.tab.h x.tab.h <br>
+y.tab.c y.tab.h: gram.y <br>
+$YACC -d gram.y</p>
+
+<p style="margin-top: 1em">The above example could also use
+the P attribute for the x.tab.h rule:</p>
+
+<p style="margin-top: 1em">x.tab.h:Pcmp -s: y.tab.h <br>
+cp y.tab.h x.tab.h</p>
+
+<p style="margin-top: 1em">SOURCE <br>
+/src/cmd/mk</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+sh(1), regexp(7)</p>
+
+<p style="margin-top: 1em">A. Hume, &lsquo;&lsquo;Mk: a
+Successor to Make&rsquo;&rsquo; (Tenth Edition Research Unix
+Manuals).</p>
+
+<p style="margin-top: 1em">Andrew G. Hume and Bob
+Flandrena, &lsquo;&lsquo;Maintaining Files on Plan 9 with
+Mk&rsquo;&rsquo;. DOCPREFIX/doc/mk.pdf</p>
+
+<p style="margin-top: 1em">HISTORY <br>
+Andrew Hume wrote mk for Tenth Edition Research Unix. It was
+later ported to Plan 9. This software is a port of the Plan
+9 version back to Unix.</p>
+
+<p style="margin-top: 1em">BUGS <br>
+Identical recipes for regular expression meta-rules only
+have one target.</p>
+
+<p style="margin-top: 1em">Seemingly appropriate input like
+CFLAGS=-DHZ=60 is parsed as an erroneous attribute; correct
+it by inserting a space after the first</p>
+
+<p style="margin-top: 1em">The recipes printed by mk before
+being passed to the shell for execution are sometimes
+erroneously expanded for printing. Don&rsquo;t trust
+what&rsquo;s printed; rely on what the shell <br>
+does.</p>
+ 
+<p style="margin-top: 1em">MK(1plan9)</p>
+<hr>
+</body>
+</html>

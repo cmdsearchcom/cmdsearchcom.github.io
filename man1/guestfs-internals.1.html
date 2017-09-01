@@ -1,0 +1,575 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:16:02 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>guestfs-internals(1) Virtualization Support
+guestfs-internals(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+guestfs-internals - architecture and internals of
+libguestfs</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+This manual page is for hackers who want to understand how
+libguestfs works internally. This is just a description of
+how libguestfs works now, and it may change at any time in
+<br>
+the future.</p>
+
+<p style="margin-top: 1em">ARCHITECTURE <br>
+Internally, libguestfs is implemented by running an
+appliance (a special type of small virtual machine) using
+qemu(1). Qemu runs as a child process of the main
+program.</p>
+
+
+<p style="margin-top: 1em">&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc; main program &acirc; <br>
+&acirc; &acirc; <br>
+&acirc; &acirc; child process / appliance <br>
+&acirc; &acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc; &acirc; &acirc; qemu &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+RPC &acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc; <br>
+&acirc; libguestfs
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&para;
+guestfsd &acirc; &acirc; <br>
+&acirc; &acirc; &acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&curren;
+&acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc; &acirc; Linux kernel &acirc; &acirc; <br>
+&acirc;
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&not;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+&acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc; <br>
+&acirc; virtio-scsi <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acute;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;
+<br>
+&acirc; Device or &acirc; <br>
+&acirc; disk image &acirc; <br>
+
+&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;&acirc;</p>
+
+<p style="margin-top: 1em">The library, linked to the main
+program, creates the child process and hence the appliance
+in the &quot;guestfs_launch&quot; in guestfs(3)
+function.</p>
+
+<p style="margin-top: 1em">Inside the appliance is a Linux
+kernel and a complete stack of userspace tools (such as LVM
+and ext2 programs) and a small controlling daemon called
+&quot;guestfsd&quot;. The library <br>
+talks to &quot;guestfsd&quot; using remote procedure calls
+(RPC). There is a mostly one-to-one correspondence between
+libguestfs API calls and RPC calls to the daemon. Lastly the
+disk <br>
+image(s) are attached to the qemu process which translates
+device access by the appliance&rsquo;s Linux kernel into
+accesses to the image.</p>
+
+<p style="margin-top: 1em">A common misunderstanding is
+that the appliance &quot;is&quot; the virtual machine.
+Although the disk image you are attached to might also be
+used by some virtual machine, libguestfs <br>
+doesn&rsquo;t know or care about this. (But you will care if
+both libguestfs&rsquo;s qemu process and your virtual
+machine are trying to update the disk image at the same
+time, since these <br>
+usually results in massive disk corruption).</p>
+
+<p style="margin-top: 1em">STATE MACHINE <br>
+libguestfs uses a state machine to model the child
+process:</p>
+
+<p style="margin-top: 1em">| <br>
+guestfs_create / guestfs_create_flags <br>
+| <br>
+| <br>
+____V_____ <br>
+/ | CONFIG | <br>
+__________/ <br>
+^ ^ | &nbsp; &nbsp;guestfs_launch <br>
+| ___V______ <br>
+| / | | LAUNCHING | <br>
+| ___________/ <br>
+| / <br>
+| guestfs_launch <br>
+| / <br>
+__|____V <br>
+/ | READY | <br>
+________/</p>
+
+<p style="margin-top: 1em">The normal transitions are (1)
+CONFIG (when the handle is created, but there is no child
+process), (2) LAUNCHING (when the child process is booting
+up), (3) READY meaning the <br>
+appliance is up, actions can be issued to, and carried out
+by, the child process.</p>
+
+<p style="margin-top: 1em">The guest may be killed by
+&quot;guestfs_kill_subprocess&quot; in guestfs(3), or may
+die asynchronously at any time (eg. due to some internal
+error), and that causes the state to <br>
+transition back to CONFIG.</p>
+
+<p style="margin-top: 1em">Configuration commands for qemu
+such as &quot;guestfs_set_path&quot; in guestfs(3) can only
+be issued when in the CONFIG state.</p>
+
+<p style="margin-top: 1em">The API offers one call that
+goes from CONFIG through LAUNCHING to READY.
+&quot;guestfs_launch&quot; in guestfs(3) blocks until the
+child process is READY to accept commands (or until <br>
+some failure or timeout). &quot;guestfs_launch&quot; in
+guestfs(3) internally moves the state from CONFIG to
+LAUNCHING while it is running.</p>
+
+<p style="margin-top: 1em">API actions such as
+&quot;guestfs_mount&quot; in guestfs(3) can only be issued
+when in the READY state. These API calls block waiting for
+the command to be carried out. There are no non- <br>
+blocking versions, and no way to issue more than one command
+per handle at the same time.</p>
+
+<p style="margin-top: 1em">Finally, the child process sends
+asynchronous messages back to the main program, such as
+kernel log messages. You can register a callback to receive
+these messages.</p>
+
+<p style="margin-top: 1em">INTERNALS <br>
+APPLIANCE BOOT PROCESS <br>
+This process has evolved and continues to evolve. The
+description here corresponds only to the current version of
+libguestfs and is provided for information only.</p>
+
+<p style="margin-top: 1em">In order to follow the stages
+involved below, enable libguestfs debugging (set the
+environment variable &quot;LIBGUESTFS_DEBUG=1&quot;).</p>
+
+<p style="margin-top: 1em">Create the appliance <br>
+&quot;supermin --build&quot; is invoked to create the
+kernel, a small initrd and the appliance.</p>
+
+<p style="margin-top: 1em">The appliance is cached in
+/var/tmp/.guestfs-&lt;UID&gt; (or in another directory if
+&quot;LIBGUESTFS_CACHEDIR&quot; or &quot;TMPDIR&quot; are
+set).</p>
+
+<p style="margin-top: 1em">For a complete description of
+how the appliance is created and cached, read the
+supermin(1) man page.</p>
+
+<p style="margin-top: 1em">Start qemu and boot the kernel
+<br>
+qemu is invoked to boot the kernel.</p>
+
+<p style="margin-top: 1em">Run the initrd <br>
+&quot;supermin --build&quot; builds a small initrd. The
+initrd is not the appliance. The purpose of the initrd is to
+load enough kernel modules in order that the appliance
+itself can <br>
+be mounted and started.</p>
+
+<p style="margin-top: 1em">The initrd is a cpio archive
+called /var/tmp/.guestfs-&lt;UID&gt;/appliance.d/initrd.</p>
+
+<p style="margin-top: 1em">When the initrd has started you
+will see messages showing that kernel modules are being
+loaded, similar to this:</p>
+
+<p style="margin-top: 1em">supermin: ext2 mini initrd
+starting up <br>
+supermin: mounting /sys <br>
+supermin: internal insmod libcrc32c.ko <br>
+supermin: internal insmod crc32c-intel.ko</p>
+
+<p style="margin-top: 1em">Find and mount the appliance
+device <br>
+The appliance is a sparse file containing an ext2 filesystem
+which contains a familiar (although reduced in size) Linux
+operating system. It would normally be called <br>
+/var/tmp/.guestfs-&lt;UID&gt;/appliance.d/root.</p>
+
+<p style="margin-top: 1em">The regular disks being
+inspected by libguestfs are the first devices exposed by
+qemu (eg. as /dev/vda).</p>
+
+<p style="margin-top: 1em">The last disk added to qemu is
+the appliance itself (eg. /dev/vdb if there was only one
+regular disk).</p>
+
+<p style="margin-top: 1em">Thus the final job of the initrd
+is to locate the appliance disk, mount it, and switch root
+into the appliance, and run /init from the appliance.</p>
+
+<p style="margin-top: 1em">If this works successfully you
+will see messages such as:</p>
+
+<p style="margin-top: 1em">supermin: picked
+/sys/block/vdb/dev as root device <br>
+supermin: creating /dev/root as block special 252:16 <br>
+supermin: mounting new root on /root <br>
+supermin: chroot <br>
+Starting /init script ...</p>
+
+<p style="margin-top: 1em">Note that &quot;Starting /init
+script ...&quot; indicates that the appliance&rsquo;s init
+script is now running.</p>
+
+<p style="margin-top: 1em">Initialize the appliance <br>
+The appliance itself now initializes itself. This involves
+starting certain processes like &quot;udev&quot;, possibly
+printing some debug information, and finally running the
+daemon <br>
+(&quot;guestfsd&quot;).</p>
+
+<p style="margin-top: 1em">The daemon <br>
+Finally the daemon (&quot;guestfsd&quot;) runs inside the
+appliance. If it runs you should see:</p>
+
+<p style="margin-top: 1em">verbose daemon enabled</p>
+
+<p style="margin-top: 1em">The daemon expects to see a
+named virtio-serial port exposed by qemu and connected on
+the other end to the library.</p>
+
+<p style="margin-top: 1em">The daemon connects to this port
+(and hence to the library) and sends a four byte message
+&quot;GUESTFS_LAUNCH_FLAG&quot;, which initiates the
+communication protocol (see below).</p>
+
+<p style="margin-top: 1em">COMMUNICATION PROTOCOL <br>
+Don&rsquo;t rely on using this protocol directly. This
+section documents how it currently works, but it may change
+at any time.</p>
+
+<p style="margin-top: 1em">The protocol used to talk
+between the library and the daemon running inside the qemu
+virtual machine is a simple RPC mechanism built on top of
+XDR (RFC 1014, RFC 1832, RFC 4506).</p>
+
+<p style="margin-top: 1em">The detailed format of
+structures is in src/guestfs_protocol.x (note: this file is
+automatically generated).</p>
+
+<p style="margin-top: 1em">There are two broad cases,
+ordinary functions that don&rsquo;t have any
+&quot;FileIn&quot; and &quot;FileOut&quot; parameters, which
+are handled with very simple request/reply messages. Then
+there are <br>
+functions that have any &quot;FileIn&quot; or
+&quot;FileOut&quot; parameters, which use the same request
+and reply messages, but they may also be followed by files
+sent using a chunked encoding.</p>
+
+<p style="margin-top: 1em">ORDINARY FUNCTIONS (NO
+FILEIN/FILEOUT PARAMS)</p>
+
+<p style="margin-top: 1em">For ordinary functions, the
+request message is:</p>
+
+<p style="margin-top: 1em">total length (header +
+arguments, <br>
+but not including the length word itself) <br>
+struct guestfs_message_header (encoded as XDR) <br>
+struct guestfs_&lt;foo&gt;_args (encoded as XDR)</p>
+
+<p style="margin-top: 1em">The total length field allows
+the daemon to allocate a fixed size buffer into which it
+slurps the rest of the message. As a result, the total
+length is limited to <br>
+&quot;GUESTFS_MESSAGE_MAX&quot; bytes (currently 4MB), which
+means the effective size of any request is limited to
+somewhere under this size.</p>
+
+<p style="margin-top: 1em">Note also that many functions
+don&rsquo;t take any arguments, in which case the
+&quot;guestfs_foo_args&quot; is completely omitted.</p>
+
+<p style="margin-top: 1em">The header contains the
+procedure number (&quot;guestfs_proc&quot;) which is how the
+receiver knows what type of args structure to expect, or
+none at all.</p>
+
+<p style="margin-top: 1em">For functions that take optional
+arguments, the optional arguments are encoded in the
+&quot;guestfs_foo_args&quot; structure in the same way as
+ordinary arguments. A bitmask in the header <br>
+indicates which optional arguments are meaningful. The
+bitmask is also checked to see if it contains bits set which
+the daemon does not know about (eg. if more optional <br>
+arguments were added in a later version of the library), and
+this causes the call to be rejected.</p>
+
+<p style="margin-top: 1em">The reply message for ordinary
+functions is:</p>
+
+<p style="margin-top: 1em">total length (header + ret, <br>
+but not including the length word itself) <br>
+struct guestfs_message_header (encoded as XDR) <br>
+struct guestfs_&lt;foo&gt;_ret (encoded as XDR)</p>
+
+<p style="margin-top: 1em">As above the
+&quot;guestfs_foo_ret&quot; structure may be completely
+omitted for functions that return no formal return
+values.</p>
+
+<p style="margin-top: 1em">As above the total length of the
+reply is limited to &quot;GUESTFS_MESSAGE_MAX&quot;.</p>
+
+<p style="margin-top: 1em">In the case of an error, a flag
+is set in the header, and the reply message is slightly
+changed:</p>
+
+<p style="margin-top: 1em">total length (header + error,
+<br>
+but not including the length word itself) <br>
+struct guestfs_message_header (encoded as XDR) <br>
+struct guestfs_message_error (encoded as XDR)</p>
+
+<p style="margin-top: 1em">The
+&quot;guestfs_message_error&quot; structure contains the
+error message as a string.</p>
+
+<p style="margin-top: 1em">FUNCTIONS THAT HAVE FILEIN
+PARAMETERS</p>
+
+<p style="margin-top: 1em">A &quot;FileIn&quot; parameter
+indicates that we transfer a file into the guest. The normal
+request message is sent (see above). However this is
+followed by a sequence of file chunks.</p>
+
+<p style="margin-top: 1em">total length (header +
+arguments, <br>
+but not including the length word itself, <br>
+and not including the chunks) <br>
+struct guestfs_message_header (encoded as XDR) <br>
+struct guestfs_&lt;foo&gt;_args (encoded as XDR) <br>
+sequence of chunks for FileIn param #0 <br>
+sequence of chunks for FileIn param #1 etc.</p>
+
+<p style="margin-top: 1em">The &quot;sequence of
+chunks&quot; is:</p>
+
+<p style="margin-top: 1em">length of chunk (not including
+length word itself) <br>
+struct guestfs_chunk (encoded as XDR) <br>
+length of chunk <br>
+struct guestfs_chunk (encoded as XDR) <br>
+... <br>
+length of chunk <br>
+struct guestfs_chunk (with data.data_len == 0)</p>
+
+<p style="margin-top: 1em">The final chunk has the
+&quot;data_len&quot; field set to zero. Additionally a flag
+is set in the final chunk to indicate either successful
+completion or early cancellation.</p>
+
+<p style="margin-top: 1em">At time of writing there are no
+functions that have more than one FileIn parameter. However
+this is (theoretically) supported, by sending the sequence
+of chunks for each FileIn <br>
+parameter one after another (from left to right).</p>
+
+<p style="margin-top: 1em">Both the library (sender) and
+the daemon (receiver) may cancel the transfer. The library
+does this by sending a chunk with a special flag set to
+indicate cancellation. When the <br>
+daemon sees this, it cancels the whole RPC, does not send
+any reply, and goes back to reading the next request.</p>
+
+<p style="margin-top: 1em">The daemon may also cancel. It
+does this by writing a special word
+&quot;GUESTFS_CANCEL_FLAG&quot; to the socket. The library
+listens for this during the transfer, and if it gets it, it
+<br>
+will cancel the transfer (it sends a cancel chunk). The
+special word is chosen so that even if cancellation happens
+right at the end of the transfer (after the library has <br>
+finished writing and has started listening for the reply),
+the &quot;spurious&quot; cancel flag will not be confused
+with the reply message.</p>
+
+<p style="margin-top: 1em">This protocol allows the
+transfer of arbitrary sized files (no 32 bit limit), and
+also files where the size is not known in advance (eg. from
+pipes or sockets). However the <br>
+chunks are rather small
+(&quot;GUESTFS_MAX_CHUNK_SIZE&quot;), so that neither the
+library nor the daemon need to keep much in memory.</p>
+
+<p style="margin-top: 1em">FUNCTIONS THAT HAVE FILEOUT
+PARAMETERS</p>
+
+<p style="margin-top: 1em">The protocol for FileOut
+parameters is exactly the same as for FileIn parameters, but
+with the roles of daemon and library reversed.</p>
+
+<p style="margin-top: 1em">total length (header + ret, <br>
+but not including the length word itself, <br>
+and not including the chunks) <br>
+struct guestfs_message_header (encoded as XDR) <br>
+struct guestfs_&lt;foo&gt;_ret (encoded as XDR) <br>
+sequence of chunks for FileOut param #0 <br>
+sequence of chunks for FileOut param #1 etc.</p>
+
+<p style="margin-top: 1em">INITIAL MESSAGE</p>
+
+<p style="margin-top: 1em">When the daemon launches it
+sends an initial word (&quot;GUESTFS_LAUNCH_FLAG&quot;)
+which indicates that the guest and daemon is alive. This is
+what &quot;guestfs_launch&quot; in guestfs(3) waits <br>
+for.</p>
+
+<p style="margin-top: 1em">PROGRESS NOTIFICATION
+MESSAGES</p>
+
+<p style="margin-top: 1em">The daemon may send progress
+notification messages at any time. These are distinguished
+by the normal length word being replaced by
+&quot;GUESTFS_PROGRESS_FLAG&quot;, followed by a fixed <br>
+size progress message.</p>
+
+<p style="margin-top: 1em">The library turns them into
+progress callbacks (see &quot;GUESTFS_EVENT_PROGRESS&quot;
+in guestfs(3)) if there is a callback registered, or
+discards them if not.</p>
+
+<p style="margin-top: 1em">The daemon self-limits the
+frequency of progress messages it sends (see
+&quot;daemon/proto.c:notify_progress&quot;). Not all calls
+generate progress messages.</p>
+
+<p style="margin-top: 1em">FIXED APPLIANCE <br>
+When libguestfs (or libguestfs tools) are run, they search a
+path looking for an appliance. The path is built into
+libguestfs, or can be set using the
+&quot;LIBGUESTFS_PATH&quot; <br>
+environment variable.</p>
+
+<p style="margin-top: 1em">Normally a supermin appliance is
+located on this path (see &quot;SUPERMIN APPLIANCE&quot; in
+supermin(1)). libguestfs reconstructs this into a full
+appliance by running &quot;supermin <br>
+--build&quot;.</p>
+
+<p style="margin-top: 1em">However, a simpler &quot;fixed
+appliance&quot; can also be used. libguestfs detects this by
+looking for a directory on the path containing all the
+following files:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; kernel</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; initrd</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; root</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; README.fixed
+(note that it must be present as well)</p>
+
+<p style="margin-top: 1em">If the fixed appliance is found,
+libguestfs skips supermin entirely and just runs the virtual
+machine (using qemu or the current backend, see
+&quot;BACKEND&quot; in guestfs(3)) with the <br>
+kernel, initrd and root disk from the fixed appliance.</p>
+
+<p style="margin-top: 1em">Thus the fixed appliance can be
+used when a platform or a Linux distribution does not
+support supermin. You build the fixed appliance on a
+platform that does support supermin <br>
+using libguestfs-make-fixed-appliance(1), copy it over, and
+use that to run libguestfs.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+guestfs(3), guestfs-hacking(3), guestfs-examples(3),
+libguestfs-test-tool(1), libguestfs-make-fixed-appliance(1),
+http://libguestfs.org/.</p>
+
+<p style="margin-top: 1em">AUTHORS <br>
+Richard W.M. Jones (&quot;rjones at redhat dot
+com&quot;)</p>
+
+<p style="margin-top: 1em">COPYRIGHT <br>
+Copyright (C) 2009-2016 Red Hat Inc.</p>
+
+<p style="margin-top: 1em">LICENSE <br>
+This library is free software; you can redistribute it
+and/or modify it under the terms of the GNU Lesser General
+Public License as published by the Free Software Foundation;
+<br>
+either version 2 of the License, or (at your option) any
+later version.</p>
+
+<p style="margin-top: 1em">This library is distributed in
+the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR <br>
+PURPOSE. See the GNU Lesser General Public License for more
+details.</p>
+
+<p style="margin-top: 1em">You should have received a copy
+of the GNU Lesser General Public License along with this
+library; if not, write to the Free Software Foundation,
+Inc., 51 Franklin Street, Fifth <br>
+Floor, Boston, MA 02110-1301 USA</p>
+
+<p style="margin-top: 1em">BUGS <br>
+To get a list of bugs against libguestfs, use this link:
+https://bugzilla.redhat.com/buglist.cgi?component=libguestfs&amp;product=Virtualization+Tools</p>
+
+<p style="margin-top: 1em">To report a new bug against
+libguestfs, use this link:
+https://bugzilla.redhat.com/enter_bug.cgi?component=libguestfs&amp;product=Virtualization+Tools</p>
+
+<p style="margin-top: 1em">When reporting a bug, please
+supply:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The version of
+libguestfs.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Where you got
+libguestfs (eg. which Linux distro, compiled from source,
+etc)</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Describe the bug
+accurately and give a way to reproduce it.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Run
+libguestfs-test-tool(1) and paste the complete, unedited
+output into the bug report.</p>
+
+<p style="margin-top: 1em">libguestfs-1.32.7 2016-08-08
+guestfs-internals(1)</p>
+<hr>
+</body>
+</html>

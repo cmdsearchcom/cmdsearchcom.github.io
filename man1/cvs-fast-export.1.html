@@ -1,0 +1,711 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:01:51 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>CVS-FAST-EXPORT(1) CVS-FAST-EXPORT(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+cvs-fast-export - fast-export history from a CVS repository
+or RCS collection.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+cvs-fast-export [-h] [-C] [-F] [-a] [-w fuzz] [-g] [-l] [-v]
+[-q] [-V] [-T] [-p] [-P] [-i date] [-k expansion] [-A
+authormap] [-t threads] [-R revmap] [--reposurgeon] [-e
+remote] <br>
+[-s stripprefix]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+cvs-fast-export tries to group the per-file commits and tags
+in a RCS file collection or CVS project repository into
+per-project changeset commits with common metadata, in the
+<br>
+style of Subversion and later version-control systems.</p>
+
+<p style="margin-top: 1em">This tool is best used in
+conjunction with reposurgeon(1). Plain cvs-fast-export
+conversions contain various sorts of fossils that
+reposurgeon is good for cleaning up. See the <br>
+DVCS Migration HOWTO to learn about the sanity-checking and
+polishing steps required for a really high-quality
+conversion, including reference lifting and various sorts of
+<br>
+artifact cleanup.</p>
+
+<p style="margin-top: 1em">If arguments are supplied, the
+program assumes all ending with the extension &quot;,v&quot;
+are master files and reads them in. If no arguments are
+supplied, the program reads filenames <br>
+from stdin, one per line. Directories and files not ending
+in &quot;,v&quot; are skipped. (But see the description of
+the -P for how to change this behavior.)</p>
+
+<p style="margin-top: 1em">Files from either Unix CVS or
+CVS-NT are handled. If a collection of files has commitid
+fields, changesets will be constructed reliably using
+those.</p>
+
+<p style="margin-top: 1em">In the default mode, which
+generates a git-style fast-export stream to standard
+output:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The prefix given
+using the -s option or, if the option is omitted, the
+longest common prefix of the paths is discarded from each
+path.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Files in CVS
+Attic and RCS directories are treated as though the
+&quot;Attic/&quot; or &quot;RCS/&quot; portion of the path
+were absent. This usually restores the history of files that
+were <br>
+deleted.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Permissions on
+all fileops related to a particular file will be controlled
+by the permissions on the corresponding master. If the
+executable bit on the master is on, all its <br>
+fileops will have 100755 permissions; otherwise 100644.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; A set of file
+operations is coalesced into a changeset if either (a) they
+all share the same commitid, or (b) all have no commitid but
+identical change comments, authors, and <br>
+modification dates within the window defined by the
+time-fuzz parameter. Unlike some other exporters, no attempt
+is made to derive changesets from shared tags.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Commits are
+issued in time order unless the cvs-fast-export detects that
+some parent is younger than its child (this is unlikely but
+possible in cases of severe clock skew). <br>
+In that case you will see a warning on standard error and
+the emission order is guaranteed topologically correct, but
+otherwise not specified (and is subject to change in <br>
+future versions of this program).</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; CVS tags become
+git lightweight tags when they can be unambiguously
+associated with a changeset. If the same tag is attached to
+file deltas that resolve to multiple <br>
+changesets, it is reported as if attached to the last of
+them.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; The HEAD branch
+is renamed to master.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Other tag and
+branch names are sanitized to be legal for git; the
+characters ~^ are removed.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; Since .cvsignore
+files have a syntax upward-compatible with that of
+.gitignore files, they&acirc;re renamed. In order to
+simulate the default ignore behavior of CVS, those defaults
+<br>
+are prepended to root .cvsignore blobs renamed to
+.gitignore, and a root .gitignore containing the defaults is
+generated if no such blobs exist.</p>
+
+<p style="margin-top: 1em">See the later section on RCS/CVS
+LIMITATIONS for more information on edge cases and
+conversion problems.</p>
+
+<p style="margin-top: 1em">This program does not depend on
+any of the CVS metadata held outside the individual content
+files (e.g. under CVSROOT).</p>
+
+<p style="margin-top: 1em">The variable TMPDIR is honored
+and used when generating a temporary directory in which to
+store file content during processing.</p>
+
+<p style="margin-top: 1em">This program treats the file
+contents of the source CVS or RCS repository, and their
+filenames. as uninterpreted byte sequences to be passed
+through to the git conversion without <br>
+re-encoding. In particular, it makes no attempt to fix up ),
+nor does it know vs. Macintosh line endings (Unix vs,
+Windows about what repository filenames might collide <br>
+with special filenames on any given platform. Optionally it
+may expand CVS $-keywords, but this is not reecommended.</p>
+
+<p style="margin-top: 1em">This program treats change
+comments as uninterpreted byte sequences to be passed
+through to the git conversipn without change or re-encoding.
+If you need to re-encode (e.g, from <br>
+Latin-1 to UTF-8) or remap CVS version IDs to something
+useful, use cvs-fast-export in conjuction with the transcode
+and references lift commands of reposurgeon(1).</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-h <br>
+Display usage summary.</p>
+
+<p style="margin-top: 1em">-w fuzz <br>
+Set the timestamp fuzz factor for identifying patch sets in
+seconds. The default is 300 seconds. This option is
+irrelevant for changesets with commitids.</p>
+
+<p style="margin-top: 1em">-c <br>
+Don&acirc;t trust commit-IDs; match by ordinary metatada.
+Will be useful if you have something like a CVS-NT
+repository in which per-file commits were made in such a way
+that the <br>
+cliques don&acirc;t have matching IDs.</p>
+
+<p style="margin-top: 1em">-k <br>
+Specify RCS/CVS keyword expansion. You can specify any of
+the CVS keyword expansion types: &quot;kv&quot;
+(keyword-value), &quot;kvl&quot; (keyword-value-locker),
+&quot;k&quot; (keyword only), &quot;v&quot; (value <br>
+only), &quot;o&quot; (no expansion), or &quot;b&quot;
+(binary - no exansion, no line ending conversion).
+CVS&acirc;s rules are: (1) if the master has -kb set in its
+internal keyword field, do that, <br>
+otherwise (2) if an expansion type was set on the command
+line, do that, otherwise (3) if the file&acirc;s internal
+keyword field is set, do that, otherwise use kv.
+cvs-fast-export <br>
+behaves slightly differently; the default is kb rather than
+kkv, kvl is treated like kv, and ko is treated like kb (that
+is, no end-of-line normalization is ever performed).</p>
+
+<p style="margin-top: 1em">-g <br>
+generate a picture of the commit graph in the DOT markup
+language used by the graphviz tools, rather than
+fast-exporting.</p>
+
+<p style="margin-top: 1em">-l <br>
+Warnings normally go to standard error. This option, which
+takes a filename, allows you to redirect them to a file&gt;
+Convenient with the -p option.</p>
+
+<p style="margin-top: 1em">-a <br>
+Dump a list of author IDs found in the repository, rather
+than fast-exporting.</p>
+
+<p style="margin-top: 1em">-C <br>
+Force canonical order (same as git-fast-export&acirc;s) in
+the emitted stream. Blobs are emitted as late as possible
+before the commits that require them. It reduces throughput
+by <br>
+about a factor of two. Repositories in which the time order
+of commits is inconsistent with their topological order will
+produce malformed fast-export streams in -C mode; <br>
+these will crash Git&acirc;s importer.</p>
+
+<p style="margin-top: 1em">-F <br>
+Force fast order. Blobs are emitted first, then commits.</p>
+
+<p style="margin-top: 1em">-A authormap <br>
+Apply an author-map file to the attribution lines. Each line
+must be of the form</p>
+
+<p style="margin-top: 1em">ferd = Ferd J. Foonly
+&lt;foonly@foo.com&gt; America/Chicago</p>
+
+<p style="margin-top: 1em">and will be applied to map the
+Unix username ferd to the DVCS-style user identity specified
+after the equals sign. The timezone field (after &gt; and
+whitespace) is optional and <br>
+(if present) is used to set the timezone offset to be
+attached to the date; acceptable formats for the timezone
+field are anything that can be in the TZ environment
+variable, <br>
+including a [+-]hhmm offset. Whitespace around the equals
+sign is stripped. Lines beginning with a # or not containing
+an equals sign are silently ignored.</p>
+
+<p style="margin-top: 1em">-R revmap <br>
+Write a revision map to the specified argument filename.
+Each line of the revision map consists of three
+whitespace-separated fields: a filename, an RCS revision
+number, and <br>
+the mark of the commit to which that filename-revision pair
+was assigned. Doesn&acirc;t work with -g.</p>
+
+<p style="margin-top: 1em">-v <br>
+Show verbose progress messages mainly of interest to
+developers.</p>
+
+<p style="margin-top: 1em">-q <br>
+Run quietly, suppressing warning messages about absence of
+commitids and other minor problems for which the program can
+usually compensate but which may indicate conversion <br>
+problems. Meant to be used with cvsconvert, which does its
+own correctness checking.</p>
+
+<p style="margin-top: 1em">-T <br>
+Force deterministic dates for regression testing. Each
+patchset will have a monotonic-increasing attributed date
+computed from its mark in the output stream - the mark value
+<br>
+times the commit time window times two.</p>
+
+<p style="margin-top: 1em">--reposurgeon <br>
+Emit for each commit a list of the CVS file:revision pairs
+composing it as a bzr-style commit property named
+&quot;cvs-revisions&quot;. From version 2.12 onward,
+reposurgeon(1) can <br>
+interpret these and use them as hints for
+reference-lifting.</p>
+
+<p style="margin-top: 1em">--embed-id <br>
+Append to each commit comment identification of the CVS
+commits that contributed to it.</p>
+
+<p style="margin-top: 1em">-V <br>
+Emit the program version and exit.</p>
+
+<p style="margin-top: 1em">-e remote <br>
+Exported branch names are prefixed with refs/remotes/remote
+instead of refs/heads, making the import appear to come from
+the named remote.</p>
+
+<p style="margin-top: 1em">-s stripprefix <br>
+Strip the given prefix instead of longest common prefix</p>
+
+<p style="margin-top: 1em">-t threadcount <br>
+Running multithreaded increases the program&acirc;s memory
+footprint proportionally to the number of threads, but means
+the conversion may run in less total time because an I/O
+<br>
+operation involving one master file will not block
+compute-intensive processing of others. By default, the
+program conservatively assumes it can use two threads per
+processor <br>
+available. You can use this option to set the number of
+threads; the value 0 forces sequential processing with no
+threading.</p>
+
+<p style="margin-top: 1em">-p <br>
+Enable progress reporting. This also dumps statistics
+(elapsed time and size of maximum resident set) for several
+points in the conversion run.</p>
+
+<p style="margin-top: 1em">-P <br>
+Normally cvs-fast-export will skip any filename presented as
+an argument or on stdin that does not end with the RCS/CVS
+extension &quot;,v&quot;, and will also ignore a pathnamre
+<br>
+containing the string CVSROOT (this avoids annoyances when
+running from or above a top-level CVS directory). A strict
+reading of RCS allows masters without the ,v extension. <br>
+This option sets promiscuous mode, disabling both
+checks.</p>
+
+<p style="margin-top: 1em">-i date <br>
+Enable incremental-dump mode. Only commits with a date after
+that specified by the argument are emitted. Each branch root
+in the incremental dump is decorated with git-stream <br>
+magic which, when interpreted in context of a live
+repository, will connect that branch to any branch of the
+same name. The date is expected to be RFC3339 conformant
+(e.g. <br>
+yy-mm-ddThh:mm:ssZ) or else an integer Unix time in
+seconds.</p>
+
+<p style="margin-top: 1em">If neither -F nor -C is
+specified, cvs-fast-export will choose a mode based on the
+repository size - canonical order for small repositories,
+fast for large ones. Tools that <br>
+consume git-fast-import streams should not care; this
+behavior is for backward compatibility.</p>
+
+<p style="margin-top: 1em">EXAMPLE <br>
+A very typical invocation would look like this:</p>
+
+<p style="margin-top: 1em">find . | cvs-fast-export
+&gt;stream.fi</p>
+
+<p style="margin-top: 1em">Your cvs-fast-export
+distribution should also supply cvssync(1), a tool for
+fetching CVS masters from a remote repository. Using them
+together will look something like this:</p>
+
+<p style="margin-top: 1em">cvssync
+anonymous@cvs.savannah.gnu.org:/sources/groff groff <br>
+find groff | cvs-fast-export &gt;groff.fi</p>
+
+<p style="margin-top: 1em">Progress reporting can be
+reassuring if you expect a conversion to run for some time.
+It will animate completion percentages as the conversion
+proceeds and display timings when <br>
+done.</p>
+
+<p style="margin-top: 1em">The cvs-fast-export suite
+contains a wrapper script called cvsconvert that is useful
+for running a conversion and automatically checking its
+content against the CVS original.</p>
+
+<p style="margin-top: 1em">RCS/CVS LIMITATIONS <br>
+Translating RCS/CVS repositories to the generic DVCS model
+expressed by import streams is not merely difficult and
+messy, there are weird RCS/CVS cases that cannot be
+correctly <br>
+translated at all. cvs-fast-export will try to warn you
+about these cases rather than silently producing broken or
+incomplete translations, but there be dragons. We recommend
+<br>
+some precautions under SANITY CHECKING.</p>
+
+<p style="margin-top: 1em">CVS-NT and versions of GNU CVS
+after 1.12 (2004) added a changeset commit-id to file
+metadata. Older sections of CVS history without these are
+vulnerable to various problems <br>
+caused by clock skew between clients; this used to be
+relatively common for multiple reasons, including less
+pervasive use of NTP clock synchronization. cvs-fast-export
+will warn <br>
+you (&quot;commits before this date lack commitids&quot;)
+when it sees such a section in your history. When it does,
+these caveats apply:</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If timestamps of
+commits in the CVS repository were not stable enough to be
+used for ordering commits, changes may be reported in the
+wrong order.</p>
+
+<p style="margin-top: 1em">&Acirc;&middot; If the timestamp
+order of different files crosses the revision order within
+the commit-matching time window, the order of commits
+reported may be wrong.</p>
+
+<p style="margin-top: 1em">One more property affected by
+commitids is the stability of old changesets under
+incremental dumping. Under a CVS implementation issuing
+commitids, new CVS commits are guaranteed <br>
+not to change cvs-fast-export&acirc;s changeset derivation
+from a previous history; thus, updating a target DVCS
+repository with incremental dumps from a live CVS
+installation will <br>
+work. Even if older portions of the history do not have
+commitids, conversions will be stable. This stability
+guarantee is lost if you are using a version of CVS that
+does not <br>
+issue commitids.</p>
+
+<p style="margin-top: 1em">Also note that a CVS repository
+has to be completely reanalyzed even for incremental dumps;
+thus, processing time and memory requirements will rise with
+the total repository size <br>
+even when the requested reporting interval of the
+incremental dump is small.</p>
+
+<p style="margin-top: 1em">These problems cannot be fixed
+in cvs-fast-export; they are inherent to CVS.</p>
+
+<p style="margin-top: 1em">CVS-FAST-EXPORT REQUIREMENTS AND
+LIMITATIONS <br>
+Because the code is designed for dealing with large data
+sets, it has been optimized for 64-bit machines and no
+particular effort has been made to keep it 32-bit clean.
+Various <br>
+counters may overflow if you try using it to lift a large
+repository on a 32-bit machine.</p>
+
+<p style="margin-top: 1em">Branches occurring in only a
+subset of the analyzed masters are not correctly resolved;
+instead, an entirely disjoint history will be created
+containing the branch revisions and <br>
+all parents back to the root.</p>
+
+<p style="margin-top: 1em">CVS vendor branches are a source
+of trouble. Sufficiently strange combinations of imports and
+local modifications will translate badly, producing
+incorrect content on master and <br>
+elsewhere.</p>
+
+<p style="margin-top: 1em">Some other CVS exporters try, or
+have tried, to deduce changesets from shared tags even when
+comment metadata doesn&acirc;t match perfectly. This one
+does not; the designers judge that <br>
+to trip over too many pathological CVS tagging cases.</p>
+
+<p style="margin-top: 1em">The program does try to do
+something useful cases in which a tag occurs in a set of
+revisions that does not correspond to any gitspace commit.
+In this case a tagged branch <br>
+containing only one commit is created, guaranteeing that you
+can check out a set of files containing the CVS content for
+the tag. The root of the branchlet is the gitspace commit
+<br>
+where the latest CVS revision in in the tagged set first
+occurs; this is the commit the tag would point at if its
+incompleteness were ignored.</p>
+
+<p style="margin-top: 1em">When running multithreaded,
+there is an edge case in which the program&acirc;s behavior
+is nondeterministic. If the same tag looks like it should be
+assigned to two different gitspace <br>
+commits with the same timestamp, which tag it actually lands
+on will be random.</p>
+
+<p style="margin-top: 1em">cvs-fast-export is designed to
+do translation with all its intermediate structures in
+memory, in one pass. This contrasts with cvs2git(1), which
+uses multiple passes and journals <br>
+intermediate structures to disk. The tradeoffs are that
+cvs-fast-export is much faster than cvs2git, but will fail
+with an out-of-memory error on CVS repositories large enough
+to <br>
+overflow your physical memory. In practice, you are unlikely
+to push this limit on a machine with 32GB of RAM and
+effectively certain not to with 64GB. Attempts to do large
+<br>
+conversions in only a 32-bit (4GB) address space are, on the
+other hand, unlikely to end well.</p>
+
+<p style="margin-top: 1em">The program&acirc;s transient
+storage requirements can be quite a bit larger; it must
+slurp in each entire master file once in order to do delta
+assembly and generate the version <br>
+snapshots that will become snapshots. Using the -t option
+multiplies the expected amount of transient storage required
+by the number of threads; use with care, as it is easy to
+<br>
+push memory usage so high that swap overhead overwhelms the
+gains from not constantly blocking on I/O.</p>
+
+<p style="margin-top: 1em">In -C mode, the program also
+requires temporary disk space equivalent to the sum of the
+sizes of all revisions in all files. This is not so in -F
+mode.</p>
+
+<p style="margin-top: 1em">On stock PC hardware in 2014,
+cvs-fast-export achieves processing speeds upwards of 64K
+CVS commits per minute on real repositories. Time
+performance is primarily I/O bound and <br>
+can be improved by running on an SSD.</p>
+
+<p style="margin-top: 1em">SANITY CHECKING <br>
+After conversion, it is good practice to do the following
+verification steps:</p>
+
+<p style="margin-top: 1em">1. If you ran the conversion
+directly with cvs-fast-export rather than using cvsconvert,
+use diff(1) with the -r option to compare a CVS head
+checkout with a checkout of the <br>
+converted repository. The only differences you should see
+are those due to RCS keyword expansion, .cvsignore lifting,
+and manifest mismatches due to CVS not tracking file <br>
+deaths quite correctly. If this is not true, you may have
+found a bug in cvs-fast-export; please report it with a copy
+of the CVS repo.</p>
+
+<p style="margin-top: 1em">2. Examine the translated
+repository with reposurgeon(1) looking (in particular) for
+misplaced tags or branch joins. Often these can be manually
+repaired with little effort. <br>
+These flaws do not necessarily imply bugs in
+cvs-fast-export; they may simply indicate previously
+undetected malformations in the CVS history. However,
+reporting them may <br>
+help improve cvs-fast-export.</p>
+
+<p style="margin-top: 1em">The above is an abbreviated
+version of part of DVCS Migration HOWTO; browse it for
+more.</p>
+
+<p style="margin-top: 1em">RETURN VALUE <br>
+0 if all files were found and successfully converted, 1
+otherwise.</p>
+
+<p style="margin-top: 1em">ERROR MESSAGES <br>
+Most of the messages cvs-fast-export emits are
+self.explanatory. Here are a few that aren&acirc;t. Where it
+says &quot;check head&quot;, be sure to sanity-check against
+the head revision.</p>
+
+<p style="margin-top: 1em">tag could not be assigned to a
+commit <br>
+RCS/CVS tags are per-file, not per revision. If developers
+are not careful in their use of tagging, it can be
+impossible to associate a tag with any of the changesets
+that <br>
+cvs-fast-export resolves. When this happens, cvs-fast-export
+will issue this warning and the tag named will be
+discarded.</p>
+
+<p style="margin-top: 1em">child commit emitted before
+parent <br>
+Something went wrong diring export canonicalization. This
+was probably caused by CVS commit timestamps being in the
+wrong order for their parent-child relathonship. Try the
+<br>
+-F option.</p>
+
+<p style="margin-top: 1em">discarding dead untagged branch
+<br>
+Analysis found a CVS branch with no tag consisting entirely
+of dead revisions. These cannot have been visible in the
+archival state of the CVS at conversion time; it is <br>
+possible they may have been visible as branch content at
+some point in the repository&acirc;s past, but without an
+identifying tag that state is impossible to reconstruct.</p>
+
+<p style="margin-top: 1em">warning - unnamed branch <br>
+A CVS branch with a live revision lacks a head label. A
+label with &quot;-UNNAMED-BRANCH&quot; suffixed to the name
+of the parent branch will be generated.</p>
+
+<p style="margin-top: 1em">warning - no master branch
+generated <br>
+cvs-fast-export could not identify the default (HEAD) branch
+and therefore there is no &quot;master&quot; in the
+conversion; this will seriously confuse git and probably
+other VCSes <br>
+when they try to import the output stream. You may be able
+to identify and rename a master branch using
+reposurgeon(1).</p>
+
+<p style="margin-top: 1em">warning - xxx newer than yyy
+<br>
+Early in analysis of a CVS master file, time sort order of
+its deltas doesn&acirc;t match the topological order defined
+by the revision numbers. The most likely cause of this is
+<br>
+clock skew between clients in very old CVS versions. The
+program will attempt to correct for this by tweaking the
+revision date of the out-of-order commit to be that of its
+<br>
+parent, but this may not prevent other time-skew errors
+later in analysis.</p>
+
+<p style="margin-top: 1em">warning - skew_vulnerable in
+file xxx rev yyy set to zzz <br>
+This warning is emitted when verbose is on and only on
+commits with no commit ID. It calls out commits that coause
+the date before which coalescence is unreliable to be set
+<br>
+forward.</p>
+
+<p style="margin-top: 1em">tip commit older than imputed
+branch join <br>
+A similar problem to &quot;newer than&quot; being reported
+at a later stage, when file branches are being knit into
+changeset branches. One CVS branch in a collection about to
+be <br>
+merged into a gitspace branch has a tip commit older than
+the earliest commit that is a a parent on some (other) tip
+in the collection. The adventious branch is snipped off.</p>
+
+<p style="margin-top: 1em">some parent commits are younger
+than children <br>
+May indicate that cvs-fast-export aggregated some changesets
+in the wrong order; probably harmless, but check head.</p>
+
+<p style="margin-top: 1em">warning - branch point later
+than branch <br>
+Late in the analysis, when connecting branches to their
+parents in the changeset DAG, the commit date of the root
+commit of a branch is earlier than the date of the parent it
+<br>
+gets connected to. Could be yet another clock-skew symptom,
+or might point to an error in the program&acirc;s
+topological analysis. Examine commits near the join with
+<br>
+reposurgeon(1); the branch may need to be reparented by
+hand.</p>
+
+<p style="margin-top: 1em">more than one delta with number
+X.Y.Z <br>
+The CVS history contained duplicate file delta numbers.
+Should never happen, and may indice a corrupted CVS archive
+if it does; check head.</p>
+
+<p style="margin-top: 1em">{revision|patch} with odd depth
+<br>
+Should never happen; only branch numbers are supposed to
+have odd depth, not file delta or patch numbers. May
+indicate a corrupted CVS archive; check head.</p>
+
+<p style="margin-top: 1em">duplicate tag in CVS master,
+ignoring <br>
+A CVS master has multiple instances of the same tag pointing
+at different file deltas. Probably a CVS operator error and
+relatively harmless, but check that the tag&acirc;s <br>
+referent in the conversion makes sense.</p>
+
+<p style="margin-top: 1em">tag or branch name was empty
+after sanitization <br>
+Fatal error: tag name was empty after all characters illegal
+for git were removed. Probably indicates a corrupted RCS
+file.</p>
+
+<p style="margin-top: 1em">revision number too long,
+increase CVS_MAX_DEPTH <br>
+Fatal error: internal buffers are too short to handle a CVS
+revision in a repo. Increase this constant in cvs.h and
+rebuild. Warning: this will increase memory usage and slow
+<br>
+down the tests a lot.</p>
+
+<p style="margin-top: 1em">snapshot sequence number too
+large, widen serial_t <br>
+Fatal error: the number of file snapshots in the CVS repo
+overruns an internal counter. Rebuild cvs-fast-export from
+source with a wider serial_t patched into cvs.h. Warning:
+<br>
+this will significantly increase the working-set size</p>
+
+<p style="margin-top: 1em">too many branches, widen
+branchcount_t <br>
+Fatal error: the number of branches descended from some
+single commit overruns an nternal counter. Rebuild
+cvs-fast-export from source with a wider branchcount_t
+patched into <br>
+cvs.h. Warning: this will significantly increase the
+working-set size</p>
+
+<p style="margin-top: 1em">corrupt delta in <br>
+The text of a delta is expected to be led with d (delete)
+and a (append) lines describing line-oriented changes at
+that delta. When you see this message, these are absent or
+<br>
+garbled.</p>
+
+<p style="margin-top: 1em">internal error - branch cycle
+<br>
+cvs-fast-export found a cycle while topologically sorting
+commits by parent link. This should never happen and
+probably indicates a serious internal error: please file a
+bug <br>
+report.</p>
+
+<p style="margin-top: 1em">internal error - lost tag <br>
+Late in analysis (after changeset coalescence) a tag lost
+its commit reference. This should never happen and probably
+indicates an internal error: please file a bug report.</p>
+
+<p style="margin-top: 1em">REPORTING BUGS <br>
+Report bugs to Eric S. Raymond &lt;esr@thyrsus.com&gt;. The
+project page is at http://catb.org/~esr/cvs-fast-export</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+rcs(1), cvs(1), cvssync(1), cvsconvert(1), reposurgeon(1),
+cvs2git(1).</p>
+
+<p style="margin-top: 1em">2015-11-20
+CVS-FAST-EXPORT(1)</p>
+<hr>
+</body>
+</html>

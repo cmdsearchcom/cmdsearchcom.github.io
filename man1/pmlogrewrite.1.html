@@ -1,0 +1,662 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 16:32:07 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>PMLOGREWRITE(1) General Commands Manual
+PMLOGREWRITE(1)</p>
+
+<p style="margin-top: 1em">NAME <br>
+pmlogrewrite - rewrite Performance Co-Pilot archives</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+$PCP_BINADM_DIR/pmlogrewrite [-Cdiqsvw ] [-c config] inlog
+[outlog]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+pmlogrewrite reads a set of Performance Co-Pilot (PCP)
+archive logs identified by inlog and creates a PCP archive
+log in outlog. Under normal usage, the -c option will be
+used <br>
+to nominate a configuration file or files that contains
+specifications (see the REWRITING RULES SYNTAX section
+below) that describe how the data and metadata from inlog
+should be <br>
+transformed to produce outlog.</p>
+
+<p style="margin-top: 1em">The typical uses for
+pmlogrewrite would be to accommodate the evolution of
+Performance Metric Domain Agents (PMDAs) where the names,
+metadata and semantics of metrics and their <br>
+associated instance domains may change over time, e.g.
+promoting the type of a metric from a 32-bit to a 64-bit
+integer, or renaming a group of metrics. Refer to the
+EXAMPLES <br>
+section for some additional use cases.</p>
+
+<p style="margin-top: 1em">pmlogrewrite is most useful
+where PMDA changes, or errors in the production environment,
+result in archives that cannot be combined with
+pmlogextract(1). By pre-processing the <br>
+archives with pmlogrewrite the resulting archives may be
+able to be merged with pmlogextract(1).</p>
+
+<p style="margin-top: 1em">The input inlog must be a set of
+PCP archive logs created by pmlogger(1), or possibly one of
+the tools that read and create PCP archives, e.g.
+pmlogextract(1) and pmlogre&acirc; <br>
+duce(1). inlog is a comma-separated list of names, each of
+which may be the base name of an archive or the name of a
+directory containing one or more archives.</p>
+
+<p style="margin-top: 1em">If no -c option is specified,
+then the default behavior simply creates outlog as a copy of
+inlog. This is a little more complicated than cat(1), as
+each PCP archive is made up <br>
+of several physical files.</p>
+
+<p style="margin-top: 1em">While pmlogrewrite may be used
+to repair some data consistency issues in PCP archives,
+there is also a class of repair tasks that cannot be handled
+by pmlogrewrite and <br>
+pmloglabel(1) may be a useful tool in these cases.</p>
+
+<p style="margin-top: 1em">COMMAND LINE OPTIONS <br>
+The command line options for pmlogrewrite are as
+follows:</p>
+
+<p style="margin-top: 1em">-C Parse the rewriting rules and
+quit. outlog is not created. When -C is specified, this also
+sets -v and -w so that all warnings and verbose messages are
+displayed as con&acirc; <br>
+fig is parsed.</p>
+
+<p style="margin-top: 1em">-c config <br>
+If config is a file or symbolic link, read and parse
+rewriting rules from there. If config is a directory, then
+all of the files or symbolic links in that directory <br>
+(excluding those beginning with a period
+&lsquo;&lsquo;.&rsquo;&rsquo;) will be used to provide the
+rewriting rules. Multiple -c options are allowed.</p>
+
+<p style="margin-top: 1em">-d Desperate mode. Normally if a
+fatal error occurs, all trace of the partially written PCP
+archive outlog is removed. With the -d option, the partially
+created outlog ar&acirc; <br>
+chive log is not removed.</p>
+
+<p style="margin-top: 1em">-i Rather than creating outlog,
+inlog is rewritten in place when the -i option is used. A
+new archive is created using temporary file names and then
+renamed to inlog in such <br>
+a way that if any errors (not warnings) are encountered,
+inlog remains unaltered.</p>
+
+<p style="margin-top: 1em">-q Quick mode, where if there
+are no rewriting actions to be performed (none of the global
+data, instance domains or metrics from inlog will be
+changed), then pmlogrewrite <br>
+will exit (with status 0, so success) immediately after
+parsing the configuration file(s) and outlog is not
+created.</p>
+
+<p style="margin-top: 1em">-s When the
+&lsquo;&lsquo;units&rsquo;&rsquo; of a metric are changed,
+if the dimension in terms of space, time and count is
+unaltered, then the scaling factor is being changed, e.g.
+BYTE to KBYTE, <br>
+or MSEC-1 to USEC-1, or the composite MBYTE.SEC-1 to
+KBYTE.USEC-1. The motivation may be (a) that the original
+metadata was wrong but the values in inlog are correct, or
+<br>
+(b) the metadata is changing so the values need to change as
+well. The default pmlogrewrite behaviour matches case (a).
+If case (b) applies, then use the -s option and <br>
+the values of all the metrics with a scale factor change in
+each result will be rescaled. For finer control over value
+rescaling refer to the RESCALE option for the UNITS <br>
+clause of the metric rewriting rule described below.</p>
+
+<p style="margin-top: 1em">-v Increase verbosity of
+diagnostic output.</p>
+
+<p style="margin-top: 1em">-w Emit warnings. Normally
+pmlogrewrite remains silent for any warning that is not
+fatal and it is expected that for a particular archive, some
+(or indeed, all) of the <br>
+rewriting specifications may not apply. For example, changes
+to a PMDA may be captured in a set of rewriting rules, but a
+single archive may not contain all of the modi&acirc; <br>
+fied metrics nor all of the modified instance domains and/or
+instances. Because these cases are expected, they do not
+prevent pmlogrewrite executing, and rules that do <br>
+not apply to inlog are silently ignored by default.
+Similarly, some rewriting rules may involve no change
+because the metadata in inlog already matches the intent of
+the <br>
+rewriting rule to correct data from a previous version of a
+PMDA. The -w flag forces warnings to be emitted for all of
+these cases.</p>
+
+<p style="margin-top: 1em">The argument outlog is required
+in all cases, except when -i is specified.</p>
+
+<p style="margin-top: 1em">REWRITING RULES SYNTAX <br>
+A configuration file contains zero or more rewriting rules
+as defined below.</p>
+
+<p style="margin-top: 1em">Keywords and special punctuation
+characters are shown below in bolditalic font and are
+case-insensitive, so METRIC, metric and Metric are all
+equivalent in rewriting rules.</p>
+
+<p style="margin-top: 1em">The character
+&lsquo;&lsquo;#&rsquo;&rsquo; introduces a comment and the
+remainder of the line is ignored. Otherwise the input is
+relatively free format with optional white space (spaces,
+tabs or new&acirc; <br>
+lines) between lexical items in the rules.</p>
+
+<p style="margin-top: 1em">A global rewriting rule has the
+form:</p>
+
+<p style="margin-top: 1em">GLOBAL { globalspec ... }</p>
+
+<p style="margin-top: 1em">where globalspec is zero or more
+of the following clauses:</p>
+
+<p style="margin-top: 1em">HOSTNAME -&gt; hostname</p>
+
+<p style="margin-top: 1em">Modifies the label records in
+the outlog PCP archive, so that the metrics will appear to
+have been collected from the host hostname.</p>
+
+<p style="margin-top: 1em">TIME -&gt; delta</p>
+
+<p style="margin-top: 1em">Both metric values and the
+instance domain metadata in a PCP archive carry timestamps.
+This clause forces all the timestamps to be adjusted by
+delta, where delta is an <br>
+optional sign &lsquo;&lsquo;+&rsquo;&rsquo; (the default) or
+&lsquo;&lsquo;-&rsquo;&rsquo;, an optional number of hours
+followed by a colon &lsquo;&lsquo;:&rsquo;&rsquo;, an
+optional number of minutes followed by a colon
+&lsquo;&lsquo;:&rsquo;&rsquo;, a number of <br>
+seconds, an optional fraction of seconds following a period
+&lsquo;&lsquo;.&rsquo;&rsquo;. The simplest example would be
+&lsquo;&lsquo;30&rsquo;&rsquo; to increase the timestamps by
+30 seconds. A more complex example <br>
+would be &lsquo;&lsquo;-23:59:59.999&rsquo;&rsquo; to move
+the timestamps backwards by one millisecond less than one
+day.</p>
+
+<p style="margin-top: 1em">TZ -&gt;
+&quot;timezone&quot;</p>
+
+<p style="margin-top: 1em">Modifies the label records in
+the outlog PCP archive, so that the metrics will appear to
+have been collected from a host with a local timezone of
+timezone. timezone must <br>
+be enclosed in quotes, and should conform to the valid
+timezone syntax rules for the local platform.</p>
+
+<p style="margin-top: 1em">An indom rewriting rule modifies
+an instance domain and has the form:</p>
+
+<p style="margin-top: 1em">INDOM domain.serial { indomspec
+... }</p>
+
+<p style="margin-top: 1em">where domain and serial identify
+one or more existing instance domains from inlog - typically
+domain would be an integer in the range 1 to 510 and serial
+would be an integer in <br>
+the range 0 to 4194304.</p>
+
+<p style="margin-top: 1em">As a special case serial could
+be an asterisk &lsquo;&lsquo;*&rsquo;&rsquo; which means the
+rule applies to every instance domain with a domain number
+of domain.</p>
+
+<p style="margin-top: 1em">If a designated instance domain
+is not in inlog the rule has no effect.</p>
+
+<p style="margin-top: 1em">The indomspec is zero or more of
+the following clauses:</p>
+
+<p style="margin-top: 1em">INAME &quot;oldname&quot; -&gt;
+&quot;newname&quot;</p>
+
+<p style="margin-top: 1em">The instance identified by the
+external instance name oldname is renamed to newname. Both
+oldname and newname must be enclosed in quotes.</p>
+
+<p style="margin-top: 1em">As a special case, the new name
+may be the keyword DELETE (with no quotes), and then the
+instance oldname will be expunged from outlog which removes
+it from the instance <br>
+domain metadata and removes all values of this instance for
+all the associated metrics.</p>
+
+<p style="margin-top: 1em">If the instance names contain
+any embedded spaces then special care needs to be taken in
+respect of the PCP instance naming rule that treats the
+leading non-space part of <br>
+the instance name as the unique portion of the name for the
+purposes of matching and ensuring uniqueness within an
+instance domain, refer to pmdaInstance(3) for a
+discus&acirc; <br>
+sion of this issue.</p>
+
+<p style="margin-top: 1em">As an illustration, consider the
+hypothetical instance domain for a metric which contains 2
+instances with the following names: <br>
+red <br>
+eek urk</p>
+
+<p style="margin-top: 1em">Then some possible INAME clauses
+might be:</p>
+
+<p style="margin-top: 1em">&quot;eek&quot; -&gt;
+&quot;yellow like a flower&quot; <br>
+Acceptable, oldname &quot;eek&quot; matches the &quot;eek
+urk&quot; instance.</p>
+
+<p style="margin-top: 1em">&quot;red&quot; -&gt;
+&quot;eek&quot; <br>
+Error, newname &quot;eek&quot; matches the existing
+&quot;eek urk&quot; instance.</p>
+
+<p style="margin-top: 1em">&quot;eek urk&quot; -&gt;
+&quot;red of another hue&quot; <br>
+Error, newname &quot;red of another hue&quot; matches the
+existing &quot;red&quot; instance.</p>
+
+<p style="margin-top: 1em">INDOM -&gt;
+newdomain.newserial</p>
+
+<p style="margin-top: 1em">Modifies the metadata for the
+instance domain and every metric associated with the
+instance domain. As a special case, newserial could be an
+asterisk &lsquo;&lsquo;*&rsquo;&rsquo; which means <br>
+use serial from the indom rewriting rule, although this is
+most useful when serial is also an asterisk. So for example:
+<br>
+indom 29.* { indom -&gt; 109.* } <br>
+will move all instance domains from domain 29 to domain
+109.</p>
+
+<p style="margin-top: 1em">INDOM -&gt; DUPLICATE
+newdomain.newserial</p>
+
+<p style="margin-top: 1em">A special case of the previous
+INDOM clause where the instance domain is a duplicate copy
+of the domain.serial instance domain from the indom
+rewriting rule, and then any <br>
+mapping rules are applied to the copied newdomain.newserial
+instance domain. This is useful when a PMDA is split and the
+same instance domain needs to be replicated for <br>
+domain domain and domain newdomain. So for example if the
+metrics foo.one and foo.two are both defined over instance
+domain 12.34, and foo.two is moved to another PMDA <br>
+using domain 27, then the following rewriting rules could be
+used: <br>
+indom 12.34 { indom -&gt; duplicate 27.34 } <br>
+metric foo.two { indom -&gt; 27.34 pmid -&gt; 27.*.* }</p>
+
+<p style="margin-top: 1em">INST oldid -&gt; newid</p>
+
+<p style="margin-top: 1em">The instance identified by the
+internal instance identifier oldid is renumbered to newid.
+Both oldid and newid are integers in the range 0 to
+231-1.</p>
+
+<p style="margin-top: 1em">As a special case, newid may be
+the keyword DELETE and then the instance oldid will be
+expunged from outlog which removes it from the instance
+domain metadata and removes <br>
+all values of this instance for all the associated
+metrics.</p>
+
+<p style="margin-top: 1em">A metric rewriting rule has the
+form:</p>
+
+<p style="margin-top: 1em">METRIC metricid { metricspec ...
+}</p>
+
+<p style="margin-top: 1em">where metricid identifies one or
+more existing metrics from inlog using either a metric name,
+or the internal encoding for a metric&rsquo;s PMID as
+domain.cluster.item. In the latter <br>
+case, typically domain would be an integer in the range 1 to
+510, cluster would be an integer in the range 0 to 4095, and
+item would be an integer in the range 0 to 1023.</p>
+
+<p style="margin-top: 1em">As special cases item could be
+an asterisk &lsquo;&lsquo;*&rsquo;&rsquo; which means the
+rule applies to every metric with a domain number of domain
+and a cluster number of cluster, or cluster could be <br>
+an asterisk which means the rule applies to every metric
+with a domain number of domain and an item number of item,
+or both cluster and item could be asterisks, and rule
+applies <br>
+to every metric with a domain number of domain.</p>
+
+<p style="margin-top: 1em">If a designated metric is not in
+inlog the rule has no effect.</p>
+
+<p style="margin-top: 1em">The metricspec is zero or more
+of the following clauses:</p>
+
+<p style="margin-top: 1em">DELETE</p>
+
+<p style="margin-top: 1em">The metric is completely removed
+from outlog, both the metadata and all values in results are
+expunged.</p>
+
+<p style="margin-top: 1em">INDOM -&gt; newdomain.newserial
+[ pick ]</p>
+
+<p style="margin-top: 1em">Modifies the metadata to change
+the instance domain for this metric. The new instance domain
+must exist in outlog.</p>
+
+<p style="margin-top: 1em">The optional pick clause may be
+used to select one input value, or compute an aggregate
+value from the instances in an input result, or assign an
+internal instance iden&acirc; <br>
+tifier to a single output value. If no pick clause is
+specified, the default behaviour is to copy all input values
+from each input result to an output result, however if <br>
+the input instance domain is singular (indom PM_INDOM_NULL)
+then the one output value must be assigned an internal
+instance identifier, which is 0 by default, unless <br>
+over-ridden by a INST or INAME clause as defined below.</p>
+
+<p style="margin-top: 1em">The choices for pick are as
+follows:</p>
+
+<p style="margin-top: 1em">OUTPUT FIRST <br>
+choose the value of the first instance from each input
+result</p>
+
+<p style="margin-top: 1em">OUTPUT LAST choose the value of
+the last instance from each input result</p>
+
+<p style="margin-top: 1em">OUTPUT INST instid <br>
+choose the value of the instance with internal instance
+identifier instid from each result; the sequence of
+rewriting rules ensures the OUTPUT processing hap&acirc;
+<br>
+pens before instance identifier renumbering from any
+associated indom rule, so instid should be one of the
+internal instance identifiers that appears in inlog</p>
+
+<p style="margin-top: 1em">OUTPUT INAME &quot;name&quot;
+<br>
+choose the value of the instance with name for its external
+instance name from each result; the sequence of rewriting
+rules ensures the OUTPUT processing hap&acirc; <br>
+pens before instance renaming from any associated indom
+rule, so name should be one of the external instance names
+that appears in inlog</p>
+
+<p style="margin-top: 1em">OUTPUT MIN choose the smallest
+value in each result (metric type must be numeric and output
+instance will be 0 for a non-singular instance domain)</p>
+
+<p style="margin-top: 1em">OUTPUT MAX choose the largest
+value in each result (metric type must be numeric and output
+instance will be 0 for a non-singular instance domain)</p>
+
+<p style="margin-top: 1em">OUTPUT SUM choose the sum of all
+values in each result (metric type must be numeric and
+output instance will be 0 for a non-singular instance
+domain)</p>
+
+<p style="margin-top: 1em">OUTPUT AVG choose the average of
+all values in each result (metric type must be numeric and
+output instance will be 0 for a non-singular instance
+domain)</p>
+
+<p style="margin-top: 1em">If the input instance domain is
+singular (indom PM_INDOM_NULL) then independent of any pick
+specifications, there is at most one value in each input
+result and so FIRST, <br>
+LAST, MIN, MAX, SUM and AVG are all equivalent and the
+output instance identifier will be 0.</p>
+
+<p style="margin-top: 1em">In general it is an error to
+specify a rewriting action for the same metadata or result
+values more than once, e.g. more than one INDOM clause for
+the same instance <br>
+domain. The one exception is the possible interaction
+between the INDOM clauses in the indom and metric rules. For
+example the metric sample.bin is defined over the <br>
+instance domain 29.2 in inlog and the following is
+acceptable (albeit redundant): <br>
+indom 29.* { indom -&gt; 109.* } <br>
+metric sample.bin { indom -&gt; 109.2 } <br>
+However the following is an error, because the instance
+domain for sample.bin has two conflicting definitions: <br>
+indom 29.* { indom -&gt; 109.* } <br>
+metric sample.bin { indom -&gt; 123.2 }</p>
+
+<p style="margin-top: 1em">INDOM -&gt; NULL[ pick ]</p>
+
+<p style="margin-top: 1em">The metric (which must have been
+previously defined over an instance domain) is being
+modified to be a singular metric. This involves a metadata
+change and collapsing <br>
+all results for this metric so that multiple values become
+one value.</p>
+
+<p style="margin-top: 1em">The optional pick part of the
+clause defines how the one value for each result should be
+calculated and follows the same rules as described for the
+non-NULL INDOM case <br>
+above.</p>
+
+<p style="margin-top: 1em">In the absence of pick, the
+default is OUTPUT FIRST.</p>
+
+<p style="margin-top: 1em">NAME -&gt; newname</p>
+
+<p style="margin-top: 1em">Renames the metric in the PCP
+archive&rsquo;s metadata that supports the Performance
+Metrics Name Space (PMNS). newname should not match any
+existing name in the archive&rsquo;s <br>
+PMNS and must follow the syntactic rules for valid metric
+names as outlined in pmns(5).</p>
+
+<p style="margin-top: 1em">PMID -&gt;
+newdomain.newcluster.newitem</p>
+
+<p style="margin-top: 1em">Modifies the metadata and
+results to renumber the metric&rsquo;s PMID. As special
+cases, newcluster could be an asterisk
+&lsquo;&lsquo;*&rsquo;&rsquo; which means use cluster from
+the metric rewrit&acirc; <br>
+ing rule and/or item could be an asterisk which means use
+item from the metric rewriting rule. This is most useful
+when cluster and/or item is also an asterisk. So for <br>
+example: <br>
+metric 30.*.* { pmid -&gt; 123.*.* } <br>
+will move all metrics from domain 30 to domain 123.</p>
+
+<p style="margin-top: 1em">SEM -&gt; newsem</p>
+
+<p style="margin-top: 1em">Change the semantics of the
+metric. newsem should be the XXX part of the name of one of
+the PM_SEM_XXX macros defined in &lt;pcp/pmapi.h&gt; or
+pmLookupDesc(3), e.g. COUNTER <br>
+for PM_TYPE_COUNTER.</p>
+
+<p style="margin-top: 1em">No data value rewriting is
+performed as a result of the SEM clause, so the usefulness
+is limited to cases where a version of the associated PMDA
+was exporting incorrect <br>
+semantics for the metric. pmlogreduce(1) may provide an
+alternative in cases where re-computation of result values
+is desired.</p>
+
+<p style="margin-top: 1em">TYPE -&gt; newtype</p>
+
+<p style="margin-top: 1em">Change the type of the metric
+which alters the metadata and may change the encoding of
+values in results. newtype should be the XXX part of the
+name of one of the <br>
+PM_TYPE_XXX macros defined in &lt;pcp/pmapi.h&gt; or
+pmLookupDesc(3), e.g. FLOAT for PM_TYPE_FLOAT.</p>
+
+<p style="margin-top: 1em">Type conversion is only
+supported for cases where the old and new metric type is
+numeric, so PM_TYPE_STRING, PM_TYPE_AGGREGATE and
+PM_TYPE_EVENT are not allowed. Even <br>
+for the numeric cases, some conversions may produce run-time
+errors, e.g. integer overflow, or attempting to rewrite a
+negative value into an unsigned type.</p>
+
+<p style="margin-top: 1em">UNITS -&gt; newunits [ RESCALE
+]</p>
+
+<p style="margin-top: 1em">newunits is six values separated
+by commas. The first 3 values describe the dimension of the
+metric along the dimensions of space, time and count; these
+are integer val&acirc; <br>
+ues, usually 0, 1 or -1. The remaining 3 values describe the
+scale of the metric&rsquo;s values in the dimensions of
+space, time and count. Space scale values should be 0 (if
+<br>
+the space dimension is 0), else the XXX part of the name of
+one of the PM_SPACE_XXX macros, e.g. KBYTE for
+PM_TYPE_KBYTE. Time scale values should be 0 (if the time
+<br>
+dimension is 0), else the XXX part of the name of one of the
+PM_TIME_XXX macros, e.g. SEC for PM_TIME_SEC. Count scale
+values should be 0 (if the time dimension is 0), <br>
+else ONE for PM_COUNT_ONE.</p>
+
+<p style="margin-top: 1em">The PM_SPACE_XXX, PM_TIME_XXX
+and PM_COUNT_XXX macros are defined in &lt;pcp/pmapi.h&gt;
+or pmLookupDesc(3).</p>
+
+<p style="margin-top: 1em">When the scale is changed (but
+the dimension is unaltered) the optional keyword RESCALE may
+be used to chose value rescaling as per the -s command line
+option, but <br>
+applied to just this metric.</p>
+
+<p style="margin-top: 1em">When changing the domain number
+for a metric or instance domain, the new domain number will
+usually match an existing PMDA&rsquo;s domain number. If
+this is not the case, then the <br>
+new domain number should not be randomly chosen; consult
+$PCP_VAR_DIR/pmns/stdpmid for domain numbers that are
+already assigned to PMDAs.</p>
+
+<p style="margin-top: 1em">EXAMPLES <br>
+To promote the values of the per-disk IOPS metrics to 64-bit
+to allow aggregation over a long time period for capacity
+planning, or because the PMDA has changed to export 64-bit
+<br>
+counters and we want to convert old archives so they can be
+processed alongside new archives. <br>
+metric disk.dev.read { type -&gt; U64 } <br>
+metric disk.dev.write { type -&gt; U64 } <br>
+metric disk.dev.total { type -&gt; U64 }</p>
+
+<p style="margin-top: 1em">The instances associated with
+the load average metric kernel.all.load could be renamed and
+renumbered by the rules below. <br>
+# for the Linux PMDA, the kernel.all.load metric is defined
+<br>
+# over instance domain 60.2 <br>
+indom 60.2 { <br>
+inst 1 -&gt; 60 iname &quot;1 minute&quot; -&gt; &quot;60
+second&quot; <br>
+inst 5 -&gt; 300 iname &quot;5 minute&quot; -&gt; &quot;300
+second&quot; <br>
+inst 15 -&gt; 900 iname &quot;15 minute&quot; -&gt;
+&quot;900 second&quot; <br>
+}</p>
+
+<p style="margin-top: 1em">If we decide to split the
+&lsquo;&lsquo;proc&rsquo;&rsquo; metrics out of the Linux
+PMDA, this will involve changing the domain number for the
+PMID of these metrics and the associated instance domains.
+<br>
+The rules below would rewrite an old archive to match the
+changes after the PMDA split. <br>
+# all Linux proc metrics are in 7 clusters <br>
+metric 60.8.* { pmid -&gt; 123.*.* } <br>
+metric 60.9.* { pmid -&gt; 123.*.* } <br>
+metric 60.13.* { pmid -&gt; 123.*.* } <br>
+metric 60.24.* { pmid -&gt; 123.*.* } <br>
+metric 60.31.* { pmid -&gt; 123.*.* } <br>
+metric 60.32.* { pmid -&gt; 123.*.* } <br>
+metric 60.51.* { pmid -&gt; 123.*.* } <br>
+# only one instance domain for Linux proc metrics <br>
+indom 60.9 { indom -&gt; 123.0 }</p>
+
+<p style="margin-top: 1em">FILES <br>
+For each of the inlog and outlog archive logs, several
+physical files are used. <br>
+archive.meta <br>
+metadata (metric descriptions, instance domains, etc.) for
+the archive log <br>
+archive.0 initial volume of metrics values (subsequent
+volumes have suffixes 1, 2, ...). <br>
+archive.index <br>
+temporal index to support rapid random access to the other
+files in the archive log.</p>
+
+<p style="margin-top: 1em">PCP ENVIRONMENT <br>
+Environment variables with the prefix PCP_ are used to
+parameterize the file and directory names used by PCP. On
+each installation, the file /etc/pcp.conf contains the local
+<br>
+values for these variables. The $PCP_CONF variable may be
+used to specify an alternative configuration file, as
+described in pcp.conf(5).</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+PCPIntro(1), pmdaInstance(3), pmdumplog(1), pmlogger(1),
+pmlogextract(1), pmloglabel(1), pmlogreduce(1),
+pmLookupDesc(3), pmns(5), pcp.conf(5) and pcp.env(5).</p>
+
+<p style="margin-top: 1em">DIAGNOSTICS <br>
+All error conditions detected by pmlogrewrite are reported
+on stderr with textual (if sometimes terse) explanation.</p>
+
+<p style="margin-top: 1em">Should the input archive log be
+corrupted (this can happen if the pmlogger instance writing
+the log suddenly dies), then pmlogrewrite will detect and
+report the position of the <br>
+corruption in the file, and any subsequent information from
+that archive log will not be processed.</p>
+
+<p style="margin-top: 1em">If any error is detected,
+pmlogrewrite will exit with a non-zero status.</p>
+
+<p style="margin-top: 1em">Performance Co-Pilot
+PMLOGREWRITE(1)</p>
+<hr>
+</body>
+</html>

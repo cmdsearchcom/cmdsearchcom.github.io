@@ -1,0 +1,172 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:08:44 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>AUDISP-PRELUDE:(8) System Administration Utilities
+AUDISP-PRELUDE:(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+audisp-prelude - plugin for IDMEF alerts</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+audisp-prelude [ --test ]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+audisp-prelude is a plugin for the audit event dispatcher
+daemon, audispd, that uses libprelude to send IDMEF alerts
+for possible Intrusion Detection events. This plugin
+requires <br>
+connecting to a prelude-manager to record the events it
+sends. This plugin will analyze audit events in realtime and
+send detected events to the prelude-manager for correlation,
+<br>
+recording, and display.</p>
+
+<p style="margin-top: 1em">Events that are currently
+supported are: Logins, Forbidden Login Location, Max
+Concurrent Sessions, Max Login Failures, Forbidden Login
+Time, SE Linux AVCs, SE Linux Enforcement <br>
+Changes, Abnormal Program Termination, Promiscuous Socket
+Changes, and watched account logins.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+--test Take input from stdin and write prelude events to
+stdout but does not send them to the prelude-manager. This
+can be used for debugging or testing the system with
+suspi&acirc; <br>
+cious log files when you do not want it to alert or
+react.</p>
+
+<p style="margin-top: 1em">INSTALLATION <br>
+This sensor has to be registered with the prelude-manager
+before it will work properly. If the prelude-manager is on
+the same host as the sensor, you will need to open two
+win&acirc; <br>
+dows to register. If not, you will have to adjust this
+example to fit your environment.</p>
+
+<p style="margin-top: 1em">In one window, type:</p>
+
+<p style="margin-top: 1em">prelude-admin register auditd
+idmef:w localhost --uid 0 --gid 0</p>
+
+<p style="margin-top: 1em">In another, type:</p>
+
+<p style="margin-top: 1em">prelude-admin
+registration-server prelude-manager</p>
+
+<p style="margin-top: 1em">Follow the on-screen
+instructions to complete the registration.</p>
+
+<p style="margin-top: 1em">TIPS <br>
+If you are aggregating multiple machines, you should enable
+node information in the audit event stream. You can do this
+in one of two places. If you want computer node names <br>
+written to disk as well as sent in the realtime event
+stream, edit the name_format option in
+/etc/audit/auditd.conf. If you only want the node names in
+the realtime event stream, <br>
+then edit the name_format option in
+/etc/audisp/audispd.conf. Do not enable both as it will put
+2 node fields in the event stream.</p>
+
+<p style="margin-top: 1em">At this point, if you want have
+audit: forbidden login location, max concurrent sessions,
+max login failures, and forbidden login time anomalies being
+reported, you have to setup <br>
+pam modules correctly. The pam modules are respectively:
+pam_access, pam_limits, pam_tally2, and pam_time. Please see
+the respective pam module man pages for any
+instructions.</p>
+
+<p style="margin-top: 1em">For performance reasons, some
+audit events will not produce syscall records which contain
+additional information about events unless there is at least
+one audit rule loaded. If <br>
+you do not have any additional audit rules, edit
+/etc/audit/audit.rules and add something simple that
+won&rsquo;t impact performace like this: -w /etc/shadow -p
+wa. This rule will <br>
+watch the shadow file for writes or changes to its
+attributes. The additional audit information provided by
+having at least one rule will allow the plugin to give a
+more complete <br>
+view of the alert it is sending.</p>
+
+<p style="margin-top: 1em">If you are wanting to get alerts
+on watched syscalls, watched files, watched execution, or
+something becoming executable, you need to add some keys to
+your audit rules. For exam&acirc; <br>
+ple, if you have the following audit watch in
+/etc/audit/audit.rules:</p>
+
+<p style="margin-top: 1em">-w /etc/shadow -p wa</p>
+
+<p style="margin-top: 1em">and you want idmef alerts on
+this, you need to add -k ids-file-med or something
+appropriate to signal to the plugin that this message is for
+it. The format of the key has a <br>
+fixed format of keywords separated by a dash. It follows the
+form of ids-type-severity. The type can be either sys, file,
+exec, or mkexe depending on whether you want the event <br>
+to be considered a watched_syscall, watched_file,
+watched_exec, or watched_mk_exe respectively. The severity
+can be either info, low, med, or hi depending on how urgent
+you would <br>
+like it to be.</p>
+
+<p style="margin-top: 1em">EXAMPLE RULES <br>
+To alert on any use of the personality syscall: <br>
+-a always,exit -S personality -k ids-sys-med</p>
+
+<p style="margin-top: 1em">To alert on a user failing to
+access the shadow file: <br>
+-a always,exit -F path=/etc/shadow -F perms=wa -F success=0
+-k ids-file-med</p>
+
+<p style="margin-top: 1em">To alert on the execution of a
+program: <br>
+-w /bin/ping -p x -k ids-exe-info</p>
+
+<p style="margin-top: 1em">To alert on users making
+exe&rsquo;s in their home dir (takes 2 rules): <br>
+-a always,exit -S fchmodat -F dir=/home -F a2&amp;0111 -F
+filetype=file -k ids-mkexe-hi <br>
+-a always,exit -S fchmod,chmod -F dir=/home -F a1&amp;0111
+-F filetype=file -k ids-mkexe-hi</p>
+
+<p style="margin-top: 1em">FILES <br>
+/etc/audisp/plugins.d/au-prelude.conf,
+/etc/audit/auditd.conf, /etc/audisp/audispd.conf,
+/etc/audisp/audisp-prelude.conf</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+audispd(8), prelude-manager(1), auditd.conf(8),
+audispd.conf(8), audisp-prelude.conf(5).</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+Steve Grubb</p>
+
+<p style="margin-top: 1em">Red Hat Dec 2008
+AUDISP-PRELUDE:(8)</p>
+<hr>
+</body>
+</html>

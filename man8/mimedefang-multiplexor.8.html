@@ -1,0 +1,545 @@
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Sun Aug 27 19:13:22 2017 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title></title>
+</head>
+<body>
+
+<hr>
+
+
+<p>MIMEDEFANG-MULTIPLEXOR(8) System Manager&rsquo;s Manual
+MIMEDEFANG-MULTIPLEXOR(8)</p>
+
+<p style="margin-top: 1em">NAME <br>
+mimedefang-multiplexor - Process pool controller for mail
+filters.</p>
+
+<p style="margin-top: 1em">SYNOPSIS <br>
+mimedefang-multiplexor [options]</p>
+
+<p style="margin-top: 1em">DESCRIPTION <br>
+mimedefang-multiplexor manages a pool of Perl processes for
+scanning e-mail. It is designed to work in conjunction with
+mimedefang(8) and mimedefang.pl(8).</p>
+
+<p style="margin-top: 1em">mimedefang-multiplexor opens a
+UNIX-domain socket and listens for requests for work from
+mimedefang. As requests come in, mimedefang-multiplexor
+creates Perl processes as needed <br>
+to scan mail. The Perl processes are not killed when
+scanning is completed, but continue to run in a loop. Perl
+processes are re-used for subsequent e-mail messages. This
+<br>
+eliminates the large overhead of starting a new Perl process
+for each incoming message.</p>
+
+<p style="margin-top: 1em">To avoid memory leaks, the Perl
+processes are killed after they have handled some number of
+scans.</p>
+
+<p style="margin-top: 1em">OPTIONS <br>
+-U user <br>
+Runs the multiplexor as user rather than root. This option
+is mandatory, and must match the -U option supplied to
+mimedefang.</p>
+
+<p style="margin-top: 1em">-m minSlaves <br>
+The minimum number of Perl processes to keep running at all
+times. The default is zero.</p>
+
+<p style="margin-top: 1em">-x maxSlaves <br>
+The maximum number of Perl processes to run simultaneously.
+If a request comes in and all processes are busy, a
+temporary failure is signalled to the SMTP peer. The <br>
+default is 2.</p>
+
+<p style="margin-top: 1em">-r maxRequests <br>
+The maximum number of requests a given process handles
+before it is killed and a replacement started. The default
+is 500.</p>
+
+<p style="margin-top: 1em">-i idleTime <br>
+The idle time in seconds after which to kill of excess Perl
+processes. That is, if the process is idle for longer than
+this time, and there are more than minSlaves run&acirc; <br>
+ning, the process is killed. Note that this is implemented
+as a timer which ticks every idleTime seconds; therefore,
+processes may be idle for up to twice this time <br>
+before they are killed. The default for idleTime is 300
+seconds.</p>
+
+<p style="margin-top: 1em">-b busyTime <br>
+The longest a Perl process is allowed to spend scanning an
+e-mail before it is declared hung up and killed. The default
+is 120 seconds.</p>
+
+<p style="margin-top: 1em">-Z This option specifies that
+the multiplexor should accept and process &quot;status
+updates&quot; from busy slaves. Note that this consumes one
+extra file descriptor per slave, plus <br>
+a small amount of CPU time per status update.</p>
+
+<p style="margin-top: 1em">-c cmdTime <br>
+The timeout for communication between mimedefang-multiplexor
+and mimedefang, or between mimedefang-multiplexor and a Perl
+scanning process. The default is 10 seconds. <br>
+This timeout should be kept quite short.</p>
+
+<p style="margin-top: 1em">-w waitTime <br>
+When mimedefang-multiplexor starts the initial slaves, or
+needs to bring the number of running slaves up to the number
+defined by the -m option, it does not start all the <br>
+slaves at once, because this could overload your server.
+Instead, it starts one slave every waitTime seconds. The
+default value for waitTime is 3.</p>
+
+<p style="margin-top: 1em">-W waitTime <br>
+If you use this option, mimedefang-multiplexor will never
+activate a slave until waitTime seconds have elapsed since
+the last slave activation. This could result in mail <br>
+being tempfailed if slave activations do not keep pace with
+incoming mail. However, it may be preferable to tempfail
+mail rather than allow the load on your server to <br>
+spike up too quickly. The default value for this option is
+0, meaning that mimedefang-multiplexor will start slaves as
+quickly as necessary to keep up with incoming mail.</p>
+
+<p style="margin-top: 1em">-z spooldir <br>
+Set the spool directory to spooldir. If this option is
+omitted, the spool directory defaults to
+/var/spool/MIMEDefang.</p>
+
+<p style="margin-top: 1em">-s pathName <br>
+The UNIX-domain socket on which mimedefang-multiplexor
+listens for requests. This should be specified as an
+absolute pathname. If this option is not supplied, it <br>
+defaults to mimedefang-multiplexor.sock under the spool
+directory.</p>
+
+<p style="margin-top: 1em">-a socket <br>
+A socket for listening for requests. This is similar to the
+-s socket, except that a restricted set of requests are
+processed. On this socket, the multiplexor will only <br>
+process requests asking for status; it will not accept any
+commands to do scanning or that would consume a slave. See
+the SOCKET SPECIFICATION section for the format of <br>
+socket.</p>
+
+<p style="margin-top: 1em">-p fileName <br>
+Causes mimedefang-multiplexor to write its process-ID (after
+becoming a daemon) to the specified file.</p>
+
+<p style="margin-top: 1em">-f filter_path <br>
+Normally, mimedefang-multiplexor executes a Perl filter
+script called mimedefang.pl to scan the e-mail. However, you
+can have it execute any program you like by specify&acirc;
+<br>
+ing the full path to the program with the -f option. This
+program must obey the protocol documented in
+mimedefang-protocol(7); see that manual page for
+details.</p>
+
+<p style="margin-top: 1em">Note that the -f option does not
+specify the &quot;filter&quot; to use with mimedefang.pl;
+instead, it specifies the program for mimedefang-multiplexor
+to execute. You almost cer&acirc; <br>
+tainly should not use this option unless you wish to replace
+mimedefang.pl with your own program.</p>
+
+<p style="margin-top: 1em">-F rules_path <br>
+Specifies the path to the filter rules. By default,
+/etc/mail/mimedefang-filter is used. If you use the -F
+option, its value is passed to the underlying Perl filter
+pro&acirc; <br>
+gram using -f.</p>
+
+<p style="margin-top: 1em">-l Log certain events, including
+the output of the Perl slaves&rsquo; standard-error, using
+syslog. Normally, the multiplexor does not log much
+information.</p>
+
+<p style="margin-top: 1em">-d Write debugging information
+about event-handling code in
+/var/log/mimedefang-event-debug.log. This is only of use to
+people debugging mimedefang-multiplexor.</p>
+
+<p style="margin-top: 1em">-R kbytes <br>
+Limits the resident-set size of the slave filter processes
+to kbytes kilobytes. This limit is not supported on all
+operating systems; it is known to work on Linux.</p>
+
+<p style="margin-top: 1em">-M kbytes <br>
+Limits the total memory space of slave filter processes to
+kbytes kilobytes. This limit is supported on all operating
+systems which support the setrlimit(2) system call. <br>
+This should include most modern UNIX systems.</p>
+
+<p style="margin-top: 1em">We recommend that you monitor
+your slave filter processes and get a feel for how much
+memory they use. You should then limit the memory to two or
+three times the worst- <br>
+case that you have observed. This can help mitigate
+denial-of-service attacks which use complicated MIME
+messages to force mimedefang.pl to consume lots of
+memory.</p>
+
+<p style="margin-top: 1em">-h Print usage information and
+exit.</p>
+
+<p style="margin-top: 1em">-t filename <br>
+Log statistical information to filename. See the section
+STATISTICS for more information.</p>
+
+<p style="margin-top: 1em">-T Log statistical information
+using syslog(2). You may use any -t and -T together, in
+which case statistical information is logged in a file and
+using syslog.</p>
+
+<p style="margin-top: 1em">-u Flush the statistics file
+after every write. Normally, mimedefang-multiplexor does not
+flush the file; this is the best choice for minimizing disk
+I/O on a busy mail <br>
+server. However, if you wish to watch statistics entries in
+real-time, you should enable flushing.</p>
+
+<p style="margin-top: 1em">-D Do not fork into the
+background and become a daemon. Instead, stay in the
+foreground. Useful mainly for debugging or if you have a
+supervisory process managing mimede&acirc; <br>
+fang-multiplexor.</p>
+
+<p style="margin-top: 1em">-q queue_size <br>
+Normally, if all slaves are busy and mimedefang-multiplexor
+receives another request, it fails it with the error
+&quot;No free slaves.&quot; However, if you use the -q
+option, then <br>
+up to queue_size requests will be queued. As soon as a slave
+becomes free, the queued requests will be handed off in FIFO
+order. If the queue is full and another request <br>
+comes in, then the request is failed with &quot;No free
+slaves&quot;.</p>
+
+<p style="margin-top: 1em">-Q queue_timeout <br>
+Queued requests should not stay on the queue indefinitely.
+If a queued request cannot be processed within queue_timeout
+(default 30) seconds of being placed on the queue, <br>
+it is failed with a &quot;Queued request timed out&quot;
+message. See the section &quot;QUEUEING REQUESTS&quot; for
+more discussion.</p>
+
+<p style="margin-top: 1em">-O sock <br>
+Listen on a notification socket for connections from
+listeners. mimedefang-multiplexor can inform external
+programs of state changes by sending messages over a
+notifica&acirc; <br>
+tion socket. The external programs connect to this socket
+and then listen for notifications. See the section SOCKET
+SPECIFICATION for the format of sock.</p>
+
+<p style="margin-top: 1em">See the mimedefang-notify(7) man
+page for details of the notification protocol.</p>
+
+<p style="margin-top: 1em">-N map_sock <br>
+Listen on a map socket for Sendmail SOCKETMAP connections.
+As of Sendmail 8.13, you can define a Sendmail map type that
+talks to a daemon over a socket. mimedefang-mul&acirc; <br>
+tiplexor implements that protocol; consult the
+mimedefang-filter(5) man page for detils (see the SOCKET
+MAPS section).</p>
+
+<p style="margin-top: 1em">See the section SOCKET
+SPECIFICATION for the format of map_sock.</p>
+
+<p style="margin-top: 1em">-I backlog <br>
+When mimedefang-multiplexor creates a listening socket, it
+calculates the &quot;backlog&quot; argument to listen(2)
+based on the maximum number of slaves. However, you can
+explic&acirc; <br>
+itly set this backlog with the -I option. Setting the
+backlog to a high value (around 30-50) may help on a very
+busy server. If you see mail log messages saying
+&quot;MXCom&acirc; <br>
+mand: socket: Connection refused&quot; during busy periods,
+then that&rsquo;s an indication you need a higher listen
+backlog.</p>
+
+<p style="margin-top: 1em">-L interval <br>
+Log the slave status every interval seconds. This logs a
+line using syslog; the line looks like this:</p>
+
+<p style="margin-top: 1em">Slave status: Stopped=s Idle=i
+Busy=b Killed=k Queued=q Msgs=m Activations=a</p>
+
+<p style="margin-top: 1em">Here, &quot;Stopped&quot; is the
+number of non-running slaves, &quot;Idle&quot; is the number
+of idle slaves, &quot;Busy&quot; is the number of busy
+slaves, &quot;Killed&quot; is the number of killed slaves
+yet <br>
+to be reaped, &quot;Queued&quot; is the number of queued
+requests, &quot;Msgs&quot; is the total number of messages
+processed since the multiplexor began running, and
+&quot;Activations&quot; is the <br>
+number of times a Perl process has been started since the
+multiplexor began running.</p>
+
+<p style="margin-top: 1em">If you supply an interval of 0
+(which is the default), no periodic status logging is
+performed. If you supply an interval of less than 5 seconds,
+it is silently reset to <br>
+5 seconds.</p>
+
+<p style="margin-top: 1em">-S facility <br>
+Specifies the syslog facility for log messages. The default
+is mail. See openlog(3) for a list of valid facilities. You
+can use either the short name (&quot;mail&quot;) or long
+<br>
+name (&quot;LOG_MAIL&quot;) for the facility name.</p>
+
+<p style="margin-top: 1em">-E Specifies that the
+multiplexor should create an embedded Perl interpreter. This
+can improve performance dramatically. But see the section
+&quot;EMBEDDING PERL&quot; for more <br>
+information.</p>
+
+<p style="margin-top: 1em">-X n Specifies that the
+multiplexor should initiate a &quot;tick&quot; request every
+n seconds. This causes your filter_tick function (if
+defined) to be called. Note that you have no <br>
+control over which slave executes filter_tick. If all slaves
+are busy when a tick occurs, that tick request is skipped
+and a warning message is logged.</p>
+
+<p style="margin-top: 1em">-P n Specifies that the
+multiplexor should run n tick requests in parallel. Each
+tick is run as often as specified with the -X argument. (If
+you omit the -P option, then the <br>
+multiplexor behaves as if -P 1 had been specified.)</p>
+
+<p style="margin-top: 1em">If you run parallel ticks, each
+tick is assigned an integer identifying its
+&quot;type&quot;. The type ranges from 0 to n-1. While there
+may be as many as n tick requests running <br>
+at a time, only one tick of each type will be active at any
+time.</p>
+
+<p style="margin-top: 1em">-Y label <br>
+Sets the tag used in the multiplexor&rsquo;s syslog messages
+to label instead of mimedefang-multiplexor.</p>
+
+<p style="margin-top: 1em">-G Normally,
+mimedefang-multiplexor uses a umask of 027 when creating
+listening sockets. If you would like the sockets to be
+readable and writeable by the group as well as <br>
+the owner, supply the -G option. This causes the umask to be
+007 whenever UNIX-domain sockets are created.</p>
+
+<p style="margin-top: 1em">-y n Limits the maximum number
+of concurrent recipok checks to n on a per-domain basis. The
+value of n can range from 0 (in which case no limit is
+applied) to maxSlaves, where <br>
+maxSlaves is the argument to the -x option. If n is outside
+that range, it is ignored (and no limit is applied.)</p>
+
+<p style="margin-top: 1em">The recipok command ultimately
+invokes the filter_recipient function in your filter. If you
+are doing recipient verification against servers that may be
+slow or unreli&acirc; <br>
+able, you can use the -y option to limit the number of
+concurrent recipient verifications per domain. That way, if
+one domain&rsquo;s server becomes very slow, it won&rsquo;t
+consume <br>
+all available slaves for recipient verification. Instead,
+its RCPT commands will be tempfailed and there will be
+slaves available to handle RCPT commands for other <br>
+domains.</p>
+
+<p style="margin-top: 1em">SOCKET SPECIFICATION <br>
+The -a, -N and -O options take a socket as an argument. This
+socket can be specified as:</p>
+
+<p style="margin-top: 1em">/path/to/socket <br>
+A UNIX-domain socket</p>
+
+<p style="margin-top: 1em">inet:portnum <br>
+A TCP socket bound to port portnum, but which accepts
+connections only from the IPv4 loopback address
+(127.0.0.1).</p>
+
+<p style="margin-top: 1em">inet_any:portnum <br>
+A TCP socket bound to port portnum which will accept
+connections from any address. Use inet_any with caution!</p>
+
+<p style="margin-top: 1em">inet6:portnum <br>
+A TCP socket bound to port portnum listening on the IPv6
+loopback address.</p>
+
+<p style="margin-top: 1em">inet6_any:portnum <br>
+A TCP socket bound to port portnum listening on the IPv6
+wildcard address.</p>
+
+<p style="margin-top: 1em">QUEUEING REQUESTS <br>
+Normally, if all slaves are busy, any additional requests
+are failed immediately. However, the -q and -Q options allow
+you to queue requests for a short amount of time. This <br>
+facility is intended to gracefully handle a temporary
+overload; most of the time, your queue should be empty.</p>
+
+<p style="margin-top: 1em">Because mimedefang checks the
+number of free slaves when a connection is opened and fails
+the connection if there are no free slaves, the intent of
+the queue is to allow SMTP <br>
+transactions that are already underway to continue if there
+is a slight overload. Any new connections will be failed if
+all slaves are busy, but existing connections are allowed
+<br>
+to continue. Queuing requests may improve throughput on
+extremely busy servers.</p>
+
+<p style="margin-top: 1em">Note that if you supply the -q
+option to mimedefang, then even new connections are allowed
+to queue. This may improve throughput by keeping the slave
+utilization higher.</p>
+
+<p style="margin-top: 1em">The -R option to mimedefang can
+be used to reserve a specified number of slaves for
+connections from the loopback address. Using the -R option
+has the side-effect of permitting <br>
+new connections from the loopback address to queue.</p>
+
+<p style="margin-top: 1em">EMBEDDING PERL <br>
+Normally, when mimedefang-multiplexor activates a slave, it
+forks and execs mimedefang.pl. However, if the multiplexor
+was compiled with embedded Perl support, and you supply <br>
+the -E command-line option, the multiplexor works like
+this:</p>
+
+<p style="margin-top: 1em">1 It creates an embedded Perl
+interpreter, and sources mimedefang.pl with a special
+command-line argument telling it to read the filter, but not
+to enter the main loop.</p>
+
+<p style="margin-top: 1em">2 Each time a slave is
+activated, the multiplexor calls fork() and runs the
+mimedefang.pl main loop. This invokes filter_initialize and
+then runs the main loop.</p>
+
+<p style="margin-top: 1em">On some platforms (for example,
+Red Hat Linux 7.3 with Perl 5.6.1), it is not safe to
+destroy and recreate a Perl interpreter without causing a
+memory leak. On those platforms, <br>
+if you attempt to reread the filter file (by sending the
+multiplexor a HUP signal or reread command), the filter will
+not be re-read, and a message will be logged to syslog. On
+<br>
+those platforms, you must kill and restart MIMEDefang if you
+change the filter file.</p>
+
+<p style="margin-top: 1em">On most platforms, however, a
+filter reread is accomplished by destroying and re-creating
+the embedded interpreter, re-sourcing mimedefang.pl and
+killing slaves as soon as they <br>
+are idle.</p>
+
+<p style="margin-top: 1em">STATISTICS <br>
+With the -t option, mimedefang-multiplexor logs certain
+events to a file. This file can be post-processed to gather
+statistics about the multiplexor. You can use it to tune the
+<br>
+number of slaves you run, adjust timeouts, and so on.</p>
+
+<p style="margin-top: 1em">Each line of the file looks like
+this:</p>
+
+<p style="margin-top: 1em">YYYY/MM/DD:HH:MM:SS timestamp
+event key=val key=val...</p>
+
+<p style="margin-top: 1em">Here, YYYY/MM/DD:HH:MM:SS is the
+local time of day. Timestamp is the number of seconds since
+January 1, 1970. Event is the name of an event. The valid
+events are:</p>
+
+<p style="margin-top: 1em">StartSlave <br>
+A slave process has been started.</p>
+
+<p style="margin-top: 1em">KillSlave <br>
+A slave process has been killed.</p>
+
+<p style="margin-top: 1em">ReapSlave <br>
+A dead slave process has been reaped. It is possible to have
+a ReapSlave event without a previous KillSlave event if the
+slave process terminated abnormally.</p>
+
+<p style="margin-top: 1em">StartFilter <br>
+A slave process has begun filtering an e-mail message.</p>
+
+<p style="margin-top: 1em">EndFilter <br>
+A slave process has finished filtering an e-mail
+message.</p>
+
+<p style="margin-top: 1em">The possible keys in the
+key=value pairs are:</p>
+
+<p style="margin-top: 1em">slave=n <br>
+The slave involved in the event. Every slave is identified
+by a small integer.</p>
+
+<p style="margin-top: 1em">nslaves=n <br>
+The total number of running slaves immediately after the
+event happened.</p>
+
+<p style="margin-top: 1em">nbusy=n <br>
+The number of busy slaves (slaves which are processing an
+e-mail message) immediately after the event happened.</p>
+
+<p style="margin-top: 1em">reason=&quot;string&quot; <br>
+The reason for a StartSlave or KillSlave event. (Present
+only for these events.)</p>
+
+<p style="margin-top: 1em">numRequests=n <br>
+The number of e-mails processed by the slave. Present only
+for an EndFilter event.</p>
+
+<p style="margin-top: 1em">If you send the
+mimedefang-multiplexor process a SIGHUP signal (kill -1
+pid), it closes and reopens the statistics file. This is
+useful during log file rotation.</p>
+
+<p style="margin-top: 1em">If you send the
+mimedefang-multiplexor process a SIGINT signal (kill -INT
+pid), it terminates all active-but-idle slaves. Also, any
+active-and-busy slaves terminate as soon as <br>
+they finish filtering the current message. This is useful to
+force a reread of the filter rules file without stopping and
+restarting Sendmail.</p>
+
+<p style="margin-top: 1em">If you send the
+mimedefang-multiplexor process a SIGTERM signal (kill pid),
+it terminates all slaves and exits immediately.</p>
+
+<p style="margin-top: 1em">AUTHOR <br>
+mimedefang-mulitplexor was written by Dianne Skoll
+&lt;dfs@roaringpenguin.com&gt;. The mimedefang home page is
+http://www.mimedefang.org/.</p>
+
+<p style="margin-top: 1em">SEE ALSO <br>
+mimedefang.pl(8), mimedefang-filter(5), mimedefang(8),
+mimedefang-protocol(7)</p>
+
+<p style="margin-top: 1em">4th Berkeley Distribution 8
+February 2005 MIMEDEFANG-MULTIPLEXOR(8)</p>
+<hr>
+</body>
+</html>
