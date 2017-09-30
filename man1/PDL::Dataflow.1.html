@@ -1,312 +1,296 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:30:22 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>DATAFLOW(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>DATAFLOW(1) User Contributed Perl Documentation
-DATAFLOW(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-PDL::Dataflow -- description of the dataflow philosophy</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-pdl&gt; $a = zeroes(10); <br>
-pdl&gt; $b = $a-&gt;slice(&quot;2:4:2&quot;); <br>
-pdl&gt; $b ++; <br>
-pdl&gt; print $a; <br>
-[0 0 1 0 1 0 0 0 0 0]</p>
-
-<p style="margin-top: 1em">WARNING <br>
-Dataflow is very experimental. Many features of it are
-disabled for 2.0, particularly families for one-directional
-dataflow. If you wish to use one-directional dataflow for
-<br>
-something, please contact the author first and we&rsquo;ll
-work out how to make it functional again.</p>
-
-<p style="margin-top: 1em">Two-directional dataflow (which
-implements -&gt;slice() etc.) is fully functional, however.
-Just about any function which returns some subset of the
-values in some piddle will make <br>
-a binding so that</p>
-
-<p style="margin-top: 1em">$a = some piddle <br>
-$b = $a-&gt;slice(&quot;some parts&quot;); <br>
-$b-&gt;set(3,3,10);</p>
-
-<p style="margin-top: 1em">also changes the corresponding
-element in $a. $b has become effectively a window to some
-sub-elements of $a. You can also define your own routines
-that do different types of <br>
-subsets. If you don&rsquo;t want $b to be a window to $a,
-you must do</p>
-
-<p style="margin-top: 1em">$b = $a-&gt;slice(&quot;some
-parts&quot;)-&gt;copy;</p>
-
-<p style="margin-top: 1em">The copying turns off all
-dataflow between the two piddles.</p>
-
-<p style="margin-top: 1em">The difficulties with
-one-directional dataflow are related to sequences like</p>
-
-<p style="margin-top: 1em">$b = $a + 1; <br>
-$b ++;</p>
-
-<p style="margin-top: 1em">where there are several possible
-outcomes and the semantics get a little murky.</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-Dataflow is new to PDL2.0. The basic philosophy behind
-dataflow is that</p>
-
-<p style="margin-top: 1em">&gt; $a = pdl 2,3,4; <br>
-&gt; $b = $a * 2; <br>
-&gt; print $b <br>
-[2 3 4] <br>
-&gt; $a-&gt;set(0,5); <br>
-&gt; print $b; <br>
-[10 3 4]</p>
-
-<p style="margin-top: 1em">should work. It doesn&rsquo;t.
-It was considered that doing this might be too confusing for
-novices and occasional users of the language. Therefore, you
-need to explicitly turn on <br>
-dataflow, so</p>
-
-<p style="margin-top: 1em">&gt; $a = pdl 2,3,4; <br>
-&gt; $a-&gt;doflow(); <br>
-&gt; $b = $a * 2; <br>
-...</p>
-
-<p style="margin-top: 1em">produces the unexpected result.
-The rest of this documents explains various features and
-details of the dataflow implementation.</p>
-
-<p style="margin-top: 1em">Lazy evaluation <br>
-When you calculate something like the above</p>
-
-<p style="margin-top: 1em">&gt; $a = pdl 2,3,4; <br>
-&gt; $a-&gt;doflow(); <br>
-&gt; $b = $a * 2;</p>
-
-<p style="margin-top: 1em">nothing will have been
-calculated at this point. Even the memory for the contents
-of $b has not been allocated. Only the command</p>
-
-<p style="margin-top: 1em">&gt; print $b</p>
-
-<p style="margin-top: 1em">will actually cause $b to be
-calculated. This is important to bear in mind when doing
-performance measurements and benchmarks as well as when
-tracking errors.</p>
-
-<p style="margin-top: 1em">There is an explanation for this
-behaviour: it may save cycles but more importantly, imagine
-the following:</p>
-
-<p style="margin-top: 1em">&gt; $a = pdl 2,3,4; <br>
-&gt; $b = pdl 5,6,7; <br>
-&gt; $c = $a + $b; <br>
-... <br>
-&gt; $a-&gt;resize(4); <br>
-&gt; $b-&gt;resize(4); <br>
-&gt; print $c;</p>
-
-<p style="margin-top: 1em">Now, if $c were evaluated
-between the two resizes, an error condition of incompatible
-sizes would occur.</p>
-
-<p style="margin-top: 1em">What happens in the current
-version is that resizing $a raises a flag in $c:
-&quot;PDL_PARENTDIMSCHANGED&quot; and $b just raises the
-same flag again. When $c is next evaluated, the flags <br>
-are checked and it is found that a recalculation is
-needed.</p>
-
-<p style="margin-top: 1em">Of course, lazy evaluation can
-sometimes make debugging more painful because errors may
-occur somewhere where you&rsquo;d not expect them. A better
-stack trace for errors is in the <br>
-works for PDL, probably so that you can toggle a switch
-$PDL::traceevals and get a good trace of where the error
-actually was.</p>
-
-<p style="margin-top: 1em">Families <br>
-This is one of the more intricate concepts of
-one-directional dataflow. Consider the following code ($a
-and $b are pdls that have dataflow enabled):</p>
-
-<p style="margin-top: 1em">$c = $a + $b; <br>
-$e = $c + 1; <br>
-$d = $c-&gt;diagonal(); <br>
-$d ++; <br>
-$f = $c + 1;</p>
-
-<p style="margin-top: 1em">What should $e and $f contain
-now? What about when $a is changed and a recalculation is
-triggered.</p>
-
-<p style="margin-top: 1em">In order to make dataflow work
-like you&rsquo;d expect, a rather strange concept must be
-introduced: families. Let us make a diagram:</p>
-
-<p style="margin-top: 1em">a b &nbsp; <br>
-/ <br>
-c <br>
-/| <br>
-/ | <br>
-e d</p>
-
-<p style="margin-top: 1em">This is what PDL actually has in
-memory after the first three lines. When $d is changed, we
-want $c to change but we don&rsquo;t want $e to change
-because it already is on the graph. <br>
-It may not be clear now why you don&rsquo;t want it to
-change but if there were 40 lines of code between the 2nd
-and 4th lines, you would. So we need to make a copy of $c
-and $d:</p>
-
-<p style="margin-top: 1em">a b &nbsp; <br>
-/ <br>
-c&rsquo; . . . c <br>
-/| | / | | e d&rsquo; . . . d f</p>
-
-<p style="margin-top: 1em">Notice that we primed the
-original c and d, because they do not correspond to the
-objects in $c and $d any more. Also, notice the dotted lines
-between the two objects: when $a is <br>
-changed and this diagram is re-evaluated, $c really does get
-the value of c&rsquo; with the diagonal incremented.</p>
-
-<p style="margin-top: 1em">To generalize on the above,
-whenever a piddle is mutated i.e. when its actual *value* is
-forcibly changed (not just the reference:</p>
-
-<p style="margin-top: 1em">$d = $d + 1</p>
-
-<p style="margin-top: 1em">would produce a completely
-different result ($c and $d would not be bound any more
-whereas</p>
-
-<p style="margin-top: 1em">$d .= $d + 1</p>
-
-<p style="margin-top: 1em">would yield the same as $d++), a
-&quot;family&quot; consisting of all other piddles joined to
-the mutated piddle by a two-way transformation is created
-and all those are copied.</p>
-
-<p style="margin-top: 1em">All slices or transformations
-that simply select a subset of the original pdl are two-way.
-Matrix inverse should be. No arithmetic operators are.</p>
-
-<p style="margin-top: 1em">Sources <br>
-What you were told in the previous section is not quite
-true: the behaviour described is not *always* what you want.
-Sometimes you would probably like to have a data
-&quot;source&quot;:</p>
-
-<p style="margin-top: 1em">$a = pdl 2,3,4; $b = pdl 5,6,7;
-<br>
-$c = $a + $b; <br>
-line($c);</p>
-
-<p style="margin-top: 1em">Now, if you know that $a is
-going to change and that you want its children to change
-with it, you can declare it into a data source (XXX
-unimplemented in current version):</p>
-
-<p style="margin-top: 1em">$a-&gt;datasource(1);</p>
-
-<p style="margin-top: 1em">After this, $a++ or $a .=
-something will not create a new family but will alter $a and
-cut its relation with its previous parents. All its children
-will follow its current <br>
-value.</p>
-
-<p style="margin-top: 1em">So if $c in the previous section
-had been declared as a source, $e and $f would remain
-equal.</p>
-
-<p style="margin-top: 1em">Binding <br>
-A dataflow mechanism would not be very useful without the
-ability to bind events onto changed data. Therefore, we
-provide such a mechanism:</p>
-
-<p style="margin-top: 1em">&gt; $a = pdl 2,3,4 <br>
-&gt; $b = $a + 1; <br>
-&gt; $c = $b * 2; <br>
-&gt; $c-&gt;bind( sub { print &quot;A now: $a, C now: $c0 }
-) <br>
-&gt; PDL::dowhenidle(); <br>
-A now: [2,3,4], C now: [6 8 10] <br>
-&gt; $a-&gt;set(0,1); <br>
-&gt; $a-&gt;set(1,1); <br>
-&gt; PDL::dowhenidle(); <br>
-A now: [1,1,4], C now: [4 4 10]</p>
-
-<p style="margin-top: 1em">Notice how the callbacks only
-get called during PDL::dowhenidle. An easy way to interface
-this to Perl event loop mechanisms (such as Tk) is being
-planned.</p>
-
-<p style="margin-top: 1em">There are many kinds of uses for
-this feature: self-updating graphs, for instance.</p>
-
-<p style="margin-top: 1em">Blah blah blah XXX more
-explanation</p>
-
-<p style="margin-top: 1em">Limitations <br>
-Dataflow as such is a fairly limited addition on top of
-Perl. To get a more refined addition, the internals of Perl
-need to be hacked a little. A true implementation would <br>
-enable flow of everything, including</p>
-
-<p style="margin-top: 1em">data <br>
-data size <br>
-datatype <br>
-operations</p>
-
-<p style="margin-top: 1em">At the moment we only have the
-first two (hey, 50% in a couple of months is not bad ;) but
-even this is useful by itself. However, especially the last
-one is desirable since it <br>
-would add the possibility of flowing closures from place to
-place and would make many things more flexible.</p>
-
-<p style="margin-top: 1em">To get the rest working, the
-internals of dataflow probably need to be changed to be a
-more general framework.</p>
-
-<p style="margin-top: 1em">Additionally, it would be nice
-to be able to flow data in time, lucid-like (so you could
-easily define all kinds of signal processing things).</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Copyright(C) 1997 Tuomas J. Lukka (lukka@fas.harvard.edu).
-Redistribution in the same form is allowed provided that the
-copyright notice stays intact but reprinting requires a <br>
-permission from the author.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2015-08-12
-DATAFLOW(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">DATAFLOW(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">DATAFLOW(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+PDL::Dataflow -- description of the dataflow philosophy
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<pre>
+        pdl&gt; $a = zeroes(10);
+        pdl&gt; $b = $a-&gt;slice(&quot;2:4:2&quot;);
+        pdl&gt; $b ++;
+        pdl&gt; print $a;
+        [0 0 1 0 1 0 0 0 0 0]
+</pre>
+<h1 class="Sh" title="Sh" id="WARNING"><a class="selflink" href="#WARNING">WARNING</a></h1>
+Dataflow is very experimental. Many features of it are disabled for 2.0,
+  particularly families for one-directional dataflow. If you wish to use
+  one-directional dataflow for something, please contact the author first and
+  we'll work out how to make it functional again.
+<div class="Pp"></div>
+Two-directional dataflow (which implements -&gt; <i>slice()</i> etc.) is fully
+  functional, however. Just about any function which returns some subset of the
+  values in some piddle will make a binding so that
+<div class="Pp"></div>
+<pre>
+        $a = some piddle
+        $b = $a-&gt;slice(&quot;some parts&quot;);
+        $b-&gt;set(3,3,10);
+</pre>
+<div class="Pp"></div>
+also changes the corresponding element in $a. $b has become effectively a window
+  to some sub-elements of $a. You can also define your own routines that do
+  different types of subsets. If you don't want $b to be a window to $a, you
+  must do
+<div class="Pp"></div>
+<pre>
+        $b = $a-&gt;slice(&quot;some parts&quot;)-&gt;copy;
+</pre>
+<div class="Pp"></div>
+The copying turns off all dataflow between the two piddles.
+<div class="Pp"></div>
+The difficulties with one-directional dataflow are related to sequences like
+<div class="Pp"></div>
+<pre>
+        $b = $a + 1;
+        $b ++;
+</pre>
+<div class="Pp"></div>
+where there are several possible outcomes and the semantics get a little murky.
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+Dataflow is new to PDL2.0. The basic philosophy behind dataflow is that
+<div class="Pp"></div>
+<pre>
+        &gt; $a = pdl 2,3,4;
+        &gt; $b = $a * 2;
+        &gt; print $b
+        [2 3 4]
+        &gt; $a-&gt;set(0,5);
+        &gt; print $b;
+        [10 3 4]
+</pre>
+<div class="Pp"></div>
+should work. It doesn't. It was considered that doing this might be too
+  confusing for novices and occasional users of the language. Therefore, you
+  need to explicitly turn on dataflow, so
+<div class="Pp"></div>
+<pre>
+        &gt; $a = pdl 2,3,4;
+        &gt; $a-&gt;doflow();
+        &gt; $b = $a * 2;
+        ...
+</pre>
+<div class="Pp"></div>
+produces the unexpected result. The rest of this documents explains various
+  features and details of the dataflow implementation.
+<h1 class="Sh" title="Sh" id="Lazy_evaluation"><a class="selflink" href="#Lazy_evaluation">Lazy
+  evaluation</a></h1>
+When you calculate something like the above
+<div class="Pp"></div>
+<pre>
+        &gt; $a = pdl 2,3,4;
+        &gt; $a-&gt;doflow();
+        &gt; $b = $a * 2;
+</pre>
+<div class="Pp"></div>
+nothing will have been calculated at this point. Even the memory for the
+  contents of $b has not been allocated. Only the command
+<div class="Pp"></div>
+<pre>
+        &gt; print $b
+</pre>
+<div class="Pp"></div>
+will actually cause $b to be calculated. This is important to bear in mind when
+  doing performance measurements and benchmarks as well as when tracking errors.
+<div class="Pp"></div>
+There is an explanation for this behaviour: it may save cycles but more
+  importantly, imagine the following:
+<div class="Pp"></div>
+<pre>
+        &gt; $a = pdl 2,3,4;
+        &gt; $b = pdl 5,6,7;
+        &gt; $c = $a + $b;
+        ...
+        &gt; $a-&gt;resize(4);
+        &gt; $b-&gt;resize(4);
+        &gt; print $c;
+</pre>
+<div class="Pp"></div>
+Now, if $c were evaluated between the two resizes, an error condition of
+  incompatible sizes would occur.
+<div class="Pp"></div>
+What happens in the current version is that resizing $a raises a flag in $c:
+  &quot;PDL_PARENTDIMSCHANGED&quot; and $b just raises the same flag again. When
+  $c is next evaluated, the flags are checked and it is found that a
+  recalculation is needed.
+<div class="Pp"></div>
+Of course, lazy evaluation can sometimes make debugging more painful because
+  errors may occur somewhere where you'd not expect them. A better stack trace
+  for errors is in the works for PDL, probably so that you can toggle a switch
+  $PDL::traceevals and get a good trace of where the error actually was.
+<h1 class="Sh" title="Sh" id="Families"><a class="selflink" href="#Families">Families</a></h1>
+This is one of the more intricate concepts of one-directional dataflow. Consider
+  the following code ($a and $b are pdls that have dataflow enabled):
+<div class="Pp"></div>
+<pre>
+        $c = $a + $b;
+        $e = $c + 1;
+        $d = $c-&gt;diagonal();
+        $d ++;
+        $f = $c + 1;
+</pre>
+<div class="Pp"></div>
+What should $e and $f contain now? What about when $a is changed and a
+  recalculation is triggered.
+<div class="Pp"></div>
+In order to make dataflow work like you'd expect, a rather strange concept must
+  be introduced: families. Let us make a diagram:
+<div class="Pp"></div>
+<pre>
+        a   b
+         \ /
+          c
+         /|
+        / |
+       e  d
+</pre>
+<div class="Pp"></div>
+This is what PDL actually has in memory after the first three lines. When $d is
+  changed, we want $c to change but we don't want $e to change because it
+  already is on the graph. It may not be clear now why you don't want it to
+  change but if there were 40 lines of code between the 2nd and 4th lines, you
+  would. So we need to make a copy of $c and $d:
+<div class="Pp"></div>
+<pre>
+        a   b
+         \ /
+          c' . . . c
+         /|        |\
+        / |        | \
+       e  d' . . . d  f
+</pre>
+<div class="Pp"></div>
+Notice that we primed the original c and d, because they do not correspond to
+  the objects in $c and $d any more. Also, notice the dotted lines between the
+  two objects: when $a is changed and this diagram is re-evaluated, $c really
+  does get the value of c' with the diagonal incremented.
+<div class="Pp"></div>
+To generalize on the above, whenever a piddle is mutated i.e. when its actual
+  *value* is forcibly changed (not just the reference:
+<div class="Pp"></div>
+<pre>
+        $d = $d + 1
+</pre>
+<div class="Pp"></div>
+would produce a completely different result ($c and $d would not be bound any
+  more whereas
+<div class="Pp"></div>
+<pre>
+        $d .= $d + 1
+</pre>
+<div class="Pp"></div>
+would yield the same as $d++), a &quot;family&quot; consisting of all other
+  piddles joined to the mutated piddle by a two-way transformation is created
+  and all those are copied.
+<div class="Pp"></div>
+All slices or transformations that simply select a subset of the original pdl
+  are two-way. Matrix inverse should be. No arithmetic operators are.
+<h1 class="Sh" title="Sh" id="Sources"><a class="selflink" href="#Sources">Sources</a></h1>
+What you were told in the previous section is not quite true: the behaviour
+  described is not *always* what you want. Sometimes you would probably like to
+  have a data &quot;source&quot;:
+<div class="Pp"></div>
+<pre>
+        $a = pdl 2,3,4; $b = pdl 5,6,7;
+        $c = $a + $b;
+        line($c);
+</pre>
+<div class="Pp"></div>
+Now, if you know that $a is going to change and that you want its children to
+  change with it, you can declare it into a data source (XXX unimplemented in
+  current version):
+<div class="Pp"></div>
+<pre>
+        $a-&gt;datasource(1);
+</pre>
+<div class="Pp"></div>
+After this, $a++ or $a .= something will not create a new family but will alter
+  $a and cut its relation with its previous parents. All its children will
+  follow its current value.
+<div class="Pp"></div>
+So if $c in the previous section had been declared as a source, $e and $f would
+  remain equal.
+<h1 class="Sh" title="Sh" id="Binding"><a class="selflink" href="#Binding">Binding</a></h1>
+A dataflow mechanism would not be very useful without the ability to bind events
+  onto changed data. Therefore, we provide such a mechanism:
+<div class="Pp"></div>
+<pre>
+        &gt; $a = pdl 2,3,4
+        &gt; $b = $a + 1;
+        &gt; $c = $b * 2;
+        &gt; $c-&gt;bind( sub { print &quot;A now: $a, C now: $c\n&quot; } )
+        &gt; PDL::dowhenidle();
+        A now: [2,3,4], C now: [6 8 10]
+        &gt; $a-&gt;set(0,1);
+        &gt; $a-&gt;set(1,1);
+        &gt; PDL::dowhenidle();
+        A now: [1,1,4], C now: [4 4 10]
+</pre>
+<div class="Pp"></div>
+Notice how the callbacks only get called during PDL::dowhenidle. An easy way to
+  interface this to Perl event loop mechanisms (such as Tk) is being planned.
+<div class="Pp"></div>
+There are many kinds of uses for this feature: self-updating graphs, for
+  instance.
+<div class="Pp"></div>
+Blah blah blah XXX more explanation
+<h1 class="Sh" title="Sh" id="Limitations"><a class="selflink" href="#Limitations">Limitations</a></h1>
+Dataflow as such is a fairly limited addition on top of Perl. To get a more
+  refined addition, the internals of Perl need to be hacked a little. A true
+  implementation would enable flow of everything, including
+<dl class="Bl-tag">
+  <dt class="It-tag">data</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">data size</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">datatype</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">operations</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+At the moment we only have the first two (hey, 50% in a couple of months is not
+  bad ;) but even this is useful by itself. However, especially the last one is
+  desirable since it would add the possibility of flowing closures from place to
+  place and would make many things more flexible.
+<div class="Pp"></div>
+To get the rest working, the internals of dataflow probably need to be changed
+  to be a more general framework.
+<div class="Pp"></div>
+Additionally, it would be nice to be able to flow data in time, lucid-like (so
+  you could easily define all kinds of signal processing things).
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Copyright(C) 1997 Tuomas J. Lukka (lukka@fas.harvard.edu). Redistribution in the
+  same form is allowed provided that the copyright notice stays intact but
+  reprinting requires a permission from the author.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2015-08-12</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

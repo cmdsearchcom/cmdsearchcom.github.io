@@ -1,324 +1,304 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:02:42 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>DBMAPREDUCE(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>DBMAPREDUCE(1) User Contributed Perl Documentation
-DBMAPREDUCE(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-dbmapreduce - reduce all input rows with the same key</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-dbmapreduce [-dMS] [-k KeyField] [-f CodeFile] [-C
-Filtercode] [--] [ReduceCommand [ReduceArguments...]]</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-Group input data by KeyField, then apply a function (the
-&quot;reducer&quot;) to each group. The reduce function can
-be an external program given by ReduceCommand and
-ReduceArguments, or <br>
-an Perl subroutine given in CodeFile or FilterCode.</p>
-
-<p style="margin-top: 1em">If a &quot;--&quot; appears
-before reduce command, arguments after the -- passed the the
-command.</p>
-
-<p style="margin-top: 1em">Grouping (The Mapper) <br>
-By default the KeyField is the first field in the row.
-Unlike Hadoop streaming, the -k KeyField option can
-explicitly name where the key is in any column of each input
-row.</p>
-
-<p style="margin-top: 1em">By default, we sort the data to
-make sure data is grouped by key. If the input is already
-grouped, the &quot;-S&quot; option avoids this cost.</p>
-
-<p style="margin-top: 1em">The Reducer <br>
-Reduce functions default to be shell commands. However, with
-&quot;-C&quot;, one can use arbitrary Perl code</p>
-
-<p style="margin-top: 1em">(see the &quot;-C&quot; option
-below for details). the &quot;-f&quot; option is useful to
-specify complex Perl code somewhere other than the command
-line.</p>
-
-<p style="margin-top: 1em">Finally, as a special case, if
-there are no rows of input, the reducer will be invoked once
-with the empty value (if it&rsquo;s an external reducer) or
-with undef (if it&rsquo;s a <br>
-subroutine). It is expected to generate the output header,
-and it may generate no data rows itself, or a null data row
-of its choosing.</p>
-
-<p style="margin-top: 1em">Output <br>
-For non-multi-key-aware reducers, we add the KeyField use
-for each Reduce is in the output stream. (If the reducer
-passes the key we trust that it gives a correct value.) We
-<br>
-also insure that the output field separator is the same as
-the input field separator.</p>
-
-<p style="margin-top: 1em">Adding the key and adjusting the
-output field separator is not possible for
-non-multi-key-aware reducers.</p>
-
-<p style="margin-top: 1em">Comparison to Related Work <br>
-This program thus implements Google-style map/reduce, but
-executed sequentially.</p>
-
-<p style="margin-top: 1em">For input, these systems include
-a map function and apply it to input data to generate the
-key. We assume this key generation (the map function) has
-occurred head of time.</p>
-
-<p style="margin-top: 1em">We also allow the grouping key
-to be in any column. Hadoop Streaming requires it to be in
-the first column.</p>
-
-<p style="margin-top: 1em">By default, the reducer gets
-exactly (and only) one key. This invariant is stronger than
-Google and Hadoop. They both pass multiple keys to the
-reducer, insuring that each key <br>
-is grouped together. With the &quot;-M&quot; option, we also
-pass multiple multiple groups to the reducer.</p>
-
-<p style="margin-top: 1em">Unlike those systems, with the
-&quot;-S&quot; option we do not require the groups arrive in
-any particular order, just that they be grouped together.
-(They guarantees they arrive in <br>
-lexically sorted order). However, with &quot;-S&quot; we
-create lexical ordering.</p>
-
-<p style="margin-top: 1em">With &quot;--prepend-key&quot;
-we insure that the KeyField is in the output stream; other
-systems do not enforce this.</p>
-
-<p style="margin-top: 1em">Assumptions and requirements
-<br>
-By default, data can be provided in arbitrary order and the
-program consumes O(number of unique tags) memory, and O(size
-of data) disk space.</p>
-
-<p style="margin-top: 1em">With the &quot;-S&quot; option,
-data must arrive group by tags (not necessarily sorted), and
-the program consumes O(number of tags) memory and no disk
-space. The program will check and <br>
-abort if this precondition is not met.</p>
-
-<p style="margin-top: 1em">With two &quot;-S&quot;&rsquo;s,
-program consumes O(1) memory, but doesn&rsquo;t verify that
-the data-arrival precondition is met.</p>
-
-<p style="margin-top: 1em">The field separators of the
-input and the output can now be different (early versions of
-this tool prohibited such variation.) With
-&quot;--copy-fs&quot; we copy the input field separator <br>
-to the output, but only for non-multi-key-aware reducers.
-(this used to be done automatically).</p>
-
-<p style="margin-top: 1em">Known bugs <br>
-As of 2013-09-21, we don&rsquo;t verify key order with
-options &quot;-M -S&quot;.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
--k or --key KeyField <br>
-specify which column is the key for grouping (default: the
-first column)</p>
-
-<p style="margin-top: 1em">-S or --pre-sorted <br>
-Assume data is already grouped by tag. Provided twice, it
-removes the validation of this assertion.</p>
-
-<p style="margin-top: 1em">-M or --multiple-ok <br>
-Assume the ReduceCommand can handle multiple grouped keys,
-and the ReduceCommand is responsible for outputting the with
-each output row. (By default, a separate <br>
-ReduceCommand is run for each key, and dbmapreduce adds the
-key to each output row.)</p>
-
-<p style="margin-top: 1em">-K or --pass-current-key <br>
-Pass the current key as an argument to the external,
-non-map-aware ReduceCommand. This is only done optionally
-since some external commands do not expect an extra
-argument. <br>
-(Internal, non-map-aware Perl reducers are always given the
-current key as an argument.)</p>
-
-<p style="margin-top: 1em">--prepend-key <br>
-Add the current key into the reducer output for
-non-multi-key-aware reducers only. Not done by default.</p>
-
-<p style="margin-top: 1em">--copy-fs or
---copy-fieldseparator <br>
-Change the field separator of a non-multi-key-aware reducers
-to match the input&rsquo;s field separator. Not done by
-default.</p>
-
-<p style="margin-top: 1em">--parallelism=N or -j N <br>
-Allow up to N reducers to run in parallel. Default is the
-number of CPUs in the machine.</p>
-
-<p style="margin-top: 1em">-C FILTER-CODE or
---filter-code=FILTER-CODE <br>
-Provide FILTER-CODE, Perl code that generates and returns a
-Fsdb::Filter object that implements the reduce function. The
-provided code should be an anonymous sub that <br>
-creates a Fsdb Filter that implements the reduce object.</p>
-
-<p style="margin-top: 1em">The reduce object will then be
-called with --input and --output parameters that hook it
-into a the reduce with queues.</p>
-
-<p style="margin-top: 1em">One sample fragment that works
-is just:</p>
-
-<p style="margin-top: 1em">dbcolstats(qw(--nolog
-duration))</p>
-
-<p style="margin-top: 1em">So this command:</p>
-
-<p style="margin-top: 1em">cat DATA/stats.fsdb |
-dbmapreduce -k experiment -C &rsquo;dbcolstats(qw(--nolog
-duration))&rsquo;</p>
-
-<p style="margin-top: 1em">is the same as the example</p>
-
-<p style="margin-top: 1em">cat DATA/stats.fsdb |
-dbmapreduce -k experiment -- dbcolstats duration</p>
-
-<p style="margin-top: 1em">except that with &quot;-C&quot;
-there is no forking and so things run faster.</p>
-
-<p style="margin-top: 1em">If &quot;dbmapreduce&quot; is
-invoked from within Perl, then one can use a code SUB as
-well: <br>
-dbmapreduce(-k =&gt; &rsquo;experiment&rsquo;, -C =&gt; sub
-{ dbcolstats(qw(--nolong duration)) });</p>
-
-<p style="margin-top: 1em">The reduce object must consume
-all input as a Fsdb stream, and close the output Fsdb
-stream. (If this assumption is not met the map/reduce will
-be aborted.)</p>
-
-<p style="margin-top: 1em">For non-map-reduce-aware
-filters, when the filter-generator code runs, $_[0] will be
-the current key.</p>
-
-<p style="margin-top: 1em">-f CODE-FILE or
---code-file=CODE-FILE <br>
-Includes CODE-FILE in the program. This option is useful for
-more complicated perl reducer functions.</p>
-
-<p style="margin-top: 1em">Thus, if reducer.pl has the
-code.</p>
-
-<p style="margin-top: 1em">sub make_reducer { <br>
-my($current_key) = @_; <br>
-dbcolstats(qw(--nolog duration)); <br>
-}</p>
-
-<p style="margin-top: 1em">Then the command</p>
-
-<p style="margin-top: 1em">cat DATA/stats.fsdb |
-dbmapreduce -k experiment -f reducer.pl -C make_reducer</p>
-
-<p style="margin-top: 1em">does the same thing as the
-example.</p>
-
-<p style="margin-top: 1em">-w or --warnings <br>
-Enable warnings in user supplied code. Warnings are issued
-if an external reducer fails to consume all input. (Default
-to include warnings.)</p>
-
-<p style="margin-top: 1em">-T TmpDir <br>
-where to put tmp files. Also uses environment variable
-TMPDIR, if -T is not specified. Default is /tmp.</p>
-
-<p style="margin-top: 1em">This module also supports the
-standard fsdb options:</p>
-
-<p style="margin-top: 1em">-d Enable debugging output.</p>
-
-<p style="margin-top: 1em">-i or --input InputSource <br>
-Read from InputSource, typically a file name, or
-&quot;-&quot; for standard input, or (if in Perl) a
-IO::Handle, Fsdb::IO or Fsdb::BoundedQueue objects.</p>
-
-<p style="margin-top: 1em">-o or --output OutputDestination
-<br>
-Write to OutputDestination, typically a file name, or
-&quot;-&quot; for standard output, or (if in Perl) a
-IO::Handle, Fsdb::IO or Fsdb::BoundedQueue objects.</p>
-
-<p style="margin-top: 1em">--autorun or --noautorun <br>
-By default, programs process automatically, but Fsdb::Filter
-objects in Perl do not run until you invoke the run()
-method. The &quot;--(no)autorun&quot; option controls that
-behavior <br>
-within Perl.</p>
-
-<p style="margin-top: 1em">--header H <br>
-Use H as the full Fsdb header, rather than reading a header
-from then input.</p>
-
-<p style="margin-top: 1em">--help <br>
-Show help.</p>
-
-<p style="margin-top: 1em">--man <br>
-Show full manual.</p>
-
-<p style="margin-top: 1em">SAMPLE USAGE <br>
-Input: <br>
-#fsdb experiment duration <br>
-ufs_mab_sys 37.2 <br>
-ufs_mab_sys 37.3 <br>
-ufs_rcp_real 264.5 <br>
-ufs_rcp_real 277.9</p>
-
-<p style="margin-top: 1em">Command: <br>
-cat DATA/stats.fsdb | dbmapreduce --prepend-key -k
-experiment -- dbcolstats duration</p>
-
-<p style="margin-top: 1em">Output: <br>
-#fsdb experiment mean stddev pct_rsd conf_range conf_low
-conf_high conf_pct sum sum_squared min max n <br>
-ufs_mab_sys 37.25 0.070711 0.18983 0.6353 36.615 37.885 0.95
-74.5 2775.1 37.2 37.3 2 <br>
-ufs_rcp_real 271.2 9.4752 3.4938 85.13 186.07 356.33 0.95
-542.4 1.4719e+05 264.5 277.9 2 <br>
-# | dbmapreduce -k experiment dbstats duration</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-Fsdb. dbmultistats dbrowsplituniq</p>
-
-<p style="margin-top: 1em">AUTHOR and COPYRIGHT <br>
-Copyright (C) 1991-2016 by John Heidemann
-&lt;johnh@isi.edu&gt;</p>
-
-<p style="margin-top: 1em">This program is distributed
-under terms of the GNU general public license, version 2.
-See the file COPYING with the distribution for details.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2017-05-26
-DBMAPREDUCE(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">DBMAPREDUCE(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">DBMAPREDUCE(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+dbmapreduce - reduce all input rows with the same key
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<pre>
+    dbmapreduce [-dMS] [-k KeyField] [-f CodeFile] [-C Filtercode] [--] [ReduceCommand [ReduceArguments...]]
+</pre>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+Group input data by KeyField, then apply a function (the &quot;reducer&quot;) to
+  each group. The reduce function can be an external program given by
+  ReduceCommand and ReduceArguments, or an Perl subroutine given in CodeFile or
+  FilterCode.
+<div class="Pp"></div>
+If a &quot;--&quot; appears before reduce command, arguments after the -- passed
+  the the command.
+<h2 class="Ss" title="Ss" id="Grouping_(The_Mapper)"><a class="selflink" href="#Grouping_(The_Mapper)">Grouping
+  (The Mapper)</a></h2>
+By default the KeyField is the first field in the row. Unlike Hadoop streaming,
+  the -k KeyField option can explicitly name where the key is in any column of
+  each input row.
+<div class="Pp"></div>
+By default, we sort the data to make sure data is grouped by key. If the input
+  is already grouped, the &quot;-S&quot; option avoids this cost.
+<h2 class="Ss" title="Ss" id="The_Reducer"><a class="selflink" href="#The_Reducer">The
+  Reducer</a></h2>
+Reduce functions default to be shell commands. However, with &quot;-C&quot;, one
+  can use arbitrary Perl code
+<div class="Pp"></div>
+(see the &quot;-C&quot; option below for details). the &quot;-f&quot; option is
+  useful to specify complex Perl code somewhere other than the command line.
+<div class="Pp"></div>
+Finally, as a special case, if there are no rows of input, the reducer will be
+  invoked once with the empty value (if it's an external reducer) or with undef
+  (if it's a subroutine). It is expected to generate the output header, and it
+  may generate no data rows itself, or a null data row of its choosing.
+<h2 class="Ss" title="Ss" id="Output"><a class="selflink" href="#Output">Output</a></h2>
+For non-multi-key-aware reducers, we add the KeyField use for each Reduce is in
+  the output stream. (If the reducer passes the key we trust that it gives a
+  correct value.) We also insure that the output field separator is the same as
+  the input field separator.
+<div class="Pp"></div>
+Adding the key and adjusting the output field separator is not possible for
+  non-multi-key-aware reducers.
+<h2 class="Ss" title="Ss" id="Comparison_to_Related_Work"><a class="selflink" href="#Comparison_to_Related_Work">Comparison
+  to Related Work</a></h2>
+This program thus implements Google-style map/reduce, but executed sequentially.
+<div class="Pp"></div>
+For input, these systems include a map function and apply it to input data to
+  generate the key. We assume this key generation (the map function) has
+  occurred head of time.
+<div class="Pp"></div>
+We also allow the grouping key to be in any column. Hadoop Streaming requires it
+  to be in the first column.
+<div class="Pp"></div>
+By default, the reducer gets exactly (and only) one key. This invariant is
+  stronger than Google and Hadoop. They both pass multiple keys to the reducer,
+  insuring that each key is grouped together. With the &quot;-M&quot; option, we
+  also pass multiple multiple groups to the reducer.
+<div class="Pp"></div>
+Unlike those systems, with the &quot;-S&quot; option we do not require the
+  groups arrive in any particular order, just that they be grouped together.
+  (They guarantees they arrive in lexically sorted order). However, with
+  &quot;-S&quot; we create lexical ordering.
+<div class="Pp"></div>
+With &quot;--prepend-key&quot; we insure that the KeyField is in the output
+  stream; other systems do not enforce this.
+<h2 class="Ss" title="Ss" id="Assumptions_and_requirements"><a class="selflink" href="#Assumptions_and_requirements">Assumptions
+  and requirements</a></h2>
+By default, data can be provided in arbitrary order and the program consumes
+  O(number of unique tags) memory, and O(size of data) disk space.
+<div class="Pp"></div>
+With the &quot;-S&quot; option, data must arrive group by tags (not necessarily
+  sorted), and the program consumes O(number of tags) memory and no disk space.
+  The program will check and abort if this precondition is not met.
+<div class="Pp"></div>
+With two &quot;-S&quot;'s, program consumes O(1) memory, but doesn't verify that
+  the data-arrival precondition is met.
+<div class="Pp"></div>
+The field separators of the input and the output can now be different (early
+  versions of this tool prohibited such variation.) With &quot;--copy-fs&quot;
+  we copy the input field separator to the output, but only for
+  non-multi-key-aware reducers. (this used to be done automatically).
+<h2 class="Ss" title="Ss" id="Known_bugs"><a class="selflink" href="#Known_bugs">Known
+  bugs</a></h2>
+As of 2013-09-21, we don't verify key order with options &quot;-M -S&quot;.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-k</b> or <b>--key</b> KeyField</dt>
+  <dd class="It-tag">specify which column is the key for grouping (default: the
+      first column)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-S</b> or <b>--pre-sorted</b></dt>
+  <dd class="It-tag">Assume data is already grouped by tag. Provided twice, it
+      removes the validation of this assertion.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-M</b> or <b>--multiple-ok</b></dt>
+  <dd class="It-tag">Assume the ReduceCommand can handle multiple grouped keys,
+      and the ReduceCommand is responsible for outputting the with each output
+      row. (By default, a separate ReduceCommand is run for each key, and
+      dbmapreduce adds the key to each output row.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-K</b> or <b>--pass-current-key</b></dt>
+  <dd class="It-tag">Pass the current key as an argument to the external,
+      non-map-aware ReduceCommand. This is only done optionally since some
+      external commands do not expect an extra argument. (Internal,
+      non-map-aware Perl reducers are always given the current key as an
+      argument.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--prepend-key</b></dt>
+  <dd class="It-tag">Add the current key into the reducer output for
+      non-multi-key-aware reducers only. Not done by default.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--copy-fs</b> or <b>--copy-fieldseparator</b></dt>
+  <dd class="It-tag">Change the field separator of a non-multi-key-aware
+      reducers to match the input's field separator. Not done by default.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--parallelism=N</b> or <b>-j N</b></dt>
+  <dd class="It-tag">Allow up to N reducers to run in parallel. Default is the
+      number of CPUs in the machine.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-C FILTER-CODE</b> or
+    <b>--filter-code=FILTER-CODE</b></dt>
+  <dd class="It-tag">Provide FILTER-CODE, Perl code that generates and returns a
+      Fsdb::Filter object that implements the reduce function. The provided code
+      should be an anonymous sub that creates a Fsdb Filter that implements the
+      reduce object.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The reduce object will then be called with --input and --output parameters
+      that hook it into a the reduce with queues.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    One sample fragment that works is just:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    dbcolstats(qw(--nolog duration))
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    So this command:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    cat DATA/stats.fsdb | \
+        dbmapreduce -k experiment -C 'dbcolstats(qw(--nolog duration))'
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    is the same as the example
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    cat DATA/stats.fsdb | \
+        dbmapreduce -k experiment -- dbcolstats duration
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    except that with &quot;-C&quot; there is no forking and so things run
+      faster.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If &quot;dbmapreduce&quot; is invoked from within Perl, then one can use a
+      code SUB as well:
+    <br/>
+     dbmapreduce(-k =&gt; 'experiment', 	-C =&gt; sub { dbcolstats(qw(--nolong
+      duration)) });
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The reduce object must consume <i>all</i> input as a Fsdb stream, and close
+      the output Fsdb stream. (If this assumption is not met the map/reduce will
+      be aborted.)
+    <div style="height: 1.00em;">&#x00A0;</div>
+    For non-map-reduce-aware filters, when the filter-generator code runs, $_[0]
+      will be the current key.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-f CODE-FILE</b> or <b>--code-file=CODE-FILE</b></dt>
+  <dd class="It-tag">Includes <i>CODE-FILE</i> in the program. This option is
+      useful for more complicated perl reducer functions.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Thus, if reducer.pl has the code.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    sub make_reducer {
+        my($current_key) = @_;
+        dbcolstats(qw(--nolog duration));
+    }
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Then the command
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    cat DATA/stats.fsdb | \
+        dbmapreduce -k experiment -f reducer.pl -C make_reducer
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    does the same thing as the example.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-w</b> or <b>--warnings</b></dt>
+  <dd class="It-tag">Enable warnings in user supplied code. Warnings are issued
+      if an external reducer fails to consume all input. (Default to include
+      warnings.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-T TmpDir</b></dt>
+  <dd class="It-tag">where to put tmp files. Also uses environment variable
+      TMPDIR, if -T is not specified. Default is /tmp.</dd>
+</dl>
+<div class="Pp"></div>
+This module also supports the standard fsdb options:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-d</b></dt>
+  <dd class="It-tag">Enable debugging output.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-i</b> or <b>--input</b> InputSource</dt>
+  <dd class="It-tag">Read from InputSource, typically a file name, or
+      &quot;-&quot; for standard input, or (if in Perl) a IO::Handle, Fsdb::IO
+      or Fsdb::BoundedQueue objects.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-o</b> or <b>--output</b> OutputDestination</dt>
+  <dd class="It-tag">Write to OutputDestination, typically a file name, or
+      &quot;-&quot; for standard output, or (if in Perl) a IO::Handle, Fsdb::IO
+      or Fsdb::BoundedQueue objects.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--autorun</b> or <b>--noautorun</b></dt>
+  <dd class="It-tag">By default, programs process automatically, but
+      Fsdb::Filter objects in Perl do not run until you invoke the <i>run()</i>
+      method. The &quot;--(no)autorun&quot; option controls that behavior within
+      Perl.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--header</b> H</dt>
+  <dd class="It-tag">Use H as the full Fsdb header, rather than reading a header
+      from then input.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--help</b></dt>
+  <dd class="It-tag">Show help.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--man</b></dt>
+  <dd class="It-tag">Show full manual.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="SAMPLE_USAGE"><a class="selflink" href="#SAMPLE_USAGE">SAMPLE
+  USAGE</a></h1>
+<h2 class="Ss" title="Ss" id="Input:"><a class="selflink" href="#Input:">Input:</a></h2>
+<pre>
+    #fsdb experiment duration
+    ufs_mab_sys 37.2
+    ufs_mab_sys 37.3
+    ufs_rcp_real 264.5
+    ufs_rcp_real 277.9
+</pre>
+<h2 class="Ss" title="Ss" id="Command:"><a class="selflink" href="#Command:">Command:</a></h2>
+<pre>
+    cat DATA/stats.fsdb | \
+        dbmapreduce --prepend-key -k experiment -- dbcolstats duration
+</pre>
+<h2 class="Ss" title="Ss" id="Output:"><a class="selflink" href="#Output:">Output:</a></h2>
+<pre>
+    #fsdb      experiment      mean    stddev  pct_rsd conf_range      conf_low       conf_high        conf_pct        sum     sum_squared     min     max     n
+    ufs_mab_sys     37.25 0.070711 0.18983 0.6353 36.615 37.885 0.95 74.5 2775.1 37.2 37.3 2
+    ufs_rcp_real    271.2 9.4752 3.4938 85.13 186.07 356.33 0.95 542.4 1.4719e+05 264.5 277.9 2
+    #  | dbmapreduce -k experiment dbstats duration
+</pre>
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+Fsdb. dbmultistats dbrowsplituniq
+<h1 class="Sh" title="Sh" id="AUTHOR_and_COPYRIGHT"><a class="selflink" href="#AUTHOR_and_COPYRIGHT">AUTHOR
+  and COPYRIGHT</a></h1>
+Copyright (C) 1991-2016 by John Heidemann &lt;johnh@isi.edu&gt;
+<div class="Pp"></div>
+This program is distributed under terms of the GNU general public license,
+  version 2. See the file COPYING with the distribution for details.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2017-05-26</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

@@ -1,1610 +1,1720 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:16:24 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>SUDO_PLUGIN(5)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>SUDO_PLUGIN(5) BSD File Formats Manual
-SUDO_PLUGIN(5)</p>
-
-<p style="margin-top: 1em">NAME <br>
-sudo_plugin &acirc; Sudo Plugin API</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-Starting with version 1.8, sudo supports a plugin API for
-policy and session logging. By default, the sudoers policy
-plugin and an associated I/O logging plugin are used. Via
-the <br>
-plugin API, sudo can be configured to use alternate policy
-and/or I/O logging plugins provided by third parties. The
-plugins to be used are specified via the /etc/sudo.conf
-file.</p>
-
-<p style="margin-top: 1em">The API is versioned with a
-major and minor number. The minor version number is
-incremented when additions are made. The major number is
-incremented when incompatible changes are <br>
-made. A plugin should be check the version passed to it and
-make sure that the major version matches.</p>
-
-<p style="margin-top: 1em">The plugin API is defined by the
-sudo_plugin.h header file.</p>
-
-<p style="margin-top: 1em">The sudo.conf file <br>
-The /etc/sudo.conf file contains plugin configuration
-directives. The primary keyword is the Plugin directive,
-which causes a plugin to be loaded.</p>
-
-<p style="margin-top: 1em">A Plugin line consists of the
-Plugin keyword, followed by the symbol_name and the path to
-the shared object containing the plugin. The symbol_name is
-the name of the struct <br>
-policy_plugin or struct io_plugin in the plugin shared
-object. The path may be fully qualified or relative. If not
-fully qualified it is relative to the /usr/libexec
-directory. <br>
-Any additional parameters after the path are passed as
-options to the plugin&rsquo;s open() function. Lines that
-don&rsquo;t begin with Plugin, Path, Debug or Set are
-silently ignored.</p>
-
-<p style="margin-top: 1em">The same shared object may
-contain multiple plugins, each with a different symbol name.
-The shared object file must be owned by uid 0 and only
-writable by its owner. Because of <br>
-ambiguities that arise from composite policies, only a
-single policy plugin may be specified. This limitation does
-not apply to I/O plugins.</p>
-
-<p style="margin-top: 1em"># <br>
-# Default /etc/sudo.conf file <br>
-# <br>
-# Format: <br>
-# Plugin plugin_name plugin_path plugin_options ... <br>
-# Path askpass /path/to/askpass <br>
-# Path noexec /path/to/sudo_noexec.so <br>
-# Debug sudo /var/log/sudo_debug all@warn <br>
-# Set disable_coredump true <br>
-# <br>
-# The plugin_path is relative to /usr/libexec unless <br>
-# fully qualified. <br>
-# The plugin_name corresponds to a global symbol in the
-plugin <br>
-# that contains the plugin interface structure. <br>
-# The plugin_options are optional. <br>
-# <br>
-Plugin sudoers_policy sudoers.so <br>
-Plugin sudoers_io sudoers.so</p>
-
-<p style="margin-top: 1em">Policy plugin API <br>
-A policy plugin must declare and populate a policy_plugin
-struct in the global scope. This structure contains pointers
-to the functions that implement the sudo policy checks. The
-<br>
-name of the symbol should be specified in /etc/sudo.conf
-along with a path to the plugin so that sudo can load
-it.</p>
-
-<p style="margin-top: 1em">struct policy_plugin { <br>
-#define SUDO_POLICY_PLUGIN 1 <br>
-unsigned int type; /* always SUDO_POLICY_PLUGIN */ <br>
-unsigned int version; /* always SUDO_API_VERSION */ <br>
-int (*open)(unsigned int version, sudo_conv_t conversation,
-<br>
-sudo_printf_t plugin_printf, char * const settings[], <br>
-char * const user_info[], char * const user_env[], <br>
-char * const plugin_options[]); <br>
-void (*close)(int exit_status, int error); <br>
-int (*show_version)(int verbose); <br>
-int (*check_policy)(int argc, char * const argv[], <br>
-char *env_add[], char **command_info[], <br>
-char **argv_out[], char **user_env_out[]); <br>
-int (*list)(int argc, char * const argv[], int verbose, <br>
-const char *list_user); <br>
-int (*validate)(void); <br>
-void (*invalidate)(int remove); <br>
-int (*init_session)(struct passwd *pwd, char **user_env[]);
-<br>
-void (*register_hooks)(int version, <br>
-int (*register_hook)(struct sudo_hook *hook)); <br>
-void (*deregister_hooks)(int version, <br>
-int (*deregister_hook)(struct sudo_hook *hook)); <br>
-};</p>
-
-<p style="margin-top: 1em">The policy_plugin struct has the
-following fields:</p>
-
-<p style="margin-top: 1em">type The type field should
-always be set to SUDO_POLICY_PLUGIN.</p>
-
-<p style="margin-top: 1em">version <br>
-The version field should be set to SUDO_API_VERSION.</p>
-
-<p style="margin-top: 1em">This allows sudo to determine
-the API version the plugin was built against.</p>
-
-<p style="margin-top: 1em">open <br>
-int (*open)(unsigned int version, sudo_conv_t conversation,
-<br>
-sudo_printf_t plugin_printf, char * const settings[], <br>
-char * const user_info[], char * const user_env[], <br>
-char * const plugin_options[]);</p>
-
-<p style="margin-top: 1em">Returns 1 on success, 0 on
-failure, -1 if a general error occurred, or -2 if there was
-a usage error. In the latter case, sudo will print a usage
-message before it exits. <br>
-If an error occurs, the plugin may optionally call the
-conversation() or plugin_printf() function with
-SUDO_CONF_ERROR_MSG to present additional error information
-to the <br>
-user.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">version <br>
-The version passed in by sudo allows the plugin to determine
-the major and minor version number of the plugin API
-supported by sudo.</p>
-
-<p style="margin-top: 1em">conversation <br>
-A pointer to the conversation() function that can be used by
-the plugin to interact with the user (see below). Returns 0
-on success and -1 on failure.</p>
-
-<p style="margin-top: 1em">plugin_printf <br>
-A pointer to a printf()-style function that may be used to
-display informational or error messages (see below). Returns
-the number of characters printed on success and <br>
--1 on failure.</p>
-
-<p style="margin-top: 1em">settings <br>
-A vector of user-supplied sudo settings in the form of
-&acirc;name=value&acirc; strings. The vector is terminated
-by a NULL pointer. These settings correspond to flags the
-user <br>
-specified when running sudo. As such, they will only be
-present when the corresponding flag has been specified on
-the command line.</p>
-
-<p style="margin-top: 1em">When parsing settings, the
-plugin should split on the first equal sign
-(&acirc;=&acirc;) since the name field will never include
-one itself but the value might.</p>
-
-<p style="margin-top: 1em">debug_flags=string <br>
-A comma-separated list of debug flags that correspond to
-sudo&rsquo;s Debug entry in /etc/sudo.conf, if there is one.
-The flags are passed to the plugin as they appear <br>
-in /etc/sudo.conf. The syntax used by sudo and the sudoers
-plugin is subsystem@priority but the plugin is free to use a
-different format so long as it does not <br>
-include a comma (&acirc;,&acirc;).</p>
-
-<p style="margin-top: 1em">For reference, the priorities
-supported by the sudo front end and sudoers are: crit, err,
-warn, notice, diag, info, trace and debug.</p>
-
-<p style="margin-top: 1em">The following subsystems are
-defined: main, memory, args, exec, pty, utmp, conv, pcomm,
-util, list, netif, audit, edit, selinux, ldap, match,
-parser, alias, <br>
-defaults, auth, env, logging, nss, rbtree, perms, plugin.
-The subsystem all includes every subsystem.</p>
-
-<p style="margin-top: 1em">There is not currently a way to
-specify a set of debug flags specific to the plugin--the
-flags are shared by sudo and the plugin.</p>
-
-<p style="margin-top: 1em">debug_level=number <br>
-This setting has been deprecated in favor of
-debug_flags.</p>
-
-<p style="margin-top: 1em">runas_user=string <br>
-The user name or uid to to run the command as, if specified
-via the -u flag.</p>
-
-<p style="margin-top: 1em">runas_group=string <br>
-The group name or gid to to run the command as, if specified
-via the -g flag.</p>
-
-<p style="margin-top: 1em">prompt=string <br>
-The prompt to use when requesting a password, if specified
-via the -p flag.</p>
-
-<p style="margin-top: 1em">set_home=bool <br>
-Set to true if the user specified the -H flag. If true, set
-the HOME environment variable to the target user&rsquo;s
-home directory.</p>
-
-<p style="margin-top: 1em">preserve_environment=bool <br>
-Set to true if the user specified the -E flag, indicating
-that the user wishes to preserve the environment.</p>
-
-<p style="margin-top: 1em">run_shell=bool <br>
-Set to true if the user specified the -s flag, indicating
-that the user wishes to run a shell.</p>
-
-<p style="margin-top: 1em">login_shell=bool <br>
-Set to true if the user specified the -i flag, indicating
-that the user wishes to run a login shell.</p>
-
-<p style="margin-top: 1em">implied_shell=bool <br>
-If the user does not specify a program on the command line,
-sudo will pass the plugin the path to the user&rsquo;s shell
-and set implied_shell to true. This allows <br>
-sudo with no arguments to be used similarly to su(1). If the
-plugin does not to support this usage, it may return a value
-of -2 from the check_policy() function, <br>
-which will cause sudo to print a usage message and exit.</p>
-
-<p style="margin-top: 1em">preserve_groups=bool <br>
-Set to true if the user specified the -P flag, indicating
-that the user wishes to preserve the group vector instead of
-setting it based on the runas user.</p>
-
-<p style="margin-top: 1em">ignore_ticket=bool <br>
-Set to true if the user specified the -k flag along with a
-command, indicating that the user wishes to ignore any
-cached authentication credentials.</p>
-
-<p style="margin-top: 1em">noninteractive=bool <br>
-Set to true if the user specified the -n flag, indicating
-that sudo should operate in non-interactive mode. The plugin
-may reject a command run in non-interac&acirc; <br>
-tive mode if user interaction is required.</p>
-
-<p style="margin-top: 1em">login_class=string <br>
-BSD login class to use when setting resource limits and nice
-value, if specified by the -c flag.</p>
-
-<p style="margin-top: 1em">selinux_role=string <br>
-SELinux role to use when executing the command, if specified
-by the -r flag.</p>
-
-<p style="margin-top: 1em">selinux_type=string <br>
-SELinux type to use when executing the command, if specified
-by the -t flag.</p>
-
-<p style="margin-top: 1em">bsdauth_type=string <br>
-Authentication type, if specified by the -a flag, to use on
-systems where BSD authentication is supported.</p>
-
-<p style="margin-top: 1em">network_addrs=list <br>
-A space-separated list of IP network addresses and netmasks
-in the form &acirc;addr/netmask&acirc;, e.g.
-&acirc;192.168.1.2/255.255.255.0&acirc;. The address and
-netmask pairs may be <br>
-either IPv4 or IPv6, depending on what the operating system
-supports. If the address contains a colon (&acirc;:&acirc;),
-it is an IPv6 address, else it is IPv4.</p>
-
-<p style="margin-top: 1em">progname=string <br>
-The command name that sudo was run as, typically
-&acirc;sudo&acirc; or &acirc;sudoedit&acirc;.</p>
-
-<p style="margin-top: 1em">sudoedit=bool <br>
-Set to true when the -e flag is is specified or if invoked
-as sudoedit. The plugin shall substitute an editor into argv
-in the check_policy() function or return <br>
--2 with a usage error if the plugin does not support
-sudoedit. For more information, see the check_policy
-section.</p>
-
-<p style="margin-top: 1em">closefrom=number <br>
-If specified, the user has requested via the -C flag that
-sudo close all files descriptors with a value of number or
-higher. The plugin may optionally pass this, <br>
-or another value, back in the command_info list.</p>
-
-<p style="margin-top: 1em">Additional settings may be added
-in the future so the plugin should silently ignore settings
-that it does not recognize.</p>
-
-<p style="margin-top: 1em">user_info <br>
-A vector of information about the user running the command
-in the form of &acirc;name=value&acirc; strings. The vector
-is terminated by a NULL pointer.</p>
-
-<p style="margin-top: 1em">When parsing user_info, the
-plugin should split on the first equal sign
-(&acirc;=&acirc;) since the name field will never include
-one itself but the value might.</p>
-
-<p style="margin-top: 1em">pid=int <br>
-The process ID of the running sudo process. Only available
-starting with API version 1.2</p>
-
-<p style="margin-top: 1em">ppid=int <br>
-The parent process ID of the running sudo process. Only
-available starting with API version 1.2</p>
-
-<p style="margin-top: 1em">sid=int <br>
-The session ID of the running sudo process or 0 if sudo is
-not part of a POSIX job control session. Only available
-starting with API version 1.2</p>
-
-<p style="margin-top: 1em">pgid=int <br>
-The ID of the process group that the running sudo process
-belongs to. Only available starting with API version 1.2</p>
-
-<p style="margin-top: 1em">tcpgid=int <br>
-The ID of the forground process group associated with the
-terminal device associcated with the sudo process or -1 if
-there is no terminal present. Only available <br>
-starting with API version 1.2</p>
-
-<p style="margin-top: 1em">user=string <br>
-The name of the user invoking sudo.</p>
-
-<p style="margin-top: 1em">euid=uid_t <br>
-The effective user ID of the user invoking sudo.</p>
-
-<p style="margin-top: 1em">uid=uid_t <br>
-The real user ID of the user invoking sudo.</p>
-
-<p style="margin-top: 1em">egid=gid_t <br>
-The effective group ID of the user invoking sudo.</p>
-
-<p style="margin-top: 1em">gid=gid_t <br>
-The real group ID of the user invoking sudo.</p>
-
-<p style="margin-top: 1em">groups=list <br>
-The user&rsquo;s supplementary group list formatted as a
-string of comma-separated group IDs.</p>
-
-<p style="margin-top: 1em">cwd=string <br>
-The user&rsquo;s current working directory.</p>
-
-<p style="margin-top: 1em">tty=string <br>
-The path to the user&rsquo;s terminal device. If the user
-has no terminal device associated with the session, the
-value will be empty, as in &acirc;tty=&acirc;.</p>
-
-<p style="margin-top: 1em">host=string <br>
-The local machine&rsquo;s hostname as returned by the
-gethostname(2) system call.</p>
-
-<p style="margin-top: 1em">lines=int <br>
-The number of lines the user&rsquo;s terminal supports. If
-there is no terminal device available, a default value of 24
-is used.</p>
-
-<p style="margin-top: 1em">cols=int <br>
-The number of columns the user&rsquo;s terminal supports. If
-there is no terminal device available, a default value of 80
-is used.</p>
-
-<p style="margin-top: 1em">user_env <br>
-The user&rsquo;s environment in the form of a
-NULL-terminated vector of &acirc;name=value&acirc;
-strings.</p>
-
-<p style="margin-top: 1em">When parsing user_env, the
-plugin should split on the first equal sign
-(&acirc;=&acirc;) since the name field will never include
-one itself but the value might.</p>
-
-<p style="margin-top: 1em">plugin_options <br>
-Any (non-comment) strings immediately after the plugin path
-are treated as arguments to the plugin. These arguments are
-split on a white space boundary and are passed <br>
-to the plugin in the form of a NULL-terminated array of
-strings. If no arguments were specified, plugin_options will
-be the NULL pointer.</p>
-
-<p style="margin-top: 1em">NOTE: the plugin_options
-parameter is only available starting with API version 1.2. A
-plugin must check the API version specified by the sudo
-front end before using <br>
-plugin_options. Failure to do so may result in a crash.</p>
-
-<p style="margin-top: 1em">close <br>
-void (*close)(int exit_status, int error);</p>
-
-<p style="margin-top: 1em">The close() function is called
-when the command being run by sudo finishes.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">exit_status <br>
-The command&rsquo;s exit status, as returned by the wait(2)
-system call. The value of exit_status is undefined if error
-is non-zero.</p>
-
-<p style="margin-top: 1em">error <br>
-If the command could not be executed, this is set to the
-value of errno set by the execve(2) system call. The plugin
-is responsible for displaying error information <br>
-via the conversation() or plugin_printf() function. If the
-command was successfully executed, the value of error is
-0.</p>
-
-<p style="margin-top: 1em">show_version <br>
-int (*show_version)(int verbose);</p>
-
-<p style="margin-top: 1em">The show_version() function is
-called by sudo when the user specifies the -V option. The
-plugin may display its version information to the user via
-the conversation() or <br>
-plugin_printf() function using SUDO_CONV_INFO_MSG. If the
-user requests detailed version information, the verbose flag
-will be set.</p>
-
-<p style="margin-top: 1em">check_policy <br>
-int (*check_policy)(int argc, char * const argv[] <br>
-char *env_add[], char **command_info[], <br>
-char **argv_out[], char **user_env_out[]);</p>
-
-<p style="margin-top: 1em">The check_policy() function is
-called by sudo to determine whether the user is allowed to
-run the specified commands.</p>
-
-<p style="margin-top: 1em">If the sudoedit option was
-enabled in the settings array passed to the open() function,
-the user has requested sudoedit mode. sudoedit is a
-mechanism for editing one or more <br>
-files where an editor is run with the user&rsquo;s
-credentials instead of with elevated privileges. sudo
-achieves this by creating user-writable temporary copies of
-the files to <br>
-be edited and then overwriting the originals with the
-temporary copies after editing is complete. If the plugin
-supports sudoedit, it should choose the editor to be used,
-<br>
-potentially from a variable in the user&rsquo;s environment,
-such as EDITOR, and include it in argv_out (note that
-environment variables may include command line flags). The
-files <br>
-to be edited should be copied from argv into argv_out,
-separated from the editor and its arguments by a
-&acirc;--&acirc; element. The &acirc;--&acirc; will be
-removed by sudo before the editor is <br>
-executed. The plugin should also set sudoedit=true in the
-command_info list.</p>
-
-<p style="margin-top: 1em">The check_policy() function
-returns 1 if the command is allowed, 0 if not allowed, -1
-for a general error, or -2 for a usage error or if sudoedit
-was specified but is unsup&acirc; <br>
-ported by the plugin. In the latter case, sudo will print a
-usage message before it exits. If an error occurs, the
-plugin may optionally call the conversation() or <br>
-plugin_printf() function with SUDO_CONF_ERROR_MSG to present
-additional error information to the user.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">argc The number of elements in
-argv, not counting the final NULL pointer.</p>
-
-<p style="margin-top: 1em">argv The argument vector
-describing the command the user wishes to run, in the same
-form as what would be passed to the execve(2) system call.
-The vector is terminated by a <br>
-NULL pointer.</p>
-
-<p style="margin-top: 1em">env_add <br>
-Additional environment variables specified by the user on
-the command line in the form of a NULL-terminated vector of
-&acirc;name=value&acirc; strings. The plugin may reject the
-<br>
-command if one or more variables are not allowed to be set,
-or it may silently ignore such variables.</p>
-
-<p style="margin-top: 1em">When parsing env_add, the plugin
-should split on the first equal sign (&acirc;=&acirc;) since
-the name field will never include one itself but the value
-might.</p>
-
-<p style="margin-top: 1em">command_info <br>
-Information about the command being run in the form of
-&acirc;name=value&acirc; strings. These values are used by
-sudo to set the execution environment when running a
-command. <br>
-The plugin is responsible for creating and populating the
-vector, which must be terminated with a NULL pointer. The
-following values are recognized by sudo:</p>
-
-<p style="margin-top: 1em">command=string <br>
-Fully qualified path to the command to be executed.</p>
-
-<p style="margin-top: 1em">runas_uid=uid <br>
-User ID to run the command as.</p>
-
-<p style="margin-top: 1em">runas_euid=uid <br>
-Effective user ID to run the command as. If not specified,
-the value of runas_uid is used.</p>
-
-<p style="margin-top: 1em">runas_gid=gid <br>
-Group ID to run the command as.</p>
-
-<p style="margin-top: 1em">runas_egid=gid <br>
-Effective group ID to run the command as. If not specified,
-the value of runas_gid is used.</p>
-
-<p style="margin-top: 1em">runas_groups=list <br>
-The supplementary group vector to use for the command in the
-form of a comma-separated list of group IDs. If
-preserve_groups is set, this option is ignored.</p>
-
-<p style="margin-top: 1em">login_class=string <br>
-BSD login class to use when setting resource limits and nice
-value (optional). This option is only set on systems that
-support login classes.</p>
-
-<p style="margin-top: 1em">preserve_groups=bool <br>
-If set, sudo will preserve the user&rsquo;s group vector
-instead of initializing the group vector based on
-runas_user.</p>
-
-<p style="margin-top: 1em">cwd=string <br>
-The current working directory to change to when executing
-the command.</p>
-
-<p style="margin-top: 1em">noexec=bool <br>
-If set, prevent the command from executing other
-programs.</p>
-
-<p style="margin-top: 1em">chroot=string <br>
-The root directory to use when running the command.</p>
-
-<p style="margin-top: 1em">nice=int <br>
-Nice value (priority) to use when executing the command. The
-nice value, if specified, overrides the priority associated
-with the login_class on BSD systems.</p>
-
-<p style="margin-top: 1em">umask=octal <br>
-The file creation mask to use when executing the
-command.</p>
-
-<p style="margin-top: 1em">selinux_role=string <br>
-SELinux role to use when executing the command.</p>
-
-<p style="margin-top: 1em">selinux_type=string <br>
-SELinux type to use when executing the command.</p>
-
-<p style="margin-top: 1em">timeout=int <br>
-Command timeout. If non-zero then when the timeout expires
-the command will be killed.</p>
-
-<p style="margin-top: 1em">sudoedit=bool <br>
-Set to true when in sudoedit mode. The plugin may enable
-sudoedit mode even if sudo was not invoked as sudoedit. This
-allows the plugin to perform command sub&acirc; <br>
-stitution and transparently enable sudoedit when the user
-attempts to run an editor.</p>
-
-<p style="margin-top: 1em">closefrom=number <br>
-If specified, sudo will close all files descriptors with a
-value of number or higher.</p>
-
-<p style="margin-top: 1em">iolog_compress=bool <br>
-Set to true if the I/O logging plugins, if any, should
-compress the log data. This is a hint to the I/O logging
-plugin which may choose to ignore it.</p>
-
-<p style="margin-top: 1em">iolog_path=string <br>
-Fully qualified path to the file or directory in which I/O
-log is to be stored. This is a hint to the I/O logging
-plugin which may choose to ignore it. If no <br>
-I/O logging plugin is loaded, this setting has no
-effect.</p>
-
-<p style="margin-top: 1em">iolog_stdin=bool <br>
-Set to true if the I/O logging plugins, if any, should log
-the standard input if it is not connected to a terminal
-device. This is a hint to the I/O logging <br>
-plugin which may choose to ignore it.</p>
-
-<p style="margin-top: 1em">iolog_stdout=bool <br>
-Set to true if the I/O logging plugins, if any, should log
-the standard output if it is not connected to a terminal
-device. This is a hint to the I/O logging <br>
-plugin which may choose to ignore it.</p>
-
-<p style="margin-top: 1em">iolog_stderr=bool <br>
-Set to true if the I/O logging plugins, if any, should log
-the standard error if it is not connected to a terminal
-device. This is a hint to the I/O logging <br>
-plugin which may choose to ignore it.</p>
-
-<p style="margin-top: 1em">iolog_ttyin=bool <br>
-Set to true if the I/O logging plugins, if any, should log
-all terminal input. This only includes input typed by the
-user and not from a pipe or redirected from <br>
-a file. This is a hint to the I/O logging plugin which may
-choose to ignore it.</p>
-
-<p style="margin-top: 1em">iolog_ttyout=bool <br>
-Set to true if the I/O logging plugins, if any, should log
-all terminal output. This only includes output to the
-screen, not output to a pipe or file. This is a <br>
-hint to the I/O logging plugin which may choose to ignore
-it.</p>
-
-<p style="margin-top: 1em">use_pty=bool <br>
-Allocate a pseudo-tty to run the command in, regardless of
-whether or not I/O logging is in use. By default, sudo will
-only run the command in a pty when an I/O <br>
-log plugin is loaded.</p>
-
-<p style="margin-top: 1em">set_utmp=bool <br>
-Create a utmp (or utmpx) entry when a pseudo-tty is
-allocated. By default, the new entry will be a copy of the
-user&rsquo;s existing utmp entry (if any), with the tty,
-<br>
-time, type and pid fields updated.</p>
-
-<p style="margin-top: 1em">utmp_user=string <br>
-User name to use when constructing a new utmp (or utmpx)
-entry when set_utmp is enabled. This option can be used to
-set the user field in the utmp entry to the <br>
-user the command runs as rather than the invoking user. If
-not set, sudo will base the new entry on the invoking
-user&rsquo;s existing entry.</p>
-
-<p style="margin-top: 1em">Unsupported values will be
-ignored.</p>
-
-<p style="margin-top: 1em">argv_out <br>
-The NULL-terminated argument vector to pass to the execve(2)
-system call when executing the command. The plugin is
-responsible for allocating and populating the vec&acirc;
-<br>
-tor.</p>
-
-<p style="margin-top: 1em">user_env_out <br>
-The NULL-terminated environment vector to use when executing
-the command. The plugin is responsible for allocating and
-populating the vector.</p>
-
-<p style="margin-top: 1em">list <br>
-int (*list)(int verbose, const char *list_user, <br>
-int argc, char * const argv[]);</p>
-
-<p style="margin-top: 1em">List available privileges for
-the invoking user. Returns 1 on success, 0 on failure and -1
-on error. On error, the plugin may optionally call the
-conversation() or <br>
-plugin_printf() function with SUDO_CONF_ERROR_MSG to present
-additional error information to the user.</p>
-
-<p style="margin-top: 1em">Privileges should be output via
-the conversation() or plugin_printf() function using
-SUDO_CONV_INFO_MSG,</p>
-
-<p style="margin-top: 1em">verbose <br>
-Flag indicating whether to list in verbose mode or not.</p>
-
-<p style="margin-top: 1em">list_user <br>
-The name of a different user to list privileges for if the
-policy allows it. If NULL, the plugin should list the
-privileges of the invoking user.</p>
-
-<p style="margin-top: 1em">argc The number of elements in
-argv, not counting the final NULL pointer.</p>
-
-<p style="margin-top: 1em">argv If non-NULL, an argument
-vector describing a command the user wishes to check against
-the policy in the same form as what would be passed to the
-execve(2) system call. <br>
-If the command is permitted by the policy, the
-fully-qualified path to the command should be displayed
-along with any command line arguments.</p>
-
-<p style="margin-top: 1em">validate <br>
-int (*validate)(void);</p>
-
-<p style="margin-top: 1em">The validate() function is
-called when sudo is run with the -v flag. For policy plugins
-such as sudoers that cache authentication credentials, this
-function will validate <br>
-and cache the credentials.</p>
-
-<p style="margin-top: 1em">The validate() function should
-be NULL if the plugin does not support credential
-caching.</p>
-
-<p style="margin-top: 1em">Returns 1 on success, 0 on
-failure and -1 on error. On error, the plugin may optionally
-call the conversation() or plugin_printf() function with
-SUDO_CONF_ERROR_MSG to <br>
-present additional error information to the user.</p>
-
-<p style="margin-top: 1em">invalidate <br>
-void (*invalidate)(int remove);</p>
-
-<p style="margin-top: 1em">The invalidate() function is
-called when sudo is called with the -k or -K flag. For
-policy plugins such as sudoers that cache authentication
-credentials, this function will <br>
-invalidate the credentials. If the remove flag is set, the
-plugin may remove the credentials instead of simply
-invalidating them.</p>
-
-<p style="margin-top: 1em">The invalidate() function should
-be NULL if the plugin does not support credential
-caching.</p>
-
-<p style="margin-top: 1em">init_session <br>
-int (*init_session)(struct passwd *pwd, char
-**user_envp[);</p>
-
-<p style="margin-top: 1em">The init_session() function is
-called before sudo sets up the execution environment for the
-command. It is run in the parent sudo process and before any
-uid or gid changes. <br>
-This can be used to perform session setup that is not
-supported by command_info, such as opening the PAM session.
-The close() function can be used to tear down the session
-<br>
-that was opened by init_session.</p>
-
-<p style="margin-top: 1em">The pwd argument points to a
-passwd struct for the user the command will be run as if the
-uid the command will run as was found in the password
-database, otherwise it will be <br>
-NULL.</p>
-
-<p style="margin-top: 1em">The user_env argument points to
-the environment the command will run in, in the form of a
-NULL-terminated vector of &acirc;name=value&acirc; strings.
-This is the same string passed back <br>
-to the front end via the Policy Plugin&rsquo;s user_env_out
-parameter. If the init_session() function needs to modify
-the user environment, it should update the pointer stored in
-<br>
-user_env. The expected use case is to merge the contents of
-the PAM environment (if any) with the contents of user_env.
-NOTE: the user_env parameter is only available <br>
-starting with API version 1.2. A plugin must check the API
-version specified by the sudo front end before using
-user_env. Failure to do so may result in a crash.</p>
-
-<p style="margin-top: 1em">Returns 1 on success, 0 on
-failure and -1 on error. On error, the plugin may optionally
-call the conversation() or plugin_printf() function with
-SUDO_CONF_ERROR_MSG to <br>
-present additional error information to the user.</p>
-
-<p style="margin-top: 1em">register_hooks <br>
-void (*register_hooks)(int version, <br>
-int (*register_hook)(struct sudo_hook *hook));</p>
-
-<p style="margin-top: 1em">The register_hooks() function is
-called by the sudo front end to register any hooks the
-plugin needs. If the plugin does not support hooks,
-register_hooks should be set to <br>
-the NULL pointer.</p>
-
-<p style="margin-top: 1em">The version argument describes
-the version of the hooks API supported by the sudo front
-end.</p>
-
-<p style="margin-top: 1em">The register_hook() function
-should be used to register any supported hooks the plugin
-needs. It returns 0 on success, 1 if the hook type is not
-supported and -1 if the <br>
-major version in struct hook does not match the front
-end&rsquo;s major hook API version.</p>
-
-<p style="margin-top: 1em">See the Hook function API
-section below for more information about hooks.</p>
-
-<p style="margin-top: 1em">NOTE: the register_hooks()
-function is only available starting with API version 1.2. If
-the sudo front end doesn&rsquo;t support API version 1.2 or
-higher, register_hooks will not <br>
-be called.</p>
-
-<p style="margin-top: 1em">deregister_hooks <br>
-void (*deregister_hooks)(int version, <br>
-int (*deregister_hook)(struct sudo_hook *hook));</p>
-
-<p style="margin-top: 1em">The deregister_hooks() function
-is called by the sudo front end to deregister any hooks the
-plugin has registered. If the plugin does not support hooks,
-deregister_hooks <br>
-should be set to the NULL pointer.</p>
-
-<p style="margin-top: 1em">The version argument describes
-the version of the hooks API supported by the sudo front
-end.</p>
-
-<p style="margin-top: 1em">The deregister_hook() function
-should be used to deregister any hooks that were put in
-place by the register_hook() function. If the plugin tries
-to deregister a hook that <br>
-the front end does not support, deregister_hook will return
-an error.</p>
-
-<p style="margin-top: 1em">See the Hook function API
-section below for more information about hooks.</p>
-
-<p style="margin-top: 1em">NOTE: the deregister_hooks()
-function is only available starting with API version 1.2. If
-the sudo front end doesn&rsquo;t support API version 1.2 or
-higher, deregister_hooks will <br>
-not be called.</p>
-
-<p style="margin-top: 1em">Policy Plugin Version Macros</p>
-
-<p style="margin-top: 1em">/* Plugin API version
-major/minor. */ <br>
-#define SUDO_API_VERSION_MAJOR 1 <br>
-#define SUDO_API_VERSION_MINOR 2 <br>
-#define SUDO_API_MKVERSION(x, y) ((x &lt;&lt; 16) | y) <br>
-#define SUDO_API_VERSION
-SUDO_API_MKVERSION(SUDO_API_VERSION_MAJOR,
-SUDO_API_VERSION_MINOR)</p>
-
-<p style="margin-top: 1em">/* Getters and setters for API
-version */ <br>
-#define SUDO_API_VERSION_GET_MAJOR(v) ((v) &gt;&gt; 16) <br>
-#define SUDO_API_VERSION_GET_MINOR(v) ((v) &amp; 0xffff)
-<br>
-#define SUDO_API_VERSION_SET_MAJOR(vp, n) do { *(vp) =
-(*(vp) &amp; 0x0000ffff) | ((n) &lt;&lt; 16); } while(0)
-<br>
-#define SUDO_VERSION_SET_MINOR(vp, n) do { *(vp) = (*(vp)
-&amp; 0xffff0000) | (n); } while(0)</p>
-
-<p style="margin-top: 1em">I/O plugin API <br>
-struct io_plugin { <br>
-#define SUDO_IO_PLUGIN 2 <br>
-unsigned int type; /* always SUDO_IO_PLUGIN */ <br>
-unsigned int version; /* always SUDO_API_VERSION */ <br>
-int (*open)(unsigned int version, sudo_conv_t conversation
-<br>
-sudo_printf_t plugin_printf, char * const settings[], <br>
-char * const user_info[], int argc, char * const argv[],
-<br>
-char * const user_env[], char * const plugin_options[]);
-<br>
-void (*close)(int exit_status, int error); /* wait status or
-error */ <br>
-int (*show_version)(int verbose); <br>
-int (*log_ttyin)(const char *buf, unsigned int len); <br>
-int (*log_ttyout)(const char *buf, unsigned int len); <br>
-int (*log_stdin)(const char *buf, unsigned int len); <br>
-int (*log_stdout)(const char *buf, unsigned int len); <br>
-int (*log_stderr)(const char *buf, unsigned int len); <br>
-void (*register_hooks)(int version, <br>
-int (*register_hook)(struct sudo_hook *hook)); <br>
-void (*deregister_hooks)(int version, <br>
-int (*deregister_hook)(struct sudo_hook *hook)); <br>
-};</p>
-
-<p style="margin-top: 1em">When an I/O plugin is loaded,
-sudo runs the command in a pseudo-tty. This makes it
-possible to log the input and output from the user&rsquo;s
-session. If any of the standard input, <br>
-standard output or standard error do not correspond to a
-tty, sudo will open a pipe to capture the I/O for logging
-before passing it on.</p>
-
-<p style="margin-top: 1em">The log_ttyin function receives
-the raw user input from the terminal device (note that this
-will include input even when echo is disabled, such as when
-a password is read). The <br>
-log_ttyout function receives output from the pseudo-tty that
-is suitable for replaying the user&rsquo;s session at a
-later time. The log_stdin(), log_stdout() and log_stderr()
-functions <br>
-are only called if the standard input, standard output or
-standard error respectively correspond to something other
-than a tty.</p>
-
-<p style="margin-top: 1em">Any of the logging functions may
-be set to the NULL pointer if no logging is to be performed.
-If the open function returns 0, no I/O will be sent to the
-plugin.</p>
-
-<p style="margin-top: 1em">The io_plugin struct has the
-following fields:</p>
-
-<p style="margin-top: 1em">type The type field should
-always be set to SUDO_IO_PLUGIN.</p>
-
-<p style="margin-top: 1em">version <br>
-The version field should be set to SUDO_API_VERSION.</p>
-
-<p style="margin-top: 1em">This allows sudo to determine
-the API version the plugin was built against.</p>
-
-<p style="margin-top: 1em">open <br>
-int (*open)(unsigned int version, sudo_conv_t conversation
-<br>
-sudo_printf_t plugin_printf, char * const settings[], <br>
-char * const user_info[], int argc, char * const argv[],
-<br>
-char * const user_env[], char * const plugin_options[]);</p>
-
-<p style="margin-top: 1em">The open() function is run
-before the log_input(), log_output() or show_version()
-functions are called. It is only called if the version is
-being requested or the <br>
-check_policy() function has returned successfully. It
-returns 1 on success, 0 on failure, -1 if a general error
-occurred, or -2 if there was a usage error. In the latter
-<br>
-case, sudo will print a usage message before it exits. If an
-error occurs, the plugin may optionally call the
-conversation() or plugin_printf() function with <br>
-SUDO_CONF_ERROR_MSG to present additional error information
-to the user.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">version <br>
-The version passed in by sudo allows the plugin to determine
-the major and minor version number of the plugin API
-supported by sudo.</p>
-
-<p style="margin-top: 1em">conversation <br>
-A pointer to the conversation() function that may be used by
-the show_version() function to display version information
-(see show_version() below). The conversation() <br>
-function may also be used to display additional error
-message to the user. The conversation() function returns 0
-on success and -1 on failure.</p>
-
-<p style="margin-top: 1em">plugin_printf <br>
-A pointer to a printf()-style function that may be used by
-the show_version() function to display version information
-(see show_version below). The plugin_printf() <br>
-function may also be used to display additional error
-message to the user. The plugin_printf() function returns
-number of characters printed on success and -1 on
-fail&acirc; <br>
-ure.</p>
-
-<p style="margin-top: 1em">settings <br>
-A vector of user-supplied sudo settings in the form of
-&acirc;name=value&acirc; strings. The vector is terminated
-by a NULL pointer. These settings correspond to flags the
-user <br>
-specified when running sudo. As such, they will only be
-present when the corresponding flag has been specified on
-the command line.</p>
-
-<p style="margin-top: 1em">When parsing settings, the
-plugin should split on the first equal sign
-(&acirc;=&acirc;) since the name field will never include
-one itself but the value might.</p>
-
-<p style="margin-top: 1em">See the Policy plugin API
-section for a list of all possible settings.</p>
-
-<p style="margin-top: 1em">user_info <br>
-A vector of information about the user running the command
-in the form of &acirc;name=value&acirc; strings. The vector
-is terminated by a NULL pointer.</p>
-
-<p style="margin-top: 1em">When parsing user_info, the
-plugin should split on the first equal sign
-(&acirc;=&acirc;) since the name field will never include
-one itself but the value might.</p>
-
-<p style="margin-top: 1em">See the Policy plugin API
-section for a list of all possible strings.</p>
-
-<p style="margin-top: 1em">argc The number of elements in
-argv, not counting the final NULL pointer.</p>
-
-<p style="margin-top: 1em">argv If non-NULL, an argument
-vector describing a command the user wishes to run in the
-same form as what would be passed to the execve(2) system
-call.</p>
-
-<p style="margin-top: 1em">user_env <br>
-The user&rsquo;s environment in the form of a
-NULL-terminated vector of &acirc;name=value&acirc;
-strings.</p>
-
-<p style="margin-top: 1em">When parsing user_env, the
-plugin should split on the first equal sign
-(&acirc;=&acirc;) since the name field will never include
-one itself but the value might.</p>
-
-<p style="margin-top: 1em">plugin_options <br>
-Any (non-comment) strings immediately after the plugin path
-are treated as arguments to the plugin. These arguments are
-split on a white space boundary and are passed <br>
-to the plugin in the form of a NULL-terminated array of
-strings. If no arguments were specified, plugin_options will
-be the NULL pointer.</p>
-
-<p style="margin-top: 1em">NOTE: the plugin_options
-parameter is only available starting with API version 1.2. A
-plugin must check the API version specified by the sudo
-front end before using <br>
-plugin_options. Failure to do so may result in a crash.</p>
-
-<p style="margin-top: 1em">close <br>
-void (*close)(int exit_status, int error);</p>
-
-<p style="margin-top: 1em">The close() function is called
-when the command being run by sudo finishes.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">exit_status <br>
-The command&rsquo;s exit status, as returned by the wait(2)
-system call. The value of exit_status is undefined if error
-is non-zero.</p>
-
-<p style="margin-top: 1em">error <br>
-If the command could not be executed, this is set to the
-value of errno set by the execve(2) system call. If the
-command was successfully executed, the value of error <br>
-is 0.</p>
-
-<p style="margin-top: 1em">show_version <br>
-int (*show_version)(int verbose);</p>
-
-<p style="margin-top: 1em">The show_version() function is
-called by sudo when the user specifies the -V option. The
-plugin may display its version information to the user via
-the conversation() or <br>
-plugin_printf() function using SUDO_CONV_INFO_MSG. If the
-user requests detailed version information, the verbose flag
-will be set.</p>
-
-<p style="margin-top: 1em">log_ttyin <br>
-int (*log_ttyin)(const char *buf, unsigned int len);</p>
-
-<p style="margin-top: 1em">The log_ttyin() function is
-called whenever data can be read from the user but before it
-is passed to the running command. This allows the plugin to
-reject data if it <br>
-chooses to (for instance if the input contains banned
-content). Returns 1 if the data should be passed to the
-command, 0 if the data is rejected (which will terminate the
-<br>
-command) or -1 if an error occurred.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">buf The buffer containing user
-input.</p>
-
-<p style="margin-top: 1em">len The length of buf in
-bytes.</p>
-
-<p style="margin-top: 1em">log_ttyout <br>
-int (*log_ttyout)(const char *buf, unsigned int len);</p>
-
-<p style="margin-top: 1em">The log_ttyout() function is
-called whenever data can be read from the command but before
-it is written to the user&rsquo;s terminal. This allows the
-plugin to reject data if it <br>
-chooses to (for instance if the output contains banned
-content). Returns 1 if the data should be passed to the
-user, 0 if the data is rejected (which will terminate the
-com&acirc; <br>
-mand) or -1 if an error occurred.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">buf The buffer containing
-command output.</p>
-
-<p style="margin-top: 1em">len The length of buf in
-bytes.</p>
-
-<p style="margin-top: 1em">log_stdin <br>
-int (*log_stdin)(const char *buf, unsigned int len);</p>
-
-<p style="margin-top: 1em">The log_stdin() function is only
-used if the standard input does not correspond to a tty
-device. It is called whenever data can be read from the
-standard input but before it <br>
-is passed to the running command. This allows the plugin to
-reject data if it chooses to (for instance if the input
-contains banned content). Returns 1 if the data should <br>
-be passed to the command, 0 if the data is rejected (which
-will terminate the command) or -1 if an error occurred.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">buf The buffer containing user
-input.</p>
-
-<p style="margin-top: 1em">len The length of buf in
-bytes.</p>
-
-<p style="margin-top: 1em">log_stdout <br>
-int (*log_stdout)(const char *buf, unsigned int len);</p>
-
-<p style="margin-top: 1em">The log_stdout() function is
-only used if the standard output does not correspond to a
-tty device. It is called whenever data can be read from the
-command but before it is <br>
-written to the standard output. This allows the plugin to
-reject data if it chooses to (for instance if the output
-contains banned content). Returns 1 if the data should be
-<br>
-passed to the user, 0 if the data is rejected (which will
-terminate the command) or -1 if an error occurred.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">buf The buffer containing
-command output.</p>
-
-<p style="margin-top: 1em">len The length of buf in
-bytes.</p>
-
-<p style="margin-top: 1em">log_stderr <br>
-int (*log_stderr)(const char *buf, unsigned int len);</p>
-
-<p style="margin-top: 1em">The log_stderr() function is
-only used if the standard error does not correspond to a tty
-device. It is called whenever data can be read from the
-command but before it is <br>
-written to the standard error. This allows the plugin to
-reject data if it chooses to (for instance if the output
-contains banned content). Returns 1 if the data should be
-<br>
-passed to the user, 0 if the data is rejected (which will
-terminate the command) or -1 if an error occurred.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">buf The buffer containing
-command output.</p>
-
-<p style="margin-top: 1em">len The length of buf in
-bytes.</p>
-
-<p style="margin-top: 1em">register_hooks <br>
-See the Policy plugin API section for a description of
-register_hooks.</p>
-
-<p style="margin-top: 1em">deregister_hooks <br>
-See the Policy plugin API section for a description of
-deregister_hooks.</p>
-
-<p style="margin-top: 1em">I/O Plugin Version Macros</p>
-
-<p style="margin-top: 1em">Same as for the Policy plugin
-API.</p>
-
-<p style="margin-top: 1em">Hook function API <br>
-Beginning with plugin API version 1.2, it is possible to
-install hooks for certain functions called by the sudo front
-end.</p>
-
-<p style="margin-top: 1em">Currently, the only supported
-hooks relate to the handling of environment variables. Hooks
-can be used to intercept attempts to get, set, or remove
-environment variables so that <br>
-these changes can be reflected in the version of the
-environment that is used to execute a command. A future
-version of the API will support hooking internal sudo front
-end func&acirc; <br>
-tions as well.</p>
-
-<p style="margin-top: 1em">Hook structure</p>
-
-<p style="margin-top: 1em">Hooks in sudo are described by
-the following structure:</p>
-
-<p style="margin-top: 1em">typedef int
-(*sudo_hook_fn_t)();</p>
-
-<p style="margin-top: 1em">struct sudo_hook { <br>
-int hook_version; <br>
-int hook_type; <br>
-sudo_hook_fn_t hook_fn; <br>
-void *closure; <br>
-};</p>
-
-<p style="margin-top: 1em">The sudo_hook structure has the
-following fields:</p>
-
-<p style="margin-top: 1em">hook_version <br>
-The hook_version field should be set to
-SUDO_HOOK_VERSION.</p>
-
-<p style="margin-top: 1em">hook_type <br>
-The hook_type field may be one of the following supported
-hook types:</p>
-
-<p style="margin-top: 1em">SUDO_HOOK_SETENV <br>
-The C library setenv(3) function. Any registered hooks will
-run before the C library implementation. The hook_fn field
-should be a function that matches the following <br>
-typedef:</p>
-
-<p style="margin-top: 1em">typedef int
-(*sudo_hook_fn_setenv_t)(const char *name, <br>
-const char *value, int overwrite, void *closure);</p>
-
-<p style="margin-top: 1em">If the registered hook does not
-match the typedef the results are unspecified.</p>
-
-<p style="margin-top: 1em">SUDO_HOOK_UNSETENV <br>
-The C library unsetenv(3) function. Any registered hooks
-will run before the C library implementation. The hook_fn
-field should be a function that matches the follow&acirc;
-<br>
-ing typedef:</p>
-
-<p style="margin-top: 1em">typedef int
-(*sudo_hook_fn_unsetenv_t)(const char *name, <br>
-void *closure);</p>
-
-<p style="margin-top: 1em">SUDO_HOOK_GETENV <br>
-The C library getenv(3) function. Any registered hooks will
-run before the C library implementation. The hook_fn field
-should be a function that matches the following <br>
-typedef:</p>
-
-<p style="margin-top: 1em">typedef int
-(*sudo_hook_fn_getenv_t)(const char *name, <br>
-char **value, void *closure);</p>
-
-<p style="margin-top: 1em">If the registered hook does not
-match the typedef the results are unspecified.</p>
-
-<p style="margin-top: 1em">SUDO_HOOK_PUTENV <br>
-The C library putenv(3) function. Any registered hooks will
-run before the C library implementation. The hook_fn field
-should be a function that matches the following <br>
-typedef:</p>
-
-<p style="margin-top: 1em">typedef int
-(*sudo_hook_fn_putenv_t)(char *string, <br>
-void *closure);</p>
-
-<p style="margin-top: 1em">If the registered hook does not
-match the typedef the results are unspecified.</p>
-
-<p style="margin-top: 1em">hook_fn <br>
-sudo_hook_fn_t hook_fn;</p>
-
-<p style="margin-top: 1em">The hook_fn field should be set
-to the plugin&rsquo;s hook implementation. The actual
-function arguments will vary depending on the hook_type (see
-hook_type above). In all cases, <br>
-the closure field of struct sudo_hook is passed as the last
-function parameter. This can be used to pass arbitrary data
-to the plugin&rsquo;s hook implementation.</p>
-
-<p style="margin-top: 1em">The function return value may be
-one of the following:</p>
-
-<p style="margin-top: 1em">SUDO_HOOK_RET_ERROR <br>
-The hook function encountered an error.</p>
-
-<p style="margin-top: 1em">SUDO_HOOK_RET_NEXT <br>
-The hook completed without error, go on to the next hook
-(including the native implementation if applicable). For
-example, a getenv(3) hook might return <br>
-SUDO_HOOK_RET_NEXT if the specified variable was not found
-in the private copy of the environment.</p>
-
-<p style="margin-top: 1em">SUDO_HOOK_RET_STOP <br>
-The hook completed without error, stop processing hooks for
-this invocation. This can be used to replace the native
-implementation. For example, a setenv hook that <br>
-operates on a private copy of the environment but leaves
-environ unchanged.</p>
-
-<p style="margin-top: 1em">Note that it is very easy to
-create an infinite loop when hooking C library functions.
-For example, a getenv(3) hook that calls the snprintf(3)
-function may create a loop if the <br>
-snprintf(3) implementation calls getenv(3) to check the
-locale. To prevent this, you may wish to use a static
-variable in the hook function to guard against nested calls.
-For <br>
-example:</p>
-
-<p style="margin-top: 1em">static int in_progress = 0; /*
-avoid recursion */ <br>
-if (in_progress) <br>
-return SUDO_HOOK_RET_NEXT; <br>
-in_progress = 1; <br>
-... <br>
-in_progress = 0; <br>
-return SUDO_HOOK_RET_STOP;</p>
-
-<p style="margin-top: 1em">Hook API Version Macros</p>
-
-<p style="margin-top: 1em">/* Hook API version major/minor
-*/ <br>
-#define SUDO_HOOK_VERSION_MAJOR 1 <br>
-#define SUDO_HOOK_VERSION_MINOR 0 <br>
-#define SUDO_HOOK_MKVERSION(x, y) ((x &lt;&lt; 16) | y) <br>
-#define SUDO_HOOK_VERSION
-SUDO_HOOK_MKVERSION(SUDO_HOOK_VERSION_MAJOR,
-SUDO_HOOK_VERSION_MINOR)</p>
-
-<p style="margin-top: 1em">/* Getters and setters for hook
-API version */ <br>
-#define SUDO_HOOK_VERSION_GET_MAJOR(v) ((v) &gt;&gt; 16)
-<br>
-#define SUDO_HOOK_VERSION_GET_MINOR(v) ((v) &amp; 0xffff)
-<br>
-#define SUDO_HOOK_VERSION_SET_MAJOR(vp, n) do { *(vp) =
-(*(vp) &amp; 0x0000ffff) | ((n) &lt;&lt; 16); } while(0)
-<br>
-#define SUDO_HOOK_VERSION_SET_MINOR(vp, n) do { *(vp) =
-(*(vp) &amp; 0xffff0000) | (n); } while(0)</p>
-
-<p style="margin-top: 1em">Conversation API <br>
-If the plugin needs to interact with the user, it may do so
-via the conversation() function. A plugin should not attempt
-to read directly from the standard input or the user&rsquo;s
-tty <br>
-(neither of which are guaranteed to exist). The caller must
-include a trailing newline in msg if one is to be
-printed.</p>
-
-<p style="margin-top: 1em">A printf()-style function is
-also available that can be used to display informational or
-error messages to the user, which is usually more convenient
-for simple messages where no <br>
-use input is required.</p>
-
-<p style="margin-top: 1em">struct sudo_conv_message { <br>
-#define SUDO_CONV_PROMPT_ECHO_OFF 0x0001 /* do not echo user
-input */ <br>
-#define SUDO_CONV_PROMPT_ECHO_ON 0x0002 /* echo user input
-*/ <br>
-#define SUDO_CONV_ERROR_MSG 0x0003 /* error message */ <br>
-#define SUDO_CONV_INFO_MSG 0x0004 /* informational message
-*/ <br>
-#define SUDO_CONV_PROMPT_MASK 0x0005 /* mask user input */
-<br>
-#define SUDO_CONV_DEBUG_MSG 0x0006 /* debugging message */
-<br>
-#define SUDO_CONV_PROMPT_ECHO_OK 0x1000 /* flag: allow echo
-if no tty */ <br>
-int msg_type; <br>
-int timeout; <br>
-const char *msg; <br>
-};</p>
-
-<p style="margin-top: 1em">struct sudo_conv_reply { <br>
-char *reply; <br>
-};</p>
-
-<p style="margin-top: 1em">typedef int (*sudo_conv_t)(int
-num_msgs, <br>
-const struct sudo_conv_message msgs[], <br>
-struct sudo_conv_reply replies[]);</p>
-
-<p style="margin-top: 1em">typedef int (*sudo_printf_t)(int
-msg_type, const char *fmt, ...);</p>
-
-<p style="margin-top: 1em">Pointers to the conversation()
-and printf()-style functions are passed in to the
-plugin&rsquo;s open() function when the plugin is
-initialized.</p>
-
-<p style="margin-top: 1em">To use the conversation()
-function, the plugin must pass an array of sudo_conv_message
-and sudo_conv_reply structures. There must be a struct
-sudo_conv_message and struct <br>
-sudo_conv_reply for each message in the conversation. The
-plugin is responsible for freeing the reply buffer filled in
-to the struct sudo_conv_reply, if any.</p>
-
-<p style="margin-top: 1em">The printf()-style function uses
-the same underlying mechanism as the conversation() function
-but only supports SUDO_CONV_INFO_MSG, SUDO_CONV_ERROR_MSG
-and SUDO_CONV_DEBUG_MSG for <br>
-the msg_type parameter. It can be more convenient than using
-the conversation() function if no user reply is needed and
-supports standard printf() escape sequences.</p>
-
-<p style="margin-top: 1em">Unlike, SUDO_CONV_INFO_MSG and
-Dv SUDO_CONV_ERROR_MSG , messages sent with the
-SUDO_CONV_DEBUG_MSG msg_type are not directly user-visible.
-Instead, they are logged to the file <br>
-specified in the Debug statement (if any) in the
-/etc/sudo.conf</p>
-
-<p style="margin-top: 1em">file. This allows a plugin to
-log debugging information and is intended to be used in
-conjunction with the debug_flags setting.</p>
-
-<p style="margin-top: 1em">See the sample plugin for an
-example of the conversation() function usage.</p>
-
-<p style="margin-top: 1em">Sudoers group plugin API <br>
-The sudoers module supports a plugin interface to allow
-non-Unix group lookups. This can be used to query a group
-source other than the standard Unix group database. A sample
-<br>
-group plugin is bundled with sudo that implements file-based
-lookups. Third party group plugins include a QAS AD plugin
-available from Quest Software.</p>
-
-<p style="margin-top: 1em">A group plugin must declare and
-populate a sudoers_group_plugin struct in the global scope.
-This structure contains pointers to the functions that
-implement plugin initialization, <br>
-cleanup and group lookup.</p>
-
-<p style="margin-top: 1em">struct sudoers_group_plugin {
-<br>
-unsigned int version; <br>
-int (*init)(int version, sudo_printf_t sudo_printf, <br>
-char *const argv[]); <br>
-void (*cleanup)(void); <br>
-int (*query)(const char *user, const char *group, <br>
-const struct passwd *pwd); <br>
-};</p>
-
-<p style="margin-top: 1em">The sudoers_group_plugin struct
-has the following fields:</p>
-
-<p style="margin-top: 1em">version <br>
-The version field should be set to GROUP_API_VERSION.</p>
-
-<p style="margin-top: 1em">This allows sudoers to determine
-the API version the group plugin was built against.</p>
-
-<p style="margin-top: 1em">init <br>
-int (*init)(int version, sudo_printf_t plugin_printf, <br>
-char *const argv[]);</p>
-
-<p style="margin-top: 1em">The init() function is called
-after sudoers has been parsed but before any policy checks.
-It returns 1 on success, 0 on failure (or if the plugin is
-not configured), and -1 <br>
-if a error occurred. If an error occurs, the plugin may call
-the plugin_printf() function with SUDO_CONF_ERROR_MSG to
-present additional error information to the user.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">version <br>
-The version passed in by sudoers allows the plugin to
-determine the major and minor version number of the group
-plugin API supported by sudoers.</p>
-
-<p style="margin-top: 1em">plugin_printf <br>
-A pointer to a printf()-style function that may be used to
-display informational or error message to the user. Returns
-the number of characters printed on success and <br>
--1 on failure.</p>
-
-<p style="margin-top: 1em">argv A NULL-terminated array of
-arguments generated from the group_plugin option in sudoers.
-If no arguments were given, argv will be NULL.</p>
-
-<p style="margin-top: 1em">cleanup <br>
-void (*cleanup)();</p>
-
-<p style="margin-top: 1em">The cleanup() function is called
-when sudoers has finished its group checks. The plugin
-should free any memory it has allocated and close open file
-handles.</p>
-
-<p style="margin-top: 1em">query <br>
-int (*query)(const char *user, const char *group, <br>
-const struct passwd *pwd);</p>
-
-<p style="margin-top: 1em">The query() function is used to
-ask the group plugin whether user is a member of group.</p>
-
-<p style="margin-top: 1em">The function arguments are as
-follows:</p>
-
-<p style="margin-top: 1em">user The name of the user being
-looked up in the external group database.</p>
-
-<p style="margin-top: 1em">group <br>
-The name of the group being queried.</p>
-
-<p style="margin-top: 1em">pwd The password database entry
-for user, if any. If user is not present in the password
-database, pwd will be NULL.</p>
-
-<p style="margin-top: 1em">Group API Version Macros</p>
-
-<p style="margin-top: 1em">/* Sudoers group plugin version
-major/minor */ <br>
-#define GROUP_API_VERSION_MAJOR 1 <br>
-#define GROUP_API_VERSION_MINOR 0 <br>
-#define GROUP_API_VERSION ((GROUP_API_VERSION_MAJOR &lt;&lt;
-16) | GROUP_API_VERSION_MINOR)</p>
-
-<p style="margin-top: 1em">/* Getters and setters for group
-version */ <br>
-#define GROUP_API_VERSION_GET_MAJOR(v) ((v) &gt;&gt; 16)
-<br>
-#define GROUP_API_VERSION_GET_MINOR(v) ((v) &amp; 0xffff)
-<br>
-#define GROUP_API_VERSION_SET_MAJOR(vp, n) do { *(vp) =
-(*(vp) &amp; 0x0000ffff) | ((n) &lt;&lt; 16); } while(0)
-<br>
-#define GROUP_API_VERSION_SET_MINOR(vp, n) do { *(vp) =
-(*(vp) &amp; 0xffff0000) | (n); } while(0)</p>
-
-<p style="margin-top: 1em">PLUGIN API CHANGELOG <br>
-The following revisions have been made to the Sudo Plugin
-API.</p>
-
-<p style="margin-top: 1em">Version 1.0 <br>
-Initial API version.</p>
-
-<p style="margin-top: 1em">Version 1.1 <br>
-The I/O logging plugin&rsquo;s open() function was modified
-to take the command_info list as an argument.</p>
-
-<p style="margin-top: 1em">Version 1.2 <br>
-The Policy and I/O logging plugins&rsquo; open() functions
-are now passed a list of plugin options if any are specified
-in /etc/sudo.conf.</p>
-
-<p style="margin-top: 1em">A simple hooks API has been
-introduced to allow plugins to hook in to the system&rsquo;s
-environment handling functions.</p>
-
-<p style="margin-top: 1em">The init_session Policy plugin
-function is now passed a pointer to the user environment
-which can be updated as needed. This can be used to merge in
-environment variables <br>
-stored in the PAM handle before a command is run.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-sudoers(5), sudo(8)</p>
-
-<p style="margin-top: 1em">BUGS <br>
-If you feel you have found a bug in sudo, please submit a
-bug report at http://www.sudo.ws/sudo/bugs/</p>
-
-<p style="margin-top: 1em">SUPPORT <br>
-Limited free support is available via the sudo-users mailing
-list, see http://www.sudo.ws/mailman/listinfo/sudo-users to
-subscribe or search the archives.</p>
-
-<p style="margin-top: 1em">DISCLAIMER <br>
-sudo is provided &acirc;AS IS&acirc; and any express or
-implied warranties, including, but not limited to, the
-implied warranties of merchantability and fitness for a
-particular purpose are <br>
-disclaimed. See the LICENSE file distributed with sudo or
-http://www.sudo.ws/sudo/license.html for complete
-details.</p>
-
-<p style="margin-top: 1em">Sudo 1.8.6p7 July 16, 2012 Sudo
-1.8.6p7</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">SUDO_PLUGIN(5)</td>
+    <td class="head-vol">File Formats Manual</td>
+    <td class="head-rtitle">SUDO_PLUGIN(5)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+<b class="Nm" title="Nm">sudo_plugin</b> &#x2014;
+  <span class="Nd" title="Nd">Sudo Plugin API</span>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+Starting with version 1.8, <b class="Nm" title="Nm">sudo</b> supports a plugin
+  API for policy and session logging. By default, the
+  <i class="Em" title="Em">sudoers</i> policy plugin and an associated I/O
+  logging plugin are used. Via the plugin API, <b class="Nm" title="Nm">sudo</b>
+  can be configured to use alternate policy and/or I/O logging plugins provided
+  by third parties. The plugins to be used are specified via the
+  <i class="Pa" title="Pa">/etc/sudo.conf</i> file.
+<div class="Pp"></div>
+The API is versioned with a major and minor number. The minor version number is
+  incremented when additions are made. The major number is incremented when
+  incompatible changes are made. A plugin should be check the version passed to
+  it and make sure that the major version matches.
+<div class="Pp"></div>
+The plugin API is defined by the <code class="Li">sudo_plugin.h</code> header
+  file.
+<h2 class="Ss" title="Ss" id="The_sudo.conf_file"><a class="selflink" href="#The_sudo.conf_file">The
+  sudo.conf file</a></h2>
+The <i class="Pa" title="Pa">/etc/sudo.conf</i> file contains plugin
+  configuration directives. The primary keyword is the
+  <code class="Li">Plugin</code> directive, which causes a plugin to be loaded.
+<div class="Pp"></div>
+A <code class="Li">Plugin</code> line consists of the
+  <code class="Li">Plugin</code> keyword, followed by the
+  <i class="Em" title="Em">symbol_name</i> and the
+  <i class="Em" title="Em">path</i> to the shared object containing the plugin.
+  The <i class="Em" title="Em">symbol_name</i> is the name of the
+  <code class="Li">struct policy_plugin</code> or <code class="Li">struct
+  io_plugin</code> in the plugin shared object. The
+  <i class="Em" title="Em">path</i> may be fully qualified or relative. If not
+  fully qualified it is relative to the
+  <i class="Pa" title="Pa">/usr/libexec</i> directory. Any additional parameters
+  after the <i class="Em" title="Em">path</i> are passed as options to the
+  plugin's <b class="Fn" title="Fn">open</b>() function. Lines that don't begin
+  with <code class="Li">Plugin</code>, <code class="Li">Path</code>,
+  <code class="Li">Debug</code> or <code class="Li">Set</code> are silently
+  ignored.
+<div class="Pp"></div>
+The same shared object may contain multiple plugins, each with a different
+  symbol name. The shared object file must be owned by uid 0 and only writable
+  by its owner. Because of ambiguities that arise from composite policies, only
+  a single policy plugin may be specified. This limitation does not apply to I/O
+  plugins.
+<div class="Pp"></div>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+# 
+# Default /etc/sudo.conf file 
+# 
+# Format: 
+#   Plugin plugin_name plugin_path plugin_options ... 
+#   Path askpass /path/to/askpass 
+#   Path noexec /path/to/sudo_noexec.so 
+#   Debug sudo /var/log/sudo_debug all@warn 
+#   Set disable_coredump true 
+# 
+# The plugin_path is relative to /usr/libexec unless 
+#   fully qualified. 
+# The plugin_name corresponds to a global symbol in the plugin 
+#   that contains the plugin interface structure. 
+# The plugin_options are optional. 
+# 
+Plugin sudoers_policy sudoers.so 
+Plugin sudoers_io sudoers.so
+</pre>
+</div>
+<h2 class="Ss" title="Ss" id="Policy_plugin_API"><a class="selflink" href="#Policy_plugin_API">Policy
+  plugin API</a></h2>
+A policy plugin must declare and populate a
+  <code class="Li">policy_plugin</code> struct in the global scope. This
+  structure contains pointers to the functions that implement the
+  <b class="Nm" title="Nm">sudo</b> policy checks. The name of the symbol should
+  be specified in <i class="Pa" title="Pa">/etc/sudo.conf</i> along with a path
+  to the plugin so that <b class="Nm" title="Nm">sudo</b> can load it.
+<div class="Pp"></div>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+struct policy_plugin { 
+#define SUDO_POLICY_PLUGIN     1 
+    unsigned int type; /* always SUDO_POLICY_PLUGIN */ 
+    unsigned int version; /* always SUDO_API_VERSION */ 
+    int (*open)(unsigned int version, sudo_conv_t conversation, 
+                sudo_printf_t plugin_printf, char * const settings[], 
+                char * const user_info[], char * const user_env[], 
+                char * const plugin_options[]); 
+    void (*close)(int exit_status, int error); 
+    int (*show_version)(int verbose); 
+    int (*check_policy)(int argc, char * const argv[], 
+                        char *env_add[], char **command_info[], 
+                        char **argv_out[], char **user_env_out[]); 
+    int (*list)(int argc, char * const argv[], int verbose, 
+                const char *list_user); 
+    int (*validate)(void); 
+    void (*invalidate)(int remove); 
+    int (*init_session)(struct passwd *pwd, char **user_env[]); 
+    void (*register_hooks)(int version, 
+       int (*register_hook)(struct sudo_hook *hook)); 
+    void (*deregister_hooks)(int version, 
+       int (*deregister_hook)(struct sudo_hook *hook)); 
+};
+</pre>
+</div>
+<div class="Pp"></div>
+The policy_plugin struct has the following fields:
+<dl class="Bl-tag" style="margin-left: 7.80ex;">
+  <dt class="It-tag" style="margin-left: -7.80ex;">type</dt>
+  <dd class="It-tag">The <code class="Li">type</code> field should always be set
+      to SUDO_POLICY_PLUGIN.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">version</dt>
+  <dd class="It-tag">The <code class="Li">version</code> field should be set to
+      <code class="Dv" title="Dv">SUDO_API_VERSION</code>.
+    <div class="Pp"></div>
+    This allows <b class="Nm" title="Nm">sudo</b> to determine the API version
+      the plugin was built against.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">open</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*open)(unsigned int version, sudo_conv_t conversation, 
+            sudo_printf_t plugin_printf, char * const settings[], 
+            char * const user_info[], char * const user_env[], 
+            char * const plugin_options[]);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    Returns 1 on success, 0 on failure, -1 if a general error occurred, or -2 if
+      there was a usage error. In the latter case,
+      <b class="Nm" title="Nm">sudo</b> will print a usage message before it
+      exits. If an error occurs, the plugin may optionally call the
+      <b class="Fn" title="Fn">conversation</b>() or
+      <b class="Fn" title="Fn">plugin_printf</b>() function with
+      <code class="Dv" title="Dv">SUDO_CONF_ERROR_MSG</code> to present
+      additional error information to the user.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">version</dt>
+      <dd class="It-tag">The version passed in by
+          <b class="Nm" title="Nm">sudo</b> allows the plugin to determine the
+          major and minor version number of the plugin API supported by
+          <b class="Nm" title="Nm">sudo</b>.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">conversation</dt>
+      <dd class="It-tag">A pointer to the
+          <b class="Fn" title="Fn">conversation</b>() function that can be used
+          by the plugin to interact with the user (see below). Returns 0 on
+          success and -1 on failure.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">plugin_printf</dt>
+      <dd class="It-tag">A pointer to a
+          <b class="Fn" title="Fn">printf</b>()<span class="No">-style</span>
+          function that may be used to display informational or error messages
+          (see below). Returns the number of characters printed on success and
+          -1 on failure.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">settings</dt>
+      <dd class="It-tag">A vector of user-supplied
+          <b class="Nm" title="Nm">sudo</b> settings in the form of
+          &#x201C;name=value&#x201D; strings. The vector is terminated by a
+          <code class="Dv" title="Dv">NULL</code> pointer. These settings
+          correspond to flags the user specified when running
+          <b class="Nm" title="Nm">sudo</b>. As such, they will only be present
+          when the corresponding flag has been specified on the command line.
+        <div class="Pp"></div>
+        When parsing <i class="Em" title="Em">settings</i>, the plugin should
+          split on the <b class="Sy" title="Sy">first</b> equal sign
+          (&#x2018;<code class="Li">=</code>&#x2019;) since the
+          <i class="Em" title="Em">name</i> field will never include one itself
+          but the <i class="Em" title="Em">value</i> might.
+        <dl class="Bl-tag" style="margin-left: 7.80ex;">
+          <dt class="It-tag" style="margin-left: -7.80ex;">debug_flags=string</dt>
+          <dd class="It-tag">A comma-separated list of debug flags that
+              correspond to
+              <b class="Nm" title="Nm">sudo</b><span class="No">'s</span>
+              <code class="Li">Debug</code> entry in
+              <i class="Pa" title="Pa">/etc/sudo.conf</i>, if there is one. The
+              flags are passed to the plugin as they appear in
+              <i class="Pa" title="Pa">/etc/sudo.conf</i>. The syntax used by
+              <b class="Nm" title="Nm">sudo</b> and the
+              <i class="Em" title="Em">sudoers</i> plugin is
+              <i class="Em" title="Em">subsystem</i><span class="No">@</span><i class="Em" title="Em">priority</i>
+              but the plugin is free to use a different format so long as it
+              does not include a comma
+              (&#x2018;<code class="Li">,</code>&#x2019;).
+            <div class="Pp"></div>
+            For reference, the priorities supported by the
+              <b class="Nm" title="Nm">sudo</b> front end and
+              <i class="Em" title="Em">sudoers</i> are:
+              <i class="Em" title="Em">crit</i>,
+              <i class="Em" title="Em">err</i>,
+              <i class="Em" title="Em">warn</i>,
+              <i class="Em" title="Em">notice</i>,
+              <i class="Em" title="Em">diag</i>,
+              <i class="Em" title="Em">info</i>,
+              <i class="Em" title="Em">trace</i> and
+              <i class="Em" title="Em">debug</i>.
+            <div class="Pp"></div>
+            The following subsystems are defined:
+              <i class="Em" title="Em">main</i>,
+              <i class="Em" title="Em">memory</i>,
+              <i class="Em" title="Em">args</i>,
+              <i class="Em" title="Em">exec</i>,
+              <i class="Em" title="Em">pty</i>,
+              <i class="Em" title="Em">utmp</i>,
+              <i class="Em" title="Em">conv</i>,
+              <i class="Em" title="Em">pcomm</i>,
+              <i class="Em" title="Em">util</i>,
+              <i class="Em" title="Em">list</i>,
+              <i class="Em" title="Em">netif</i>,
+              <i class="Em" title="Em">audit</i>,
+              <i class="Em" title="Em">edit</i>,
+              <i class="Em" title="Em">selinux</i>,
+              <i class="Em" title="Em">ldap</i>,
+              <i class="Em" title="Em">match</i>,
+              <i class="Em" title="Em">parser</i>,
+              <i class="Em" title="Em">alias</i>,
+              <i class="Em" title="Em">defaults</i>,
+              <i class="Em" title="Em">auth</i>,
+              <i class="Em" title="Em">env</i>,
+              <i class="Em" title="Em">logging</i>,
+              <i class="Em" title="Em">nss</i>,
+              <i class="Em" title="Em">rbtree</i>,
+              <i class="Em" title="Em">perms</i>,
+              <i class="Em" title="Em">plugin</i>. The subsystem
+              <i class="Em" title="Em">all</i> includes every subsystem.
+            <div class="Pp"></div>
+            There is not currently a way to specify a set of debug flags
+              specific to the plugin--the flags are shared by
+              <b class="Nm" title="Nm">sudo</b> and the plugin.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">debug_level=number</dt>
+          <dd class="It-tag">This setting has been deprecated in favor of
+              <i class="Em" title="Em">debug_flags</i>.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">runas_user=string</dt>
+          <dd class="It-tag">The user name or uid to to run the command as, if
+              specified via the <b class="Fl" title="Fl">-u</b> flag.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">runas_group=string</dt>
+          <dd class="It-tag">The group name or gid to to run the command as, if
+              specified via the <b class="Fl" title="Fl">-g</b> flag.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">prompt=string</dt>
+          <dd class="It-tag">The prompt to use when requesting a password, if
+              specified via the <b class="Fl" title="Fl">-p</b> flag.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">set_home=bool</dt>
+          <dd class="It-tag">Set to true if the user specified the
+              <b class="Fl" title="Fl">-H</b> flag. If true, set the
+              <code class="Li">HOME</code> environment variable to the target
+              user's home directory.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">preserve_environment=bool</dt>
+          <dd class="It-tag">Set to true if the user specified the
+              <b class="Fl" title="Fl">-E</b> flag, indicating that the user
+              wishes to preserve the environment.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">run_shell=bool</dt>
+          <dd class="It-tag">Set to true if the user specified the
+              <b class="Fl" title="Fl">-s</b> flag, indicating that the user
+              wishes to run a shell.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">login_shell=bool</dt>
+          <dd class="It-tag">Set to true if the user specified the
+              <b class="Fl" title="Fl">-i</b> flag, indicating that the user
+              wishes to run a login shell.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">implied_shell=bool</dt>
+          <dd class="It-tag">If the user does not specify a program on the
+              command line, <b class="Nm" title="Nm">sudo</b> will pass the
+              plugin the path to the user's shell and set
+              <i class="Em" title="Em">implied_shell</i> to true. This allows
+              <b class="Nm" title="Nm">sudo</b> with no arguments to be used
+              similarly to <a class="Xr" title="Xr">su(1)</a>. If the plugin
+              does not to support this usage, it may return a value of -2 from
+              the <b class="Fn" title="Fn">check_policy</b>() function, which
+              will cause <b class="Nm" title="Nm">sudo</b> to print a usage
+              message and exit.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">preserve_groups=bool</dt>
+          <dd class="It-tag">Set to true if the user specified the
+              <b class="Fl" title="Fl">-P</b> flag, indicating that the user
+              wishes to preserve the group vector instead of setting it based on
+              the runas user.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">ignore_ticket=bool</dt>
+          <dd class="It-tag">Set to true if the user specified the
+              <b class="Fl" title="Fl">-k</b> flag along with a command,
+              indicating that the user wishes to ignore any cached
+              authentication credentials.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">noninteractive=bool</dt>
+          <dd class="It-tag">Set to true if the user specified the
+              <b class="Fl" title="Fl">-n</b> flag, indicating that
+              <b class="Nm" title="Nm">sudo</b> should operate in
+              non-interactive mode. The plugin may reject a command run in
+              non-interactive mode if user interaction is required.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">login_class=string</dt>
+          <dd class="It-tag">BSD login class to use when setting resource limits
+              and nice value, if specified by the
+              <b class="Fl" title="Fl">-c</b> flag.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">selinux_role=string</dt>
+          <dd class="It-tag">SELinux role to use when executing the command, if
+              specified by the <b class="Fl" title="Fl">-r</b> flag.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">selinux_type=string</dt>
+          <dd class="It-tag">SELinux type to use when executing the command, if
+              specified by the <b class="Fl" title="Fl">-t</b> flag.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">bsdauth_type=string</dt>
+          <dd class="It-tag">Authentication type, if specified by the
+              <b class="Fl" title="Fl">-a</b> flag, to use on systems where BSD
+              authentication is supported.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">network_addrs=list</dt>
+          <dd class="It-tag">A space-separated list of IP network addresses and
+              netmasks in the form &#x201C;addr/netmask&#x201D;, e.g.
+              &#x201C;192.168.1.2/255.255.255.0&#x201D;. The address and netmask
+              pairs may be either IPv4 or IPv6, depending on what the operating
+              system supports. If the address contains a colon
+              (&#x2018;<code class="Li">:</code>&#x2019;), it is an IPv6
+              address, else it is IPv4.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">progname=string</dt>
+          <dd class="It-tag">The command name that sudo was run as, typically
+              &#x201C;sudo&#x201D; or &#x201C;sudoedit&#x201D;.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">sudoedit=bool</dt>
+          <dd class="It-tag">Set to true when the
+              <b class="Fl" title="Fl">-e</b> flag is is specified or if invoked
+              as <b class="Nm" title="Nm">sudoedit</b>. The plugin shall
+              substitute an editor into <i class="Em" title="Em">argv</i> in the
+              <b class="Fn" title="Fn">check_policy</b>() function or return -2
+              with a usage error if the plugin does not support
+              <i class="Em" title="Em">sudoedit</i>. For more information, see
+              the <i class="Em" title="Em">check_policy</i> section.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">closefrom=number</dt>
+          <dd class="It-tag">If specified, the user has requested via the
+              <b class="Fl" title="Fl">-C</b> flag that
+              <b class="Nm" title="Nm">sudo</b> close all files descriptors with
+              a value of <i class="Em" title="Em">number</i> or higher. The
+              plugin may optionally pass this, or another value, back in the
+              <i class="Em" title="Em">command_info</i> list.</dd>
+        </dl>
+        <div class="Pp"></div>
+        Additional settings may be added in the future so the plugin should
+          silently ignore settings that it does not recognize.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">user_info</dt>
+      <dd class="It-tag">A vector of information about the user running the
+          command in the form of &#x201C;name=value&#x201D; strings. The vector
+          is terminated by a <code class="Dv" title="Dv">NULL</code> pointer.
+        <div class="Pp"></div>
+        When parsing <i class="Em" title="Em">user_info</i>, the plugin should
+          split on the <b class="Sy" title="Sy">first</b> equal sign
+          (&#x2018;<code class="Li">=</code>&#x2019;) since the
+          <i class="Em" title="Em">name</i> field will never include one itself
+          but the <i class="Em" title="Em">value</i> might.
+        <dl class="Bl-tag" style="margin-left: 7.80ex;">
+          <dt class="It-tag" style="margin-left: -7.80ex;">pid=int</dt>
+          <dd class="It-tag">The process ID of the running
+              <b class="Nm" title="Nm">sudo</b> process. Only available starting
+              with API version 1.2</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">ppid=int</dt>
+          <dd class="It-tag">The parent process ID of the running
+              <b class="Nm" title="Nm">sudo</b> process. Only available starting
+              with API version 1.2</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">sid=int</dt>
+          <dd class="It-tag">The session ID of the running
+              <b class="Nm" title="Nm">sudo</b> process or 0 if
+              <b class="Nm" title="Nm">sudo</b> is not part of a POSIX job
+              control session. Only available starting with API version 1.2</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">pgid=int</dt>
+          <dd class="It-tag">The ID of the process group that the running
+              <b class="Nm" title="Nm">sudo</b> process belongs to. Only
+              available starting with API version 1.2</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">tcpgid=int</dt>
+          <dd class="It-tag">The ID of the forground process group associated
+              with the terminal device associcated with the
+              <b class="Nm" title="Nm">sudo</b> process or -1 if there is no
+              terminal present. Only available starting with API version
+            1.2</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">user=string</dt>
+          <dd class="It-tag">The name of the user invoking
+              <b class="Nm" title="Nm">sudo</b>.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">euid=uid_t</dt>
+          <dd class="It-tag">The effective user ID of the user invoking
+              <b class="Nm" title="Nm">sudo</b>.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">uid=uid_t</dt>
+          <dd class="It-tag">The real user ID of the user invoking
+              <b class="Nm" title="Nm">sudo</b>.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">egid=gid_t</dt>
+          <dd class="It-tag">The effective group ID of the user invoking
+              <b class="Nm" title="Nm">sudo</b>.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">gid=gid_t</dt>
+          <dd class="It-tag">The real group ID of the user invoking
+              <b class="Nm" title="Nm">sudo</b>.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">groups=list</dt>
+          <dd class="It-tag">The user's supplementary group list formatted as a
+              string of comma-separated group IDs.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">cwd=string</dt>
+          <dd class="It-tag">The user's current working directory.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">tty=string</dt>
+          <dd class="It-tag">The path to the user's terminal device. If the user
+              has no terminal device associated with the session, the value will
+              be empty, as in &#x201C;<code class="Li">tty=</code>&#x201D;.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">host=string</dt>
+          <dd class="It-tag">The local machine's hostname as returned by the
+              <a class="Xr" title="Xr">gethostname(2)</a> system call.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">lines=int</dt>
+          <dd class="It-tag">The number of lines the user's terminal supports.
+              If there is no terminal device available, a default value of 24 is
+              used.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">cols=int</dt>
+          <dd class="It-tag">The number of columns the user's terminal supports.
+              If there is no terminal device available, a default value of 80 is
+              used.</dd>
+        </dl>
+      </dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">user_env</dt>
+      <dd class="It-tag">The user's environment in the form of a
+          <code class="Dv" title="Dv">NULL</code><span class="No">-terminated
+          vector of</span> &#x201C;name=value&#x201D; strings.
+        <div class="Pp"></div>
+        When parsing <i class="Em" title="Em">user_env</i>, the plugin should
+          split on the <b class="Sy" title="Sy">first</b> equal sign
+          (&#x2018;<code class="Li">=</code>&#x2019;) since the
+          <i class="Em" title="Em">name</i> field will never include one itself
+          but the <i class="Em" title="Em">value</i> might.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">plugin_options</dt>
+      <dd class="It-tag">Any (non-comment) strings immediately after the plugin
+          path are treated as arguments to the plugin. These arguments are split
+          on a white space boundary and are passed to the plugin in the form of
+          a
+          <code class="Dv" title="Dv">NULL</code><span class="No">-terminated</span>
+          array of strings. If no arguments were specified,
+          <i class="Em" title="Em">plugin_options</i> will be the
+          <code class="Dv" title="Dv">NULL</code> pointer.
+        <div class="Pp"></div>
+        NOTE: the <i class="Em" title="Em">plugin_options</i> parameter is only
+          available starting with API version 1.2. A plugin
+          <b class="Sy" title="Sy">must</b> check the API version specified by
+          the <b class="Nm" title="Nm">sudo</b> front end before using
+          <i class="Em" title="Em">plugin_options</i>. Failure to do so may
+          result in a crash.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">close</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+void (*close)(int exit_status, int error);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">close</b>() function is called when the command
+      being run by <b class="Nm" title="Nm">sudo</b> finishes.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">exit_status</dt>
+      <dd class="It-tag">The command's exit status, as returned by the
+          <a class="Xr" title="Xr">wait(2)</a> system call. The value of
+          <code class="Li">exit_status</code> is undefined if
+          <code class="Li">error</code> is non-zero.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">error</dt>
+      <dd class="It-tag">If the command could not be executed, this is set to
+          the value of <code class="Li">errno</code> set by the
+          <a class="Xr" title="Xr">execve(2)</a> system call. The plugin is
+          responsible for displaying error information via the
+          <b class="Fn" title="Fn">conversation</b>() or
+          <b class="Fn" title="Fn">plugin_printf</b>() function. If the command
+          was successfully executed, the value of <code class="Li">error</code>
+          is 0.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">show_version</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*show_version)(int verbose);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">show_version</b>() function is called by
+      <b class="Nm" title="Nm">sudo</b> when the user specifies the
+      <b class="Fl" title="Fl">-V</b> option. The plugin may display its version
+      information to the user via the
+      <b class="Fn" title="Fn">conversation</b>() or
+      <b class="Fn" title="Fn">plugin_printf</b>() function using
+      <code class="Dv" title="Dv">SUDO_CONV_INFO_MSG</code>. If the user
+      requests detailed version information, the verbose flag will be set.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">check_policy</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*check_policy)(int argc, char * const argv[] 
+                    char *env_add[], char **command_info[], 
+                    char **argv_out[], char **user_env_out[]);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">check_policy</b>() function is called by
+      <b class="Nm" title="Nm">sudo</b> to determine whether the user is allowed
+      to run the specified commands.
+    <div class="Pp"></div>
+    If the <i class="Em" title="Em">sudoedit</i> option was enabled in the
+      <i class="Em" title="Em">settings</i> array passed to the
+      <b class="Fn" title="Fn">open</b>() function, the user has requested
+      <i class="Em" title="Em">sudoedit</i> mode.
+      <i class="Em" title="Em">sudoedit</i> is a mechanism for editing one or
+      more files where an editor is run with the user's credentials instead of
+      with elevated privileges. <b class="Nm" title="Nm">sudo</b> achieves this
+      by creating user-writable temporary copies of the files to be edited and
+      then overwriting the originals with the temporary copies after editing is
+      complete. If the plugin supports <i class="Em" title="Em">sudoedit</i>, it
+      should choose the editor to be used, potentially from a variable in the
+      user's environment, such as <code class="Li">EDITOR</code>, and include it
+      in <i class="Em" title="Em">argv_out</i> (note that environment variables
+      may include command line flags). The files to be edited should be copied
+      from <i class="Em" title="Em">argv</i> into
+      <i class="Em" title="Em">argv_out</i>, separated from the editor and its
+      arguments by a &#x201C;<code class="Li">--</code>&#x201D; element. The
+      &#x201C;<code class="Li">--</code>&#x201D; will be removed by
+      <b class="Nm" title="Nm">sudo</b> before the editor is executed. The
+      plugin should also set <i class="Em" title="Em">sudoedit=true</i> in the
+      <i class="Em" title="Em">command_info</i> list.
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">check_policy</b>() function returns 1 if the
+      command is allowed, 0 if not allowed, -1 for a general error, or -2 for a
+      usage error or if <i class="Em" title="Em">sudoedit</i> was specified but
+      is unsupported by the plugin. In the latter case,
+      <b class="Nm" title="Nm">sudo</b> will print a usage message before it
+      exits. If an error occurs, the plugin may optionally call the
+      <b class="Fn" title="Fn">conversation</b>() or
+      <b class="Fn" title="Fn">plugin_printf</b>() function with
+      <code class="Dv" title="Dv">SUDO_CONF_ERROR_MSG</code> to present
+      additional error information to the user.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">argc</dt>
+      <dd class="It-tag">The number of elements in
+          <i class="Em" title="Em">argv</i>, not counting the final
+          <code class="Dv" title="Dv">NULL</code> pointer.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">argv</dt>
+      <dd class="It-tag">The argument vector describing the command the user
+          wishes to run, in the same form as what would be passed to the
+          <a class="Xr" title="Xr">execve(2)</a> system call. The vector is
+          terminated by a <code class="Dv" title="Dv">NULL</code> pointer.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">env_add</dt>
+      <dd class="It-tag">Additional environment variables specified by the user
+          on the command line in the form of a
+          <code class="Dv" title="Dv">NULL</code><span class="No">-terminated</span>
+          vector of &#x201C;name=value&#x201D; strings. The plugin may reject
+          the command if one or more variables are not allowed to be set, or it
+          may silently ignore such variables.
+        <div class="Pp"></div>
+        When parsing <i class="Em" title="Em">env_add</i>, the plugin should
+          split on the <b class="Sy" title="Sy">first</b> equal sign
+          (&#x2018;<code class="Li">=</code>&#x2019;) since the
+          <i class="Em" title="Em">name</i> field will never include one itself
+          but the <i class="Em" title="Em">value</i> might.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">command_info</dt>
+      <dd class="It-tag">Information about the command being run in the form of
+          &#x201C;name=value&#x201D; strings. These values are used by
+          <b class="Nm" title="Nm">sudo</b> to set the execution environment
+          when running a command. The plugin is responsible for creating and
+          populating the vector, which must be terminated with a
+          <code class="Dv" title="Dv">NULL</code> pointer. The following values
+          are recognized by <b class="Nm" title="Nm">sudo</b>:
+        <dl class="Bl-tag" style="margin-left: 7.80ex;">
+          <dt class="It-tag" style="margin-left: -7.80ex;">command=string</dt>
+          <dd class="It-tag">Fully qualified path to the command to be
+            executed.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">runas_uid=uid</dt>
+          <dd class="It-tag">User ID to run the command as.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">runas_euid=uid</dt>
+          <dd class="It-tag">Effective user ID to run the command as. If not
+              specified, the value of <i class="Em" title="Em">runas_uid</i> is
+              used.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">runas_gid=gid</dt>
+          <dd class="It-tag">Group ID to run the command as.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">runas_egid=gid</dt>
+          <dd class="It-tag">Effective group ID to run the command as. If not
+              specified, the value of <i class="Em" title="Em">runas_gid</i> is
+              used.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">runas_groups=list</dt>
+          <dd class="It-tag">The supplementary group vector to use for the
+              command in the form of a comma-separated list of group IDs. If
+              <i class="Em" title="Em">preserve_groups</i> is set, this option
+              is ignored.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">login_class=string</dt>
+          <dd class="It-tag">BSD login class to use when setting resource limits
+              and nice value (optional). This option is only set on systems that
+              support login classes.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">preserve_groups=bool</dt>
+          <dd class="It-tag">If set, <b class="Nm" title="Nm">sudo</b> will
+              preserve the user's group vector instead of initializing the group
+              vector based on <code class="Li">runas_user</code>.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">cwd=string</dt>
+          <dd class="It-tag">The current working directory to change to when
+              executing the command.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">noexec=bool</dt>
+          <dd class="It-tag">If set, prevent the command from executing other
+              programs.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">chroot=string</dt>
+          <dd class="It-tag">The root directory to use when running the
+            command.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">nice=int</dt>
+          <dd class="It-tag">Nice value (priority) to use when executing the
+              command. The nice value, if specified, overrides the priority
+              associated with the <i class="Em" title="Em">login_class</i> on
+              BSD systems.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">umask=octal</dt>
+          <dd class="It-tag">The file creation mask to use when executing the
+              command.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">selinux_role=string</dt>
+          <dd class="It-tag">SELinux role to use when executing the
+            command.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">selinux_type=string</dt>
+          <dd class="It-tag">SELinux type to use when executing the
+            command.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">timeout=int</dt>
+          <dd class="It-tag">Command timeout. If non-zero then when the timeout
+              expires the command will be killed.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">sudoedit=bool</dt>
+          <dd class="It-tag">Set to true when in
+              <i class="Em" title="Em">sudoedit</i> mode. The plugin may enable
+              <i class="Em" title="Em">sudoedit</i> mode even if
+              <b class="Nm" title="Nm">sudo</b> was not invoked as
+              <b class="Nm" title="Nm">sudoedit</b>. This allows the plugin to
+              perform command substitution and transparently enable
+              <i class="Em" title="Em">sudoedit</i> when the user attempts to
+              run an editor.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">closefrom=number</dt>
+          <dd class="It-tag">If specified, <b class="Nm" title="Nm">sudo</b>
+              will close all files descriptors with a value of
+              <i class="Em" title="Em">number</i> or higher.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">iolog_compress=bool</dt>
+          <dd class="It-tag">Set to true if the I/O logging plugins, if any,
+              should compress the log data. This is a hint to the I/O logging
+              plugin which may choose to ignore it.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">iolog_path=string</dt>
+          <dd class="It-tag">Fully qualified path to the file or directory in
+              which I/O log is to be stored. This is a hint to the I/O logging
+              plugin which may choose to ignore it. If no I/O logging plugin is
+              loaded, this setting has no effect.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">iolog_stdin=bool</dt>
+          <dd class="It-tag">Set to true if the I/O logging plugins, if any,
+              should log the standard input if it is not connected to a terminal
+              device. This is a hint to the I/O logging plugin which may choose
+              to ignore it.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">iolog_stdout=bool</dt>
+          <dd class="It-tag">Set to true if the I/O logging plugins, if any,
+              should log the standard output if it is not connected to a
+              terminal device. This is a hint to the I/O logging plugin which
+              may choose to ignore it.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">iolog_stderr=bool</dt>
+          <dd class="It-tag">Set to true if the I/O logging plugins, if any,
+              should log the standard error if it is not connected to a terminal
+              device. This is a hint to the I/O logging plugin which may choose
+              to ignore it.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">iolog_ttyin=bool</dt>
+          <dd class="It-tag">Set to true if the I/O logging plugins, if any,
+              should log all terminal input. This only includes input typed by
+              the user and not from a pipe or redirected from a file. This is a
+              hint to the I/O logging plugin which may choose to ignore it.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">iolog_ttyout=bool</dt>
+          <dd class="It-tag">Set to true if the I/O logging plugins, if any,
+              should log all terminal output. This only includes output to the
+              screen, not output to a pipe or file. This is a hint to the I/O
+              logging plugin which may choose to ignore it.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">use_pty=bool</dt>
+          <dd class="It-tag">Allocate a pseudo-tty to run the command in,
+              regardless of whether or not I/O logging is in use. By default,
+              <b class="Nm" title="Nm">sudo</b> will only run the command in a
+              pty when an I/O log plugin is loaded.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">set_utmp=bool</dt>
+          <dd class="It-tag">Create a utmp (or utmpx) entry when a pseudo-tty is
+              allocated. By default, the new entry will be a copy of the user's
+              existing utmp entry (if any), with the tty, time, type and pid
+              fields updated.</dd>
+          <dt class="It-tag" style="margin-left: -7.80ex;">utmp_user=string</dt>
+          <dd class="It-tag">User name to use when constructing a new utmp (or
+              utmpx) entry when <i class="Em" title="Em">set_utmp</i> is
+              enabled. This option can be used to set the user field in the utmp
+              entry to the user the command runs as rather than the invoking
+              user. If not set, <b class="Nm" title="Nm">sudo</b> will base the
+              new entry on the invoking user's existing entry.</dd>
+        </dl>
+        <div class="Pp"></div>
+        Unsupported values will be ignored.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">argv_out</dt>
+      <dd class="It-tag">The
+          <code class="Dv" title="Dv">NULL</code><span class="No">-terminated</span>
+          argument vector to pass to the <a class="Xr" title="Xr">execve(2)</a>
+          system call when executing the command. The plugin is responsible for
+          allocating and populating the vector.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">user_env_out</dt>
+      <dd class="It-tag">The
+          <code class="Dv" title="Dv">NULL</code><span class="No">-terminated</span>
+          environment vector to use when executing the command. The plugin is
+          responsible for allocating and populating the vector.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">list</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*list)(int verbose, const char *list_user, 
+            int argc, char * const argv[]);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    List available privileges for the invoking user. Returns 1 on success, 0 on
+      failure and -1 on error. On error, the plugin may optionally call the
+      <b class="Fn" title="Fn">conversation</b>() or
+      <b class="Fn" title="Fn">plugin_printf</b>() function with
+      <code class="Dv" title="Dv">SUDO_CONF_ERROR_MSG</code> to present
+      additional error information to the user.
+    <div class="Pp"></div>
+    Privileges should be output via the
+      <b class="Fn" title="Fn">conversation</b>() or
+      <b class="Fn" title="Fn">plugin_printf</b>() function using
+      <code class="Dv" title="Dv">SUDO_CONV_INFO_MSG</code>,
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">verbose</dt>
+      <dd class="It-tag">Flag indicating whether to list in verbose mode or
+        not.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">list_user</dt>
+      <dd class="It-tag">The name of a different user to list privileges for if
+          the policy allows it. If <code class="Dv" title="Dv">NULL</code>, the
+          plugin should list the privileges of the invoking user.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">argc</dt>
+      <dd class="It-tag">The number of elements in
+          <i class="Em" title="Em">argv</i>, not counting the final
+          <code class="Dv" title="Dv">NULL</code> pointer.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">argv</dt>
+      <dd class="It-tag">If
+          <span class="No">non-</span><code class="Dv" title="Dv">NULL</code>,
+          an argument vector describing a command the user wishes to check
+          against the policy in the same form as what would be passed to the
+          <a class="Xr" title="Xr">execve(2)</a> system call. If the command is
+          permitted by the policy, the fully-qualified path to the command
+          should be displayed along with any command line arguments.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">validate</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*validate)(void);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">validate</b>() function is called when
+      <b class="Nm" title="Nm">sudo</b> is run with the
+      <b class="Fl" title="Fl">-v</b> flag. For policy plugins such as
+      <i class="Em" title="Em">sudoers</i> that cache authentication
+      credentials, this function will validate and cache the credentials.
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">validate</b>() function should be
+      <code class="Dv" title="Dv">NULL</code> if the plugin does not support
+      credential caching.
+    <div class="Pp"></div>
+    Returns 1 on success, 0 on failure and -1 on error. On error, the plugin may
+      optionally call the <b class="Fn" title="Fn">conversation</b>() or
+      <b class="Fn" title="Fn">plugin_printf</b>() function with
+      <code class="Dv" title="Dv">SUDO_CONF_ERROR_MSG</code> to present
+      additional error information to the user.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">invalidate</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+void (*invalidate)(int remove);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">invalidate</b>() function is called when
+      <b class="Nm" title="Nm">sudo</b> is called with the
+      <b class="Fl" title="Fl">-k</b> or <b class="Fl" title="Fl">-K</b> flag.
+      For policy plugins such as <i class="Em" title="Em">sudoers</i> that cache
+      authentication credentials, this function will invalidate the credentials.
+      If the <i class="Em" title="Em">remove</i> flag is set, the plugin may
+      remove the credentials instead of simply invalidating them.
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">invalidate</b>() function should be
+      <code class="Dv" title="Dv">NULL</code> if the plugin does not support
+      credential caching.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">init_session</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*init_session)(struct passwd *pwd, char **user_envp[);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">init_session</b>() function is called before
+      <b class="Nm" title="Nm">sudo</b> sets up the execution environment for
+      the command. It is run in the parent <b class="Nm" title="Nm">sudo</b>
+      process and before any uid or gid changes. This can be used to perform
+      session setup that is not supported by
+      <i class="Em" title="Em">command_info</i>, such as opening the PAM
+      session. The <b class="Fn" title="Fn">close</b>() function can be used to
+      tear down the session that was opened by
+      <code class="Li">init_session</code>.
+    <div class="Pp"></div>
+    The <i class="Em" title="Em">pwd</i> argument points to a passwd struct for
+      the user the command will be run as if the uid the command will run as was
+      found in the password database, otherwise it will be
+      <code class="Dv" title="Dv">NULL</code>.
+    <div class="Pp"></div>
+    The <i class="Em" title="Em">user_env</i> argument points to the environment
+      the command will run in, in the form of a
+      <code class="Dv" title="Dv">NULL</code><span class="No">-terminated</span>
+      vector of &#x201C;name=value&#x201D; strings. This is the same string
+      passed back to the front end via the Policy Plugin's
+      <i class="Em" title="Em">user_env_out</i> parameter. If the
+      <b class="Fn" title="Fn">init_session</b>() function needs to modify the
+      user environment, it should update the pointer stored in
+      <i class="Em" title="Em">user_env</i>. The expected use case is to merge
+      the contents of the PAM environment (if any) with the contents of
+      <i class="Em" title="Em">user_env</i>. NOTE: the
+      <i class="Em" title="Em">user_env</i> parameter is only available starting
+      with API version 1.2. A plugin <b class="Sy" title="Sy">must</b> check the
+      API version specified by the <b class="Nm" title="Nm">sudo</b> front end
+      before using <i class="Em" title="Em">user_env</i>. Failure to do so may
+      result in a crash.
+    <div class="Pp"></div>
+    Returns 1 on success, 0 on failure and -1 on error. On error, the plugin may
+      optionally call the <b class="Fn" title="Fn">conversation</b>() or
+      <b class="Fn" title="Fn">plugin_printf</b>() function with
+      <code class="Dv" title="Dv">SUDO_CONF_ERROR_MSG</code> to present
+      additional error information to the user.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">register_hooks</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+void (*register_hooks)(int version, 
+   int (*register_hook)(struct sudo_hook *hook));
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">register_hooks</b>() function is called by the
+      sudo front end to register any hooks the plugin needs. If the plugin does
+      not support hooks, <code class="Li">register_hooks</code> should be set to
+      the <code class="Dv" title="Dv">NULL</code> pointer.
+    <div class="Pp"></div>
+    The <i class="Em" title="Em">version</i> argument describes the version of
+      the hooks API supported by the <b class="Nm" title="Nm">sudo</b> front
+      end.
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">register_hook</b>() function should be used to
+      register any supported hooks the plugin needs. It returns 0 on success, 1
+      if the hook type is not supported and -1 if the major version in
+      <code class="Li">struct hook</code> does not match the front end's major
+      hook API version.
+    <div class="Pp"></div>
+    See the <a class="Sx" title="Sx" href="#Hook_function_API">Hook function
+      API</a> section below for more information about hooks.
+    <div class="Pp"></div>
+    NOTE: the <b class="Fn" title="Fn">register_hooks</b>() function is only
+      available starting with API version 1.2. If the
+      <b class="Nm" title="Nm">sudo</b> front end doesn't support API version
+      1.2 or higher, <code class="Li">register_hooks</code> will not be
+    called.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">deregister_hooks</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+void (*deregister_hooks)(int version, 
+   int (*deregister_hook)(struct sudo_hook *hook));
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">deregister_hooks</b>() function is called by
+      the sudo front end to deregister any hooks the plugin has registered. If
+      the plugin does not support hooks,
+      <code class="Li">deregister_hooks</code> should be set to the
+      <code class="Dv" title="Dv">NULL</code> pointer.
+    <div class="Pp"></div>
+    The <i class="Em" title="Em">version</i> argument describes the version of
+      the hooks API supported by the <b class="Nm" title="Nm">sudo</b> front
+      end.
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">deregister_hook</b>() function should be used
+      to deregister any hooks that were put in place by the
+      <b class="Fn" title="Fn">register_hook</b>() function. If the plugin tries
+      to deregister a hook that the front end does not support,
+      <code class="Li">deregister_hook</code> will return an error.
+    <div class="Pp"></div>
+    See the <a class="Sx" title="Sx" href="#Hook_function_API">Hook function
+      API</a> section below for more information about hooks.
+    <div class="Pp"></div>
+    NOTE: the <b class="Fn" title="Fn">deregister_hooks</b>() function is only
+      available starting with API version 1.2. If the
+      <b class="Nm" title="Nm">sudo</b> front end doesn't support API version
+      1.2 or higher, <code class="Li">deregister_hooks</code> will not be
+      called.</dd>
+</dl>
+<div class="Pp"></div>
+<i class="Em" title="Em">Policy Plugin Version Macros</i>
+<div class="Pp"></div>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+/* Plugin API version major/minor. */ 
+#define SUDO_API_VERSION_MAJOR 1 
+#define SUDO_API_VERSION_MINOR 2 
+#define SUDO_API_MKVERSION(x, y) ((x &lt;&lt; 16) | y) 
+#define SUDO_API_VERSION SUDO_API_MKVERSION(SUDO_API_VERSION_MAJOR,\ 
+                                            SUDO_API_VERSION_MINOR) 
+ 
+/* Getters and setters for API version */ 
+#define SUDO_API_VERSION_GET_MAJOR(v) ((v) &gt;&gt; 16) 
+#define SUDO_API_VERSION_GET_MINOR(v) ((v) &amp; 0xffff) 
+#define SUDO_API_VERSION_SET_MAJOR(vp, n) do { \ 
+    *(vp) = (*(vp) &amp; 0x0000ffff) | ((n) &lt;&lt; 16); \ 
+} while(0) 
+#define SUDO_VERSION_SET_MINOR(vp, n) do { \ 
+    *(vp) = (*(vp) &amp; 0xffff0000) | (n); \ 
+} while(0)
+</pre>
+</div>
+<h2 class="Ss" title="Ss" id="I/O_plugin_API"><a class="selflink" href="#I/O_plugin_API">I/O
+  plugin API</a></h2>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+struct io_plugin { 
+#define SUDO_IO_PLUGIN 2 
+    unsigned int type; /* always SUDO_IO_PLUGIN */ 
+    unsigned int version; /* always SUDO_API_VERSION */ 
+    int (*open)(unsigned int version, sudo_conv_t conversation 
+                sudo_printf_t plugin_printf, char * const settings[], 
+                char * const user_info[], int argc, char * const argv[], 
+                char * const user_env[], char * const plugin_options[]); 
+    void (*close)(int exit_status, int error); /* wait status or error */ 
+    int (*show_version)(int verbose); 
+    int (*log_ttyin)(const char *buf, unsigned int len); 
+    int (*log_ttyout)(const char *buf, unsigned int len); 
+    int (*log_stdin)(const char *buf, unsigned int len); 
+    int (*log_stdout)(const char *buf, unsigned int len); 
+    int (*log_stderr)(const char *buf, unsigned int len); 
+    void (*register_hooks)(int version, 
+       int (*register_hook)(struct sudo_hook *hook)); 
+    void (*deregister_hooks)(int version, 
+       int (*deregister_hook)(struct sudo_hook *hook)); 
+};
+</pre>
+</div>
+<div class="Pp"></div>
+When an I/O plugin is loaded, <b class="Nm" title="Nm">sudo</b> runs the command
+  in a pseudo-tty. This makes it possible to log the input and output from the
+  user's session. If any of the standard input, standard output or standard
+  error do not correspond to a tty, <b class="Nm" title="Nm">sudo</b> will open
+  a pipe to capture the I/O for logging before passing it on.
+<div class="Pp"></div>
+The log_ttyin function receives the raw user input from the terminal device
+  (note that this will include input even when echo is disabled, such as when a
+  password is read). The log_ttyout function receives output from the pseudo-tty
+  that is suitable for replaying the user's session at a later time. The
+  <b class="Fn" title="Fn">log_stdin</b>(),
+  <b class="Fn" title="Fn">log_stdout</b>() and
+  <b class="Fn" title="Fn">log_stderr</b>() functions are only called if the
+  standard input, standard output or standard error respectively correspond to
+  something other than a tty.
+<div class="Pp"></div>
+Any of the logging functions may be set to the
+  <code class="Dv" title="Dv">NULL</code> pointer if no logging is to be
+  performed. If the open function returns 0, no I/O will be sent to the plugin.
+<div class="Pp"></div>
+The io_plugin struct has the following fields:
+<dl class="Bl-tag" style="margin-left: 7.80ex;">
+  <dt class="It-tag" style="margin-left: -7.80ex;">type</dt>
+  <dd class="It-tag">The <code class="Li">type</code> field should always be set
+      to <code class="Dv" title="Dv">SUDO_IO_PLUGIN</code>.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">version</dt>
+  <dd class="It-tag">The <code class="Li">version</code> field should be set to
+      <code class="Dv" title="Dv">SUDO_API_VERSION</code>.
+    <div class="Pp"></div>
+    This allows <b class="Nm" title="Nm">sudo</b> to determine the API version
+      the plugin was built against.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">open</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*open)(unsigned int version, sudo_conv_t conversation 
+            sudo_printf_t plugin_printf, char * const settings[], 
+            char * const user_info[], int argc, char * const argv[], 
+            char * const user_env[], char * const plugin_options[]);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">open</b>() function is run before the
+      <b class="Fn" title="Fn">log_input</b>(),
+      <b class="Fn" title="Fn">log_output</b>() or
+      <b class="Fn" title="Fn">show_version</b>() functions are called. It is
+      only called if the version is being requested or the
+      <b class="Fn" title="Fn">check_policy</b>() function has returned
+      successfully. It returns 1 on success, 0 on failure, -1 if a general error
+      occurred, or -2 if there was a usage error. In the latter case,
+      <b class="Nm" title="Nm">sudo</b> will print a usage message before it
+      exits. If an error occurs, the plugin may optionally call the
+      <b class="Fn" title="Fn">conversation</b>() or
+      <b class="Fn" title="Fn">plugin_printf</b>() function with
+      <code class="Dv" title="Dv">SUDO_CONF_ERROR_MSG</code> to present
+      additional error information to the user.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">version</dt>
+      <dd class="It-tag">The version passed in by
+          <b class="Nm" title="Nm">sudo</b> allows the plugin to determine the
+          major and minor version number of the plugin API supported by
+          <b class="Nm" title="Nm">sudo</b>.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">conversation</dt>
+      <dd class="It-tag">A pointer to the
+          <b class="Fn" title="Fn">conversation</b>() function that may be used
+          by the <b class="Fn" title="Fn">show_version</b>() function to display
+          version information (see <b class="Fn" title="Fn">show_version</b>()
+          below). The <b class="Fn" title="Fn">conversation</b>() function may
+          also be used to display additional error message to the user. The
+          <b class="Fn" title="Fn">conversation</b>() function returns 0 on
+          success and -1 on failure.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">plugin_printf</dt>
+      <dd class="It-tag">A pointer to a
+          <b class="Fn" title="Fn">printf</b>()<span class="No">-style</span>
+          function that may be used by the
+          <b class="Fn" title="Fn">show_version</b>() function to display
+          version information (see show_version below). The
+          <b class="Fn" title="Fn">plugin_printf</b>() function may also be used
+          to display additional error message to the user. The
+          <b class="Fn" title="Fn">plugin_printf</b>() function returns number
+          of characters printed on success and -1 on failure.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">settings</dt>
+      <dd class="It-tag">A vector of user-supplied
+          <b class="Nm" title="Nm">sudo</b> settings in the form of
+          &#x201C;name=value&#x201D; strings. The vector is terminated by a
+          <code class="Dv" title="Dv">NULL</code> pointer. These settings
+          correspond to flags the user specified when running
+          <b class="Nm" title="Nm">sudo</b>. As such, they will only be present
+          when the corresponding flag has been specified on the command line.
+        <div class="Pp"></div>
+        When parsing <i class="Em" title="Em">settings</i>, the plugin should
+          split on the <b class="Sy" title="Sy">first</b> equal sign
+          (&#x2018;<code class="Li">=</code>&#x2019;) since the
+          <i class="Em" title="Em">name</i> field will never include one itself
+          but the <i class="Em" title="Em">value</i> might.
+        <div class="Pp"></div>
+        See the <a class="Sx" title="Sx" href="#Policy_plugin_API">Policy plugin
+          API</a> section for a list of all possible settings.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">user_info</dt>
+      <dd class="It-tag">A vector of information about the user running the
+          command in the form of &#x201C;name=value&#x201D; strings. The vector
+          is terminated by a <code class="Dv" title="Dv">NULL</code> pointer.
+        <div class="Pp"></div>
+        When parsing <i class="Em" title="Em">user_info</i>, the plugin should
+          split on the <b class="Sy" title="Sy">first</b> equal sign
+          (&#x2018;<code class="Li">=</code>&#x2019;) since the
+          <i class="Em" title="Em">name</i> field will never include one itself
+          but the <i class="Em" title="Em">value</i> might.
+        <div class="Pp"></div>
+        See the <a class="Sx" title="Sx" href="#Policy_plugin_API">Policy plugin
+          API</a> section for a list of all possible strings.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">argc</dt>
+      <dd class="It-tag">The number of elements in
+          <i class="Em" title="Em">argv</i>, not counting the final
+          <code class="Dv" title="Dv">NULL</code> pointer.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">argv</dt>
+      <dd class="It-tag">If
+          <span class="No">non-</span><code class="Dv" title="Dv">NULL</code>,
+          an argument vector describing a command the user wishes to run in the
+          same form as what would be passed to the
+          <a class="Xr" title="Xr">execve(2)</a> system call.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">user_env</dt>
+      <dd class="It-tag">The user's environment in the form of a
+          <code class="Dv" title="Dv">NULL</code><span class="No">-terminated</span>
+          vector of &#x201C;name=value&#x201D; strings.
+        <div class="Pp"></div>
+        When parsing <i class="Em" title="Em">user_env</i>, the plugin should
+          split on the <b class="Sy" title="Sy">first</b> equal sign
+          (&#x2018;<code class="Li">=</code>&#x2019;) since the
+          <i class="Em" title="Em">name</i> field will never include one itself
+          but the <i class="Em" title="Em">value</i> might.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">plugin_options</dt>
+      <dd class="It-tag">Any (non-comment) strings immediately after the plugin
+          path are treated as arguments to the plugin. These arguments are split
+          on a white space boundary and are passed to the plugin in the form of
+          a
+          <code class="Dv" title="Dv">NULL</code><span class="No">-terminated</span>
+          array of strings. If no arguments were specified,
+          <i class="Em" title="Em">plugin_options</i> will be the
+          <code class="Dv" title="Dv">NULL</code> pointer.
+        <div class="Pp"></div>
+        NOTE: the <i class="Em" title="Em">plugin_options</i> parameter is only
+          available starting with API version 1.2. A plugin
+          <b class="Sy" title="Sy">must</b> check the API version specified by
+          the <b class="Nm" title="Nm">sudo</b> front end before using
+          <i class="Em" title="Em">plugin_options</i>. Failure to do so may
+          result in a crash.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">close</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+void (*close)(int exit_status, int error);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">close</b>() function is called when the command
+      being run by <b class="Nm" title="Nm">sudo</b> finishes.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">exit_status</dt>
+      <dd class="It-tag">The command's exit status, as returned by the
+          <a class="Xr" title="Xr">wait(2)</a> system call. The value of
+          <code class="Li">exit_status</code> is undefined if
+          <code class="Li">error</code> is non-zero.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">error</dt>
+      <dd class="It-tag">If the command could not be executed, this is set to
+          the value of <code class="Li">errno</code> set by the
+          <a class="Xr" title="Xr">execve(2)</a> system call. If the command was
+          successfully executed, the value of <code class="Li">error</code> is
+          0.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">show_version</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*show_version)(int verbose);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">show_version</b>() function is called by
+      <b class="Nm" title="Nm">sudo</b> when the user specifies the
+      <b class="Fl" title="Fl">-V</b> option. The plugin may display its version
+      information to the user via the
+      <b class="Fn" title="Fn">conversation</b>() or
+      <b class="Fn" title="Fn">plugin_printf</b>() function using
+      <code class="Dv" title="Dv">SUDO_CONV_INFO_MSG</code>. If the user
+      requests detailed version information, the verbose flag will be set.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">log_ttyin</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*log_ttyin)(const char *buf, unsigned int len);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">log_ttyin</b>() function is called whenever
+      data can be read from the user but before it is passed to the running
+      command. This allows the plugin to reject data if it chooses to (for
+      instance if the input contains banned content). Returns 1 if the data
+      should be passed to the command, 0 if the data is rejected (which will
+      terminate the command) or -1 if an error occurred.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">buf</dt>
+      <dd class="It-tag">The buffer containing user input.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">len</dt>
+      <dd class="It-tag">The length of <i class="Em" title="Em">buf</i> in
+          bytes.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">log_ttyout</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*log_ttyout)(const char *buf, unsigned int len);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">log_ttyout</b>() function is called whenever
+      data can be read from the command but before it is written to the user's
+      terminal. This allows the plugin to reject data if it chooses to (for
+      instance if the output contains banned content). Returns 1 if the data
+      should be passed to the user, 0 if the data is rejected (which will
+      terminate the command) or -1 if an error occurred.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">buf</dt>
+      <dd class="It-tag">The buffer containing command output.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">len</dt>
+      <dd class="It-tag">The length of <i class="Em" title="Em">buf</i> in
+          bytes.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">log_stdin</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*log_stdin)(const char *buf, unsigned int len);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">log_stdin</b>() function is only used if the
+      standard input does not correspond to a tty device. It is called whenever
+      data can be read from the standard input but before it is passed to the
+      running command. This allows the plugin to reject data if it chooses to
+      (for instance if the input contains banned content). Returns 1 if the data
+      should be passed to the command, 0 if the data is rejected (which will
+      terminate the command) or -1 if an error occurred.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">buf</dt>
+      <dd class="It-tag">The buffer containing user input.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">len</dt>
+      <dd class="It-tag">The length of <i class="Em" title="Em">buf</i> in
+          bytes.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">log_stdout</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*log_stdout)(const char *buf, unsigned int len);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">log_stdout</b>() function is only used if the
+      standard output does not correspond to a tty device. It is called whenever
+      data can be read from the command but before it is written to the standard
+      output. This allows the plugin to reject data if it chooses to (for
+      instance if the output contains banned content). Returns 1 if the data
+      should be passed to the user, 0 if the data is rejected (which will
+      terminate the command) or -1 if an error occurred.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">buf</dt>
+      <dd class="It-tag">The buffer containing command output.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">len</dt>
+      <dd class="It-tag">The length of <i class="Em" title="Em">buf</i> in
+          bytes.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">log_stderr</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*log_stderr)(const char *buf, unsigned int len);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">log_stderr</b>() function is only used if the
+      standard error does not correspond to a tty device. It is called whenever
+      data can be read from the command but before it is written to the standard
+      error. This allows the plugin to reject data if it chooses to (for
+      instance if the output contains banned content). Returns 1 if the data
+      should be passed to the user, 0 if the data is rejected (which will
+      terminate the command) or -1 if an error occurred.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">buf</dt>
+      <dd class="It-tag">The buffer containing command output.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">len</dt>
+      <dd class="It-tag">The length of <i class="Em" title="Em">buf</i> in
+          bytes.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">register_hooks</dt>
+  <dd class="It-tag">See the
+      <a class="Sx" title="Sx" href="#Policy_plugin_API">Policy plugin API</a>
+      section for a description of <code class="Li">register_hooks</code>.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">deregister_hooks</dt>
+  <dd class="It-tag">See the
+      <a class="Sx" title="Sx" href="#Policy_plugin_API">Policy plugin API</a>
+      section for a description of
+    <code class="Li">deregister_hooks.</code></dd>
+</dl>
+<div class="Pp"></div>
+<i class="Em" title="Em">I/O Plugin Version Macros</i>
+<div class="Pp"></div>
+Same as for the <a class="Sx" title="Sx" href="#Policy_plugin_API">Policy plugin
+  API</a>.
+<h2 class="Ss" title="Ss" id="Hook_function_API"><a class="selflink" href="#Hook_function_API">Hook
+  function API</a></h2>
+Beginning with plugin API version 1.2, it is possible to install hooks for
+  certain functions called by the <b class="Nm" title="Nm">sudo</b> front end.
+<div class="Pp"></div>
+Currently, the only supported hooks relate to the handling of environment
+  variables. Hooks can be used to intercept attempts to get, set, or remove
+  environment variables so that these changes can be reflected in the version of
+  the environment that is used to execute a command. A future version of the API
+  will support hooking internal <b class="Nm" title="Nm">sudo</b> front end
+  functions as well.
+<div class="Pp"></div>
+<i class="Em" title="Em">Hook structure</i>
+<div class="Pp"></div>
+Hooks in <b class="Nm" title="Nm">sudo</b> are described by the following
+  structure:
+<div class="Pp"></div>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+typedef int (*sudo_hook_fn_t)(); 
+ 
+struct sudo_hook { 
+    int hook_version; 
+    int hook_type; 
+    sudo_hook_fn_t hook_fn; 
+    void *closure; 
+};
+</pre>
+</div>
+<div class="Pp"></div>
+The <code class="Li">sudo_hook</code> structure has the following fields:
+<dl class="Bl-tag" style="margin-left: 7.80ex;">
+  <dt class="It-tag" style="margin-left: -7.80ex;">hook_version</dt>
+  <dd class="It-tag">The <code class="Li">hook_version</code> field should be
+      set to <code class="Dv" title="Dv">SUDO_HOOK_VERSION</code>.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">hook_type</dt>
+  <dd class="It-tag">The <code class="Li">hook_type</code> field may be one of
+      the following supported hook types:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;"><a class="selflink" href="#SUDO_HOOK_SETENV"><code class="Dv" title="Dv" id="SUDO_HOOK_SETENV">SUDO_HOOK_SETENV</code></a></dt>
+      <dd class="It-tag">The C library <a class="Xr" title="Xr">setenv(3)</a>
+          function. Any registered hooks will run before the C library
+          implementation. The <code class="Li">hook_fn</code> field should be a
+          function that matches the following typedef:
+        <div class="Pp"></div>
+        <div class="Bd" style="margin-left: 0.00ex;">
+        <pre class="Li">
+typedef int (*sudo_hook_fn_setenv_t)(const char *name, 
+   const char *value, int overwrite, void *closure);
+        </pre>
+        </div>
+        <div class="Pp"></div>
+        If the registered hook does not match the typedef the results are
+          unspecified.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;"><a class="selflink" href="#SUDO_HOOK_UNSETENV"><code class="Dv" title="Dv" id="SUDO_HOOK_UNSETENV">SUDO_HOOK_UNSETENV</code></a></dt>
+      <dd class="It-tag">The C library <a class="Xr" title="Xr">unsetenv(3)</a>
+          function. Any registered hooks will run before the C library
+          implementation. The <code class="Li">hook_fn</code> field should be a
+          function that matches the following typedef:
+        <div class="Pp"></div>
+        <div class="Bd" style="margin-left: 0.00ex;">
+        <pre class="Li">
+typedef int (*sudo_hook_fn_unsetenv_t)(const char *name, 
+   void *closure);
+        </pre>
+        </div>
+      </dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;"><a class="selflink" href="#SUDO_HOOK_GETENV"><code class="Dv" title="Dv" id="SUDO_HOOK_GETENV">SUDO_HOOK_GETENV</code></a></dt>
+      <dd class="It-tag">The C library <a class="Xr" title="Xr">getenv(3)</a>
+          function. Any registered hooks will run before the C library
+          implementation. The <code class="Li">hook_fn</code> field should be a
+          function that matches the following typedef:
+        <div class="Pp"></div>
+        <div class="Bd" style="margin-left: 0.00ex;">
+        <pre class="Li">
+typedef int (*sudo_hook_fn_getenv_t)(const char *name, 
+   char **value, void *closure);
+        </pre>
+        </div>
+        <div class="Pp"></div>
+        If the registered hook does not match the typedef the results are
+          unspecified.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;"><a class="selflink" href="#SUDO_HOOK_PUTENV"><code class="Dv" title="Dv" id="SUDO_HOOK_PUTENV">SUDO_HOOK_PUTENV</code></a></dt>
+      <dd class="It-tag">The C library <a class="Xr" title="Xr">putenv(3)</a>
+          function. Any registered hooks will run before the C library
+          implementation. The <code class="Li">hook_fn</code> field should be a
+          function that matches the following typedef:
+        <div class="Pp"></div>
+        <div class="Bd" style="margin-left: 0.00ex;">
+        <pre class="Li">
+typedef int (*sudo_hook_fn_putenv_t)(char *string, 
+   void *closure);
+        </pre>
+        </div>
+        <div class="Pp"></div>
+        If the registered hook does not match the typedef the results are
+          unspecified.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">hook_fn</dt>
+  <dd class="It-tag">sudo_hook_fn_t hook_fn;
+    <div class="Pp"></div>
+    The <code class="Li">hook_fn</code> field should be set to the plugin's hook
+      implementation. The actual function arguments will vary depending on the
+      <code class="Li">hook_type</code> (see <code class="Li">hook_type</code>
+      above). In all cases, the <code class="Li">closure</code> field of
+      <code class="Li">struct sudo_hook</code> is passed as the last function
+      parameter. This can be used to pass arbitrary data to the plugin's hook
+      implementation.
+    <div class="Pp"></div>
+    The function return value may be one of the following:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;"><a class="selflink" href="#SUDO_HOOK_RET_ERROR"><code class="Dv" title="Dv" id="SUDO_HOOK_RET_ERROR">SUDO_HOOK_RET_ERROR</code></a></dt>
+      <dd class="It-tag">The hook function encountered an error.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;"><a class="selflink" href="#SUDO_HOOK_RET_NEXT"><code class="Dv" title="Dv" id="SUDO_HOOK_RET_NEXT">SUDO_HOOK_RET_NEXT</code></a></dt>
+      <dd class="It-tag">The hook completed without error, go on to the next
+          hook (including the native implementation if applicable). For example,
+          a <a class="Xr" title="Xr">getenv(3)</a> hook might return
+          <code class="Dv" title="Dv">SUDO_HOOK_RET_NEXT</code> if the specified
+          variable was not found in the private copy of the environment.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;"><a class="selflink" href="#SUDO_HOOK_RET_STOP"><code class="Dv" title="Dv" id="SUDO_HOOK_RET_STOP">SUDO_HOOK_RET_STOP</code></a></dt>
+      <dd class="It-tag">The hook completed without error, stop processing hooks
+          for this invocation. This can be used to replace the native
+          implementation. For example, a <code class="Li">setenv</code> hook
+          that operates on a private copy of the environment but leaves
+          <code class="Li">environ</code> unchanged.</dd>
+    </dl>
+  </dd>
+</dl>
+<div class="Pp"></div>
+Note that it is very easy to create an infinite loop when hooking C library
+  functions. For example, a <a class="Xr" title="Xr">getenv(3)</a> hook that
+  calls the <a class="Xr" title="Xr">snprintf(3)</a> function may create a loop
+  if the <a class="Xr" title="Xr">snprintf(3)</a> implementation calls
+  <a class="Xr" title="Xr">getenv(3)</a> to check the locale. To prevent this,
+  you may wish to use a static variable in the hook function to guard against
+  nested calls. For example:
+<div class="Pp"></div>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+static int in_progress = 0; /* avoid recursion */ 
+if (in_progress) 
+    return SUDO_HOOK_RET_NEXT; 
+in_progress = 1; 
+... 
+in_progress = 0; 
+return SUDO_HOOK_RET_STOP;
+</pre>
+</div>
+<div class="Pp"></div>
+<i class="Em" title="Em">Hook API Version Macros</i>
+<div class="Pp"></div>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+/* Hook API version major/minor */ 
+#define SUDO_HOOK_VERSION_MAJOR 1 
+#define SUDO_HOOK_VERSION_MINOR 0 
+#define SUDO_HOOK_MKVERSION(x, y) ((x &lt;&lt; 16) | y) 
+#define SUDO_HOOK_VERSION SUDO_HOOK_MKVERSION(SUDO_HOOK_VERSION_MAJOR,\ 
+                                              SUDO_HOOK_VERSION_MINOR) 
+ 
+/* Getters and setters for hook API version */ 
+#define SUDO_HOOK_VERSION_GET_MAJOR(v) ((v) &gt;&gt; 16) 
+#define SUDO_HOOK_VERSION_GET_MINOR(v) ((v) &amp; 0xffff) 
+#define SUDO_HOOK_VERSION_SET_MAJOR(vp, n) do { \ 
+    *(vp) = (*(vp) &amp; 0x0000ffff) | ((n) &lt;&lt; 16); \ 
+} while(0) 
+#define SUDO_HOOK_VERSION_SET_MINOR(vp, n) do { \ 
+    *(vp) = (*(vp) &amp; 0xffff0000) | (n); \ 
+} while(0)
+</pre>
+</div>
+<h2 class="Ss" title="Ss" id="Conversation_API"><a class="selflink" href="#Conversation_API">Conversation
+  API</a></h2>
+If the plugin needs to interact with the user, it may do so via the
+  <b class="Fn" title="Fn">conversation</b>() function. A plugin should not
+  attempt to read directly from the standard input or the user's tty (neither of
+  which are guaranteed to exist). The caller must include a trailing newline in
+  <code class="Li">msg</code> if one is to be printed.
+<div class="Pp"></div>
+A <b class="Fn" title="Fn">printf</b>()<span class="No">-style</span> function
+  is also available that can be used to display informational or error messages
+  to the user, which is usually more convenient for simple messages where no use
+  input is required.
+<div class="Pp"></div>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+struct sudo_conv_message { 
+#define SUDO_CONV_PROMPT_ECHO_OFF  0x0001 /* do not echo user input */ 
+#define SUDO_CONV_PROMPT_ECHO_ON   0x0002 /* echo user input */ 
+#define SUDO_CONV_ERROR_MSG        0x0003 /* error message */ 
+#define SUDO_CONV_INFO_MSG         0x0004 /* informational message */ 
+#define SUDO_CONV_PROMPT_MASK      0x0005 /* mask user input */ 
+#define SUDO_CONV_DEBUG_MSG        0x0006 /* debugging message */ 
+#define SUDO_CONV_PROMPT_ECHO_OK   0x1000 /* flag: allow echo if no tty */ 
+    int msg_type; 
+    int timeout; 
+    const char *msg; 
+}; 
+ 
+struct sudo_conv_reply { 
+    char *reply; 
+}; 
+ 
+typedef int (*sudo_conv_t)(int num_msgs, 
+             const struct sudo_conv_message msgs[], 
+             struct sudo_conv_reply replies[]); 
+ 
+typedef int (*sudo_printf_t)(int msg_type, const char *fmt, ...);
+</pre>
+</div>
+<div class="Pp"></div>
+Pointers to the <b class="Fn" title="Fn">conversation</b>() and
+  <b class="Fn" title="Fn">printf</b>()<span class="No">-style</span> functions
+  are passed in to the plugin's <b class="Fn" title="Fn">open</b>() function
+  when the plugin is initialized.
+<div class="Pp"></div>
+To use the <b class="Fn" title="Fn">conversation</b>() function, the plugin must
+  pass an array of <code class="Li">sudo_conv_message</code> and
+  <code class="Li">sudo_conv_reply</code> structures. There must be a
+  <code class="Li">struct sudo_conv_message</code> and <code class="Li">struct
+  sudo_conv_reply</code> for each message in the conversation. The plugin is
+  responsible for freeing the reply buffer filled in to the
+  <code class="Li">struct sudo_conv_reply</code>, if any.
+<div class="Pp"></div>
+The <b class="Fn" title="Fn">printf</b>()<span class="No">-style</span> function
+  uses the same underlying mechanism as the
+  <b class="Fn" title="Fn">conversation</b>() function but only supports
+  <code class="Dv" title="Dv">SUDO_CONV_INFO_MSG</code>,
+  <code class="Dv" title="Dv">SUDO_CONV_ERROR_MSG</code> and
+  <code class="Dv" title="Dv">SUDO_CONV_DEBUG_MSG</code> for the
+  <i class="Em" title="Em">msg_type</i> parameter. It can be more convenient
+  than using the <b class="Fn" title="Fn">conversation</b>() function if no user
+  reply is needed and supports standard <b class="Fn" title="Fn">printf</b>()
+  escape sequences.
+<div class="Pp"></div>
+Unlike, <code class="Dv" title="Dv">SUDO_CONV_INFO_MSG</code> and Dv
+  SUDO_CONV_ERROR_MSG , messages sent with the
+  <code class="Dv" title="Dv">SUDO_CONV_DEBUG_MSG</code>
+  <i class="Em" title="Em">msg_type</i> are not directly user-visible. Instead,
+  they are logged to the file specified in the <code class="Li">Debug</code>
+  statement (if any) in the <i class="Pa" title="Pa">/etc/sudo.conf</i>
+<div class="Pp"></div>
+file. This allows a plugin to log debugging information and is intended to be
+  used in conjunction with the <i class="Em" title="Em">debug_flags</i> setting.
+<div class="Pp"></div>
+See the sample plugin for an example of the
+  <b class="Fn" title="Fn">conversation</b>() function usage.
+<h2 class="Ss" title="Ss" id="Sudoers_group_plugin_API"><a class="selflink" href="#Sudoers_group_plugin_API">Sudoers
+  group plugin API</a></h2>
+The <i class="Em" title="Em">sudoers</i> module supports a plugin interface to
+  allow non-Unix group lookups. This can be used to query a group source other
+  than the standard Unix group database. A sample group plugin is bundled with
+  <b class="Nm" title="Nm">sudo</b> that implements file-based lookups. Third
+  party group plugins include a QAS AD plugin available from Quest Software.
+<div class="Pp"></div>
+A group plugin must declare and populate a
+  <code class="Li">sudoers_group_plugin</code> struct in the global scope. This
+  structure contains pointers to the functions that implement plugin
+  initialization, cleanup and group lookup.
+<div class="Pp"></div>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+struct sudoers_group_plugin { 
+   unsigned int version; 
+   int (*init)(int version, sudo_printf_t sudo_printf, 
+               char *const argv[]); 
+   void (*cleanup)(void); 
+   int (*query)(const char *user, const char *group, 
+                const struct passwd *pwd); 
+};
+</pre>
+</div>
+<div class="Pp"></div>
+The <code class="Li">sudoers_group_plugin</code> struct has the following
+  fields:
+<dl class="Bl-tag" style="margin-left: 7.80ex;">
+  <dt class="It-tag" style="margin-left: -7.80ex;">version</dt>
+  <dd class="It-tag">The <code class="Li">version</code> field should be set to
+      GROUP_API_VERSION.
+    <div class="Pp"></div>
+    This allows <i class="Em" title="Em">sudoers</i> to determine the API
+      version the group plugin was built against.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">init</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*init)(int version, sudo_printf_t plugin_printf, 
+            char *const argv[]);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">init</b>() function is called after
+      <i class="Em" title="Em">sudoers</i> has been parsed but before any policy
+      checks. It returns 1 on success, 0 on failure (or if the plugin is not
+      configured), and -1 if a error occurred. If an error occurs, the plugin
+      may call the <b class="Fn" title="Fn">plugin_printf</b>() function with
+      <code class="Dv" title="Dv">SUDO_CONF_ERROR_MSG</code> to present
+      additional error information to the user.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">version</dt>
+      <dd class="It-tag">The version passed in by
+          <i class="Em" title="Em">sudoers</i> allows the plugin to determine
+          the major and minor version number of the group plugin API supported
+          by <i class="Em" title="Em">sudoers</i>.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">plugin_printf</dt>
+      <dd class="It-tag">A pointer to a
+          <b class="Fn" title="Fn">printf</b>()<span class="No">-style</span>
+          function that may be used to display informational or error message to
+          the user. Returns the number of characters printed on success and -1
+          on failure.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">argv</dt>
+      <dd class="It-tag">A
+          <code class="Dv" title="Dv">NULL</code><span class="No">-terminated</span>
+          array of arguments generated from the
+          <i class="Em" title="Em">group_plugin</i> option in
+          <i class="Em" title="Em">sudoers</i>. If no arguments were given,
+          <i class="Em" title="Em">argv</i> will be
+          <code class="Dv" title="Dv">NULL</code>.</dd>
+    </dl>
+  </dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">cleanup</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+void (*cleanup)();
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">cleanup</b>() function is called when
+      <i class="Em" title="Em">sudoers</i> has finished its group checks. The
+      plugin should free any memory it has allocated and close open file
+      handles.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">query</dt>
+  <dd class="It-tag">
+    <div class="Bd" style="margin-left: 0.00ex;">
+    <pre class="Li">
+int (*query)(const char *user, const char *group, 
+             const struct passwd *pwd);
+    </pre>
+    </div>
+    <div class="Pp"></div>
+    The <b class="Fn" title="Fn">query</b>() function is used to ask the group
+      plugin whether <i class="Em" title="Em">user</i> is a member of
+      <i class="Em" title="Em">group</i>.
+    <div class="Pp"></div>
+    The function arguments are as follows:
+    <dl class="Bl-tag" style="margin-left: 7.80ex;">
+      <dt class="It-tag" style="margin-left: -7.80ex;">user</dt>
+      <dd class="It-tag">The name of the user being looked up in the external
+          group database.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">group</dt>
+      <dd class="It-tag">The name of the group being queried.</dd>
+      <dt class="It-tag" style="margin-left: -7.80ex;">pwd</dt>
+      <dd class="It-tag">The password database entry for
+          <i class="Em" title="Em">user</i>, if any. If
+          <i class="Em" title="Em">user</i> is not present in the password
+          database, <i class="Em" title="Em">pwd</i> will be
+          <code class="Dv" title="Dv">NULL</code>.</dd>
+    </dl>
+  </dd>
+</dl>
+<div class="Pp"></div>
+<i class="Em" title="Em">Group API Version Macros</i>
+<div class="Pp"></div>
+<div class="Bd" style="margin-left: 0.00ex;">
+<pre class="Li">
+/* Sudoers group plugin version major/minor */ 
+#define GROUP_API_VERSION_MAJOR 1 
+#define GROUP_API_VERSION_MINOR 0 
+#define GROUP_API_VERSION ((GROUP_API_VERSION_MAJOR &lt;&lt; 16) | \ 
+                           GROUP_API_VERSION_MINOR) 
+ 
+/* Getters and setters for group version */ 
+#define GROUP_API_VERSION_GET_MAJOR(v) ((v) &gt;&gt; 16) 
+#define GROUP_API_VERSION_GET_MINOR(v) ((v) &amp; 0xffff) 
+#define GROUP_API_VERSION_SET_MAJOR(vp, n) do { \ 
+    *(vp) = (*(vp) &amp; 0x0000ffff) | ((n) &lt;&lt; 16); \ 
+} while(0) 
+#define GROUP_API_VERSION_SET_MINOR(vp, n) do { \ 
+    *(vp) = (*(vp) &amp; 0xffff0000) | (n); \ 
+} while(0)
+</pre>
+</div>
+<h1 class="Sh" title="Sh" id="PLUGIN_API_CHANGELOG"><a class="selflink" href="#PLUGIN_API_CHANGELOG">PLUGIN
+  API CHANGELOG</a></h1>
+The following revisions have been made to the Sudo Plugin API.
+<dl class="Bl-tag" style="margin-left: 7.80ex;">
+  <dt class="It-tag" style="margin-left: -7.80ex;">Version 1.0</dt>
+  <dd class="It-tag">Initial API version.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">Version 1.1</dt>
+  <dd class="It-tag">The I/O logging plugin's
+      <b class="Fn" title="Fn">open</b>() function was modified to take the
+      <code class="Li">command_info</code> list as an argument.</dd>
+  <dt class="It-tag" style="margin-left: -7.80ex;">Version 1.2</dt>
+  <dd class="It-tag">The Policy and I/O logging plugins'
+      <b class="Fn" title="Fn">open</b>() functions are now passed a list of
+      plugin options if any are specified in
+      <i class="Pa" title="Pa">/etc/sudo.conf</i>.
+    <div class="Pp"></div>
+    A simple hooks API has been introduced to allow plugins to hook in to the
+      system's environment handling functions.
+    <div class="Pp"></div>
+    The <code class="Li">init_session</code> Policy plugin function is now
+      passed a pointer to the user environment which can be updated as needed.
+      This can be used to merge in environment variables stored in the PAM
+      handle before a command is run.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<a class="Xr" title="Xr">sudoers(5)</a>, <a class="Xr" title="Xr">sudo(8)</a>
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+If you feel you have found a bug in <b class="Nm" title="Nm">sudo</b>, please
+  submit a bug report at http://www.sudo.ws/sudo/bugs/
+<h1 class="Sh" title="Sh" id="SUPPORT"><a class="selflink" href="#SUPPORT">SUPPORT</a></h1>
+Limited free support is available via the sudo-users mailing list, see
+  http://www.sudo.ws/mailman/listinfo/sudo-users to subscribe or search the
+  archives.
+<h1 class="Sh" title="Sh" id="DISCLAIMER"><a class="selflink" href="#DISCLAIMER">DISCLAIMER</a></h1>
+<b class="Nm" title="Nm">sudo</b> is provided &#x201C;AS IS&#x201D; and any
+  express or implied warranties, including, but not limited to, the implied
+  warranties of merchantability and fitness for a particular purpose are
+  disclaimed. See the LICENSE file distributed with
+  <b class="Nm" title="Nm">sudo</b> or http://www.sudo.ws/sudo/license.html for
+  complete details.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">July 16, 2012</td>
+    <td class="foot-os">Sudo 1.8.6p7</td>
+  </tr>
+</table>
 </body>
 </html>

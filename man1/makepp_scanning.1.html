@@ -1,475 +1,385 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:23:47 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MAKEPP_SCANNING(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MAKEPP_SCANNING(1) Makepp MAKEPP_SCANNING(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-makepp_scanning -- How makepp finds include files and other
-hidden dependencies</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-Makepp can determine additional dependencies or targets for
-certain commands that it knows something about. This is
-especially important for C/C++ compilation, where it is too
-<br>
-error-prone to list manually all of the include files that a
-given source file depends on. By looking at the compilation
-command and the source files themselves, makepp is able <br>
-to determine accurately which object files need to be
-rebuilt when some include file changes.</p>
-
-<p style="margin-top: 1em">Example: Given a rule</p>
-
-<p style="margin-top: 1em">foo.o: # Usually %.o: %.c, just
-for illustration <br>
-time -p /bin/libtool -bar /usr/bin/cc -c -I somewhere
-foo.c</p>
-
-<p style="margin-top: 1em">makepp knows that
-&quot;time&quot; and &quot;libtool&quot; must be skipped and
-that &quot;cc&quot; is the actual command to be parsed here.
-It understands that foo.c is the input file and thus a
-dependency <br>
-of this rule. Moreover it will scan that file looking for
-include statements, also in directory somewhere, because it
-understood the command options.</p>
-
-<p style="margin-top: 1em">Actually there are three steps
-to what is historically known as scanning:</p>
-
-<p style="margin-top: 1em">1. The rule action is split into
-lines (continuation lines count as one). Each line (except
-builtins and Perl blocks) is lexically analyzed as one or
-more Shell commands. <br>
-Redirections are recognized as inputs or outputs to this
-rule. The first word of each command is looked up (with its
-directory part but, if not found, again without it) to <br>
-find a parser for it. These become optional dependencies,
-they are built if possible, but ignored if not found, as
-makepp can&rsquo;t know which part of a complex command is
-<br>
-actually run.</p>
-
-<p style="margin-top: 1em">Commands in backquotes are
-analyzed but not executed. (Often execution is important,
-but this would be a major interference by makepp.) It is
-better style to avoid them. <br>
-Instead have makepp run the command at most once by
-assigning it in this special way:</p>
-
-<p style="margin-top: 1em">XYZFLAGS ;= $(shell pkg-config
---cflags xyz)</p>
-
-<p style="margin-top: 1em">Currently there is only one
-lexer class, which understands Bourne Shell. To better
-handle C Shell or &quot;command.com&quot;, subclasses might
-be created. However, much syntax is <br>
-similar enough to not warrant this. Get in touch if you want
-to contribute either.</p>
-
-<p style="margin-top: 1em">2. For known commands the
-corresponding command parser (also referred to just as
-parser) analyzes the important options and arguments. The
-available ones are described below.</p>
-
-<p style="margin-top: 1em">Even if no specialized parser
-was found, the generic one makes the command executable an
-input of this rule. You can change that with the
---no-path-executable-dependencies <br>
-command option.</p>
-
-<p style="margin-top: 1em">3. If the parser recognized any
-input files, they get sent to the scanner chosen by the
-parser. It finds further inputs by looking for
-&quot;#include&quot; or comparable statements.</p>
-
-<p style="margin-top: 1em">This is the most expensive step.
-All the results get cached to avoid repeating it
-unnecessarily.</p>
-
-<p style="margin-top: 1em">If makepp thinks it&rsquo;s
-compiling a C/C++ source but can&rsquo;t find a parser, it
-will give a warning message to let you know. This usually
-means that you buried your compiler command <br>
-too deeply in the action for makepp to find it. For example,
-I have seen rules like this:</p>
-
-<p style="margin-top: 1em">%.o: %.c <br>
-@echo Compiling $&lt; now; obscure_wrapper gcc -c $&lt;
-$(CFLAGS) -o $@</p>
-
-<p style="margin-top: 1em">The first words of the actions
-here are &quot;echo&quot; and &quot;obscure_wrapper&quot;,
-for which there are no parsers, so makepp will not scan for
-include files in this case. You can ignore the <br>
-prefixed command by:</p>
-
-<p style="margin-top: 1em">register-parser obscure_wrapper
-skip-word</p>
-
-<p style="margin-top: 1em">The following sections document
-the built in parsers and scanners. In the name you can use
-&quot;-&quot; interchangeably with &quot;_&quot;.</p>
-
-<p style="margin-top: 1em">SCANNERS (PARSERS) <br>
-The various scanners must be chosen by a command parser,
-which is given in parentheses:</p>
-
-<p style="margin-top: 1em">C/C++ compilation
-(c-compilation, gcc-compilation) <br>
-The C/C++ scanner, handles both languages indifferently. In
-fact it looks only at preprocessor statements, so it can be
-used for quite a few languages. The parser that <br>
-activates it has a special variant for gcc&rsquo;s many
-options, which gets chosen if the command name includes the
-string &quot;gcc&quot; or g++. If compilers for other
-languages with C <br>
-preprocessor use the same options as the C compiler (at
-least &quot;-I&quot;) then this parser works fine.</p>
-
-<p style="margin-top: 1em">It looks at the command for
-&quot;-Idir&quot; options specifying the include path or
-&quot;-Ldir&quot; options specifying the link path. It then
-scans any source files for &quot;#include&quot; directives,
-<br>
-and also looks at the command line to see if there are any
-source files or libraries mentioned which are not listed as
-dependencies. It recognizes these by their extension.</p>
-
-<p style="margin-top: 1em">This scanner gives a warning
-message if files included with &quot;#include
-&quot;file.h&quot;&quot; are not found, or not buildable by
-makepp, in the include path, or in the directory containing
-the <br>
-file which is &quot;#includ&quot;ing, or in /usr/include. No
-warning is given if a file included with &quot;#include
-&lt;file.h&gt;&quot; is not found. Makepp assumes it is in
-some system include <br>
-directory that the compiler knows about, and that files in
-system include directories won&rsquo;t change.</p>
-
-<p style="margin-top: 1em">In addition, files in
-/usr/include, /usr/local/include, /usr/X11R6/include, and
-any other directory which is not writable are not scanned to
-see what they include. Makepp <br>
-assumes that these files won&rsquo;t change. (If
-you&rsquo;re running as root, the writability test is
-performed with the UID and GID of the directory you ran
-makepp from. This is so <br>
-compiling a program as an ordinary user and then doing
-&quot;makepp install&quot; as root won&rsquo;t cause extra
-directories to be scanned.)</p>
-
-<p style="margin-top: 1em">This is a fairly simple-minded
-scanner. It will get confused if you do things like
-this:</p>
-
-<p style="margin-top: 1em">#ifdef INCLUDE_THIS <br>
-#include &quot;this.h&quot; <br>
-#endif</p>
-
-<p style="margin-top: 1em">because it doesn&rsquo;t know
-about preprocessor conditionals. This is usually harmless;
-it might cause additional extra files to be labeled as
-dependencies (occasionally causing <br>
-unnecessary rebuilds), or else it might cause makepp to warn
-that the include file was not found. You can either ignore
-the warning messages, or put an empty file
-&quot;this.h&quot; out <br>
-there to shut makepp up.</p>
-
-<p style="margin-top: 1em">If your compiler has a funny
-name, you can say either of</p>
-
-<p style="margin-top: 1em">register-parser
-obscure_c_compiler c-compilation <br>
-register-parser obscure_gcc_alias gcc-compilation</p>
-
-<p style="margin-top: 1em">Embedded SQL C/C++ compilation
-(esql-compilation) <br>
-These commands, which come with the various databases,
-preprocess special sections in otherwise C/C++-like sources,
-and produce C/C++ headers and sources. This finds EXEC SQL
-<br>
-INCLUDE &quot;filename&quot; or $INCLUDE
-&quot;filename&quot; directives.</p>
-
-<p style="margin-top: 1em">These preprocessors are
-recognized: Altibase APRE*C/C++ (apre), CASEMaker DBMaker
-(dmppcc), Firebird / InterBase (gpre), IBM DB2 (db2
-precompile, db2 prep) &amp; Informix ESQL/C <br>
-(esql), Ingres (esqlc), Mimer (esql), Oracle (proc),
-PostgreSQL (ecpg) &amp; YARD (yardpc). If your preprocessor
-is not recognized, you can say</p>
-
-<p style="margin-top: 1em">register-parser
-obscure_esqlc_preprocessor esql-compilation</p>
-
-<p style="margin-top: 1em">This will however only handle
-the style common to Informix and others: Command arguments
-ending in &quot;.ec&quot; are files to be scanned,
-&quot;-I&quot; defines the include path and EXEC SQL <br>
-INCLUDE directives without a suffix get &quot;.h&quot;
-appended.</p>
-
-<p style="margin-top: 1em">Swig (swig) <br>
-Swig (Simplified Wrapper and Interface Generator,
-http://www.swig.org/) is a program that converts a C/C++
-header file into the wrapper functions needed to make your
-code <br>
-callable from a variety of other languages, such as Perl,
-Python, Tcl, C#, Ruby, OCaml, and probably some others that
-I don&rsquo;t know about.</p>
-
-<p style="margin-top: 1em">Makepp understands and parses
-the swig command line, looking for &quot;-I&quot; and
-&quot;-l&quot; options. It also knows how to scan
-swig&rsquo;s interface definition files (.i files) looking
-for <br>
-%include, %import, and also &quot;#include&quot; if
-&quot;-includeall&quot; is in effect.</p>
-
-<p style="margin-top: 1em">If your swig has a funny name,
-you can say</p>
-
-<p style="margin-top: 1em">register-parser
-obscure_swig_alias swig</p>
-
-<p style="margin-top: 1em">Vera and Verilog
-(vcs_compilation) <br>
-If you design hardware, this will come in handy.</p>
-
-<p style="margin-top: 1em">Ignorable wrappers (skip-word,
-shell) <br>
-Makepp recognizes the following command words and many more
-and skips over them appropriately in in its search for the
-correct scanner: &quot;condor_compile&quot;,
-&quot;distcc&quot;, <br>
-&quot;ignore_error&quot;, &quot;libtool&quot;,
-&quot;noecho&quot; &quot;purify&quot;.</p>
-
-<p style="margin-top: 1em">There is a variant of this which
-finds the nested commands in &quot;sh -c &rsquo;command1;
-command2&rsquo;&quot;.</p>
-
-<p style="margin-top: 1em">If you have more such commands,
-you can say</p>
-
-<p style="margin-top: 1em">register-parser command
-skip-word</p>
-
-<p style="margin-top: 1em">Libtool</p>
-
-<p style="margin-top: 1em">Libtool is a very clever
-compilation system that greatly simplifies making shared
-libraries by hiding all the system-dependent details away in
-a shell script. The only <br>
-difficulty is that the library binary files are not actually
-stored in the same directory as the output file--libtool
-actually creates a subdirectory, &quot;.libs&quot;, which
-contains the <br>
-real files. This is ordinarily not a problem, but makepp has
-to know where the real binaries are if it is to link them in
-from a repository. At the moment, libtool libraries <br>
-(&quot;.la&quot; files) are not linked in from repositories;
-they are always rebuilt if needed. Also, makepp at the
-moment is not able to use the dependency information that is
-stored <br>
-inside the &quot;.la&quot; file itself. This will hopefully
-change soon.</p>
-
-<p style="margin-top: 1em">Suppressing the scan (none) <br>
-Sometimes you may not want a rule or a certain command to be
-parsed. You can turn off parsing and thereby scanning
-with</p>
-
-<p style="margin-top: 1em">register-parser cc none</p>
-
-<p style="margin-top: 1em">RELATED OPTIONS <br>
-Quickscan and smartscan <br>
-The &quot;:quickscan&quot; and &quot;:smartscan&quot; rule
-options, if applicable, affect the way that files are
-scanned.</p>
-
-<p style="margin-top: 1em">In &quot;:quickscan&quot; mode
-(the default), all include directives are assumed active.
-This allows for very efficient scanning.</p>
-
-<p style="margin-top: 1em">In &quot;:smartscan&quot; mode,
-an attempt is made to interpret macros and expressions so
-that inactive include directives are ignored. For example,
-the executable produced by compiling <br>
-the following C program ought not to depend on foo.h:</p>
-
-<p style="margin-top: 1em">#if 0 <br>
-#include &quot;foo.h&quot; <br>
-#endif <br>
-int main() { return 0; }</p>
-
-<p style="margin-top: 1em">CUSTOM SCANNERS <br>
-You can specify your own parser either in a rule option like
-&quot;:parser foo&quot;, or by using the
-&quot;register_parser&quot; or
-&quot;register_command_parser&quot; statements.</p>
-
-<p style="margin-top: 1em">Either way, as described under
-&quot;register_parser&quot;, there you must directly or
-indirectly (via a class) specify a function that creates a
-parser object. This object will usually <br>
-create a scanner object for files, and feed it with its
-findings from the command line options. These two objects
-will call the parser&rsquo;s &quot;add_*_dependency&quot;
-methods which forward <br>
-the information to the somewhat more complicated
-&quot;Mpp::Lexer::add_*_dependency&quot; utility
-functions.</p>
-
-<p style="margin-top: 1em">However your parser function can
-also do this work itself for simple cases. There are a
-couple of special return values if this function
-doesn&rsquo;t return a parser object:</p>
-
-<p style="margin-top: 1em">&quot;undef&quot; <br>
-The scan info is not cacheable and must be recalculated next
-time the rule&rsquo;s target needs to be built.</p>
-
-<p style="margin-top: 1em">&quot;p_none, p_skip_word&quot;
-or &quot;p_shell&quot; <br>
-These are in fact numeric constants, which tell the lexer to
-do the work of these pseudo-parsers.</p>
-
-<p style="margin-top: 1em">any reference, e.g.
-&quot;1&quot; <br>
-This is equivalent to returning a parser object of the
-&quot;Mpp::CommandParser&quot; base class, which will only
-additionally make the command executable itself a
-dependency.</p>
-
-<p style="margin-top: 1em">In most cases, objects of type
-&quot;Mpp::CommandParser&quot; should instantiate at least
-one object of type &quot;Mpp::Scanner&quot;. The
-&quot;Mpp::Scanner&quot; base class takes care of the
-distinction <br>
-between quickscan and smartscan. Note that the behavior of
-&quot;Mpp::Scanner&quot; can be markedly affected by this
-distinction, but that should be transparent to the derived
-class if it <br>
-is well-formed. New derived &quot;Mpp::Scanner&quot; classes
-ought to be tested in both modes.</p>
-
-<p style="margin-top: 1em">If you write your own
-&quot;Mpp::Scanner&quot; class, you should also base your
-rescanning decision on the build info &quot;RESCAN&quot;.
-This gets set by &quot;makeppreplay&quot; after signing
-files without <br>
-scanning. So despite the signatures being consistent, a
-rescan is still necessary. If your &quot;Mpp::Scanner&quot;
-uses the inherited &quot;scan_file1&quot; method,
-you&rsquo;re probably fine.</p>
-
-<p style="margin-top: 1em">For more details, refer to the
-respective class documentation. For examples, see
-&quot;Mpp::CommandParser::Gcc&quot; and
-&quot;Mpp::CommandParser::Vcs&quot;. Look at the
-&quot;p_&quot; functions in <br>
-Mpp/Subs.pm which get aliased into their respective classes
-as &quot;factory&quot; when loaded.</p>
-
-<p style="margin-top: 1em">Caching scanner info <br>
-If the all of the scanner&rsquo;s important side effects are
-effected through calls to methods of the
-&quot;Mpp::CommandParser&quot; base class, then those side
-effects can be cached in the <br>
-build info file, so that they can be played back by a
-subsequent invocation of makepp without doing all of the
-costly scanning work. This can save quite a bit of time,
-<br>
-especially in smartscan mode.</p>
-
-<p style="margin-top: 1em">If the scanner has other
-important side effects, then it should call the
-&quot;Rule&quot; object&rsquo;s mark_scaninfo_uncacheable
-method. Otherwise, the scanner info retrieved from the build
-<br>
-info may be inaccurate, causing the build result possibly to
-be incorrect. This method is called automatically when a
-value from the %parsers hash does not return an object of
-<br>
-type &quot;Mpp::CommandParser&quot;, or when the parser is
-specified with a rule option and the &quot;p_*&quot; routine
-does not return an object of type
-&quot;Mpp::CommandParser&quot;.</p>
-
-<p style="margin-top: 1em">Cached scan info is invalidated
-using criteria similar to those used for determining when
-the target is out of date. Similarly, it can be retrieved
-from a repository using <br>
-criteria similar to those used for determining when a target
-can be linked in from a repository.</p>
-
-<p style="margin-top: 1em">You can force makepp to ignore
-the cached scanner info with the &quot;--force-rescan&quot;
-option. This is useful when a broken scanner may have caused
-incorrect scanner info to be <br>
-cached.</p>
-
-<p style="margin-top: 1em">Ad Hoc Scanner <br>
-Often you will have just one or few files which contain
-dependency information. You don&rsquo;t want to write this
-into a makefile redundantly (since redundancy later often
-leads to <br>
-inconsistencies when one update gets forgotten). But you
-also don&rsquo;t want to write a Mpp::Scanner? As a
-workaround you can generate an include file on the fly. For
-example Qt <br>
-has .qrc files which can look like:</p>
-
-<p style="margin-top: 1em">&lt;RCC&gt; <br>
-&lt;qresource prefix=&quot;...&quot;&gt; <br>
-&lt;file&gt;abc&lt;/file&gt; <br>
-&lt;file&gt;xyz&lt;/file&gt; <br>
-...</p>
-
-<p style="margin-top: 1em">If you adhere to the above
-layout, you can transform the relevant lines into a makepp
-include file, which gets automatically created by being
-included.</p>
-
-<p style="margin-top: 1em">%.qrc.makepp: %.qrc <br>
-&amp;grep &rsquo;s!&lt;RCC&gt;0$(stem).cc:! || s!
-*&lt;file&gt;! ! &amp;&amp; s!&lt;/file&gt;0!&rsquo;
-$(input) -o $(output)</p>
-
-<p style="margin-top: 1em">include $(wildcard *.qrc) #
-.makepp is appended automatically</p>
-
-<p style="margin-top: 1em">Several variants of this are
-given in the Cookbook. The drawback is that you begin
-building while reading the makefile. So the --loop command
-option will not be so useful on <br>
-the first iteration.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2016-11-28
-MAKEPP_SCANNING(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MAKEPP_SCANNING(1)</td>
+    <td class="head-vol">Makepp</td>
+    <td class="head-rtitle">MAKEPP_SCANNING(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+makepp_scanning -- How makepp finds include files and other hidden dependencies
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+Makepp can determine additional dependencies or targets for certain commands
+  that it knows something about. This is especially important for C/C++
+  compilation, where it is too error-prone to list manually all of the include
+  files that a given source file depends on. By looking at the compilation
+  command and the source files themselves, makepp is able to determine
+  accurately which object files need to be rebuilt when some include file
+  changes.
+<div class="Pp"></div>
+Example: Given a rule
+<div class="Pp"></div>
+<pre>
+    foo.o:                      # Usually %.o: %.c, just for illustration
+        time -p /bin/libtool -bar /usr/bin/cc -c -I somewhere foo.c
+</pre>
+<div class="Pp"></div>
+makepp knows that &quot;time&quot; and &quot;libtool&quot; must be skipped and
+  that &quot;cc&quot; is the actual command to be parsed here. It understands
+  that <i>foo.c</i> is the input file and thus a dependency of this rule.
+  Moreover it will scan that file looking for include statements, also in
+  directory <i>somewhere</i>, because it understood the command options.
+<div class="Pp"></div>
+Actually there are three steps to what is historically known as scanning:
+<dl class="Bl-tag">
+  <dt class="It-tag">1.</dt>
+  <dd class="It-tag">The rule action is split into lines (continuation lines
+      count as one). Each line (except builtins and Perl blocks) is <b>lexically
+      analyzed</b> as one or more Shell commands. Redirections are recognized as
+      inputs or outputs to this rule. The first word of each command is looked
+      up (with its directory part but, if not found, again without it) to find a
+      parser for it. These become optional dependencies, they are built if
+      possible, but ignored if not found, as makepp can't know which part of a
+      complex command is actually run.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Commands in backquotes are analyzed but not executed. (Often execution is
+      important, but this would be a major interference by makepp.) It is better
+      style to avoid them. Instead have makepp run the command at most once by
+      assigning it in this special way:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    XYZFLAGS ;= $(shell pkg-config --cflags xyz)
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Currently there is only one lexer class, which understands Bourne Shell. To
+      better handle C Shell or &quot;command.com&quot;, subclasses might be
+      created. However, much syntax is similar enough to not warrant this. Get
+      in touch if you want to contribute either.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">2.</dt>
+  <dd class="It-tag">For known commands the corresponding <b>command parser</b>
+      (also referred to just as parser) analyzes the important options and
+      arguments. The available ones are described below.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Even if no specialized parser was found, the generic one makes the command
+      executable an input of this rule. You can change that with the
+      --no-path-executable-dependencies command option.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">3.</dt>
+  <dd class="It-tag">If the parser recognized any input files, they get sent to
+      the <b>scanner</b> chosen by the parser. It finds further inputs by
+      looking for &quot;#include&quot; or comparable statements.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This is the most expensive step. All the results get cached to avoid
+      repeating it unnecessarily.</dd>
+</dl>
+<div class="Pp"></div>
+If makepp thinks it's compiling a C/C++ source but can't find a parser, it will
+  give a warning message to let you know. This usually means that you buried
+  your compiler command too deeply in the action for makepp to find it. For
+  example, I have seen rules like this:
+<div class="Pp"></div>
+<pre>
+    %.o: %.c
+        @echo Compiling $&lt; now; obscure_wrapper gcc -c $&lt; $(CFLAGS) -o $@
+</pre>
+<div class="Pp"></div>
+The first words of the actions here are &quot;echo&quot; and
+  &quot;obscure_wrapper&quot;, for which there are no parsers, so makepp will
+  not scan for include files in this case. You can ignore the prefixed command
+  by:
+<div class="Pp"></div>
+<pre>
+    register-parser obscure_wrapper skip-word
+</pre>
+<div class="Pp"></div>
+The following sections document the built in parsers and scanners. In the name
+  you can use &quot;-&quot; interchangeably with &quot;_&quot;.
+<h1 class="Sh" title="Sh" id="SCANNERS_(PARSERS)"><a class="selflink" href="#SCANNERS_(PARSERS)">SCANNERS
+  (PARSERS)</a></h1>
+The various scanners must be chosen by a command parser, which is given in
+  parentheses:
+<h2 class="Ss" title="Ss" id="C/C++_compilation_(c-compilation,_gcc-compilation)"><a class="selflink" href="#C/C++_compilation_(c-compilation,_gcc-compilation)">C/C++
+  compilation (c-compilation, gcc-compilation)</a></h2>
+The C/C++ scanner, handles both languages indifferently. In fact it looks only
+  at preprocessor statements, so it can be used for quite a few languages. The
+  parser that activates it has a special variant for gcc's many options, which
+  gets chosen if the command name includes the string &quot;gcc&quot; or g++. If
+  compilers for other languages with C preprocessor use the same options as the
+  C compiler (at least &quot;-I&quot;) then this parser works fine.
+<div class="Pp"></div>
+It looks at the command for &quot;-Idir&quot; options specifying the include
+  path or &quot;-Ldir&quot; options specifying the link path. It then scans any
+  source files for &quot;#include&quot; directives, and also looks at the
+  command line to see if there are any source files or libraries mentioned which
+  are not listed as dependencies. It recognizes these by their extension.
+<div class="Pp"></div>
+This scanner gives a warning message if files included with
+  &quot;#include&#x00A0;&quot;file.h&quot;&quot; are not found, or not buildable
+  by makepp, in the include path, or in the directory containing the file which
+  is &quot;#includ&quot;ing, or in <i>/usr/include</i>. No warning is given if a
+  file included with &quot;#include&#x00A0;&lt;file.h&gt;&quot; is not found.
+  Makepp assumes it is in some system include directory that the compiler knows
+  about, and that files in system include directories won't change.
+<div class="Pp"></div>
+In addition, files in <i>/usr/include</i>, <i>/usr/local/include</i>,
+  <i>/usr/X11R6/include</i>, and any other directory which is not writable are
+  not scanned to see what they include. Makepp assumes that these files won't
+  change. (If you're running as root, the writability test is performed with the
+  UID and GID of the directory you ran makepp from. This is so compiling a
+  program as an ordinary user and then doing &quot;makepp&#x00A0;install&quot;
+  as root won't cause extra directories to be scanned.)
+<div class="Pp"></div>
+This is a fairly simple-minded scanner. It will get confused if you do things
+  like this:
+<div class="Pp"></div>
+<pre>
+    #ifdef INCLUDE_THIS
+    #include &quot;this.h&quot;
+    #endif
+</pre>
+<div class="Pp"></div>
+because it doesn't know about preprocessor conditionals. This is usually
+  harmless; it might cause additional extra files to be labeled as dependencies
+  (occasionally causing unnecessary rebuilds), or else it might cause makepp to
+  warn that the include file was not found. You can either ignore the warning
+  messages, or put an empty file &quot;this.h&quot; out there to shut makepp up.
+<div class="Pp"></div>
+If your compiler has a funny name, you can say either of
+<div class="Pp"></div>
+<pre>
+    register-parser obscure_c_compiler c-compilation
+    register-parser obscure_gcc_alias gcc-compilation
+</pre>
+<h2 class="Ss" title="Ss" id="Embedded_SQL_C/C++_compilation_(esql-compilation)"><a class="selflink" href="#Embedded_SQL_C/C++_compilation_(esql-compilation)">Embedded
+  SQL C/C++ compilation (esql-compilation)</a></h2>
+These commands, which come with the various databases, preprocess special
+  sections in otherwise C/C++-like sources, and produce C/C++ headers and
+  sources. This finds EXEC SQL INCLUDE &quot;filename&quot; or $INCLUDE
+  &quot;filename&quot; directives.
+<div class="Pp"></div>
+These preprocessors are recognized: Altibase APRE*C/C++ ( <i>apre</i>),
+  CASEMaker DBMaker ( <i>dmppcc</i>), Firebird / InterBase (<i>gpre</i>), IBM
+  DB2 ( <i>db2</i> <i>precompile, db2 prep</i>) &amp; Informix ESQL/C
+  (<i>esql</i>), Ingres ( <i>esqlc</i>), Mimer ( <i>esql</i>), Oracle
+  (<i>proc</i>), PostgreSQL ( <i>ecpg</i>) &amp; YARD (<i>yardpc</i>). If your
+  preprocessor is not recognized, you can say
+<div class="Pp"></div>
+<pre>
+    register-parser obscure_esqlc_preprocessor esql-compilation
+</pre>
+<div class="Pp"></div>
+This will however only handle the style common to Informix and others: Command
+  arguments ending in &quot;.ec&quot; are files to be scanned, &quot;-I&quot;
+  defines the include path and EXEC SQL INCLUDE directives without a suffix get
+  &quot;.h&quot; appended.
+<h2 class="Ss" title="Ss" id="Swig_(swig)"><a class="selflink" href="#Swig_(swig)">Swig
+  (swig)</a></h2>
+Swig (Simplified Wrapper and Interface Generator, http://www.swig.org/) is a
+  program that converts a C/C++ header file into the wrapper functions needed to
+  make your code callable from a variety of other languages, such as Perl,
+  Python, Tcl, C#, Ruby, OCaml, and probably some others that I don't know
+  about.
+<div class="Pp"></div>
+Makepp understands and parses the swig command line, looking for &quot;-I&quot;
+  and &quot;-l&quot; options. It also knows how to scan swig's interface
+  definition files ( <i>.i</i> files) looking for %include, %import, and also
+  &quot;#include&quot; if &quot;-includeall&quot; is in effect.
+<div class="Pp"></div>
+If your swig has a funny name, you can say
+<div class="Pp"></div>
+<pre>
+    register-parser obscure_swig_alias swig
+</pre>
+<h2 class="Ss" title="Ss" id="Vera_and_Verilog_(vcs_compilation)"><a class="selflink" href="#Vera_and_Verilog_(vcs_compilation)">Vera
+  and Verilog (vcs_compilation)</a></h2>
+If you design hardware, this will come in handy.
+<h2 class="Ss" title="Ss" id="Ignorable_wrappers_(skip-word,_shell)"><a class="selflink" href="#Ignorable_wrappers_(skip-word,_shell)">Ignorable
+  wrappers (skip-word, shell)</a></h2>
+Makepp recognizes the following command words and many more and skips over them
+  appropriately in in its search for the correct scanner:
+  &quot;condor_compile&quot;, &quot;distcc&quot;, &quot;ignore_error&quot;,
+  &quot;libtool&quot;, &quot;noecho&quot; &quot;purify&quot;.
+<div class="Pp"></div>
+There is a variant of this which finds the nested commands in &quot;sh -c
+  'command1; command2'&quot;.
+<div class="Pp"></div>
+If you have more such commands, you can say
+<div class="Pp"></div>
+<pre>
+    register-parser command skip-word
+</pre>
+<div class="Pp"></div>
+<i>Libtool</i>
+<div class="Pp"></div>
+Libtool is a very clever compilation system that greatly simplifies making
+  shared libraries by hiding all the system-dependent details away in a shell
+  script. The only difficulty is that the library binary files are not actually
+  stored in the same directory as the output file--libtool actually creates a
+  subdirectory, &quot;.libs&quot;, which contains the real files. This is
+  ordinarily not a problem, but makepp has to know where the real binaries are
+  if it is to link them in from a repository. At the moment, libtool libraries
+  (&quot;.la&quot; files) are not linked in from repositories; they are always
+  rebuilt if needed. Also, makepp at the moment is not able to use the
+  dependency information that is stored inside the &quot;.la&quot; file itself.
+  This will hopefully change soon.
+<h2 class="Ss" title="Ss" id="Suppressing_the_scan_(none)"><a class="selflink" href="#Suppressing_the_scan_(none)">Suppressing
+  the scan (none)</a></h2>
+Sometimes you may not want a rule or a certain command to be parsed. You can
+  turn off parsing and thereby scanning with
+<div class="Pp"></div>
+<pre>
+    register-parser cc none
+</pre>
+<h1 class="Sh" title="Sh" id="RELATED_OPTIONS"><a class="selflink" href="#RELATED_OPTIONS">RELATED
+  OPTIONS</a></h1>
+<h2 class="Ss" title="Ss" id="Quickscan_and_smartscan"><a class="selflink" href="#Quickscan_and_smartscan">Quickscan
+  and smartscan</a></h2>
+The &quot;:quickscan&quot; and &quot;:smartscan&quot; rule options, if
+  applicable, affect the way that files are scanned.
+<div class="Pp"></div>
+In &quot;:quickscan&quot; mode (the default), all include directives are assumed
+  active. This allows for very efficient scanning.
+<div class="Pp"></div>
+In &quot;:smartscan&quot; mode, an attempt is made to interpret macros and
+  expressions so that inactive include directives are ignored. For example, the
+  executable produced by compiling the following C program ought <i>not</i> to
+  depend on <i>foo.h</i>:
+<div class="Pp"></div>
+<pre>
+    #if 0
+    #include &quot;foo.h&quot;
+    #endif
+    int main() { return 0; }
+</pre>
+<h1 class="Sh" title="Sh" id="CUSTOM_SCANNERS"><a class="selflink" href="#CUSTOM_SCANNERS">CUSTOM
+  SCANNERS</a></h1>
+You can specify your own parser either in a rule option like &quot;:parser
+  foo&quot;, or by using the &quot;register_parser&quot; or
+  &quot;register_command_parser&quot; statements.
+<div class="Pp"></div>
+Either way, as described under &quot;register_parser&quot;, there you must
+  directly or indirectly (via a class) specify a function that creates a parser
+  object. This object will usually create a scanner object for files, and feed
+  it with its findings from the command line options. These two objects will
+  call the parser's &quot;add_*_dependency&quot; methods which forward the
+  information to the somewhat more complicated
+  &quot;Mpp::Lexer::add_*_dependency&quot; utility functions.
+<div class="Pp"></div>
+However your parser function can also do this work itself for simple cases.
+  There are a couple of special return values if this function doesn't return a
+  parser object:
+<dl class="Bl-tag">
+  <dt class="It-tag">&quot;undef&quot;</dt>
+  <dd class="It-tag">The scan info is not cacheable and must be recalculated
+      next time the rule's target needs to be built.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&quot;p_none, p_skip_word&quot; or &quot;p_shell&quot;</dt>
+  <dd class="It-tag">These are in fact numeric constants, which tell the lexer
+      to do the work of these pseudo-parsers.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">any reference, e.g. &quot;\1&quot;</dt>
+  <dd class="It-tag">This is equivalent to returning a parser object of the
+      &quot;Mpp::CommandParser&quot; base class, which will only additionally
+      make the command executable itself a dependency.</dd>
+</dl>
+<div class="Pp"></div>
+In most cases, objects of type &quot;Mpp::CommandParser&quot; should instantiate
+  at least one object of type &quot;Mpp::Scanner&quot;. The
+  &quot;Mpp::Scanner&quot; base class takes care of the distinction between
+  quickscan and smartscan. Note that the behavior of &quot;Mpp::Scanner&quot;
+  can be markedly affected by this distinction, but that should be transparent
+  to the derived class if it is well-formed. New derived
+  &quot;Mpp::Scanner&quot; classes ought to be tested in both modes.
+<div class="Pp"></div>
+If you write your own &quot;Mpp::Scanner&quot; class, you should also base your
+  rescanning decision on the build info &quot;RESCAN&quot;. This gets set by
+  &quot;makeppreplay&quot; after signing files without scanning. So despite the
+  signatures being consistent, a rescan is still necessary. If your
+  &quot;Mpp::Scanner&quot; uses the inherited &quot;scan_file1&quot; method,
+  you're probably fine.
+<div class="Pp"></div>
+For more details, refer to the respective class documentation. For examples, see
+  &quot;Mpp::CommandParser::Gcc&quot; and &quot;Mpp::CommandParser::Vcs&quot;.
+  Look at the &quot;p_&quot; functions in <i>Mpp/Subs.pm</i> which get aliased
+  into their respective classes as &quot;factory&quot; when loaded.
+<h2 class="Ss" title="Ss" id="Caching_scanner_info"><a class="selflink" href="#Caching_scanner_info">Caching
+  scanner info</a></h2>
+If the all of the scanner's important side effects are effected through calls to
+  methods of the &quot;Mpp::CommandParser&quot; base class, then those side
+  effects can be cached in the build info file, so that they can be played back
+  by a subsequent invocation of makepp without doing all of the costly scanning
+  work. This can save quite a bit of time, especially in smartscan mode.
+<div class="Pp"></div>
+If the scanner has other important side effects, then it should call the
+  &quot;Rule&quot; object's mark_scaninfo_uncacheable method. Otherwise, the
+  scanner info retrieved from the build info may be inaccurate, causing the
+  build result possibly to be incorrect. This method is called automatically
+  when a value from the %parsers hash does not return an object of type
+  &quot;Mpp::CommandParser&quot;, or when the parser is specified with a rule
+  option and the &quot;p_*&quot; routine does not return an object of type
+  &quot;Mpp::CommandParser&quot;.
+<div class="Pp"></div>
+Cached scan info is invalidated using criteria similar to those used for
+  determining when the target is out of date. Similarly, it can be retrieved
+  from a repository using criteria similar to those used for determining when a
+  target can be linked in from a repository.
+<div class="Pp"></div>
+You can force makepp to ignore the cached scanner info with the
+  &quot;--force-rescan&quot; option. This is useful when a broken scanner may
+  have caused incorrect scanner info to be cached.
+<h2 class="Ss" title="Ss" id="Ad_Hoc_Scanner"><a class="selflink" href="#Ad_Hoc_Scanner">Ad
+  Hoc Scanner</a></h2>
+Often you will have just one or few files which contain dependency information.
+  You don't want to write this into a makefile redundantly (since redundancy
+  later often leads to inconsistencies when one update gets forgotten). But you
+  also don't want to write a Mpp::Scanner? As a workaround you can generate an
+  include file on the fly. For example Qt has <i>.qrc</i> files which can look
+  like:
+<div class="Pp"></div>
+<pre>
+    &lt;RCC&gt;
+      &lt;qresource prefix=&quot;...&quot;&gt;
+        &lt;file&gt;abc&lt;/file&gt;
+        &lt;file&gt;xyz&lt;/file&gt;
+        ...
+</pre>
+<div class="Pp"></div>
+If you adhere to the above layout, you can transform the relevant lines into a
+  makepp include file, which gets automatically created by being included.
+<div class="Pp"></div>
+<pre>
+    %.qrc.makepp: %.qrc
+        &amp;grep 's!&lt;RCC&gt;\n!$(stem).cc:! || s! *&lt;file&gt;! ! &amp;&amp; s!&lt;/file&gt;\n!!' $(input) -o $(output)
+ 
+    include $(wildcard *.qrc)   # .makepp is appended automatically
+</pre>
+<div class="Pp"></div>
+Several variants of this are given in the Cookbook. The drawback is that you
+  begin building while reading the makefile. So the --loop command option will
+  not be so useful on the first iteration.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2016-11-28</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

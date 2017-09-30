@@ -1,792 +1,699 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:25:34 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MK-HEARTBEAT(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MK-HEARTBEAT(1) User Contributed Perl Documentation
-MK-HEARTBEAT(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-mk-heartbeat - Monitor MySQL replication delay.</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-Usage: mk-heartbeat [OPTION...] [DSN]
---update|--monitor|--check|--stop</p>
-
-<p style="margin-top: 1em">mk-heartbeat measures
-replication lag on a MySQL or PostgreSQL server. You can use
-it to update a master or monitor a replica. If possible,
-MySQL connection options are read <br>
-from your .my.cnf file.</p>
-
-<p style="margin-top: 1em">Start daemonized process to
-update test.heartbeat table on master:</p>
-
-<p style="margin-top: 1em">mk-heartbeat -D test --update -h
-master-server --daemonize</p>
-
-<p style="margin-top: 1em">Monitor replication lag on
-slave:</p>
-
-<p style="margin-top: 1em">mk-heartbeat -D test --monitor
--h slave-server</p>
-
-<p style="margin-top: 1em">mk-heartbeat -D test --monitor
--h slave-server --dbi-driver Pg</p>
-
-<p style="margin-top: 1em">Check slave lag once and exit
-(using optional DSN to specify slave host):</p>
-
-<p style="margin-top: 1em">mk-heartbeat -D test --check
-h=slave-server</p>
-
-<p style="margin-top: 1em">RISKS <br>
-The following section is included to inform users about the
-potential risks, whether known or unknown, of using this
-tool. The two main categories of risks are those created by
-<br>
-the nature of the tool (e.g. read-only tools vs. read-write
-tools) and those created by bugs.</p>
-
-<p style="margin-top: 1em">mk-heartbeat merely reads and
-writes a single record in a table. It should be very
-low-risk.</p>
-
-<p style="margin-top: 1em">At the time of this release, we
-know of no bugs that could cause serious harm to users.</p>
-
-<p style="margin-top: 1em">The authoritative source for
-updated information is always the online issue tracking
-system. Issues that affect this tool will be marked as such.
-You can see a list of such <br>
-issues at the following URL:
-&lt;http://www.maatkit.org/bugs/mk-heartbeat&gt;.</p>
-
-<p style="margin-top: 1em">See also &quot;BUGS&quot; for
-more information on filing bugs and getting help.</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-mk-heartbeat is a two-part MySQL and PostgreSQL replication
-delay monitoring system that measures delay by looking at
-actual replicated data. This avoids reliance on the <br>
-replication mechanism itself, which is unreliable. (For
-example, &quot;SHOW SLAVE STATUS&quot; on MySQL).</p>
-
-<p style="margin-top: 1em">The first part is an
-&quot;--update&quot; instance of mk-heartbeat that connects
-to a master and updates a timestamp (&quot;heartbeat
-record&quot;) every &quot;--interval&quot; seconds. Since
-the heartbeat <br>
-table may contain records from multiple masters (see
-&quot;MULTI-SLAVE HIERARCHY&quot;), the server&rsquo;s ID
-(@@server_id) is used to identify records.</p>
-
-<p style="margin-top: 1em">The second part is a
-&quot;--monitor&quot; or &quot;--check&quot; instance of
-mk-heartbeat that connects to a slave, examines the
-replicated heartbeat record from its immediate master or the
-<br>
-specified &quot;--master-server-id&quot;, and computes the
-difference from the current system time. If replication
-between the slave and the master is delayed or broken, the
-computed <br>
-difference will be greater than zero and potentially
-increase if &quot;--monitor&quot; is specified.</p>
-
-<p style="margin-top: 1em">You must either manually create
-the heartbeat table on the master or use
-&quot;--create-table&quot;. See &quot;--create-table&quot;
-for the proper heartbeat table structure. The
-&quot;MEMORY&quot; storage <br>
-engine is suggested, but not required of course, for
-MySQL.</p>
-
-<p style="margin-top: 1em">The heartbeat table must contain
-a heartbeat row. By default, a heartbeat row is inserted if
-it doesn&rsquo;t exist. This feature can be disabled with
-the <br>
-&quot;--[no]insert-heartbeat-row&quot; option in case the
-database user does not have INSERT privileges.</p>
-
-<p style="margin-top: 1em">mk-heartbeat depends only on the
-heartbeat record being replicated to the slave, so it works
-regardless of the replication mechanism (built-in
-replication, a system such as <br>
-Continuent Tungsten, etc). It works at any depth in the
-replication hierarchy; for example, it will reliably report
-how far a slave lags its master&rsquo;s master&rsquo;s
-master. And if <br>
-replication is stopped, it will continue to work and report
-(accurately!) that the slave is falling further and further
-behind the master.</p>
-
-<p style="margin-top: 1em">mk-heartbeat has a maximum
-resolution of 0.01 second. The clocks on the master and
-slave servers must be closely synchronized via NTP. By
-default, &quot;--update&quot; checks happen on <br>
-the edge of the second (e.g. 00:01) and
-&quot;--monitor&quot; checks happen halfway between seconds
-(e.g. 00:01.5). As long as the servers&rsquo; clocks are
-closely synchronized and replication <br>
-events are propagating in less than half a second,
-mk-heartbeat will report zero seconds of delay.</p>
-
-<p style="margin-top: 1em">mk-heartbeat will try to
-reconnect if the connection has an error, but will not retry
-if it can&rsquo;t get a connection when it first starts.</p>
-
-<p style="margin-top: 1em">The &quot;--dbi-driver&quot;
-option lets you use mk-heartbeat to monitor PostgreSQL as
-well. It is reported to work well with Slony-1
-replication.</p>
-
-<p style="margin-top: 1em">MULTI-SLAVE HIERARCHY <br>
-If the replication hierarchy has multiple slaves which are
-masters of other slaves, like &quot;master -&gt; slave1
--&gt; slave2&quot;, &quot;--update&quot; instances can be
-ran on the slaves as well as <br>
-the master. The default heartbeat table (see
-&quot;--create-table&quot;) is keyed on the
-&quot;server_id&quot; column, so each server will update the
-row where &quot;server_id=@@server_id&quot;.</p>
-
-<p style="margin-top: 1em">For &quot;--monitor&quot; and
-&quot;--check&quot;, if &quot;--master-server-id&quot; is
-not specified, the tool tries to discover and use the
-slave&rsquo;s immediate master. If this fails, or if you
-want monitor <br>
-lag from another master, then you can specify the
-&quot;--master-server-id&quot; to use.</p>
-
-<p style="margin-top: 1em">For example, if the replication
-hierarchy is &quot;master -&gt; slave1 -&gt; slave2&quot;
-with corresponding server IDs 1, 2 and 3, you can:</p>
-
-<p style="margin-top: 1em">mk-heartbeat --daemonize -D test
---update -h master <br>
-mk-heartbeat --daemonize -D test --update -h slave1</p>
-
-<p style="margin-top: 1em">Then check (or monitor) the
-replication delay from master to slave2:</p>
-
-<p style="margin-top: 1em">mk-heartbeat -D test
---master-server-id 1 --check slave2</p>
-
-<p style="margin-top: 1em">Or check the replication delay
-from slave1 to slave2:</p>
-
-<p style="margin-top: 1em">mk-heartbeat -D test
---master-server-id 2 --check slave2</p>
-
-<p style="margin-top: 1em">Stopping the
-&quot;--update&quot; instance one slave1 will not affect the
-instance on master.</p>
-
-<p style="margin-top: 1em">MASTER AND SLAVE STATUS <br>
-The default heartbeat table (see &quot;--create-table&quot;)
-has columns for saving information from &quot;SHOW MASTER
-STATUS&quot; and &quot;SHOW SLAVE STATUS&quot;. These
-columns are optional. If any are <br>
-present, their corresponding information will be saved.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-Specify at least one of &quot;--stop&quot;,
-&quot;--update&quot;, &quot;--monitor&quot;, or
-&quot;--check&quot;.</p>
-
-<p style="margin-top: 1em">&quot;--update&quot;,
-&quot;--monitor&quot;, and &quot;--check&quot; are mutually
-exclusive.</p>
-
-<p style="margin-top: 1em">&quot;--daemonize&quot; and
-&quot;--check&quot; are mutually exclusive.</p>
-
-<p style="margin-top: 1em">This tool accepts additional
-command-line arguments. Refer to the &quot;SYNOPSIS&quot;
-and usage information for details.</p>
-
-<p style="margin-top: 1em">--ask-pass <br>
-Prompt for a password when connecting to MySQL.</p>
-
-<p style="margin-top: 1em">--charset <br>
-short form: -A; type: string</p>
-
-<p style="margin-top: 1em">Default character set. If the
-value is utf8, sets Perl&rsquo;s binmode on STDOUT to utf8,
-passes the mysql_enable_utf8 option to DBD::mysql, and runs
-SET NAMES UTF8 after <br>
-connecting to MySQL. Any other value sets binmode on STDOUT
-without the utf8 layer, and runs SET NAMES after connecting
-to MySQL.</p>
-
-<p style="margin-top: 1em">--check <br>
-Check slave delay once and exit. If you also specify
-&quot;--recurse&quot;, the tool will try to discover
-slave&rsquo;s of the given slave and check and print their
-lag, too. The hostname <br>
-or IP and port for each slave is printed before its delay.
-&quot;--recurse&quot; only works with MySQL.</p>
-
-<p style="margin-top: 1em">--config <br>
-type: Array</p>
-
-<p style="margin-top: 1em">Read this comma-separated list
-of config files; if specified, this must be the first option
-on the command line.</p>
-
-<p style="margin-top: 1em">--create-table <br>
-Create the heartbeat &quot;--table&quot; if it does not
-exist.</p>
-
-<p style="margin-top: 1em">This option causes the table
-specified by &quot;--database&quot; and &quot;--table&quot;
-to be created with the following MAGIC_create_heartbeat
-table definition:</p>
-
-<p style="margin-top: 1em">CREATE TABLE heartbeat ( <br>
-ts varchar(26) NOT NULL, <br>
-server_id int unsigned NOT NULL PRIMARY KEY, <br>
-file varchar(255) DEFAULT NULL, -- SHOW MASTER STATUS <br>
-position bigint unsigned DEFAULT NULL, -- SHOW MASTER STATUS
-<br>
-relay_master_log_file varchar(255) DEFAULT NULL, -- SHOW
-SLAVE STATUS <br>
-exec_master_log_pos bigint unsigned DEFAULT NULL -- SHOW
-SLAVE STATUS <br>
-);</p>
-
-<p style="margin-top: 1em">The heartbeat table requires at
-least one row. If you manually create the heartbeat table,
-then you must insert a row by doing:</p>
-
-<p style="margin-top: 1em">INSERT INTO heartbeat (ts,
-server_id) VALUES (NOW(), N);</p>
-
-<p style="margin-top: 1em">where &quot;N&quot; is the
-server&rsquo;s ID; do not use @@server_id because it will
-replicate and slaves will insert their own server ID instead
-of the master&rsquo;s server ID.</p>
-
-<p style="margin-top: 1em">This is done automatically by
-&quot;--create-table&quot;.</p>
-
-<p style="margin-top: 1em">A legacy version of the
-heartbeat table is still supported:</p>
-
-<p style="margin-top: 1em">CREATE TABLE heartbeat ( <br>
-id int NOT NULL PRIMARY KEY, <br>
-ts datetime NOT NULL <br>
-);</p>
-
-<p style="margin-top: 1em">Legacy tables do not support
-&quot;--update&quot; instances on each slave of a
-multi-slave hierarchy like &quot;master -&gt; slave1 -&gt;
-slave2&quot;. To manually insert the one required row into a
-<br>
-legacy table:</p>
-
-<p style="margin-top: 1em">INSERT INTO heartbeat (id, ts)
-VALUES (1, NOW());</p>
-
-<p style="margin-top: 1em">The tool automatically detects
-if the heartbeat table is legacy.</p>
-
-<p style="margin-top: 1em">See also &quot;MULTI-SLAVE
-HIERARCHY&quot;.</p>
-
-<p style="margin-top: 1em">--daemonize <br>
-Fork to the background and detach from the shell. POSIX
-operating systems only.</p>
-
-<p style="margin-top: 1em">--database <br>
-short form: -D; type: string</p>
-
-<p style="margin-top: 1em">The database to use for the
-connection.</p>
-
-<p style="margin-top: 1em">--dbi-driver <br>
-default: mysql; type: string</p>
-
-<p style="margin-top: 1em">Specify a driver for the
-connection; &quot;mysql&quot; and &quot;Pg&quot; are
-supported.</p>
-
-<p style="margin-top: 1em">--defaults-file <br>
-short form: -F; type: string</p>
-
-<p style="margin-top: 1em">Only read mysql options from the
-given file. You must give an absolute pathname.</p>
-
-<p style="margin-top: 1em">--file <br>
-type: string</p>
-
-<p style="margin-top: 1em">Print latest
-&quot;--monitor&quot; output to this file.</p>
-
-<p style="margin-top: 1em">When &quot;--monitor&quot; is
-given, prints output to the specified file instead of to
-STDOUT. The file is opened, truncated, and closed every
-interval, so it will only contain the <br>
-most recent statistics. Useful when &quot;--daemonize&quot;
-is given.</p>
-
-<p style="margin-top: 1em">--frames <br>
-type: string; default: 1m,5m,15m</p>
-
-<p style="margin-top: 1em">Timeframes for averages.</p>
-
-<p style="margin-top: 1em">Specifies the timeframes over
-which to calculate moving averages when
-&quot;--monitor&quot; is given. Specify as a comma-separated
-list of numbers with suffixes. The suffix can be s <br>
-for seconds, m for minutes, h for hours, or d for days. The
-size of the largest frame determines the maximum memory
-usage, as up to the specified number of per-second <br>
-samples are kept in memory to calculate the averages. You
-can specify as many timeframes as you like.</p>
-
-<p style="margin-top: 1em">--help <br>
-Show help and exit.</p>
-
-<p style="margin-top: 1em">--host <br>
-short form: -h; type: string</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">--[no]insert-heartbeat-row <br>
-default: yes</p>
-
-<p style="margin-top: 1em">Insert a heartbeat row in the
-&quot;--table&quot; if one doesn&rsquo;t exist.</p>
-
-<p style="margin-top: 1em">The heartbeat
-&quot;--table&quot; requires a heartbeat row, else
-there&rsquo;s nothing to &quot;--update&quot;,
-&quot;--monitor&quot;, or &quot;--check&quot;! By default,
-the tool will insert a heartbeat row if one is <br>
-not already present. You can disable this feature by
-specifying &quot;--no-insert-heartbeat-row&quot; in case the
-database user does not have INSERT privileges.</p>
-
-<p style="margin-top: 1em">--interval <br>
-type: float; default: 1.0</p>
-
-<p style="margin-top: 1em">How often to update or check the
-heartbeat &quot;--table&quot;. Updates and checks begin on
-the first whole second then repeat every
-&quot;--interval&quot; seconds for &quot;--update&quot; and
-every <br>
-&quot;--interval&quot; plus &quot;--skew&quot; seconds for
-&quot;--monitor&quot;.</p>
-
-<p style="margin-top: 1em">For example, if at 00:00.4 an
-&quot;--update&quot; instance is started at 0.5 second
-intervals, the first update happens at 00:01.0, the next at
-00:01.5, etc. If at 00:10.7 a <br>
-&quot;--monitor&quot; instance is started at 0.05 second
-intervals with the default 0.5 second &quot;--skew&quot;,
-then the first check happens at 00:11.5 (00:11.0 + 0.5)
-which will be &quot;--skew&quot; <br>
-seconds after the last update which, because the instances
-are checking at synchronized intervals, happened at
-00:11.0.</p>
-
-<p style="margin-top: 1em">The tool waits for and begins on
-the first whole second just to make the interval
-calculations simpler. Therefore, the tool could wait up to 1
-second before updating or <br>
-checking.</p>
-
-<p style="margin-top: 1em">The minimum (fastest) interval
-is 0.01, and the maximum precision is two decimal places, so
-0.015 will be rounded to 0.02.</p>
-
-<p style="margin-top: 1em">If a legacy heartbeat table (see
-&quot;--create-table&quot;) is used, then the maximum
-precision is 1s because the &quot;ts&quot; column is type
-&quot;datetime&quot;.</p>
-
-<p style="margin-top: 1em">--log <br>
-type: string</p>
-
-<p style="margin-top: 1em">Print all output to this file
-when daemonized.</p>
-
-<p style="margin-top: 1em">--master-server-id <br>
-type: string</p>
-
-<p style="margin-top: 1em">Calculate delay from this master
-server ID for &quot;--monitor&quot; or &quot;--check&quot;.
-If not given, mk-heartbeat attempts to connect to the
-server&rsquo;s master and determine its server id.</p>
-
-<p style="margin-top: 1em">--monitor <br>
-Monitor slave delay continuously.</p>
-
-<p style="margin-top: 1em">Specifies that mk-heartbeat
-should check the slave&rsquo;s delay every second and report
-to STDOUT (or if &quot;--file&quot; is given, to the file
-instead). The output is the current delay <br>
-followed by moving averages over the timeframe given in
-&quot;--frames&quot;. For example,</p>
-
-<p style="margin-top: 1em">5s [ 0.25s, 0.05s, 0.02s ]</p>
-
-<p style="margin-top: 1em">--password <br>
-short form: -p; type: string</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">--pid <br>
-type: string</p>
-
-<p style="margin-top: 1em">Create the given PID file when
-daemonized. The file contains the process ID of the
-daemonized instance. The PID file is removed when the
-daemonized instance exits. The <br>
-program checks for the existence of the PID file when
-starting; if it exists and the process with the matching PID
-exists, the program exits.</p>
-
-<p style="margin-top: 1em">--port <br>
-short form: -P; type: int</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">--print-master-server-id <br>
-Print the auto-detected or given
-&quot;--master-server-id&quot;. If &quot;--check&quot; or
-&quot;--monitor&quot; is specified, specifying this option
-will print the auto-detected or given <br>
-&quot;--master-server-id&quot; at the end of each line.</p>
-
-<p style="margin-top: 1em">--recurse <br>
-type: int</p>
-
-<p style="margin-top: 1em">Check slaves recursively to this
-depth in &quot;--check&quot; mode.</p>
-
-<p style="margin-top: 1em">Try to discover slave servers
-recursively, to the specified depth. After discovering
-servers, run the check on each one of them and print the
-hostname (if possible), <br>
-followed by the slave delay.</p>
-
-<p style="margin-top: 1em">This currently works only with
-MySQL. See &quot;--recursion-method&quot;.</p>
-
-<p style="margin-top: 1em">--recursion-method <br>
-type: string</p>
-
-<p style="margin-top: 1em">Preferred recursion method used
-to find slaves.</p>
-
-<p style="margin-top: 1em">Possible methods are:</p>
-
-<p style="margin-top: 1em">METHOD USES <br>
-=========== ================ <br>
-processlist SHOW PROCESSLIST <br>
-hosts SHOW SLAVE HOSTS</p>
-
-<p style="margin-top: 1em">The processlist method is
-preferred because SHOW SLAVE HOSTS is not reliable. However,
-the hosts method is required if the server uses a
-non-standard port (not 3306). <br>
-Usually mk-heartbeat does the right thing and finds the
-slaves, but you may give a preferred method and it will be
-used first. If it doesn&rsquo;t find any slaves, the other
-<br>
-methods will be tried.</p>
-
-<p style="margin-top: 1em">--replace <br>
-Use &quot;REPLACE&quot; instead of &quot;UPDATE&quot; for
---update.</p>
-
-<p style="margin-top: 1em">When running in
-&quot;--update&quot; mode, use &quot;REPLACE&quot; instead
-of &quot;UPDATE&quot; to set the heartbeat table&rsquo;s
-timestamp. The &quot;REPLACE&quot; statement is a MySQL
-extension to SQL. This option <br>
-is useful when you don&rsquo;t know whether the table
-contains any rows or not. It must be used in conjunction
-with --update.</p>
-
-<p style="margin-top: 1em">--run-time <br>
-type: time</p>
-
-<p style="margin-top: 1em">Time to run before exiting.</p>
-
-<p style="margin-top: 1em">--sentinel <br>
-type: string; default: /tmp/mk-heartbeat-sentinel</p>
-
-<p style="margin-top: 1em">Exit if this file exists.</p>
-
-<p style="margin-top: 1em">--set-vars <br>
-type: string; default: wait_timeout=10000</p>
-
-<p style="margin-top: 1em">Set these MySQL variables.
-Immediately after connecting to MySQL, this string will be
-appended to SET and executed.</p>
-
-<p style="margin-top: 1em">--skew <br>
-type: float; default: 0.5</p>
-
-<p style="margin-top: 1em">How long to delay checks.</p>
-
-<p style="margin-top: 1em">The default is to delay checks
-one half second. Since the update happens as soon as
-possible after the beginning of the second on the master,
-this allows one half second of <br>
-replication delay before reporting that the slave lags the
-master by one second. If your clocks are not completely
-accurate or there is some other reason you&rsquo;d like to
-delay <br>
-the slave more or less, you can tweak this value. Try
-setting the &quot;MKDEBUG&quot; environment variable to see
-the effect this has.</p>
-
-<p style="margin-top: 1em">--socket <br>
-short form: -S; type: string</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">--stop <br>
-Stop running instances by creating the sentinel file.</p>
-
-<p style="margin-top: 1em">This should have the effect of
-stopping all running instances which are watching the same
-sentinel file. If none of &quot;--update&quot;,
-&quot;--monitor&quot; or &quot;--check&quot; is specified,
-<br>
-&quot;mk-heartbeat&quot; will exit after creating the file.
-If one of these is specified, &quot;mk-heartbeat&quot; will
-wait the interval given by &quot;--interval&quot;, then
-remove the file and <br>
-continue working.</p>
-
-<p style="margin-top: 1em">You might find this handy to
-stop cron jobs gracefully if necessary, or to replace one
-running instance with another. For example, if you want to
-stop and restart <br>
-&quot;mk-heartbeat&quot; every hour (just to make sure that
-it is restarted every hour, in case of a server crash or
-some other problem), you could use a &quot;crontab&quot;
-line like this:</p>
-
-<p style="margin-top: 1em">0 * * * * mk-heartbeat --update
--D test --stop --sentinel /tmp/mk-heartbeat-hourly</p>
-
-<p style="margin-top: 1em">The non-default
-&quot;--sentinel&quot; will make sure the hourly
-&quot;cron&quot; job stops only instances previously started
-with the same options (that is, from the same
-&quot;cron&quot; job).</p>
-
-<p style="margin-top: 1em">See also
-&quot;--sentinel&quot;.</p>
-
-<p style="margin-top: 1em">--table <br>
-type: string; default: heartbeat</p>
-
-<p style="margin-top: 1em">The table to use for the
-heartbeat.</p>
-
-<p style="margin-top: 1em">Don&rsquo;t specify
-database.table; use &quot;--database&quot; to specify the
-database.</p>
-
-<p style="margin-top: 1em">See
-&quot;--create-table&quot;.</p>
-
-<p style="margin-top: 1em">--update <br>
-Update a master&rsquo;s heartbeat.</p>
-
-<p style="margin-top: 1em">--user <br>
-short form: -u; type: string</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">--version <br>
-Show version and exit.</p>
-
-<p style="margin-top: 1em">DSN OPTIONS <br>
-These DSN options are used to create a DSN. Each option is
-given like &quot;option=value&quot;. The options are
-case-sensitive, so P and p are not the same option. There
-cannot be <br>
-whitespace before or after the &quot;=&quot; and if the
-value contains whitespace it must be quoted. DSN options are
-comma-separated. See the maatkit manpage for full
-details.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A</p>
-
-<p style="margin-top: 1em">dsn: charset; copy: yes</p>
-
-<p style="margin-top: 1em">Default character set.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; D</p>
-
-<p style="margin-top: 1em">dsn: database; copy: yes</p>
-
-<p style="margin-top: 1em">Default database.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; F</p>
-
-<p style="margin-top: 1em">dsn: mysql_read_default_file;
-copy: yes</p>
-
-<p style="margin-top: 1em">Only read default options from
-the given file</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; h</p>
-
-<p style="margin-top: 1em">dsn: host; copy: yes</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; p</p>
-
-<p style="margin-top: 1em">dsn: password; copy: yes</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; P</p>
-
-<p style="margin-top: 1em">dsn: port; copy: yes</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; S</p>
-
-<p style="margin-top: 1em">dsn: mysql_socket; copy: yes</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; u</p>
-
-<p style="margin-top: 1em">dsn: user; copy: yes</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">DOWNLOADING <br>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MK-HEARTBEAT(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">MK-HEARTBEAT(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+mk-heartbeat - Monitor MySQL replication delay.
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+Usage: mk-heartbeat [OPTION...] [DSN] --update|--monitor|--check|--stop
+<div class="Pp"></div>
+mk-heartbeat measures replication lag on a MySQL or PostgreSQL server. You can
+  use it to update a master or monitor a replica. If possible, MySQL connection
+  options are read from your .my.cnf file.
+<div class="Pp"></div>
+Start daemonized process to update test.heartbeat table on master:
+<div class="Pp"></div>
+<pre>
+  mk-heartbeat -D test --update -h master-server --daemonize
+</pre>
+<div class="Pp"></div>
+Monitor replication lag on slave:
+<div class="Pp"></div>
+<pre>
+  mk-heartbeat -D test --monitor -h slave-server
+  mk-heartbeat -D test --monitor -h slave-server --dbi-driver Pg
+</pre>
+<div class="Pp"></div>
+Check slave lag once and exit (using optional DSN to specify slave host):
+<div class="Pp"></div>
+<pre>
+  mk-heartbeat -D test --check h=slave-server
+</pre>
+<h1 class="Sh" title="Sh" id="RISKS"><a class="selflink" href="#RISKS">RISKS</a></h1>
+The following section is included to inform users about the potential risks,
+  whether known or unknown, of using this tool. The two main categories of risks
+  are those created by the nature of the tool (e.g. read-only tools vs.
+  read-write tools) and those created by bugs.
+<div class="Pp"></div>
+mk-heartbeat merely reads and writes a single record in a table. It should be
+  very low-risk.
+<div class="Pp"></div>
+At the time of this release, we know of no bugs that could cause serious harm to
+  users.
+<div class="Pp"></div>
+The authoritative source for updated information is always the online issue
+  tracking system. Issues that affect this tool will be marked as such. You can
+  see a list of such issues at the following URL:
+  &lt;http://www.maatkit.org/bugs/mk-heartbeat&gt;.
+<div class="Pp"></div>
+See also &quot;BUGS&quot; for more information on filing bugs and getting help.
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+mk-heartbeat is a two-part MySQL and PostgreSQL replication delay monitoring
+  system that measures delay by looking at actual replicated data. This avoids
+  reliance on the replication mechanism itself, which is unreliable. (For
+  example, &quot;SHOW SLAVE STATUS&quot; on MySQL).
+<div class="Pp"></div>
+The first part is an &quot;--update&quot; instance of mk-heartbeat that connects
+  to a master and updates a timestamp (&quot;heartbeat record&quot;) every
+  &quot;--interval&quot; seconds. Since the heartbeat table may contain records
+  from multiple masters (see &quot;MULTI-SLAVE HIERARCHY&quot;), the server's ID
+  (@@server_id) is used to identify records.
+<div class="Pp"></div>
+The second part is a &quot;--monitor&quot; or &quot;--check&quot; instance of
+  mk-heartbeat that connects to a slave, examines the replicated heartbeat
+  record from its immediate master or the specified
+  &quot;--master-server-id&quot;, and computes the difference from the current
+  system time. If replication between the slave and the master is delayed or
+  broken, the computed difference will be greater than zero and potentially
+  increase if &quot;--monitor&quot; is specified.
+<div class="Pp"></div>
+You must either manually create the heartbeat table on the master or use
+  &quot;--create-table&quot;. See &quot;--create-table&quot; for the proper
+  heartbeat table structure. The &quot;MEMORY&quot; storage engine is suggested,
+  but not required of course, for MySQL.
+<div class="Pp"></div>
+The heartbeat table must contain a heartbeat row. By default, a heartbeat row is
+  inserted if it doesn't exist. This feature can be disabled with the
+  &quot;--[no]insert-heartbeat-row&quot; option in case the database user does
+  not have INSERT privileges.
+<div class="Pp"></div>
+mk-heartbeat depends only on the heartbeat record being replicated to the slave,
+  so it works regardless of the replication mechanism (built-in replication, a
+  system such as Continuent Tungsten, etc). It works at any depth in the
+  replication hierarchy; for example, it will reliably report how far a slave
+  lags its master's master's master. And if replication is stopped, it will
+  continue to work and report (accurately!) that the slave is falling further
+  and further behind the master.
+<div class="Pp"></div>
+mk-heartbeat has a maximum resolution of 0.01 second. The clocks on the master
+  and slave servers must be closely synchronized via NTP. By default,
+  &quot;--update&quot; checks happen on the edge of the second (e.g. 00:01) and
+  &quot;--monitor&quot; checks happen halfway between seconds (e.g. 00:01.5). As
+  long as the servers' clocks are closely synchronized and replication events
+  are propagating in less than half a second, mk-heartbeat will report zero
+  seconds of delay.
+<div class="Pp"></div>
+mk-heartbeat will try to reconnect if the connection has an error, but will not
+  retry if it can't get a connection when it first starts.
+<div class="Pp"></div>
+The &quot;--dbi-driver&quot; option lets you use mk-heartbeat to monitor
+  PostgreSQL as well. It is reported to work well with Slony-1 replication.
+<h1 class="Sh" title="Sh" id="MULTI-SLAVE_HIERARCHY"><a class="selflink" href="#MULTI-SLAVE_HIERARCHY">MULTI-SLAVE
+  HIERARCHY</a></h1>
+If the replication hierarchy has multiple slaves which are masters of other
+  slaves, like &quot;master -&gt; slave1 -&gt; slave2&quot;,
+  &quot;--update&quot; instances can be ran on the slaves as well as the master.
+  The default heartbeat table (see &quot;--create-table&quot;) is keyed on the
+  &quot;server_id&quot; column, so each server will update the row where
+  &quot;server_id=@@server_id&quot;.
+<div class="Pp"></div>
+For &quot;--monitor&quot; and &quot;--check&quot;, if
+  &quot;--master-server-id&quot; is not specified, the tool tries to discover
+  and use the slave's immediate master. If this fails, or if you want monitor
+  lag from another master, then you can specify the
+  &quot;--master-server-id&quot; to use.
+<div class="Pp"></div>
+For example, if the replication hierarchy is &quot;master -&gt; slave1 -&gt;
+  slave2&quot; with corresponding server IDs 1, 2 and 3, you can:
+<div class="Pp"></div>
+<pre>
+  mk-heartbeat --daemonize -D test --update -h master 
+  mk-heartbeat --daemonize -D test --update -h slave1
+</pre>
+<div class="Pp"></div>
+Then check (or monitor) the replication delay from master to slave2:
+<div class="Pp"></div>
+<pre>
+  mk-heartbeat -D test --master-server-id 1 --check slave2
+</pre>
+<div class="Pp"></div>
+Or check the replication delay from slave1 to slave2:
+<div class="Pp"></div>
+<pre>
+  mk-heartbeat -D test --master-server-id 2 --check slave2
+</pre>
+<div class="Pp"></div>
+Stopping the &quot;--update&quot; instance one slave1 will not affect the
+  instance on master.
+<h1 class="Sh" title="Sh" id="MASTER_AND_SLAVE_STATUS"><a class="selflink" href="#MASTER_AND_SLAVE_STATUS">MASTER
+  AND SLAVE STATUS</a></h1>
+The default heartbeat table (see &quot;--create-table&quot;) has columns for
+  saving information from &quot;SHOW MASTER STATUS&quot; and &quot;SHOW SLAVE
+  STATUS&quot;. These columns are optional. If any are present, their
+  corresponding information will be saved.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+Specify at least one of &quot;--stop&quot;, &quot;--update&quot;,
+  &quot;--monitor&quot;, or &quot;--check&quot;.
+<div class="Pp"></div>
+&quot;--update&quot;, &quot;--monitor&quot;, and &quot;--check&quot; are
+  mutually exclusive.
+<div class="Pp"></div>
+&quot;--daemonize&quot; and &quot;--check&quot; are mutually exclusive.
+<div class="Pp"></div>
+This tool accepts additional command-line arguments. Refer to the
+  &quot;SYNOPSIS&quot; and usage information for details.
+<dl class="Bl-tag">
+  <dt class="It-tag">--ask-pass</dt>
+  <dd class="It-tag">Prompt for a password when connecting to MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--charset</dt>
+  <dd class="It-tag">short form: -A; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set. If the value is utf8, sets Perl's binmode on STDOUT
+      to utf8, passes the mysql_enable_utf8 option to DBD::mysql, and runs SET
+      NAMES UTF8 after connecting to MySQL. Any other value sets binmode on
+      STDOUT without the utf8 layer, and runs SET NAMES after connecting to
+      MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--check</dt>
+  <dd class="It-tag">Check slave delay once and exit. If you also specify
+      &quot;--recurse&quot;, the tool will try to discover slave's of the given
+      slave and check and print their lag, too. The hostname or IP and port for
+      each slave is printed before its delay. &quot;--recurse&quot; only works
+      with MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--config</dt>
+  <dd class="It-tag">type: Array
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Read this comma-separated list of config files; if specified, this must be
+      the first option on the command line.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--create-table</dt>
+  <dd class="It-tag">Create the heartbeat &quot;--table&quot; if it does not
+      exist.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option causes the table specified by &quot;--database&quot; and
+      &quot;--table&quot; to be created with the following
+      MAGIC_create_heartbeat table definition:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  CREATE TABLE heartbeat (
+    ts                    varchar(26) NOT NULL,
+    server_id             int unsigned NOT NULL PRIMARY KEY,
+    file                  varchar(255) DEFAULT NULL,    -- SHOW MASTER STATUS
+    position              bigint unsigned DEFAULT NULL, -- SHOW MASTER STATUS
+    relay_master_log_file varchar(255) DEFAULT NULL,    -- SHOW SLAVE STATUS 
+    exec_master_log_pos   bigint unsigned DEFAULT NULL  -- SHOW SLAVE STATUS
+  );
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The heartbeat table requires at least one row. If you manually create the
+      heartbeat table, then you must insert a row by doing:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  INSERT INTO heartbeat (ts, server_id) VALUES (NOW(), N);
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    where &quot;N&quot; is the server's ID; do not use @@server_id because it
+      will replicate and slaves will insert their own server ID instead of the
+      master's server ID.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This is done automatically by &quot;--create-table&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    A legacy version of the heartbeat table is still supported:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  CREATE TABLE heartbeat (
+    id int NOT NULL PRIMARY KEY,
+    ts datetime NOT NULL
+  );
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Legacy tables do not support &quot;--update&quot; instances on each slave of
+      a multi-slave hierarchy like &quot;master -&gt; slave1 -&gt; slave2&quot;.
+      To manually insert the one required row into a legacy table:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  INSERT INTO heartbeat (id, ts) VALUES (1, NOW());
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The tool automatically detects if the heartbeat table is legacy.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;MULTI-SLAVE HIERARCHY&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--daemonize</dt>
+  <dd class="It-tag">Fork to the background and detach from the shell. POSIX
+      operating systems only.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--database</dt>
+  <dd class="It-tag">short form: -D; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The database to use for the connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--dbi-driver</dt>
+  <dd class="It-tag">default: mysql; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specify a driver for the connection; &quot;mysql&quot; and &quot;Pg&quot;
+      are supported.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--defaults-file</dt>
+  <dd class="It-tag">short form: -F; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only read mysql options from the given file. You must give an absolute
+      pathname.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--file</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print latest &quot;--monitor&quot; output to this file.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    When &quot;--monitor&quot; is given, prints output to the specified file
+      instead of to STDOUT. The file is opened, truncated, and closed every
+      interval, so it will only contain the most recent statistics. Useful when
+      &quot;--daemonize&quot; is given.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--frames</dt>
+  <dd class="It-tag">type: string; default: 1m,5m,15m
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Timeframes for averages.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specifies the timeframes over which to calculate moving averages when
+      &quot;--monitor&quot; is given. Specify as a comma-separated list of
+      numbers with suffixes. The suffix can be s for seconds, m for minutes, h
+      for hours, or d for days. The size of the largest frame determines the
+      maximum memory usage, as up to the specified number of per-second samples
+      are kept in memory to calculate the averages. You can specify as many
+      timeframes as you like.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--help</dt>
+  <dd class="It-tag">Show help and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--host</dt>
+  <dd class="It-tag">short form: -h; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]insert-heartbeat-row</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Insert a heartbeat row in the &quot;--table&quot; if one doesn't exist.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The heartbeat &quot;--table&quot; requires a heartbeat row, else there's
+      nothing to &quot;--update&quot;, &quot;--monitor&quot;, or
+      &quot;--check&quot;! By default, the tool will insert a heartbeat row if
+      one is not already present. You can disable this feature by specifying
+      &quot;--no-insert-heartbeat-row&quot; in case the database user does not
+      have INSERT privileges.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--interval</dt>
+  <dd class="It-tag">type: float; default: 1.0
+    <div style="height: 1.00em;">&#x00A0;</div>
+    How often to update or check the heartbeat &quot;--table&quot;. Updates and
+      checks begin on the first whole second then repeat every
+      &quot;--interval&quot; seconds for &quot;--update&quot; and every
+      &quot;--interval&quot; plus &quot;--skew&quot; seconds for
+      &quot;--monitor&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    For example, if at 00:00.4 an &quot;--update&quot; instance is started at
+      0.5 second intervals, the first update happens at 00:01.0, the next at
+      00:01.5, etc. If at 00:10.7 a &quot;--monitor&quot; instance is started at
+      0.05 second intervals with the default 0.5 second &quot;--skew&quot;, then
+      the first check happens at 00:11.5 (00:11.0 + 0.5) which will be
+      &quot;--skew&quot; seconds after the last update which, because the
+      instances are checking at synchronized intervals, happened at 00:11.0.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The tool waits for and begins on the first whole second just to make the
+      interval calculations simpler. Therefore, the tool could wait up to 1
+      second before updating or checking.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The minimum (fastest) interval is 0.01, and the maximum precision is two
+      decimal places, so 0.015 will be rounded to 0.02.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If a legacy heartbeat table (see &quot;--create-table&quot;) is used, then
+      the maximum precision is 1s because the &quot;ts&quot; column is type
+      &quot;datetime&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--log</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print all output to this file when daemonized.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--master-server-id</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Calculate delay from this master server ID for &quot;--monitor&quot; or
+      &quot;--check&quot;. If not given, mk-heartbeat attempts to connect to the
+      server's master and determine its server id.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--monitor</dt>
+  <dd class="It-tag">Monitor slave delay continuously.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specifies that mk-heartbeat should check the slave's delay every second and
+      report to STDOUT (or if &quot;--file&quot; is given, to the file instead).
+      The output is the current delay followed by moving averages over the
+      timeframe given in &quot;--frames&quot;. For example,
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+ 5s [  0.25s,  0.05s,  0.02s ]
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--password</dt>
+  <dd class="It-tag">short form: -p; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--pid</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Create the given PID file when daemonized. The file contains the process ID
+      of the daemonized instance. The PID file is removed when the daemonized
+      instance exits. The program checks for the existence of the PID file when
+      starting; if it exists and the process with the matching PID exists, the
+      program exits.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--port</dt>
+  <dd class="It-tag">short form: -P; type: int
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--print-master-server-id</dt>
+  <dd class="It-tag">Print the auto-detected or given
+      &quot;--master-server-id&quot;. If &quot;--check&quot; or
+      &quot;--monitor&quot; is specified, specifying this option will print the
+      auto-detected or given &quot;--master-server-id&quot; at the end of each
+      line.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--recurse</dt>
+  <dd class="It-tag">type: int
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Check slaves recursively to this depth in &quot;--check&quot; mode.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Try to discover slave servers recursively, to the specified depth. After
+      discovering servers, run the check on each one of them and print the
+      hostname (if possible), followed by the slave delay.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This currently works only with MySQL. See
+    &quot;--recursion-method&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--recursion-method</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Preferred recursion method used to find slaves.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Possible methods are:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  METHOD       USES
+  ===========  ================
+  processlist  SHOW PROCESSLIST
+  hosts        SHOW SLAVE HOSTS
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The processlist method is preferred because SHOW SLAVE HOSTS is not
+      reliable. However, the hosts method is required if the server uses a
+      non-standard port (not 3306). Usually mk-heartbeat does the right thing
+      and finds the slaves, but you may give a preferred method and it will be
+      used first. If it doesn't find any slaves, the other methods will be
+      tried.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--replace</dt>
+  <dd class="It-tag">Use &quot;REPLACE&quot; instead of &quot;UPDATE&quot; for
+      --update.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    When running in &quot;--update&quot; mode, use &quot;REPLACE&quot; instead
+      of &quot;UPDATE&quot; to set the heartbeat table's timestamp. The
+      &quot;REPLACE&quot; statement is a MySQL extension to SQL. This option is
+      useful when you don't know whether the table contains any rows or not. It
+      must be used in conjunction with --update.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--run-time</dt>
+  <dd class="It-tag">type: time
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Time to run before exiting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--sentinel</dt>
+  <dd class="It-tag">type: string; default: /tmp/mk-heartbeat-sentinel
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Exit if this file exists.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--set-vars</dt>
+  <dd class="It-tag">type: string; default: wait_timeout=10000
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Set these MySQL variables. Immediately after connecting to MySQL, this
+      string will be appended to SET and executed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--skew</dt>
+  <dd class="It-tag">type: float; default: 0.5
+    <div style="height: 1.00em;">&#x00A0;</div>
+    How long to delay checks.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The default is to delay checks one half second. Since the update happens as
+      soon as possible after the beginning of the second on the master, this
+      allows one half second of replication delay before reporting that the
+      slave lags the master by one second. If your clocks are not completely
+      accurate or there is some other reason you'd like to delay the slave more
+      or less, you can tweak this value. Try setting the &quot;MKDEBUG&quot;
+      environment variable to see the effect this has.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--socket</dt>
+  <dd class="It-tag">short form: -S; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--stop</dt>
+  <dd class="It-tag">Stop running instances by creating the sentinel file.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This should have the effect of stopping all running instances which are
+      watching the same sentinel file. If none of &quot;--update&quot;,
+      &quot;--monitor&quot; or &quot;--check&quot; is specified,
+      &quot;mk-heartbeat&quot; will exit after creating the file. If one of
+      these is specified, &quot;mk-heartbeat&quot; will wait the interval given
+      by &quot;--interval&quot;, then remove the file and continue working.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    You might find this handy to stop cron jobs gracefully if necessary, or to
+      replace one running instance with another. For example, if you want to
+      stop and restart &quot;mk-heartbeat&quot; every hour (just to make sure
+      that it is restarted every hour, in case of a server crash or some other
+      problem), you could use a &quot;crontab&quot; line like this:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+ 0 * * * * mk-heartbeat --update -D test --stop \
+   --sentinel /tmp/mk-heartbeat-hourly
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The non-default &quot;--sentinel&quot; will make sure the hourly
+      &quot;cron&quot; job stops only instances previously started with the same
+      options (that is, from the same &quot;cron&quot; job).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;--sentinel&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--table</dt>
+  <dd class="It-tag">type: string; default: heartbeat
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The table to use for the heartbeat.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Don't specify database.table; use &quot;--database&quot; to specify the
+      database.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &quot;--create-table&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--update</dt>
+  <dd class="It-tag">Update a master's heartbeat.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--user</dt>
+  <dd class="It-tag">short form: -u; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--version</dt>
+  <dd class="It-tag">Show version and exit.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DSN_OPTIONS"><a class="selflink" href="#DSN_OPTIONS">DSN
+  OPTIONS</a></h1>
+These DSN options are used to create a DSN. Each option is given like
+  &quot;option=value&quot;. The options are case-sensitive, so P and p are not
+  the same option. There cannot be whitespace before or after the &quot;=&quot;
+  and if the value contains whitespace it must be quoted. DSN options are
+  comma-separated. See the maatkit manpage for full details.
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: charset; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">D
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: database; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default database.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">F
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_read_default_file; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only read default options from the given file</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">h
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: host; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">p
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: password; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">P
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: port; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">S
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_socket; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">u
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: user; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DOWNLOADING"><a class="selflink" href="#DOWNLOADING">DOWNLOADING</a></h1>
 You can download Maatkit from Google Code at
-&lt;http://code.google.com/p/maatkit/&gt;, or you can get
-any of the tools easily with a command like the
-following:</p>
-
-<p style="margin-top: 1em">wget
-http://www.maatkit.org/get/toolname <br>
-or <br>
-wget http://www.maatkit.org/trunk/toolname</p>
-
-<p style="margin-top: 1em">Where &quot;toolname&quot; can
-be replaced with the name (or fragment of a name) of any of
-the Maatkit tools. Once downloaded, they&rsquo;re ready to
-run; no installation is needed. The first <br>
-URL gets the latest released version of the tool, and the
-second gets the latest trunk code from Subversion.</p>
-
-<p style="margin-top: 1em">ENVIRONMENT <br>
-The environment variable &quot;MKDEBUG&quot; enables verbose
-debugging output in all of the Maatkit tools:</p>
-
-<p style="margin-top: 1em">MKDEBUG=1 mk-....</p>
-
-<p style="margin-top: 1em">SYSTEM REQUIREMENTS <br>
-You need Perl, DBI, DBD::mysql, and some core packages that
-ought to be installed in any reasonably new version of
-Perl.</p>
-
-<p style="margin-top: 1em">BUGS <br>
-For a list of known bugs see
-&lt;http://www.maatkit.org/bugs/mk-heartbeat&gt;.</p>
-
-<p style="margin-top: 1em">Please use Google Code Issues
-and Groups to report bugs or request support:
-&lt;http://code.google.com/p/maatkit/&gt;. You can also join
-#maatkit on Freenode to discuss Maatkit.</p>
-
-<p style="margin-top: 1em">Please include the complete
-command-line used to reproduce the problem you are seeing,
-the version of all MySQL servers involved, the complete
-output of the tool when run with <br>
-&quot;--version&quot;, and if possible, debugging output
-produced by running with the &quot;MKDEBUG=1&quot;
-environment variable.</p>
-
-<p style="margin-top: 1em">COPYRIGHT, LICENSE AND WARRANTY
-<br>
-This program is copyright 2007-2011 Percona Inc. and
-copyright 2006 Proven Scaling LLC and Six Apart Ltd.
-Feedback and improvements are welcome.</p>
-
-<p style="margin-top: 1em">THIS PROGRAM IS PROVIDED
-&quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A <br>
-PARTICULAR PURPOSE.</p>
-
-<p style="margin-top: 1em">This program is free software;
-you can redistribute it and/or modify it under the terms of
-the GNU General Public License as published by the Free
-Software Foundation, version 2; <br>
-OR the Perl Artistic License. On UNIX and similar systems,
-you can issue &lsquo;man perlgpl&rsquo; or &lsquo;man
-perlartistic&rsquo; to read these licenses.</p>
-
-<p style="margin-top: 1em">You should have received a copy
-of the GNU General Public License along with this program;
-if not, write to the Free Software Foundation, Inc., 59
-Temple Place, Suite 330, <br>
-Boston, MA 02111-1307 USA.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-See also mk-slave-delay and mk-slave-restart.</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Proven Scaling LLC, SixApart Ltd, and Baron Schwartz</p>
-
-<p style="margin-top: 1em">ABOUT MAATKIT <br>
-This tool is part of Maatkit, a toolkit for power users of
-MySQL. Maatkit was created by Baron Schwartz; Baron and
-Daniel Nichter are the primary code contributors. Both are
-<br>
-employed by Percona. Financial support for Maatkit
-development is primarily provided by Percona and its
-clients.</p>
-
-<p style="margin-top: 1em">VERSION <br>
-This manual page documents Ver 1.0.23 Distrib 7540
-$Revision: 7537 $.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2011-06-08
-MK-HEARTBEAT(1)</p>
-<hr>
+  &lt;http://code.google.com/p/maatkit/&gt;, or you can get any of the tools
+  easily with a command like the following:
+<div class="Pp"></div>
+<pre>
+   wget http://www.maatkit.org/get/toolname
+   or
+   wget http://www.maatkit.org/trunk/toolname
+</pre>
+<div class="Pp"></div>
+Where &quot;toolname&quot; can be replaced with the name (or fragment of a name)
+  of any of the Maatkit tools. Once downloaded, they're ready to run; no
+  installation is needed. The first URL gets the latest released version of the
+  tool, and the second gets the latest trunk code from Subversion.
+<h1 class="Sh" title="Sh" id="ENVIRONMENT"><a class="selflink" href="#ENVIRONMENT">ENVIRONMENT</a></h1>
+The environment variable &quot;MKDEBUG&quot; enables verbose debugging output in
+  all of the Maatkit tools:
+<div class="Pp"></div>
+<pre>
+   MKDEBUG=1 mk-....
+</pre>
+<h1 class="Sh" title="Sh" id="SYSTEM_REQUIREMENTS"><a class="selflink" href="#SYSTEM_REQUIREMENTS">SYSTEM
+  REQUIREMENTS</a></h1>
+You need Perl, DBI, DBD::mysql, and some core packages that ought to be
+  installed in any reasonably new version of Perl.
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+For a list of known bugs see &lt;http://www.maatkit.org/bugs/mk-heartbeat&gt;.
+<div class="Pp"></div>
+Please use Google Code Issues and Groups to report bugs or request support:
+  &lt;http://code.google.com/p/maatkit/&gt;. You can also join #maatkit on
+  Freenode to discuss Maatkit.
+<div class="Pp"></div>
+Please include the complete command-line used to reproduce the problem you are
+  seeing, the version of all MySQL servers involved, the complete output of the
+  tool when run with &quot;--version&quot;, and if possible, debugging output
+  produced by running with the &quot;MKDEBUG=1&quot; environment variable.
+<h1 class="Sh" title="Sh" id="COPYRIGHT,_LICENSE_AND_WARRANTY"><a class="selflink" href="#COPYRIGHT,_LICENSE_AND_WARRANTY">COPYRIGHT,
+  LICENSE AND WARRANTY</a></h1>
+This program is copyright 2007-2011 Percona Inc. and copyright 2006 Proven
+  Scaling LLC and Six Apart Ltd. Feedback and improvements are welcome.
+<div class="Pp"></div>
+THIS PROGRAM IS PROVIDED &quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
+  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+<div class="Pp"></div>
+This program is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, version 2; OR the Perl Artistic License. On UNIX and similar
+  systems, you can issue `man perlgpl' or `man perlartistic' to read these
+  licenses.
+<div class="Pp"></div>
+You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+  Place, Suite 330, Boston, MA 02111-1307 USA.
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+See also mk-slave-delay and mk-slave-restart.
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Proven Scaling LLC, SixApart Ltd, and Baron Schwartz
+<h1 class="Sh" title="Sh" id="ABOUT_MAATKIT"><a class="selflink" href="#ABOUT_MAATKIT">ABOUT
+  MAATKIT</a></h1>
+This tool is part of Maatkit, a toolkit for power users of MySQL. Maatkit was
+  created by Baron Schwartz; Baron and Daniel Nichter are the primary code
+  contributors. Both are employed by Percona. Financial support for Maatkit
+  development is primarily provided by Percona and its clients.
+<h1 class="Sh" title="Sh" id="VERSION"><a class="selflink" href="#VERSION">VERSION</a></h1>
+This manual page documents Ver 1.0.23 Distrib 7540 $Revision: 7537 $.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2011-06-08</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

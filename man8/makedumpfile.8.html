@@ -1,648 +1,850 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:13:13 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MAKEDUMPFILE(8)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MAKEDUMPFILE(8) Linux System Administrator&rsquo;s
-Manual MAKEDUMPFILE(8)</p>
-
-<p style="margin-top: 1em">NAME <br>
-makedumpfile - make a small dumpfile of kdump</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-makedumpfile [OPTION] [-x VMLINUX|-i VMCOREINFO] VMCORE
-DUMPFILE <br>
-makedumpfile -F [OPTION] [-x VMLINUX|-i VMCOREINFO] VMCORE
-<br>
-makedumpfile [OPTION] -x VMLINUX [--config FILTERCONFIGFILE]
-[--eppic EPPICMACRO] VMCORE DUMPFILE <br>
-makedumpfile -R DUMPFILE <br>
-makedumpfile --split [OPTION] [-x VMLINUX|-i VMCOREINFO]
-VMCORE DUMPFILE1 DUMPFILE2 [DUMPFILE3 ..] <br>
-makedumpfile [OPTION] [-x VMLINUX|-i VMCOREINFO]
---num-threads THREADNUM VMCORE DUMPFILE <br>
-makedumpfile --reassemble DUMPFILE1 DUMPFILE2 [DUMPFILE3 ..]
-DUMPFILE <br>
-makedumpfile -g VMCOREINFO -x VMLINUX <br>
-makedumpfile [OPTION] [--xen-syms XEN-SYMS|--xen-vmcoreinfo
-VMCOREINFO] VMCORE DUMPFILE <br>
-makedumpfile --dump-dmesg [-x VMLINUX|-i VMCOREINFO] VMCORE
-LOGFILE <br>
-makedumpfile [OPTION] -x VMLINUX --diskset=VMCORE1
---diskset=VMCORE2 [--diskset=VMCORE3 ..] DUMPFILE <br>
-makedumpfile -h <br>
-makedumpfile -v</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-With kdump, the memory image of the first kernel (called
-&quot;panicked kernel&quot;) can be taken as /proc/vmcore
-while the second kernel (called &quot;kdump kernel&quot; or
-&quot;capture kernel&quot;) is <br>
-running. This document represents /proc/vmcore as VMCORE.
-makedumpfile makes a small DUMPFILE by compressing dump data
-or by excluding unnecessary pages for analysis, or both.
-<br>
-makedumpfile needs the first kernel&rsquo;s debug
-information, so that it can distinguish unnecessary pages by
-analyzing how the first kernel uses the memory. The
-information can be <br>
-taken from VMLINUX or VMCOREINFO.</p>
-
-<p style="margin-top: 1em">makedumpfile can exclude the
-following types of pages while copying VMCORE to DUMPFILE,
-and a user can choose which type of pages will be excluded.
-<br>
-- Pages filled with zero <br>
-- Cache pages without private flag (non-private cache) <br>
-- Cache pages with private flag (private cache) <br>
-- User process data pages <br>
-- Free pages</p>
-
-<p style="margin-top: 1em">makedumpfile provides two
-DUMPFILE formats (the ELF format and the kdump-compressed
-format). By default, makedumpfile makes a DUMPFILE in the
-kdump-compressed format. The <br>
-kdump-compressed format is readable only with the crash
-utility, and it can be smaller than the ELF format because
-of the compression support. The ELF format is readable with
-GDB <br>
-and the crash utility. If a user wants to use GDB, DUMPFILE
-format has to be explicitly specified to be the ELF
-format.</p>
-
-<p style="margin-top: 1em">Apart from the exclusion of
-unnecessary pages mentioned above, makedumpfile allows user
-to filter out targeted kernel data. The filter config file
-can be used to specify ker&acirc; <br>
-nel/module symbols and its members that need to be filtered
-out through the erase command syntax. makedumpfile reads the
-filter config and builds the list of memory addresses and
-<br>
-its sizes after processing filter commands. The memory
-locations that require to be filtered out are then poisoned
-with character &rsquo;X&rsquo; (58 in Hex). Refer to
-makedumpfile.conf(5) <br>
-for file format.</p>
-
-<p style="margin-top: 1em">Eppic macros can also be used to
-specify kernel symbols and its members that need to be
-filtered. Eppic provides C semantics including language
-constructs such as conditional <br>
-statements, logical and arithmetic operators, functions,
-nested loops to traverse and erase kernel data. --eppic
-requires eppic_makedumpfile.so and eppic library.
-eppic_makedump&acirc; <br>
-file.so can be built from makedumpfile source. Refer to
-http://code.google.com/p/eppic/ to build eppic library
-libeppic.a and for more information on writing eppic
-macros.</p>
-
-<p style="margin-top: 1em">To analyze the first
-kernel&rsquo;s memory usage, makedumpfile can refer to
-VMCOREINFO instead of VMLINUX. VMCOREINFO contains the first
-kernel&rsquo;s information (structure size, field <br>
-offset, etc.), and VMCOREINFO is small enough to be included
-into the second kernel&rsquo;s initrd. <br>
-If the second kernel is running on its initrd without
-mounting a root file system, makedumpfile cannot refer to
-VMLINUX because the second kernel&rsquo;s initrd cannot
-include a large <br>
-file like VMLINUX. To solve the problem, makedumpfile makes
-VMCOREINFO beforehand, and it refers to VMCOREINFO instead
-of VMLINUX while the second kernel is running. <br>
-VMCORE has contained VMCOREINFO since linux-2.6.24, and a
-user does not need to specify neither -x nor -i option.</p>
-
-<p style="margin-top: 1em">If the second kernel is running
-on its initrd without mounting any file system, a user needs
-to transport the dump data to a remote host. To transport
-the dump data by SSH, make&acirc; <br>
-dumpfile outputs the dump data in the intermediate format
-(the flattened format) to the standard output. By piping the
-output data to SSH, a user can transport the dump data to a
-<br>
-remote host. Note that analysis tools (crash utility before
-version 5.1.2 or GDB) cannot read the flattened format
-directly, so on a remote host the received data in the
-flat&acirc; <br>
-tened format needs to be rearranged to a readable DUMPFILE
-format by makedumpfile (or makedumpfile-R.pl).</p>
-
-<p style="margin-top: 1em">makedumpfile can read a DUMPFILE
-in the kdump-compressed format instead of VMCORE and
-re-filter it. This feature is useful in situation that users
-need to reduce the file size of <br>
-DUMPFILE for sending it somewhere by ftp/scp/etc. (If all of
-the page types, which are specified by a new dump_level, are
-excluded from an original DUMPFILE already, a new
-DUMP&acirc; <br>
-FILE is the same as an original DUMPFILE.) <br>
-For example, makedumpfile can create a DUMPFILE of
-dump_level 31 from the one of dump_level 3 like the
-following: <br>
-Example: <br>
-# makedumpfile -c -d 3 /proc/vmcore dumpfile.1 <br>
-# makedumpfile -c -d 31 dumpfile.1 dumpfile.2</p>
-
-<p style="margin-top: 1em">makedumpfile can read VMCORE(s)
-in three kinds of sadump formats: single partition format,
-diskset format and media backup format, and can convert each
-of them into kdump-com&acirc; <br>
-pressed format with filtering and compression processing.
-Note that for VMCORE(s) created by sadump, you always need
-to pass VMLINUX with -x option. Also, to pass multiple <br>
-VMCOREs created on diskset configuration, you need to use
---diskset option.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
--c,-l,-p <br>
-Compress dump data by each page using zlib for -c option,
-lzo for -l option or snappy for -p option. (-l option needs
-USELZO=on and -p option needs USESNAPPY=on when <br>
-building) <br>
-A user cannot specify this option with -E option, because
-the ELF format does not support compressed data. <br>
-Example: <br>
-# makedumpfile -c -d 31 -x vmlinux /proc/vmcore dumpfile</p>
-
-<p style="margin-top: 1em">-d dump_level <br>
-Specify the type of unnecessary page for analysis. <br>
-Pages of the specified type are not copied to DUMPFILE. The
-page type marked in the following table is excluded. A user
-can specify multiple page types by setting the sum <br>
-of each page type for dump_level. The maximum of dump_level
-is 31. Note that a dump_level for Xen dump filtering is 0 or
-1 on a machine other than x86_64. On a x86_64 <br>
-machine, even 2 or bigger dump level will be effective if
-you specify domain-0&rsquo;s vmlinux with -x option. Then
-the pages are excluded only from domain-0. <br>
-If specifying multiple dump_levels with the delimiter
-&rsquo;,&rsquo;, makedumpfile retries to create a DUMPFILE
-by other dump_level when &quot;No space on device&quot;
-error happens. For exam&acirc; <br>
-ple, if dump_level is &quot;11,31&quot; and makedumpfile
-fails by dump_level 11, makedumpfile retries it by
-dump_level 31. <br>
-Example: <br>
-# makedumpfile -d 11 -x vmlinux /proc/vmcore dumpfile <br>
-# makedumpfile -d 11,31 -x vmlinux /proc/vmcore dumpfile
-<br>
-Base level: <br>
-dump_level consists of five bits, so there are five base
-levels to specify the type of unnecessary page. <br>
-1 : Exclude the pages filled with zero. <br>
-2 : Exclude the non-private cache pages. <br>
-4 : Exclude all cache pages. <br>
-8 : Exclude the user process data pages. <br>
-16 : Exclude the free pages.</p>
-
-<p style="margin-top: 1em">Here is the all combinations of
-the bits.</p>
-
-<p style="margin-top: 1em">| |non- | | | <br>
-dump | zero |private|private| user | free <br>
-level | page |cache |cache | data | page <br>
--------+------+-------+-------+------+------ <br>
-0 | | | | | <br>
-1 | X | | | | <br>
-2 | | X | | | <br>
-3 | X | X | | | <br>
-4 | | X | X | | <br>
-5 | X | X | X | | <br>
-6 | | X | X | | <br>
-7 | X | X | X | | <br>
-8 | | | | X | <br>
-9 | X | | | X | <br>
-10 | | X | | X | <br>
-11 | X | X | | X | <br>
-12 | | X | X | X | <br>
-13 | X | X | X | X | <br>
-14 | | X | X | X | <br>
-15 | X | X | X | X | <br>
-16 | | | | | X <br>
-17 | X | | | | X <br>
-18 | | X | | | X <br>
-19 | X | X | | | X <br>
-20 | | X | X | | X <br>
-21 | X | X | X | | X <br>
-22 | | X | X | | X <br>
-23 | X | X | X | | X <br>
-24 | | | | X | X <br>
-25 | X | | | X | X <br>
-26 | | X | | X | X <br>
-27 | X | X | | X | X <br>
-28 | | X | X | X | X <br>
-29 | X | X | X | X | X <br>
-30 | | X | X | X | X <br>
-31 | X | X | X | X | X</p>
-
-<p style="margin-top: 1em">-E Create DUMPFILE in the ELF
-format. <br>
-This option cannot be specified with the -c, -l or -p
-options, because the ELF format does not support compressed
-data. <br>
-Example: <br>
-# makedumpfile -E -d 31 -x vmlinux /proc/vmcore dumpfile</p>
-
-<p style="margin-top: 1em">-f Force existing DUMPFILE to be
-overwritten. <br>
-Example: <br>
-# makedumpfile -f -d 31 -x vmlinux /proc/vmcore dumpfile
-<br>
-This command overwrites DUMPFILE even if it already
-exists.</p>
-
-<p style="margin-top: 1em">-x VMLINUX <br>
-Specify the first kernel&rsquo;s VMLINUX with debug
-information to analyze the first kernel&rsquo;s memory
-usage. <br>
-This option is necessary if VMCORE does not contain
-VMCOREINFO, [-i VMCOREINFO] is not specified, and dump_level
-is 2 or more. <br>
-The page size of the first kernel and the second kernel
-should match. <br>
-Example: <br>
-# makedumpfile -d 31 -x vmlinux /proc/vmcore dumpfile</p>
-
-<p style="margin-top: 1em">-i VMCOREINFO <br>
-Specify VMCOREINFO instead of VMLINUX for analyzing the
-first kernel&rsquo;s memory usage. <br>
-VMCOREINFO should be made beforehand by makedumpfile with -g
-option, and it contains the first kernel&rsquo;s
-information. <br>
-This option is necessary if VMCORE does not contain
-VMCOREINFO, [-x VMLINUX] is not specified, and dump_level is
-2 or more. <br>
-Example: <br>
-# makedumpfile -d 31 -i vmcoreinfo /proc/vmcore dumpfile</p>
-
-<p style="margin-top: 1em">-g VMCOREINFO <br>
-Generate VMCOREINFO from the first kernel&rsquo;s VMLINUX
-with debug information. <br>
-VMCOREINFO must be generated on the system that is running
-the first kernel. With -i option, a user can specify
-VMCOREINFO generated on the other system that is running
-<br>
-the same first kernel. [-x VMLINUX] must be specified. <br>
-Example: <br>
-# makedumpfile -g vmcoreinfo -x vmlinux</p>
-
-<p style="margin-top: 1em">--config FILTERCONFIGFILE <br>
-Used in conjunction with -x VMLINUX option, to specify the
-filter config file FILTERCONFIGFILE that contains erase
-commands to filter out desired kernel data from vmcore <br>
-while creating DUMPFILE. For filter command syntax please
-refer to makedumpfile.conf(5).</p>
-
-<p style="margin-top: 1em">--eppic EPPICMACRO <br>
-Used in conjunction with -x VMLINUX option, to specify the
-eppic macro file that contains filter rules or directory
-that contains eppic macro files to filter out desired <br>
-kernel data from vmcore while creating DUMPFILE. When
-directory is specified, all the eppic macros in the
-directory are processed.</p>
-
-<p style="margin-top: 1em">-F Output the dump data in the
-flattened format to the standard output for transporting the
-dump data by SSH. <br>
-Analysis tools (crash utility before version 5.1.2 or GDB)
-cannot read the flattened format directly. For analysis, the
-dump data in the flattened format should be rear&acirc; <br>
-ranged to a normal DUMPFILE (readable with analysis tools)
-by -R option. By which option is specified with -F option,
-the format of the rearranged DUMPFILE is fixed. In <br>
-other words, it is impossible to specify the DUMPFILE format
-when the dump data is rearranged with -R option. If
-specifying -E option with -F option, the format of the <br>
-rearranged DUMPFILE is the ELF format. Otherwise, it is the
-kdump-compressed format. All the messages are output to
-standard error output by -F option because standard <br>
-output is used for the dump data. <br>
-Example: <br>
-# makedumpfile -F -c -d 31 -x vmlinux /proc/vmcore | ssh
-user@host &quot;cat &gt; dumpfile.tmp&quot; <br>
-# makedumpfile -F -c -d 31 -x vmlinux /proc/vmcore | ssh
-user@host &quot;makedumpfile -R dumpfile&quot; <br>
-# makedumpfile -F -E -d 31 -i vmcoreinfo /proc/vmcore | ssh
-user@host &quot;makedumpfile -R dumpfile&quot; <br>
-# makedumpfile -F -E --xen-vmcoreinfo VMCOREINFO
-/proc/vmcore | ssh user@host &quot;makedumpfile -R
-dumpfile&quot;</p>
-
-<p style="margin-top: 1em">-R Rearrange the dump data in
-the flattened format from the standard input to a normal
-DUMPFILE (readable with analysis tools). <br>
-Example: <br>
-# makedumpfile -R dumpfile &lt; dumpfile.tmp <br>
-# makedumpfile -F -d 31 -x vmlinux /proc/vmcore | ssh
-user@host &quot;makedumpfile -R dumpfile&quot;</p>
-
-<p style="margin-top: 1em">Instead of using -R option, a
-perl script &quot;makedumpfile-R.pl&quot; rearranges the
-dump data in the flattened format to a normal DUMPFILE, too.
-The perl script does not depend <br>
-on architecture, and most systems have perl command. Even if
-a remote host does not have makedumpfile, it is possible to
-rearrange the dump data in the flattened format <br>
-to a readable DUMPFILE on a remote host by running this
-script. <br>
-Example: <br>
-# makedumpfile -F -d 31 -x vmlinux /proc/vmcore | ssh
-user@host &quot;makedumpfile-R.pl dumpfile&quot;</p>
-
-<p style="margin-top: 1em">--split <br>
-Split the dump data to multiple DUMPFILEs in parallel. If
-specifying DUMPFILEs on different storage devices, a device
-can share I/O load with other devices and it reduces <br>
-time for saving the dump data. The file size of each
-DUMPFILE is smaller than the system memory size which is
-divided by the number of DUMPFILEs. This feature supports
-<br>
-only the kdump-compressed format. <br>
-Example: <br>
-# makedumpfile --split -d 31 -x vmlinux /proc/vmcore
-dumpfile1 dumpfile2</p>
-
-<p style="margin-top: 1em">--num-threads THREADNUM <br>
-Using multiple threads to read and compress data of each
-page in parallel. And it will reduces time for saving
-DUMPFILE. This feature only supports creating DUMPFILE in
-<br>
-kdump-comressed format from VMCORE in kdump-compressed
-format or elf format. <br>
-Example: <br>
-# makedumpfile -d 31 --num-threads 4 /proc/vmcore
-dumpfile</p>
-
-<p style="margin-top: 1em">--reassemble <br>
-Reassemble multiple DUMPFILEs, which are created by --split
-option, into one DUMPFILE. dumpfile1 and dumpfile2 are
-reassembled into dumpfile on the following example. <br>
-Example: <br>
-# makedumpfile --reassemble dumpfile1 dumpfile2 dumpfile</p>
-
-<p style="margin-top: 1em">-b &lt;order&gt; <br>
-Cache 2^order pages in ram when generating DUMPFILE before
-writing to output. The default value is 4.</p>
-
-<p style="margin-top: 1em">--cyclic-buffer buffer_size <br>
-Specify the buffer size in kilo bytes for bitmap data.
-Filtering processing will be divided into multi cycles to
-fix the memory consumption, the number of cycles is
-rep&acirc; <br>
-resented as:</p>
-
-<p style="margin-top: 1em">num_of_cycles = system_memory /
-(buffer_size * 1024 * bit_per_bytes * page_size )</p>
-
-<p style="margin-top: 1em">The lesser number of cycles, the
-faster working speed is expected. By default, buffer_size
-will be calculated automatically depending on system memory
-size, so ordinary <br>
-users don&rsquo;t need to specify this option.</p>
-
-<p style="margin-top: 1em">Example: <br>
-# makedumpfile --cyclic-buffer 1024 -d 31 -x vmlinux
-/proc/vmcore dumpfile</p>
-
-<p style="margin-top: 1em">--splitblock-size
-splitblock_size <br>
-Specify the splitblock size in kilo bytes for analysis with
---split. If --splitblock N is specified, difference of each
-splitted dumpfile size is at most N kilo bytes. <br>
-Example: <br>
-# makedumpfile --splitblock-size 1024 -d 31 -x vmlinux
---split /proc/vmcore dumpfile1 dumpfile2</p>
-
-<p style="margin-top: 1em">--work-dir <br>
-Specify the working directory for the temporary bitmap file.
-If this option isn&rsquo;t specified, the bitmap will be
-saved on memory. Filtering processing has to do 2 pass <br>
-scanning to fix the memory consumption, but it can be
-avoided by using working directory on file system. So if you
-specify this option, the filtering speed may be bit <br>
-faster.</p>
-
-<p style="margin-top: 1em">Example: <br>
-# makedumpfile --work-dir /tmp -d 31 -x vmlinux /proc/vmcore
-dumpfile</p>
-
-<p style="margin-top: 1em">--non-mmap <br>
-Never use mmap(2) to read VMCORE even if it supports
-mmap(2). Generally, reading VMCORE with mmap(2) is faster
-than without it, so ordinary users don&rsquo;t need to
-specify <br>
-this option. This option is mainly for debugging. <br>
-Example: <br>
-# makedumpfile --non-mmap -d 31 -x vmlinux /proc/vmcore
-dumpfile</p>
-
-<p style="margin-top: 1em">--xen-syms XEN-SYMS <br>
-Specify the XEN-SYMS with debug information to analyze the
-xen&rsquo;s memory usage. This option extracts the part of
-xen and domain-0. <br>
-Example: <br>
-# makedumpfile -E --xen-syms xen-syms /proc/vmcore
-dumpfile</p>
-
-<p style="margin-top: 1em">--xen-vmcoreinfo VMCOREINFO <br>
-Specify VMCOREINFO instead of XEN-SYMS for analyzing the
-xen&rsquo;s memory usage. <br>
-VMCOREINFO should be made beforehand by makedumpfile with -g
-option, and it contains the xen&rsquo;s information. <br>
-Example: <br>
-# makedumpfile -E --xen-vmcoreinfo VMCOREINFO /proc/vmcore
-dumpfile</p>
-
-<p style="margin-top: 1em">-X Exclude all the user domain
-pages from Xen kdump&rsquo;s VMCORE, and extracts the part
-of xen and domain-0. If VMCORE contains VMCOREINFO for Xen,
-it is not necessary to specify <br>
---xen-syms and --xen-vmcoreinfo. <br>
-Example: <br>
-# makedumpfile -E -X /proc/vmcore dumpfile</p>
-
-<p style="margin-top: 1em">--xen_phys_start
-xen_phys_start_address <br>
-This option is only for x86_64. Specify the
-xen_phys_start_address, if the xen code/data is relocatable
-and VMCORE does not contain xen_phys_start_address in the
-CRASH&acirc; <br>
-INFO. xen_phys_start_address can be taken from the line of
-&quot;Hypervisor code and data&quot; in /proc/iomem. For
-example, specify 0xcee00000 as xen_phys_start_address if
-<br>
-/proc/iomem is the following: <br>
-------------------------------------------------------- <br>
-# cat /proc/iomem <br>
-... <br>
-cee00000-cfd99999 : Hypervisor code and data <br>
-... <br>
--------------------------------------------------------</p>
-
-<p style="margin-top: 1em">Example: <br>
-# makedumpfile -E -X --xen_phys_start 0xcee00000
-/proc/vmcore dumpfile</p>
-
-<p style="margin-top: 1em">--message-level message_level
-<br>
-Specify the message types. <br>
-Users can restrict outputs printed by specifying
-message_level with this option. The message type marked with
-an X in the following table is printed. For example,
-accord&acirc; <br>
-ing to the table, specifying 7 as message_level means
-progress indicator, common message, and error message are
-printed, and this is a default value. Note that the maximum
-<br>
-value of message_level is 31.</p>
-
-<p style="margin-top: 1em">message | progress | common |
-error | debug | report <br>
-level | indicator| message | message | message | message
-<br>
-
----------+----------+---------+---------+---------+---------
-<br>
-0 | | | | | <br>
-1 | X | | | | <br>
-2 | | X | | | <br>
-3 | X | X | | | <br>
-4 | | | X | | <br>
-5 | X | | X | | <br>
-6 | | X | X | | <br>
-* 7 | X | X | X | | <br>
-8 | | | | X | <br>
-9 | X | | | X | <br>
-10 | | X | | X | <br>
-11 | X | X | | X | <br>
-12 | | | X | X | <br>
-13 | X | | X | X | <br>
-14 | | X | X | X | <br>
-15 | X | X | X | X | <br>
-16 | | | | | X <br>
-17 | X | | | | X <br>
-18 | | X | | | X <br>
-19 | X | X | | | X <br>
-20 | | | X | | X <br>
-21 | X | | X | | X <br>
-22 | | X | X | | X <br>
-23 | X | X | X | | X <br>
-24 | | | | X | X <br>
-25 | X | | | X | X <br>
-26 | | X | | X | X <br>
-27 | X | X | | X | X <br>
-28 | | | X | X | X <br>
-29 | X | | X | X | X <br>
-30 | | X | X | X | X <br>
-31 | X | X | X | X | X</p>
-
-<p style="margin-top: 1em">--vtop virtual_address <br>
-This option is useful, when user debugs the translation
-problem of virtual address. If specifing virtual_address,
-its physical address is printed. It makes debugging easy
-<br>
-by comparing the output of this option with the one of
-&quot;vtop&quot; subcommand of the crash utility.
-&quot;--vtop&quot; option only prints the translation
-output, and it does not affect <br>
-the dumpfile creation.</p>
-
-<p style="margin-top: 1em">--dump-dmesg <br>
-This option overrides the normal behavior of makedumpfile.
-Instead of compressing and filtering a VMCORE to make it
-smaller, it simply extracts the dmesg log from a <br>
-VMCORE and writes it to the specified LOGFILE. If a VMCORE
-does not contain VMCOREINFO for dmesg, it is necessary to
-specfiy [-x VMLINUX] or [-i VMCOREINFO].</p>
-
-<p style="margin-top: 1em">Example: <br>
-# makedumpfile --dump-dmesg /proc/vmcore dmesgfile <br>
-# makedumpfile --dump-dmesg -x vmlinux /proc/vmcore
-dmesgfile</p>
-
-<p style="margin-top: 1em">--mem-usage <br>
-This option is only for x86_64. This option is used to show
-the page numbers of current system in different use. It
-should be executed in 1st kernel. By the help of this, <br>
-user can know how many pages is dumpable when different
-dump_level is specified. It analyzes the &rsquo;System
-Ram&rsquo; and &rsquo;kernel text&rsquo; program segment of
-/proc/kcore excluding <br>
-the crashkernel range, then calculates the page number of
-different kind per vmcoreinfo. So currently /proc/kcore need
-be specified explicitly.</p>
-
-<p style="margin-top: 1em">Example: <br>
-# makedumpfile --mem-usage /proc/kcore</p>
-
-<p style="margin-top: 1em">--diskset=VMCORE <br>
-Specify multiple VMCOREs created on sadump diskset
-configuration the same number of times as the number of
-VMCOREs in increasing order from left to right. VMCOREs are
-<br>
-assembled into a single DUMPFILE.</p>
-
-<p style="margin-top: 1em">Example: <br>
-# makedumpfile -x vmlinux --diskset=vmcore1
---diskset=vmcore2 dumpfile</p>
-
-<p style="margin-top: 1em">-D Print debugging message.</p>
-
-<p style="margin-top: 1em">-h (--help) <br>
-Show help message and LZO/snappy support status
-(enabled/disabled).</p>
-
-<p style="margin-top: 1em">-v Show the version of
-makedumpfile.</p>
-
-<p style="margin-top: 1em">ENVIRONMENT VARIABLES <br>
-TMPDIR This environment variable is used in 1st kernel
-environment for a temporary memory bitmap file. If your
-machine has a lots of memory and you use small tmpfs on
-/tmp, <br>
-makedumpfile can fail for a little memory because
-makedumpfile makes a very large temporary memory bitmap file
-in this case. To avoid this failure, you should specify <br>
---work-dir option to use file system on storage for the
-bitmap file.</p>
-
-<p style="margin-top: 1em">DIAGNOSTICS <br>
-makedumpfile exits with the following value.</p>
-
-<p style="margin-top: 1em">0 : makedumpfile succeeded.</p>
-
-<p style="margin-top: 1em">1 : makedumpfile failed without
-the following reasons.</p>
-
-<p style="margin-top: 1em">2 : makedumpfile failed due to
-the different version between VMLINUX and VMCORE.</p>
-
-<p style="margin-top: 1em">AUTHORS <br>
-Written by Masaki Tachibana, and Ken&rsquo;ichi Ohmichi.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-crash(8), gdb(1), kexec(8), makedumpfile.conf(5)</p>
-
-<p style="margin-top: 1em">makedumpfile v1.6.0 9 Jun 2016
-MAKEDUMPFILE(8)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MAKEDUMPFILE(8)</td>
+    <td class="head-vol">Linux System Administrator's Manual</td>
+    <td class="head-rtitle">MAKEDUMPFILE(8)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+makedumpfile - make a small dumpfile of kdump
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<b>makedumpfile</b> [<i>OPTION</i>] [-x <i>VMLINUX</i>|-i <i>VMCOREINFO</i>]
+  <i>VMCORE</i> <i>DUMPFILE</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> -F [<i>OPTION</i>] [-x <i>VMLINUX</i>|-i <i>VMCOREINFO</i>]
+  <i>VMCORE</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> [<i>OPTION</i>] -x <i>VMLINUX</i> [--config
+  <i>FILTERCONFIGFILE</i>] [--eppic <i>EPPICMACRO</i>] <i>VMCORE</i>
+  <i>DUMPFILE</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> -R <i>DUMPFILE</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> --split [<i>OPTION</i>] [-x <i>VMLINUX</i>|-i
+  <i>VMCOREINFO</i>] <i>VMCORE</i> <i>DUMPFILE1</i> <i>DUMPFILE2</i>
+  [<i>DUMPFILE3</i> ..]
+<div>&#x00A0;</div>
+<b>makedumpfile</b> [<i>OPTION</i>] [-x <i>VMLINUX</i>|-i <i>VMCOREINFO</i>]
+  --num-threads <i>THREADNUM</i> <i>VMCORE</i> <i>DUMPFILE</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> --reassemble <i>DUMPFILE1</i> <i>DUMPFILE2</i>
+  [<i>DUMPFILE3</i> ..] <i>DUMPFILE</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> -g <i>VMCOREINFO</i> -x <i>VMLINUX</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> [<i>OPTION</i>] [--xen-syms <i>XEN-SYMS</i>|--xen-vmcoreinfo
+  <i>VMCOREINFO</i>] <i>VMCORE</i> <i>DUMPFILE</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> --dump-dmesg [-x <i>VMLINUX</i>|-i <i>VMCOREINFO</i>]
+  <i>VMCORE</i> <i>LOGFILE</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> [<i>OPTION</i>] -x <i>VMLINUX</i> --diskset=<i>VMCORE1</i>
+  --diskset= <i>VMCORE2</i> [--diskset=<i>VMCORE3</i> ..] <i>DUMPFILE</i>
+<div>&#x00A0;</div>
+<b>makedumpfile</b> -h
+<div>&#x00A0;</div>
+<b>makedumpfile</b> -v
+<div>&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+With kdump, the memory image of the first kernel (called &quot;panicked
+  kernel&quot;) can be taken as /proc/vmcore while the second kernel (called
+  &quot;kdump kernel&quot; or &quot;capture kernel&quot;) is running. This
+  document represents /proc/vmcore as <i>VMCORE</i>. makedumpfile makes a small
+  <i>DUMPFILE</i> by compressing dump data or by excluding unnecessary pages for
+  analysis, or both. makedumpfile needs the first kernel's debug information, so
+  that it can distinguish unnecessary pages by analyzing how the first kernel
+  uses the memory. The information can be taken from <i>VMLINUX</i> or
+  <i>VMCOREINFO</i>.
+<div class="Pp"></div>
+makedumpfile can exclude the following types of pages while copying
+  <i>VMCORE</i> to <i>DUMPFILE</i>, and a user can choose which type of pages
+  will be excluded.
+<div>&#x00A0;</div>
+<b>- Pages filled with zero</b>
+<div>&#x00A0;</div>
+<b>- Cache pages without private flag (non-private cache)</b>
+<div>&#x00A0;</div>
+<b>- Cache pages with private flag (private cache)</b>
+<div>&#x00A0;</div>
+<b>- User process data pages</b>
+<div>&#x00A0;</div>
+<b>- Free pages</b>
+<div class="Pp"></div>
+makedumpfile provides two <i>DUMPFILE</i> formats (the ELF format and the
+  kdump-compressed format). By default, makedumpfile makes a <i>DUMPFILE</i> in
+  the kdump-compressed format. The kdump-compressed format is readable only with
+  the crash utility, and it can be smaller than the ELF format because of the
+  compression support. The ELF format is readable with GDB and the crash
+  utility. If a user wants to use GDB, <i>DUMPFILE</i> format has to be
+  explicitly specified to be the ELF format.
+<div class="Pp"></div>
+Apart from the exclusion of unnecessary pages mentioned above, makedumpfile
+  allows user to filter out targeted kernel data. The filter config file can be
+  used to specify kernel/module symbols and its members that need to be filtered
+  out through the erase command syntax. makedumpfile reads the filter config and
+  builds the list of memory addresses and its sizes after processing filter
+  commands. The memory locations that require to be filtered out are then
+  poisoned with character 'X' (58 in Hex). Refer to <b>makedumpfile.conf(5)</b>
+  for file format.
+<div class="Pp"></div>
+Eppic macros can also be used to specify kernel symbols and its members that
+  need to be filtered. Eppic provides C semantics including language constructs
+  such as conditional statements, logical and arithmetic operators, functions,
+  nested loops to traverse and erase kernel data. --eppic requires
+  <b>eppic_makedumpfile.so</b> and eppic library. <b>eppic_makedumpfile.so</b>
+  can be built from makedumpfile source. Refer to
+  <b>http://code.google.com/p/eppic/</b> to build eppic library
+  <b>libeppic.a</b> and for more information on writing eppic macros.
+<div class="Pp"></div>
+To analyze the first kernel's memory usage, makedumpfile can refer to
+  <i>VMCOREINFO</i> instead of <i>VMLINUX</i>. <i>VMCOREINFO</i> contains the
+  first kernel's information (structure size, field offset, etc.), and
+  <i>VMCOREINFO</i> is small enough to be included into the second kernel's
+  initrd.
+<div>&#x00A0;</div>
+If the second kernel is running on its initrd without mounting a root file
+  system, makedumpfile cannot refer to <i>VMLINUX</i> because the second
+  kernel's initrd cannot include a large file like <i>VMLINUX</i>. To solve the
+  problem, makedumpfile makes <i>VMCOREINFO</i> beforehand, and it refers to
+  <i>VMCOREINFO</i> instead of <i>VMLINUX</i> while the second kernel is
+  running.
+<div>&#x00A0;</div>
+<i>VMCORE</i> has contained <i>VMCOREINFO</i> since linux-2.6.24, and a user
+  does not need to specify neither -x nor -i option.
+<div class="Pp"></div>
+If the second kernel is running on its initrd without mounting any file system,
+  a user needs to transport the dump data to a remote host. To transport the
+  dump data by SSH, makedumpfile outputs the dump data in the intermediate
+  format (the flattened format) to the standard output. By piping the output
+  data to SSH, a user can transport the dump data to a remote host. Note that
+  analysis tools (crash utility before version 5.1.2 or GDB) cannot read the
+  flattened format directly, so on a remote host the received data in the
+  flattened format needs to be rearranged to a readable <i>DUMPFILE</i> format
+  by makedumpfile (or makedumpfile-R.pl).
+<div class="Pp"></div>
+makedumpfile can read a <i>DUMPFILE</i> in the kdump-compressed format instead
+  of <i>VMCORE</i> and re-filter it. This feature is useful in situation that
+  users need to reduce the file size of <i>DUMPFILE</i> for sending it somewhere
+  by ftp/scp/etc. (If all of the page types, which are specified by a new
+  dump_level, are excluded from an original <i>DUMPFILE</i> already, a new
+  <i>DUMPFILE</i> is the same as an original <i>DUMPFILE</i>.)
+<div>&#x00A0;</div>
+For example, makedumpfile can create a <i>DUMPFILE</i> of dump_level 31 from the
+  one of dump_level 3 like the following:
+<div>&#x00A0;</div>
+<b>Example:</b>
+<div>&#x00A0;</div>
+# makedumpfile -c -d 3 /proc/vmcore dumpfile.1
+<div>&#x00A0;</div>
+# makedumpfile -c -d 31 dumpfile.1 dumpfile.2
+<div class="Pp"></div>
+makedumpfile can read <i>VMCORE</i>(s) in three kinds of sadump formats: single
+  partition format, diskset format and media backup format, and can convert each
+  of them into kdump-compressed format with filtering and compression
+  processing. Note that for <i>VMCORE</i>(s) created by sadump, you always need
+  to pass <i>VMLINUX</i> with -x option. Also, to pass multiple <i>VMCORE</i>s
+  created on diskset configuration, you need to use --diskset option.
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-c,-l,-p</b></dt>
+  <dd class="It-tag">Compress dump data by each page using zlib for -c option,
+      lzo for -l option or snappy for -p option. (-l option needs USELZO=on and
+      -p option needs USESNAPPY=on when building)
+    <div>&#x00A0;</div>
+    A user cannot specify this option with -E option, because the ELF format
+      does not support compressed data.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -c -d 31 -x vmlinux /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-d</b><i>&#x00A0;dump_level</i></dt>
+  <dd class="It-tag">Specify the type of unnecessary page for analysis.
+    <div>&#x00A0;</div>
+    Pages of the specified type are not copied to <i>DUMPFILE</i>. The page type
+      marked in the following table is excluded. A user can specify multiple
+      page types by setting the sum of each page type for dump_level. The
+      maximum of dump_level is 31. Note that a dump_level for Xen dump filtering
+      is 0 or 1 on a machine other than x86_64. On a x86_64 machine, even 2 or
+      bigger dump level will be effective if you specify domain-0's
+      <i>vmlinux</i> with -x option. Then the pages are excluded only from
+      domain-0.
+    <div>&#x00A0;</div>
+    If specifying multiple dump_levels with the delimiter ',', makedumpfile
+      retries to create a <i>DUMPFILE</i> by other dump_level when &quot;No
+      space on device&quot; error happens. For example, if dump_level is
+      &quot;11,31&quot; and makedumpfile fails by dump_level 11, makedumpfile
+      retries it by dump_level 31.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -d 11 -x vmlinux /proc/vmcore dumpfile
+    <div>&#x00A0;</div>
+    # makedumpfile -d 11,31 -x vmlinux /proc/vmcore dumpfile
+    <div>&#x00A0;</div>
+    <b>Base level:</b>
+    <div>&#x00A0;</div>
+    dump_level consists of five bits, so there are five base levels to specify
+      the type of unnecessary page.
+    <div>&#x00A0;</div>
+    	 <b> 1</b> :	Exclude the pages filled with zero.
+    <div>&#x00A0;</div>
+    	 <b> 2</b> :	Exclude the non-private cache pages.
+    <div>&#x00A0;</div>
+    	 <b> 4</b> :	Exclude all cache pages.
+    <div>&#x00A0;</div>
+    	 <b> 8</b> :	Exclude the user process data pages.
+    <div>&#x00A0;</div>
+    	 <b>16</b> :	Exclude the free pages.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Here is the all combinations of the bits.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <br/>
+     | |non- | | |
+    <br/>
+     dump | zero |private|private| user | free
+    <br/>
+     level | page |cache |cache | data | page
+    <div>&#x00A0;</div>
+    -------+------+-------+-------+------+------
+    <br/>
+     0 | | | | |
+    <br/>
+     1 | X | | | |
+    <br/>
+     2 | | X | | |
+    <br/>
+     3 | X | X | | |
+    <br/>
+     4 | | X | X | |
+    <br/>
+     5 | X | X | X | |
+    <br/>
+     6 | | X | X | |
+    <br/>
+     7 | X | X | X | |
+    <br/>
+     8 | | | | X |
+    <br/>
+     9 | X | | | X |
+    <br/>
+     10 | | X | | X |
+    <br/>
+     11 | X | X | | X |
+    <br/>
+     12 | | X | X | X |
+    <br/>
+     13 | X | X | X | X |
+    <br/>
+     14 | | X | X | X |
+    <br/>
+     15 | X | X | X | X |
+    <br/>
+     16 | | | | | X
+    <br/>
+     17 | X | | | | X
+    <br/>
+     18 | | X | | | X
+    <br/>
+     19 | X | X | | | X
+    <br/>
+     20 | | X | X | | X
+    <br/>
+     21 | X | X | X | | X
+    <br/>
+     22 | | X | X | | X
+    <br/>
+     23 | X | X | X | | X
+    <br/>
+     24 | | | | X | X
+    <br/>
+     25 | X | | | X | X
+    <br/>
+     26 | | X | | X | X
+    <br/>
+     27 | X | X | | X | X
+    <br/>
+     28 | | X | X | X | X
+    <br/>
+     29 | X | X | X | X | X
+    <br/>
+     30 | | X | X | X | X
+    <br/>
+     31 | X | X | X | X | X
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-E</b></dt>
+  <dd class="It-tag">Create <i>DUMPFILE</i> in the ELF format.
+    <div>&#x00A0;</div>
+    This option cannot be specified with the -c, -l or -p options, because the
+      ELF format does not support compressed data.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -E -d 31 -x vmlinux /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-f</b></dt>
+  <dd class="It-tag">Force existing DUMPFILE to be overwritten.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -f -d 31 -x vmlinux /proc/vmcore dumpfile
+    <div>&#x00A0;</div>
+    This command overwrites <i>DUMPFILE</i> even if it already exists.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-x</b> <i>VMLINUX</i></dt>
+  <dd class="It-tag">Specify the first kernel's <i>VMLINUX</i> with debug
+      information to analyze the first kernel's memory usage.
+    <div>&#x00A0;</div>
+    This option is necessary if <i>VMCORE</i> does not contain
+      <i>VMCOREINFO</i>, [-i <i>VMCOREINFO</i>] is not specified, and dump_level
+      is 2 or more.
+    <div>&#x00A0;</div>
+    The page size of the first kernel and the second kernel should match.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -d 31 -x vmlinux /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-i</b> <i>VMCOREINFO</i></dt>
+  <dd class="It-tag">Specify <i>VMCOREINFO</i> instead of <i>VMLINUX</i> for
+      analyzing the first kernel's memory usage.
+    <div>&#x00A0;</div>
+     <i>VMCOREINFO</i> should be made beforehand by makedumpfile with -g option,
+      and it contains the first kernel's information.
+    <div>&#x00A0;</div>
+    This option is necessary if <i>VMCORE</i> does not contain
+      <i>VMCOREINFO</i>, [-x <i>VMLINUX</i>] is not specified, and dump_level is
+      2 or more.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -d 31 -i vmcoreinfo /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-g</b> <i>VMCOREINFO</i></dt>
+  <dd class="It-tag">Generate <i>VMCOREINFO</i> from the first kernel's
+      <i>VMLINUX</i> with debug information.
+    <div>&#x00A0;</div>
+     <i>VMCOREINFO</i> must be generated on the system that is running the first
+      kernel. With -i option, a user can specify <i>VMCOREINFO</i> generated on
+      the other system that is running the same first kernel. [-x
+      <i>VMLINUX</i>] must be specified.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -g vmcoreinfo -x vmlinux
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--config</b> <i>FILTERCONFIGFILE</i></dt>
+  <dd class="It-tag">Used in conjunction with -x <i>VMLINUX</i> option, to
+      specify the filter config file <i>FILTERCONFIGFILE</i> that contains erase
+      commands to filter out desired kernel data from vmcore while creating
+      <i>DUMPFILE</i>. For filter command syntax please refer to
+      <b>makedumpfile.conf(5)</b>.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--eppic</b> <i>EPPICMACRO</i></dt>
+  <dd class="It-tag">Used in conjunction with -x <i>VMLINUX</i> option, to
+      specify the eppic macro file that contains filter rules or directory that
+      contains eppic macro files to filter out desired kernel data from vmcore
+      while creating <i>DUMPFILE</i>. When directory is specified, all the eppic
+      macros in the directory are processed.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-F</b></dt>
+  <dd class="It-tag">Output the dump data in the flattened format to the
+      standard output for transporting the dump data by SSH.
+    <div>&#x00A0;</div>
+    Analysis tools (crash utility before version 5.1.2 or GDB) cannot read the
+      flattened format directly. For analysis, the dump data in the flattened
+      format should be rearranged to a normal <i>DUMPFILE</i> (readable with
+      analysis tools) by -R option. By which option is specified with -F option,
+      the format of the rearranged <i>DUMPFILE</i> is fixed. In other words, it
+      is impossible to specify the <i>DUMPFILE</i> format when the dump data is
+      rearranged with -R option. If specifying -E option with -F option, the
+      format of the rearranged <i>DUMPFILE</i> is the ELF format. Otherwise, it
+      is the kdump-compressed format. All the messages are output to standard
+      error output by -F option because standard output is used for the dump
+      data.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -F -c -d 31 -x vmlinux /proc/vmcore \
+    <div>&#x00A0;</div>
+    | ssh user@host &quot;cat &gt; dumpfile.tmp&quot;
+    <div>&#x00A0;</div>
+    # makedumpfile -F -c -d 31 -x vmlinux /proc/vmcore \
+    <div>&#x00A0;</div>
+    | ssh user@host &quot;makedumpfile -R dumpfile&quot;
+    <div>&#x00A0;</div>
+    # makedumpfile -F -E -d 31 -i vmcoreinfo /proc/vmcore \
+    <div>&#x00A0;</div>
+    | ssh user@host &quot;makedumpfile -R dumpfile&quot;
+    <div>&#x00A0;</div>
+    # makedumpfile -F -E --xen-vmcoreinfo <i>VMCOREINFO</i> /proc/vmcore \
+    <div>&#x00A0;</div>
+    | ssh user@host &quot;makedumpfile -R dumpfile&quot;
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-R</b></dt>
+  <dd class="It-tag">Rearrange the dump data in the flattened format from the
+      standard input to a normal <i>DUMPFILE</i> (readable with analysis tools).
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -R dumpfile &lt; dumpfile.tmp
+    <div>&#x00A0;</div>
+    # makedumpfile -F -d 31 -x vmlinux /proc/vmcore \
+    <div>&#x00A0;</div>
+    | ssh user@host &quot;makedumpfile -R dumpfile&quot;
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Instead of using -R option, a perl script &quot;makedumpfile-R.pl&quot;
+      rearranges the dump data in the flattened format to a normal
+      <i>DUMPFILE</i>, too. The perl script does not depend on architecture, and
+      most systems have perl command. Even if a remote host does not have
+      makedumpfile, it is possible to rearrange the dump data in the flattened
+      format to a readable <i>DUMPFILE</i> on a remote host by running this
+      script.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -F -d 31 -x vmlinux /proc/vmcore \
+    <div>&#x00A0;</div>
+    | ssh user@host &quot;makedumpfile-R.pl dumpfile&quot;
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--split</b></dt>
+  <dd class="It-tag">Split the dump data to multiple <i>DUMPFILE</i>s in
+      parallel. If specifying <i>DUMPFILE</i>s on different storage devices, a
+      device can share I/O load with other devices and it reduces time for
+      saving the dump data. The file size of each <i>DUMPFILE</i> is smaller
+      than the system memory size which is divided by the number of
+      <i>DUMPFILE</i>s. This feature supports only the kdump-compressed format.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile --split -d 31 -x vmlinux /proc/vmcore dumpfile1 dumpfile2
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--num-threads</b> <i>THREADNUM</i></dt>
+  <dd class="It-tag">Using multiple threads to read and compress data of each
+      page in parallel. And it will reduces time for saving <i>DUMPFILE</i>.
+      This feature only supports creating <i>DUMPFILE</i> in kdump-comressed
+      format from <i>VMCORE</i> in kdump-compressed format or elf format.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -d 31 --num-threads 4 /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--reassemble</b></dt>
+  <dd class="It-tag">Reassemble multiple <i>DUMPFILE</i>s, which are created by
+      --split option, into one <i>DUMPFILE</i>. dumpfile1 and dumpfile2 are
+      reassembled into dumpfile on the following example.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile --reassemble dumpfile1 dumpfile2 dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-b</b> <i>&lt;order&gt;</i></dt>
+  <dd class="It-tag">Cache 2^order pages in ram when generating <i>DUMPFILE</i>
+      before writing to output. The default value is 4.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--cyclic-buffer</b> <i>buffer_size</i></dt>
+  <dd class="It-tag">Specify the buffer size in kilo bytes for bitmap data.
+      Filtering processing will be divided into multi cycles to fix the memory
+      consumption, the number of cycles is represented as:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <br/>
+     num_of_cycles = system_memory / ( <i>buffer_size</i> * 1024 * bit_per_bytes
+      * page_size )
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The lesser number of cycles, the faster working speed is expected. By
+      default, <i>buffer_size</i> will be calculated automatically depending on
+      system memory size, so ordinary users don't need to specify this option.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile --cyclic-buffer 1024 -d 31 -x vmlinux /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--splitblock-size</b> <i>splitblock_size</i></dt>
+  <dd class="It-tag">Specify the splitblock size in kilo bytes for analysis with
+      --split. If --splitblock N is specified, difference of each splitted
+      dumpfile size is at most N kilo bytes.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile --splitblock-size 1024 -d 31 -x vmlinux --split /proc/vmcore
+      dumpfile1 dumpfile2
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--work-dir</b></dt>
+  <dd class="It-tag">Specify the working directory for the temporary bitmap
+      file. If this option isn't specified, the bitmap will be saved on memory.
+      Filtering processing has to do 2 pass scanning to fix the memory
+      consumption, but it can be avoided by using working directory on file
+      system. So if you specify this option, the filtering speed may be bit
+      faster.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile --work-dir /tmp -d 31 -x vmlinux /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--non-mmap</b></dt>
+  <dd class="It-tag">Never use <b>mmap(2)</b> to read <i>VMCORE</i> even if it
+      supports <b>mmap(2)</b>. Generally, reading <i>VMCORE</i> with
+      <b>mmap(2)</b> is faster than without it, so ordinary users don't need to
+      specify this option. This option is mainly for debugging.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile --non-mmap -d 31 -x vmlinux /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--xen-syms</b> <i>XEN-SYMS</i></dt>
+  <dd class="It-tag">Specify the <i>XEN-SYMS</i> with debug information to
+      analyze the xen's memory usage. This option extracts the part of xen and
+      domain-0.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -E --xen-syms xen-syms /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--xen-vmcoreinfo</b> <i>VMCOREINFO</i></dt>
+  <dd class="It-tag">Specify <i>VMCOREINFO</i> instead of <i>XEN-SYMS</i> for
+      analyzing the xen's memory usage.
+    <div>&#x00A0;</div>
+     <i>VMCOREINFO</i> should be made beforehand by makedumpfile with -g option,
+      and it contains the xen's information.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -E --xen-vmcoreinfo <i>VMCOREINFO</i> /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-X</b></dt>
+  <dd class="It-tag">Exclude all the user domain pages from Xen kdump's
+      <i>VMCORE</i>, and extracts the part of xen and domain-0. If <i>VMCORE</i>
+      contains <i>VMCOREINFO</i> for Xen, it is not necessary to specify
+      <i>--xen-syms</i> and <i>--xen-vmcoreinfo</i>.
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -E -X /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--xen_phys_start</b> <i>xen_phys_start_address</i></dt>
+  <dd class="It-tag">This option is only for x86_64. Specify the
+      <i>xen_phys_start_address</i>, if the xen code/data is relocatable and
+      <i>VMCORE</i> does not contain <i>xen_phys_start_address</i> in the
+      CRASHINFO. <i>xen_phys_start_address</i> can be taken from the line of
+      &quot;Hypervisor code and data&quot; in /proc/iomem. For example, specify
+      0xcee00000 as <i>xen_phys_start_address</i> if /proc/iomem is the
+      following:
+    <br/>
+     -------------------------------------------------------
+    <br/>
+     # cat /proc/iomem
+    <br/>
+     ...
+    <br/>
+     cee00000-cfd99999 : Hypervisor code and data
+    <br/>
+     ...
+    <br/>
+     -------------------------------------------------------
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -E -X --xen_phys_start 0xcee00000 /proc/vmcore dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--message-level</b> <i>message_level</i></dt>
+  <dd class="It-tag">Specify the message types.
+    <div>&#x00A0;</div>
+    Users can restrict outputs printed by specifying <i>message_level</i> with
+      this option. The message type marked with an X in the following table is
+      printed. For example, according to the table, specifying 7 as
+      <i>message_level</i> means progress indicator, common message, and error
+      message are printed, and this is a default value. Note that the maximum
+      value of <i>message_level</i> is 31.
+    <div>&#x00A0;</div>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <br/>
+     message | progress | common | error | debug | report
+    <br/>
+     level | indicator| message | message | message | message
+    <div>&#x00A0;</div>
+    ---------+----------+---------+---------+---------+---------
+    <br/>
+     0 | | | | |
+    <br/>
+     1 | X | | | |
+    <br/>
+     2 | | X | | |
+    <br/>
+     3 | X | X | | |
+    <br/>
+     4 | | | X | |
+    <br/>
+     5 | X | | X | |
+    <br/>
+     6 | | X | X | |
+    <br/>
+     * 7 | X | X | X | |
+    <br/>
+     8 | | | | X |
+    <br/>
+     9 | X | | | X |
+    <br/>
+     10 | | X | | X |
+    <br/>
+     11 | X | X | | X |
+    <br/>
+     12 | | | X | X |
+    <br/>
+     13 | X | | X | X |
+    <br/>
+     14 | | X | X | X |
+    <br/>
+     15 | X | X | X | X |
+    <br/>
+     16 | | | | | X
+    <br/>
+     17 | X | | | | X
+    <br/>
+     18 | | X | | | X
+    <br/>
+     19 | X | X | | | X
+    <br/>
+     20 | | | X | | X
+    <br/>
+     21 | X | | X | | X
+    <br/>
+     22 | | X | X | | X
+    <br/>
+     23 | X | X | X | | X
+    <br/>
+     24 | | | | X | X
+    <br/>
+     25 | X | | | X | X
+    <br/>
+     26 | | X | | X | X
+    <br/>
+     27 | X | X | | X | X
+    <br/>
+     28 | | | X | X | X
+    <br/>
+     29 | X | | X | X | X
+    <br/>
+     30 | | X | X | X | X
+    <br/>
+     31 | X | X | X | X | X
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--vtop</b> <i>virtual_address</i></dt>
+  <dd class="It-tag">This option is useful, when user debugs the translation
+      problem of virtual address. If specifing <i>virtual_address</i>, its
+      physical address is printed. It makes debugging easy by comparing the
+      output of this option with the one of &quot;vtop&quot; subcommand of the
+      crash utility. &quot;--vtop&quot; option only prints the translation
+      output, and it does not affect the dumpfile creation.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--dump-dmesg</b></dt>
+  <dd class="It-tag">This option overrides the normal behavior of makedumpfile.
+      Instead of compressing and filtering a <i>VMCORE</i> to make it smaller,
+      it simply extracts the dmesg log from a <i>VMCORE</i> and writes it to the
+      specified <i>LOGFILE</i>. If a <i>VMCORE</i> does not contain
+      <i>VMCOREINFO</i> for dmesg, it is necessary to specfiy [-x
+      <i>VMLINUX</i>] or [-i <i>VMCOREINFO</i>].
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile --dump-dmesg /proc/vmcore dmesgfile
+    <div>&#x00A0;</div>
+    # makedumpfile --dump-dmesg -x vmlinux /proc/vmcore dmesgfile
+    <div>&#x00A0;</div>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--mem-usage</b></dt>
+  <dd class="It-tag">This option is only for x86_64. This option is used to show
+      the page numbers of current system in different use. It should be executed
+      in 1st kernel. By the help of this, user can know how many pages is
+      dumpable when different dump_level is specified. It analyzes the 'System
+      Ram' and 'kernel text' program segment of /proc/kcore excluding the
+      crashkernel range, then calculates the page number of different kind per
+      vmcoreinfo. So currently /proc/kcore need be specified explicitly.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile --mem-usage /proc/kcore
+    <div>&#x00A0;</div>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--diskset=VMCORE</b></dt>
+  <dd class="It-tag">Specify multiple <i>VMCORE</i>s created on sadump diskset
+      configuration the same number of times as the number of <i>VMCORE</i>s in
+      increasing order from left to right. <i>VMCORE</i>s are assembled into a
+      single <i>DUMPFILE.</i>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <div>&#x00A0;</div>
+    <b>Example:</b>
+    <div>&#x00A0;</div>
+    # makedumpfile -x vmlinux --diskset=vmcore1 --diskset=vmcore2 dumpfile
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-D</b></dt>
+  <dd class="It-tag">Print debugging message.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-h (--help)</b></dt>
+  <dd class="It-tag">Show help message and LZO/snappy support status
+      (enabled/disabled).
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-v</b></dt>
+  <dd class="It-tag">Show the version of makedumpfile.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<h1 class="Sh" title="Sh" id="ENVIRONMENT_VARIABLES"><a class="selflink" href="#ENVIRONMENT_VARIABLES">ENVIRONMENT
+  VARIABLES</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>TMPDIR</b></dt>
+  <dd class="It-tag">This environment variable is used in 1st kernel environment
+      for a temporary memory bitmap file. If your machine has a lots of memory
+      and you use small tmpfs on /tmp, makedumpfile can fail for a little memory
+      because makedumpfile makes a very large temporary memory bitmap file in
+      this case. To avoid this failure, you should specify --work-dir option to
+      use file system on storage for the bitmap file.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DIAGNOSTICS"><a class="selflink" href="#DIAGNOSTICS">DIAGNOSTICS</a></h1>
+makedumpfile exits with the following value.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>0</b> : makedumpfile succeeded.</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>1</b> : makedumpfile failed without the following
+    reasons.</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>2</b> : makedumpfile failed due to the different version
+    between <i>VMLINUX</i> and <i>VMCORE</i>.</dt>
+  <dd class="It-tag">
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<h1 class="Sh" title="Sh" id="AUTHORS"><a class="selflink" href="#AUTHORS">AUTHORS</a></h1>
+Written by Masaki Tachibana, and Ken'ichi Ohmichi.
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+crash(8), gdb(1), kexec(8), makedumpfile.conf(5)
+<div style="height: 1.00em;">&#x00A0;</div>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">9 Jun 2016</td>
+    <td class="foot-os">makedumpfile v1.6.0</td>
+  </tr>
+</table>
 </body>
 </html>

@@ -1,950 +1,836 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:25:36 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MK-KILL(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MK-KILL(1) User Contributed Perl Documentation
-MK-KILL(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-mk-kill - Kill MySQL queries that match certain
-criteria.</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-Usage: mk-kill [OPTION]... [FILE...]</p>
-
-<p style="margin-top: 1em">mk-kill kills MySQL connections.
-mk-kill connects to MySQL and gets queries from SHOW
-PROCESSLIST if no FILE is given. Else, it reads queries from
-one or more FILE which <br>
-contains the output of SHOW PROCESSLIST. If FILE is -,
-mk-kill reads from STDIN.</p>
-
-<p style="margin-top: 1em">Kill queries running longer than
-60s:</p>
-
-<p style="margin-top: 1em">mk-kill --busy-time 60
---kill</p>
-
-<p style="margin-top: 1em">Print, do not kill, queries
-running longer than 60s:</p>
-
-<p style="margin-top: 1em">mk-kill --busy-time 60
---print</p>
-
-<p style="margin-top: 1em">Check for sleeping processes and
-kill them all every 10s:</p>
-
-<p style="margin-top: 1em">mk-kill --match-command Sleep
---kill --victims all --interval 10</p>
-
-<p style="margin-top: 1em">Print all login processes:</p>
-
-<p style="margin-top: 1em">mk-kill --match-state login
---print --victims all</p>
-
-<p style="margin-top: 1em">See which queries in the
-processlist right now would match:</p>
-
-<p style="margin-top: 1em">mysql -e &quot;SHOW
-PROCESSLIST&quot; | mk-kill --busy-time 60 --print</p>
-
-<p style="margin-top: 1em">RISKS <br>
-The following section is included to inform users about the
-potential risks, whether known or unknown, of using this
-tool. The two main categories of risks are those created by
-<br>
-the nature of the tool (e.g. read-only tools vs. read-write
-tools) and those created by bugs.</p>
-
-<p style="margin-top: 1em">mk-kill is designed to kill
-queries if you use the &quot;--kill&quot; option is given,
-and that might disrupt your database&rsquo;s users, of
-course. You should test with the &lt;&quot;--print&quot;&gt;
-<br>
-option, which is safe, if you&rsquo;re unsure what the tool
-will do.</p>
-
-<p style="margin-top: 1em">At the time of this release, we
-know of no bugs that could cause serious harm to users.</p>
-
-<p style="margin-top: 1em">The authoritative source for
-updated information is always the online issue tracking
-system. Issues that affect this tool will be marked as such.
-You can see a list of such <br>
-issues at the following URL:
-&lt;http://www.maatkit.org/bugs/mk-kill&gt;.</p>
-
-<p style="margin-top: 1em">See also &quot;BUGS&quot; for
-more information on filing bugs and getting help.</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-mk-kill captures queries from SHOW PROCESSLIST, filters
-them, and then either kills or prints them. This is also
-known as a &quot;slow query sniper&quot; in some circles.
-The idea is to <br>
-watch for queries that might be consuming too many
-resources, and kill them.</p>
-
-<p style="margin-top: 1em">For brevity, we talk about
-killing queries, but they may just be printed (or some other
-future action) depending on what options are given.</p>
-
-<p style="margin-top: 1em">Normally mk-kill connects to
-MySQL to get queries from SHOW PROCESSLIST. Alternatively,
-it can read SHOW PROCESSLIST output from files. In this
-case, mk-kill does not connect <br>
-to MySQL and &quot;--kill&quot; has no effect. You should
-use &quot;--print&quot; instead when reading files. The
-ability to read a file (or - for STDIN) allows you to
-capture SHOW PROCESSLIST and <br>
-test it later with mk-kill to make sure that your matches
-kill the proper queries. There are a lot of special rules to
-follow, such as &quot;don&rsquo;t kill replication
-threads,&quot; so be <br>
-careful to not kill something important!</p>
-
-<p style="margin-top: 1em">Two important options to know
-are &quot;--busy-time&quot; and &quot;--victims&quot;.
-First, whereas most match/filter options match their
-corresponding value from SHOW PROCESSLIST (e.g. <br>
-&quot;--match-command&quot; matches a query&rsquo;s Command
-value), the Time value is matched by
-&quot;--busy-time&quot;. See also
-&quot;--interval&quot;.</p>
-
-<p style="margin-top: 1em">Second, &quot;--victims&quot;
-controls which matching queries from each class are killed.
-By default, the matching query with the highest Time value
-is killed (the oldest query). See the <br>
-next section, &quot;GROUP, MATCH AND KILL&quot;, for more
-details.</p>
-
-<p style="margin-top: 1em">Usually you need to specify at
-least one &quot;--match&quot; option, else no queries will
-match. Or, you can specify &quot;--match-all&quot; to match
-all queries that aren&rsquo;t ignored by an <br>
-&quot;--ignore&quot; option.</p>
-
-<p style="margin-top: 1em">mk-kill is a work in progress,
-and there is much more it could do.</p>
-
-<p style="margin-top: 1em">GROUP, MATCH AND KILL <br>
-Queries pass through several steps to determine which
-exactly will be killed (or printed--whatever action is
-specified). Understanding these steps will help you match
-precisely <br>
-the queries you want.</p>
-
-<p style="margin-top: 1em">The first step is grouping
-queries into classes. The &quot;--group-by&quot; option
-controls grouping. By default, this option has no value so
-all queries are grouped into one, big <br>
-default class. All types of matching and filtering (the next
-step) are applied per-class. Therefore, you may need to
-group queries in order to match/filter some classes but not
-<br>
-others.</p>
-
-<p style="margin-top: 1em">The second step is matching.
-Matching implies filtering since if a query doesn&rsquo;t
-match some criteria, it is removed from its class. Matching
-happens for each class. First, <br>
-queries are filtered from their class by the various
-&quot;Query Matches&quot; options like
-&quot;--match-user&quot;. Then, entire classes are filtered
-by the various &quot;Class Matches&quot; options like <br>
-&quot;--query-count&quot;.</p>
-
-<p style="margin-top: 1em">The third step is victim
-selection, that is, which matching queries in each class to
-kill. This is controlled by the &quot;--victims&quot;
-option. Although many queries in a class may <br>
-match, you may only want to kill the oldest query, or all
-queries, etc.</p>
-
-<p style="margin-top: 1em">The forth and final step is to
-take some action on all matching queries from all classes.
-The &quot;Actions&quot; options specify which actions will
-be taken. At this step, there are no <br>
-more classes, just a single list of queries to kill, print,
-etc.</p>
-
-<p style="margin-top: 1em">OUTPUT <br>
-If only &quot;--kill&quot; then there is no output. If only
-&quot;--print&quot; then a timestamped KILL statement if
-printed for every query that would have been killed,
-like:</p>
-
-<p style="margin-top: 1em"># 2009-07-15T15:04:01 KILL 8
-(Query 42 sec) SELECT * FROM huge_table</p>
-
-<p style="margin-top: 1em">The line shows a timestamp, the
-query&rsquo;s Id (8), its Time (42 sec) and its Info
-(usually the query SQL).</p>
-
-<p style="margin-top: 1em">If both &quot;--kill&quot; and
-&quot;--print&quot; are given, then matching queries are
-killed and a line for each like the one above is
-printed.</p>
-
-<p style="margin-top: 1em">Any command executed by
-&quot;--execute-command&quot; is responsible for its own
-output and logging. After being executed, mk-kill has no
-control or interaction with the command.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-Specify at least one of &quot;--kill&quot;,
-&quot;--kill-query&quot;, &quot;--print&quot;,
-&quot;--execute-command&quot; or &quot;--stop&quot;.</p>
-
-<p style="margin-top: 1em">&quot;--any-busy-time&quot; and
-&quot;--each-busy-time&quot; are mutually exclusive.</p>
-
-<p style="margin-top: 1em">&quot;--kill&quot; and
-&quot;--kill-query&quot; are mutually exclusive.</p>
-
-<p style="margin-top: 1em">This tool accepts additional
-command-line arguments. Refer to the &quot;SYNOPSIS&quot;
-and usage information for details.</p>
-
-<p style="margin-top: 1em">--ask-pass <br>
-Prompt for a password when connecting to MySQL.</p>
-
-<p style="margin-top: 1em">--charset <br>
-short form: -A; type: string</p>
-
-<p style="margin-top: 1em">Default character set. If the
-value is utf8, sets Perl&rsquo;s binmode on STDOUT to utf8,
-passes the mysql_enable_utf8 option to DBD::mysql, and runs
-SET NAMES UTF8 after <br>
-connecting to MySQL. Any other value sets binmode on STDOUT
-without the utf8 layer, and runs SET NAMES after connecting
-to MySQL.</p>
-
-<p style="margin-top: 1em">--config <br>
-type: Array</p>
-
-<p style="margin-top: 1em">Read this comma-separated list
-of config files; if specified, this must be the first option
-on the command line.</p>
-
-<p style="margin-top: 1em">--daemonize <br>
-Fork to the background and detach from the shell. POSIX
-operating systems only.</p>
-
-<p style="margin-top: 1em">--defaults-file <br>
-short form: -F; type: string</p>
-
-<p style="margin-top: 1em">Only read mysql options from the
-given file. You must give an absolute pathname.</p>
-
-<p style="margin-top: 1em">--group-by <br>
-type: string</p>
-
-<p style="margin-top: 1em">Apply matches to each class of
-queries grouped by this SHOW PROCESSLIST column. In addition
-to the basic columns of SHOW PROCESSLIST (user, host,
-command, state, etc.), <br>
-queries can be matched by &quot;fingerprint&quot; which
-abstracts the SQL query in the &quot;Info&quot; column.</p>
-
-<p style="margin-top: 1em">By default, queries are not
-grouped, so matches and actions apply to all queries.
-Grouping allows matches and actions to apply to classes of
-similar queries, if any queries <br>
-in the class match.</p>
-
-<p style="margin-top: 1em">For example, detecting cache
-stampedes (see &quot;all-but-oldest&quot; under
-&quot;--victims&quot; for an explanation of that term)
-requires that queries are grouped by the &quot;arg&quot;
-attribute. <br>
-This creates classes of identical queries (stripped of
-comments). So queries &quot;SELECT c FROM t WHERE id=1&quot;
-and &quot;SELECT c FROM t WHERE id=1&quot; are grouped into
-the same class, <br>
-but query c&lt;&quot;SELECT c FROM t WHERE id=3&quot;&gt; is
-not identical to the first two queries so it is grouped into
-another class. Then when &quot;--victims&quot;
-&quot;all-but-oldest&quot; is specified, <br>
-all but the oldest query in each class is killed for each
-class of queries that matches the match criteria.</p>
-
-<p style="margin-top: 1em">--help <br>
-Show help and exit.</p>
-
-<p style="margin-top: 1em">--host <br>
-short form: -h; type: string; default: localhost</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">--interval <br>
-type: time</p>
-
-<p style="margin-top: 1em">How often to check for queries
-to kill. If &quot;--busy-time&quot; is not given, then the
-default interval is 30 seconds. Else the default is half as
-often as &quot;--busy-time&quot;. If both <br>
-&quot;--interval&quot; and &quot;--busy-time&quot; are
-given, then the explicit &quot;--interval&quot; value is
-used.</p>
-
-<p style="margin-top: 1em">See also
-&quot;--run-time&quot;.</p>
-
-<p style="margin-top: 1em">--log <br>
-type: string</p>
-
-<p style="margin-top: 1em">Print all output to this file
-when daemonized.</p>
-
-<p style="margin-top: 1em">--password <br>
-short form: -p; type: string</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">--pid <br>
-type: string</p>
-
-<p style="margin-top: 1em">Create the given PID file when
-daemonized. The file contains the process ID of the
-daemonized instance. The PID file is removed when the
-daemonized instance exits. The <br>
-program checks for the existence of the PID file when
-starting; if it exists and the process with the matching PID
-exists, the program exits.</p>
-
-<p style="margin-top: 1em">--port <br>
-short form: -P; type: int</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">--[no]strip-comments <br>
-default: yes</p>
-
-<p style="margin-top: 1em">Remove SQL comments from queries
-in the Info column of the PROCESSLIST.</p>
-
-<p style="margin-top: 1em">--run-time <br>
-type: time</p>
-
-<p style="margin-top: 1em">How long to run before exiting.
-By default mk-kill runs forever, or until its process is
-killed or stopped by the creation of a
-&quot;--sentinel&quot; file. If this option is <br>
-specified, mk-kill runs for the specified amount of time and
-sleeps &quot;--interval&quot; seconds between each check of
-the PROCESSLIST.</p>
-
-<p style="margin-top: 1em">--sentinel <br>
-type: string; default: /tmp/mk-kill-sentinel</p>
-
-<p style="margin-top: 1em">Exit if this file exists.</p>
-
-<p style="margin-top: 1em">The presence of the file
-specified by &quot;--sentinel&quot; will cause all running
-instances of mk-kill to exit. You might find this handy to
-stop cron jobs gracefully if necessary. <br>
-See also &quot;--stop&quot;.</p>
-
-<p style="margin-top: 1em">--set-vars <br>
-type: string; default: wait_timeout=10000</p>
-
-<p style="margin-top: 1em">Set these MySQL variables.
-Immediately after connecting to MySQL, this string will be
-appended to SET and executed.</p>
-
-<p style="margin-top: 1em">--socket <br>
-short form: -S; type: string</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">--stop <br>
-Stop running instances by creating the
-&quot;--sentinel&quot; file.</p>
-
-<p style="margin-top: 1em">Causes mk-kill to create the
-sentinel file specified by &quot;--sentinel&quot; and exit.
-This should have the effect of stopping all running
-instances which are watching the same <br>
-sentinel file.</p>
-
-<p style="margin-top: 1em">--user <br>
-short form: -u; type: string</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">--version <br>
-Show version and exit.</p>
-
-<p style="margin-top: 1em">--victims <br>
-type: string; default: oldest</p>
-
-<p style="margin-top: 1em">Which of the matching queries in
-each class will be killed. After classes have been
-matched/filtered, this option specifies which of the
-matching queries in each class will <br>
-be killed (or printed, etc.). The following values are
-possible:</p>
-
-<p style="margin-top: 1em">oldest <br>
-Only kill the single oldest query. This is to prevent
-killing queries that aren&rsquo;t really long-running,
-they&rsquo;re just long-waiting. This sorts matching queries
-by Time <br>
-and kills the one with the highest Time value.</p>
-
-<p style="margin-top: 1em">all Kill all queries in the
-class.</p>
-
-<p style="margin-top: 1em">all-but-oldest <br>
-Kill all but the oldest query. This is the inverse of the
-&quot;oldest&quot; value.</p>
-
-<p style="margin-top: 1em">This value can be used to
-prevent &quot;cache stampedes&quot;, the condition where
-several identical queries are executed and create a backlog
-while the first query attempts to <br>
-finish. Since all queries are identical, all but the first
-query are killed so that it can complete and populate the
-cache.</p>
-
-<p style="margin-top: 1em">--wait-after-kill <br>
-type: time</p>
-
-<p style="margin-top: 1em">Wait after killing a query,
-before looking for more to kill. The purpose of this is to
-give blocked queries a chance to execute, so we don&rsquo;t
-kill a query that&rsquo;s blocking a <br>
-bunch of others, and then kill the others immediately
-afterwards.</p>
-
-<p style="margin-top: 1em">--wait-before-kill <br>
-type: time</p>
-
-<p style="margin-top: 1em">Wait before killing a query. The
-purpose of this is to give &quot;--execute-command&quot; a
-chance to see the matching query and gather other MySQL or
-system information before it&rsquo;s <br>
-killed.</p>
-
-<p style="margin-top: 1em">QUERY MATCHES <br>
-These options filter queries from their classes. If a query
-does not match, it is removed from its class. The
-&quot;--ignore&quot; options take precedence. The matches
-for command, db, <br>
-host, etc. correspond to the columns returned by SHOW
-PROCESSLIST: Command, db, Host, etc. All pattern matches are
-case-sensitive by default, but they can be made case- <br>
-insensitive by specifying a regex pattern like
-&quot;(?i-xsm:select)&quot;.</p>
-
-<p style="margin-top: 1em">See also &quot;GROUP, MATCH AND
-KILL&quot;.</p>
-
-<p style="margin-top: 1em">--match-all <br>
-group: Query Matches</p>
-
-<p style="margin-top: 1em">Match all queries that are not
-ignored. If no ignore options are specified, then every
-query matches (except replication threads, unless
-&quot;--replication-threads&quot; is also <br>
-specified). This option allows you to specify negative
-matches, i.e. &quot;match every query except...&quot; where
-the exceptions are defined by specifying various
-&quot;--ignore&quot; options.</p>
-
-<p style="margin-top: 1em">This option is not the same as
-&quot;--victims&quot; &quot;all&quot;. This option matches
-all queries within a class, whereas &quot;--victims&quot;
-&quot;all&quot; specifies that all matching queries in a
-class <br>
-(however they matched) will be killed. Normally, however,
-the two are used together because if, for example, you
-specify &quot;--victims&quot; &quot;oldest&quot;, then
-although all queries may <br>
-match, only the oldest will be killed.</p>
-
-<p style="margin-top: 1em">--busy-time <br>
-type: time; group: Query Matches</p>
-
-<p style="margin-top: 1em">Match queries that have been
-running for longer than this time. The queries must be in
-Command=Query status. This matches a query&rsquo;s Time
-value as reported by SHOW <br>
-PROCESSLIST.</p>
-
-<p style="margin-top: 1em">--idle-time <br>
-type: time; group: Query Matches</p>
-
-<p style="margin-top: 1em">Match queries that have been
-idle/sleeping for longer than this time. The queries must be
-in Command=Sleep status. This matches a query&rsquo;s Time
-value as reported by SHOW <br>
-PROCESSLIST.</p>
-
-<p style="margin-top: 1em">--ignore-command <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Ignore queries whose Command
-matches this Perl regex.</p>
-
-<p style="margin-top: 1em">See
-&quot;--match-command&quot;.</p>
-
-<p style="margin-top: 1em">--ignore-db <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Ignore queries whose db
-(database) matches this Perl regex.</p>
-
-<p style="margin-top: 1em">See &quot;--match-db&quot;.</p>
-
-<p style="margin-top: 1em">--ignore-host <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Ignore queries whose Host
-matches this Perl regex.</p>
-
-<p style="margin-top: 1em">See
-&quot;--match-host&quot;.</p>
-
-<p style="margin-top: 1em">--ignore-info <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Ignore queries whose Info
-(query) matches this Perl regex.</p>
-
-<p style="margin-top: 1em">See
-&quot;--match-info&quot;.</p>
-
-<p style="margin-top: 1em">--[no]ignore-self <br>
-default: yes; group: Query Matches</p>
-
-<p style="margin-top: 1em">Don&rsquo;t kill mk-kill&rsquo;s
-own connection.</p>
-
-<p style="margin-top: 1em">--ignore-state <br>
-type: string; group: Query Matches; default: Locked</p>
-
-<p style="margin-top: 1em">Ignore queries whose State
-matches this Perl regex. The default is to keep threads from
-being killed if they are locked waiting for another
-thread.</p>
-
-<p style="margin-top: 1em">See
-&quot;--match-state&quot;.</p>
-
-<p style="margin-top: 1em">--ignore-user <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Ignore queries whose user
-matches this Perl regex.</p>
-
-<p style="margin-top: 1em">See
-&quot;--match-user&quot;.</p>
-
-<p style="margin-top: 1em">--match-command <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Match only queries whose Command
-matches this Perl regex.</p>
-
-<p style="margin-top: 1em">Common Command values are:</p>
-
-<p style="margin-top: 1em">Query <br>
-Sleep <br>
-Binlog Dump <br>
-Connect <br>
-Delayed insert <br>
-Execute <br>
-Fetch <br>
-Init DB <br>
-Kill <br>
-Prepare <br>
-Processlist <br>
-Quit <br>
-Reset stmt <br>
-Table Dump</p>
-
-<p style="margin-top: 1em">See
-&lt;http://dev.mysql.com/doc/refman/5.1/en/thread-commands.html&gt;
-for a full list and description of Command values.</p>
-
-<p style="margin-top: 1em">--match-db <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Match only queries whose db
-(database) matches this Perl regex.</p>
-
-<p style="margin-top: 1em">--match-host <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Match only queries whose Host
-matches this Perl regex.</p>
-
-<p style="margin-top: 1em">The Host value often time
-includes the port like &quot;host:port&quot;.</p>
-
-<p style="margin-top: 1em">--match-info <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Match only queries whose Info
-(query) matches this Perl regex.</p>
-
-<p style="margin-top: 1em">The Info column of the
-processlist shows the query that is being executed or NULL
-if no query is being executed.</p>
-
-<p style="margin-top: 1em">--match-state <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Match only queries whose State
-matches this Perl regex.</p>
-
-<p style="margin-top: 1em">Common State values are:</p>
-
-<p style="margin-top: 1em">Locked <br>
-login <br>
-copy to tmp table <br>
-Copying to tmp table <br>
-Copying to tmp table on disk <br>
-Creating tmp table <br>
-executing <br>
-Reading from net <br>
-Sending data <br>
-Sorting for order <br>
-Sorting result <br>
-Table lock <br>
-Updating</p>
-
-<p style="margin-top: 1em">See
-&lt;http://dev.mysql.com/doc/refman/5.1/en/general-thread-states.html&gt;
-for a full list and description of State values.</p>
-
-<p style="margin-top: 1em">--match-user <br>
-type: string; group: Query Matches</p>
-
-<p style="margin-top: 1em">Match only queries whose User
-matches this Perl regex.</p>
-
-<p style="margin-top: 1em">--replication-threads <br>
-group: Query Matches</p>
-
-<p style="margin-top: 1em">Allow matching and killing
-replication threads.</p>
-
-<p style="margin-top: 1em">By default, matches do not apply
-to replication threads; i.e. replication threads are
-completely ignored. Specifying this option allows matches to
-match (and potentially <br>
-kill) replication threads on masters and slaves.</p>
-
-<p style="margin-top: 1em">CLASS MATCHES <br>
-These matches apply to entire query classes. Classes are
-created by specifying the &quot;--group-by&quot; option,
-else all queries are members of a single, default class.</p>
-
-<p style="margin-top: 1em">See also &quot;GROUP, MATCH AND
-KILL&quot;.</p>
-
-<p style="margin-top: 1em">--any-busy-time <br>
-type: time; group: Class Matches</p>
-
-<p style="margin-top: 1em">Match query class if any query
-has been running for longer than this time. &quot;Longer
-than&quot; means that if you specify 10, for example, the
-class will only match if there&rsquo;s at <br>
-least one query that has been running for greater than 10
-seconds.</p>
-
-<p style="margin-top: 1em">See &quot;--each-busy-time&quot;
-for more details.</p>
-
-<p style="margin-top: 1em">--each-busy-time <br>
-type: time; group: Class Matches</p>
-
-<p style="margin-top: 1em">Match query class if each query
-has been running for longer than this time. &quot;Longer
-than&quot; means that if you specify 10, for example, the
-class will only match if each and <br>
-every query has been running for greater than 10
-seconds.</p>
-
-<p style="margin-top: 1em">See also
-&quot;--any-busy-time&quot; (to match a class if ANY query
-has been running longer than the specified time) and
-&quot;--busy-time&quot;.</p>
-
-<p style="margin-top: 1em">--query-count <br>
-type: int; group: Class Matches</p>
-
-<p style="margin-top: 1em">Match query class if it has at
-least this many queries. When queries are grouped into
-classes by specifying &quot;--group-by&quot;, this option
-causes matches to apply only to classes <br>
-with at least this many queries. If &quot;--group-by&quot;
-is not specified then this option causes matches to apply
-only if there are at least this many queries in the entire
-SHOW <br>
-PROCESSLIST.</p>
-
-<p style="margin-top: 1em">--verbose <br>
-short form: -v</p>
-
-<p style="margin-top: 1em">Print information to STDOUT
-about what is being done.</p>
-
-<p style="margin-top: 1em">ACTIONS <br>
-These actions are taken for every matching query from all
-classes. The actions are taken in this order:
-&quot;--print&quot;, &quot;--execute-command&quot;,
-&quot;--kill&quot;/&quot;--kill-query&quot;. This order <br>
-allows &quot;--execute-command&quot; to see the output of
-&quot;--print&quot; and the query before
-&quot;--kill&quot;/&quot;--kill-query&quot;. This may be
-helpful because mk-kill does not pass any information to
-<br>
-&quot;--execute-command&quot;.</p>
-
-<p style="margin-top: 1em">See also &quot;GROUP, MATCH AND
-KILL&quot;.</p>
-
-<p style="margin-top: 1em">--execute-command <br>
-type: string; group: Actions</p>
-
-<p style="margin-top: 1em">Execute this command when a
-query matches.</p>
-
-<p style="margin-top: 1em">After the command is executed,
-mk-kill has no control over it, so the command is
-responsible for its own info gathering, logging, interval,
-etc. The command is executed each <br>
-time a query matches, so be careful that the command behaves
-well when multiple instances are ran. No information from
-mk-kill is passed to the command.</p>
-
-<p style="margin-top: 1em">See also
-&quot;--wait-before-kill&quot;.</p>
-
-<p style="margin-top: 1em">--kill <br>
-group: Actions</p>
-
-<p style="margin-top: 1em">Kill the connection for matching
-queries.</p>
-
-<p style="margin-top: 1em">This option makes mk-kill kill
-the connections (a.k.a. processes, threads) that have
-matching queries. Use &quot;--kill-query&quot; if you only
-want to kill individual queries and not <br>
-their connections.</p>
-
-<p style="margin-top: 1em">Unless &quot;--print&quot; is
-also given, no other information is printed that shows that
-mk-kill matched and killed a query.</p>
-
-<p style="margin-top: 1em">See also
-&quot;--wait-before-kill&quot; and
-&quot;--wait-after-kill&quot;.</p>
-
-<p style="margin-top: 1em">--kill-query <br>
-group: Actions</p>
-
-<p style="margin-top: 1em">Kill matching queries.</p>
-
-<p style="margin-top: 1em">This option makes mk-kill kill
-matching queries. This requires MySQL 5.0 or newer. Unlike
-&quot;--kill&quot; which kills the connection for matching
-queries, this option only kills <br>
-the query, not its connection.</p>
-
-<p style="margin-top: 1em">--print <br>
-group: Actions</p>
-
-<p style="margin-top: 1em">Print a KILL statement for
-matching queries; does not actually kill queries.</p>
-
-<p style="margin-top: 1em">If you just want to see which
-queries match and would be killed without actually killing
-them, specify &quot;--print&quot;. To both kill and print
-matching queries, specify both <br>
-&quot;--kill&quot; and &quot;--print&quot;.</p>
-
-<p style="margin-top: 1em">DSN OPTIONS <br>
-These DSN options are used to create a DSN. Each option is
-given like &quot;option=value&quot;. The options are
-case-sensitive, so P and p are not the same option. There
-cannot be <br>
-whitespace before or after the &quot;=&quot; and if the
-value contains whitespace it must be quoted. DSN options are
-comma-separated. See the maatkit manpage for full
-details.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A</p>
-
-<p style="margin-top: 1em">dsn: charset; copy: yes</p>
-
-<p style="margin-top: 1em">Default character set.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; D</p>
-
-<p style="margin-top: 1em">dsn: database; copy: yes</p>
-
-<p style="margin-top: 1em">Default database.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; F</p>
-
-<p style="margin-top: 1em">dsn: mysql_read_default_file;
-copy: yes</p>
-
-<p style="margin-top: 1em">Only read default options from
-the given file</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; h</p>
-
-<p style="margin-top: 1em">dsn: host; copy: yes</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; p</p>
-
-<p style="margin-top: 1em">dsn: password; copy: yes</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; P</p>
-
-<p style="margin-top: 1em">dsn: port; copy: yes</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; S</p>
-
-<p style="margin-top: 1em">dsn: mysql_socket; copy: yes</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; u</p>
-
-<p style="margin-top: 1em">dsn: user; copy: yes</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">DOWNLOADING <br>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MK-KILL(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">MK-KILL(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+mk-kill - Kill MySQL queries that match certain criteria.
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+Usage: mk-kill [OPTION]... [FILE...]
+<div class="Pp"></div>
+mk-kill kills MySQL connections. mk-kill connects to MySQL and gets queries from
+  SHOW PROCESSLIST if no FILE is given. Else, it reads queries from one or more
+  FILE which contains the output of SHOW PROCESSLIST. If FILE is -, mk-kill
+  reads from STDIN.
+<div class="Pp"></div>
+Kill queries running longer than 60s:
+<div class="Pp"></div>
+<pre>
+  mk-kill --busy-time 60 --kill
+</pre>
+<div class="Pp"></div>
+Print, do not kill, queries running longer than 60s:
+<div class="Pp"></div>
+<pre>
+  mk-kill --busy-time 60 --print
+</pre>
+<div class="Pp"></div>
+Check for sleeping processes and kill them all every 10s:
+<div class="Pp"></div>
+<pre>
+  mk-kill --match-command Sleep --kill --victims all --interval 10
+</pre>
+<div class="Pp"></div>
+Print all login processes:
+<div class="Pp"></div>
+<pre>
+  mk-kill --match-state login --print --victims all
+</pre>
+<div class="Pp"></div>
+See which queries in the processlist right now would match:
+<div class="Pp"></div>
+<pre>
+   mysql -e &quot;SHOW PROCESSLIST&quot; | mk-kill --busy-time 60 --print
+</pre>
+<h1 class="Sh" title="Sh" id="RISKS"><a class="selflink" href="#RISKS">RISKS</a></h1>
+The following section is included to inform users about the potential risks,
+  whether known or unknown, of using this tool. The two main categories of risks
+  are those created by the nature of the tool (e.g. read-only tools vs.
+  read-write tools) and those created by bugs.
+<div class="Pp"></div>
+mk-kill is designed to kill queries if you use the &quot;--kill&quot; option is
+  given, and that might disrupt your database's users, of course. You should
+  test with the &lt;&quot;--print&quot;&gt; option, which is safe, if you're
+  unsure what the tool will do.
+<div class="Pp"></div>
+At the time of this release, we know of no bugs that could cause serious harm to
+  users.
+<div class="Pp"></div>
+The authoritative source for updated information is always the online issue
+  tracking system. Issues that affect this tool will be marked as such. You can
+  see a list of such issues at the following URL:
+  &lt;http://www.maatkit.org/bugs/mk-kill&gt;.
+<div class="Pp"></div>
+See also &quot;BUGS&quot; for more information on filing bugs and getting help.
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+mk-kill captures queries from SHOW PROCESSLIST, filters them, and then either
+  kills or prints them. This is also known as a &quot;slow query sniper&quot; in
+  some circles. The idea is to watch for queries that might be consuming too
+  many resources, and kill them.
+<div class="Pp"></div>
+For brevity, we talk about killing queries, but they may just be printed (or
+  some other future action) depending on what options are given.
+<div class="Pp"></div>
+Normally mk-kill connects to MySQL to get queries from SHOW PROCESSLIST.
+  Alternatively, it can read SHOW PROCESSLIST output from files. In this case,
+  mk-kill does not connect to MySQL and &quot;--kill&quot; has no effect. You
+  should use &quot;--print&quot; instead when reading files. The ability to read
+  a file (or - for STDIN) allows you to capture SHOW PROCESSLIST and test it
+  later with mk-kill to make sure that your matches kill the proper queries.
+  There are a lot of special rules to follow, such as &quot;don't kill
+  replication threads,&quot; so be careful to not kill something important!
+<div class="Pp"></div>
+Two important options to know are &quot;--busy-time&quot; and
+  &quot;--victims&quot;. First, whereas most match/filter options match their
+  corresponding value from SHOW PROCESSLIST (e.g. &quot;--match-command&quot;
+  matches a query's Command value), the Time value is matched by
+  &quot;--busy-time&quot;. See also &quot;--interval&quot;.
+<div class="Pp"></div>
+Second, &quot;--victims&quot; controls which matching queries from each class
+  are killed. By default, the matching query with the highest Time value is
+  killed (the oldest query). See the next section, &quot;GROUP, MATCH AND
+  KILL&quot;, for more details.
+<div class="Pp"></div>
+Usually you need to specify at least one &quot;--match&quot; option, else no
+  queries will match. Or, you can specify &quot;--match-all&quot; to match all
+  queries that aren't ignored by an &quot;--ignore&quot; option.
+<div class="Pp"></div>
+mk-kill is a work in progress, and there is much more it could do.
+<h1 class="Sh" title="Sh" id="GROUP,_MATCH_AND_KILL"><a class="selflink" href="#GROUP,_MATCH_AND_KILL">GROUP,
+  MATCH AND KILL</a></h1>
+Queries pass through several steps to determine which exactly will be killed (or
+  printed--whatever action is specified). Understanding these steps will help
+  you match precisely the queries you want.
+<div class="Pp"></div>
+The first step is grouping queries into classes. The &quot;--group-by&quot;
+  option controls grouping. By default, this option has no value so all queries
+  are grouped into one, big default class. All types of matching and filtering
+  (the next step) are applied per-class. Therefore, you may need to group
+  queries in order to match/filter some classes but not others.
+<div class="Pp"></div>
+The second step is matching. Matching implies filtering since if a query doesn't
+  match some criteria, it is removed from its class. Matching happens for each
+  class. First, queries are filtered from their class by the various &quot;Query
+  Matches&quot; options like &quot;--match-user&quot;. Then, entire classes are
+  filtered by the various &quot;Class Matches&quot; options like
+  &quot;--query-count&quot;.
+<div class="Pp"></div>
+The third step is victim selection, that is, which matching queries in each
+  class to kill. This is controlled by the &quot;--victims&quot; option.
+  Although many queries in a class may match, you may only want to kill the
+  oldest query, or all queries, etc.
+<div class="Pp"></div>
+The forth and final step is to take some action on all matching queries from all
+  classes. The &quot;Actions&quot; options specify which actions will be taken.
+  At this step, there are no more classes, just a single list of queries to
+  kill, print, etc.
+<h1 class="Sh" title="Sh" id="OUTPUT"><a class="selflink" href="#OUTPUT">OUTPUT</a></h1>
+If only &quot;--kill&quot; then there is no output. If only &quot;--print&quot;
+  then a timestamped KILL statement if printed for every query that would have
+  been killed, like:
+<div class="Pp"></div>
+<pre>
+  # 2009-07-15T15:04:01 KILL 8 (Query 42 sec) SELECT * FROM huge_table
+</pre>
+<div class="Pp"></div>
+The line shows a timestamp, the query's Id (8), its Time (42 sec) and its Info
+  (usually the query SQL).
+<div class="Pp"></div>
+If both &quot;--kill&quot; and &quot;--print&quot; are given, then matching
+  queries are killed and a line for each like the one above is printed.
+<div class="Pp"></div>
+Any command executed by &quot;--execute-command&quot; is responsible for its own
+  output and logging. After being executed, mk-kill has no control or
+  interaction with the command.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+Specify at least one of &quot;--kill&quot;, &quot;--kill-query&quot;,
+  &quot;--print&quot;, &quot;--execute-command&quot; or &quot;--stop&quot;.
+<div class="Pp"></div>
+&quot;--any-busy-time&quot; and &quot;--each-busy-time&quot; are mutually
+  exclusive.
+<div class="Pp"></div>
+&quot;--kill&quot; and &quot;--kill-query&quot; are mutually exclusive.
+<div class="Pp"></div>
+This tool accepts additional command-line arguments. Refer to the
+  &quot;SYNOPSIS&quot; and usage information for details.
+<dl class="Bl-tag">
+  <dt class="It-tag">--ask-pass</dt>
+  <dd class="It-tag">Prompt for a password when connecting to MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--charset</dt>
+  <dd class="It-tag">short form: -A; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set. If the value is utf8, sets Perl's binmode on STDOUT
+      to utf8, passes the mysql_enable_utf8 option to DBD::mysql, and runs SET
+      NAMES UTF8 after connecting to MySQL. Any other value sets binmode on
+      STDOUT without the utf8 layer, and runs SET NAMES after connecting to
+      MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--config</dt>
+  <dd class="It-tag">type: Array
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Read this comma-separated list of config files; if specified, this must be
+      the first option on the command line.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--daemonize</dt>
+  <dd class="It-tag">Fork to the background and detach from the shell. POSIX
+      operating systems only.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--defaults-file</dt>
+  <dd class="It-tag">short form: -F; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only read mysql options from the given file. You must give an absolute
+      pathname.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--group-by</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Apply matches to each class of queries grouped by this SHOW PROCESSLIST
+      column. In addition to the basic columns of SHOW PROCESSLIST (user, host,
+      command, state, etc.), queries can be matched by &quot;fingerprint&quot;
+      which abstracts the SQL query in the &quot;Info&quot; column.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    By default, queries are not grouped, so matches and actions apply to all
+      queries. Grouping allows matches and actions to apply to classes of
+      similar queries, if any queries in the class match.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    For example, detecting cache stampedes (see &quot;all-but-oldest&quot; under
+      &quot;--victims&quot; for an explanation of that term) requires that
+      queries are grouped by the &quot;arg&quot; attribute. This creates classes
+      of identical queries (stripped of comments). So queries &quot;SELECT c
+      FROM t WHERE id=1&quot; and &quot;SELECT c FROM t WHERE id=1&quot; are
+      grouped into the same class, but query c&lt;&quot;SELECT c FROM t WHERE
+      id=3&quot;&gt; is not identical to the first two queries so it is grouped
+      into another class. Then when &quot;--victims&quot;
+      &quot;all-but-oldest&quot; is specified, all but the oldest query in each
+      class is killed for each class of queries that matches the match
+    criteria.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--help</dt>
+  <dd class="It-tag">Show help and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--host</dt>
+  <dd class="It-tag">short form: -h; type: string; default: localhost
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--interval</dt>
+  <dd class="It-tag">type: time
+    <div style="height: 1.00em;">&#x00A0;</div>
+    How often to check for queries to kill. If &quot;--busy-time&quot; is not
+      given, then the default interval is 30 seconds. Else the default is half
+      as often as &quot;--busy-time&quot;. If both &quot;--interval&quot; and
+      &quot;--busy-time&quot; are given, then the explicit
+      &quot;--interval&quot; value is used.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;--run-time&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--log</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print all output to this file when daemonized.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--password</dt>
+  <dd class="It-tag">short form: -p; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--pid</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Create the given PID file when daemonized. The file contains the process ID
+      of the daemonized instance. The PID file is removed when the daemonized
+      instance exits. The program checks for the existence of the PID file when
+      starting; if it exists and the process with the matching PID exists, the
+      program exits.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--port</dt>
+  <dd class="It-tag">short form: -P; type: int
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]strip-comments</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Remove SQL comments from queries in the Info column of the PROCESSLIST.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--run-time</dt>
+  <dd class="It-tag">type: time
+    <div style="height: 1.00em;">&#x00A0;</div>
+    How long to run before exiting. By default mk-kill runs forever, or until
+      its process is killed or stopped by the creation of a
+      &quot;--sentinel&quot; file. If this option is specified, mk-kill runs for
+      the specified amount of time and sleeps &quot;--interval&quot; seconds
+      between each check of the PROCESSLIST.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--sentinel</dt>
+  <dd class="It-tag">type: string; default: /tmp/mk-kill-sentinel
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Exit if this file exists.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The presence of the file specified by &quot;--sentinel&quot; will cause all
+      running instances of mk-kill to exit. You might find this handy to stop
+      cron jobs gracefully if necessary. See also &quot;--stop&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--set-vars</dt>
+  <dd class="It-tag">type: string; default: wait_timeout=10000
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Set these MySQL variables. Immediately after connecting to MySQL, this
+      string will be appended to SET and executed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--socket</dt>
+  <dd class="It-tag">short form: -S; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--stop</dt>
+  <dd class="It-tag">Stop running instances by creating the
+      &quot;--sentinel&quot; file.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Causes mk-kill to create the sentinel file specified by
+      &quot;--sentinel&quot; and exit. This should have the effect of stopping
+      all running instances which are watching the same sentinel file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--user</dt>
+  <dd class="It-tag">short form: -u; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--version</dt>
+  <dd class="It-tag">Show version and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--victims</dt>
+  <dd class="It-tag">type: string; default: oldest
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Which of the matching queries in each class will be killed. After classes
+      have been matched/filtered, this option specifies which of the matching
+      queries in each class will be killed (or printed, etc.). The following
+      values are possible:</dd>
+</dl>
+<div style="margin-left: 4.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">oldest</dt>
+  <dd class="It-tag">Only kill the single oldest query. This is to prevent
+      killing queries that aren't really long-running, they're just
+      long-waiting. This sorts matching queries by Time and kills the one with
+      the highest Time value.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">all</dt>
+  <dd class="It-tag">Kill all queries in the class.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">all-but-oldest</dt>
+  <dd class="It-tag">Kill all but the oldest query. This is the inverse of the
+      &quot;oldest&quot; value.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This value can be used to prevent &quot;cache stampedes&quot;, the condition
+      where several identical queries are executed and create a backlog while
+      the first query attempts to finish. Since all queries are identical, all
+      but the first query are killed so that it can complete and populate the
+      cache.</dd>
+</dl>
+</div>
+<div style="margin-left: 4.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag">--wait-after-kill</dt>
+  <dd class="It-tag">type: time
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Wait after killing a query, before looking for more to kill. The purpose of
+      this is to give blocked queries a chance to execute, so we don't kill a
+      query that's blocking a bunch of others, and then kill the others
+      immediately afterwards.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--wait-before-kill</dt>
+  <dd class="It-tag">type: time
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Wait before killing a query. The purpose of this is to give
+      &quot;--execute-command&quot; a chance to see the matching query and
+      gather other MySQL or system information before it's killed.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="QUERY_MATCHES"><a class="selflink" href="#QUERY_MATCHES">QUERY
+  MATCHES</a></h2>
+These options filter queries from their classes. If a query does not match, it
+  is removed from its class. The &quot;--ignore&quot; options take precedence.
+  The matches for command, db, host, etc. correspond to the columns returned by
+  SHOW PROCESSLIST: Command, db, Host, etc. All pattern matches are
+  case-sensitive by default, but they can be made case-insensitive by specifying
+  a regex pattern like &quot;(?i-xsm:select)&quot;.
+<div class="Pp"></div>
+See also &quot;GROUP, MATCH AND KILL&quot;.
+<dl class="Bl-tag">
+  <dt class="It-tag">--match-all</dt>
+  <dd class="It-tag">group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match all queries that are not ignored. If no ignore options are specified,
+      then every query matches (except replication threads, unless
+      &quot;--replication-threads&quot; is also specified). This option allows
+      you to specify negative matches, i.e. &quot;match every query
+      <i>except</i>...&quot; where the exceptions are defined by specifying
+      various &quot;--ignore&quot; options.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option is <i>not</i> the same as &quot;--victims&quot; &quot;all&quot;.
+      This option matches all queries within a class, whereas
+      &quot;--victims&quot; &quot;all&quot; specifies that all matching queries
+      in a class (however they matched) will be killed. Normally, however, the
+      two are used together because if, for example, you specify
+      &quot;--victims&quot; &quot;oldest&quot;, then although all queries may
+      match, only the oldest will be killed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--busy-time</dt>
+  <dd class="It-tag">type: time; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match queries that have been running for longer than this time. The queries
+      must be in Command=Query status. This matches a query's Time value as
+      reported by SHOW PROCESSLIST.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--idle-time</dt>
+  <dd class="It-tag">type: time; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match queries that have been idle/sleeping for longer than this time. The
+      queries must be in Command=Sleep status. This matches a query's Time value
+      as reported by SHOW PROCESSLIST.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-command</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore queries whose Command matches this Perl regex.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &quot;--match-command&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-db</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore queries whose db (database) matches this Perl regex.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &quot;--match-db&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-host</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore queries whose Host matches this Perl regex.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &quot;--match-host&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-info</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore queries whose Info (query) matches this Perl regex.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &quot;--match-info&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]ignore-self</dt>
+  <dd class="It-tag">default: yes; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Don't kill mk-kill's own connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-state</dt>
+  <dd class="It-tag">type: string; group: Query Matches; default: Locked
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore queries whose State matches this Perl regex. The default is to keep
+      threads from being killed if they are locked waiting for another thread.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &quot;--match-state&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-user</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore queries whose user matches this Perl regex.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &quot;--match-user&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--match-command</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match only queries whose Command matches this Perl regex.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Common Command values are:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  Query
+  Sleep
+  Binlog Dump
+  Connect
+  Delayed insert
+  Execute
+  Fetch
+  Init DB
+  Kill
+  Prepare
+  Processlist
+  Quit
+  Reset stmt
+  Table Dump
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &lt;http://dev.mysql.com/doc/refman/5.1/en/thread-commands.html&gt; for
+      a full list and description of Command values.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--match-db</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match only queries whose db (database) matches this Perl regex.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--match-host</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match only queries whose Host matches this Perl regex.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The Host value often time includes the port like &quot;host:port&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--match-info</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match only queries whose Info (query) matches this Perl regex.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The Info column of the processlist shows the query that is being executed or
+      NULL if no query is being executed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--match-state</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match only queries whose State matches this Perl regex.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Common State values are:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  Locked
+  login
+  copy to tmp table
+  Copying to tmp table
+  Copying to tmp table on disk
+  Creating tmp table
+  executing
+  Reading from net
+  Sending data
+  Sorting for order
+  Sorting result
+  Table lock
+  Updating
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See
+      &lt;http://dev.mysql.com/doc/refman/5.1/en/general-thread-states.html&gt;
+      for a full list and description of State values.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--match-user</dt>
+  <dd class="It-tag">type: string; group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match only queries whose User matches this Perl regex.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--replication-threads</dt>
+  <dd class="It-tag">group: Query Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Allow matching and killing replication threads.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    By default, matches do not apply to replication threads; i.e. replication
+      threads are completely ignored. Specifying this option allows matches to
+      match (and potentially kill) replication threads on masters and
+    slaves.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="CLASS_MATCHES"><a class="selflink" href="#CLASS_MATCHES">CLASS
+  MATCHES</a></h2>
+These matches apply to entire query classes. Classes are created by specifying
+  the &quot;--group-by&quot; option, else all queries are members of a single,
+  default class.
+<div class="Pp"></div>
+See also &quot;GROUP, MATCH AND KILL&quot;.
+<dl class="Bl-tag">
+  <dt class="It-tag">--any-busy-time</dt>
+  <dd class="It-tag">type: time; group: Class Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match query class if any query has been running for longer than this time.
+      &quot;Longer than&quot; means that if you specify 10, for example, the
+      class will only match if there's at least one query that has been running
+      for greater than 10 seconds.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &quot;--each-busy-time&quot; for more details.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--each-busy-time</dt>
+  <dd class="It-tag">type: time; group: Class Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match query class if each query has been running for longer than this time.
+      &quot;Longer than&quot; means that if you specify 10, for example, the
+      class will only match if each and every query has been running for greater
+      than 10 seconds.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;--any-busy-time&quot; (to match a class if ANY query has been
+      running longer than the specified time) and &quot;--busy-time&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--query-count</dt>
+  <dd class="It-tag">type: int; group: Class Matches
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Match query class if it has at least this many queries. When queries are
+      grouped into classes by specifying &quot;--group-by&quot;, this option
+      causes matches to apply only to classes with at least this many queries.
+      If &quot;--group-by&quot; is not specified then this option causes matches
+      to apply only if there are at least this many queries in the entire SHOW
+      PROCESSLIST.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--verbose</dt>
+  <dd class="It-tag">short form: -v
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print information to STDOUT about what is being done.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="ACTIONS"><a class="selflink" href="#ACTIONS">ACTIONS</a></h2>
+These actions are taken for every matching query from all classes. The actions
+  are taken in this order: &quot;--print&quot;, &quot;--execute-command&quot;,
+  &quot;--kill&quot;/&quot;--kill-query&quot;. This order allows
+  &quot;--execute-command&quot; to see the output of &quot;--print&quot; and the
+  query before &quot;--kill&quot;/&quot;--kill-query&quot;. This may be helpful
+  because mk-kill does not pass any information to
+  &quot;--execute-command&quot;.
+<div class="Pp"></div>
+See also &quot;GROUP, MATCH AND KILL&quot;.
+<dl class="Bl-tag">
+  <dt class="It-tag">--execute-command</dt>
+  <dd class="It-tag">type: string; group: Actions
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Execute this command when a query matches.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    After the command is executed, mk-kill has no control over it, so the
+      command is responsible for its own info gathering, logging, interval, etc.
+      The command is executed each time a query matches, so be careful that the
+      command behaves well when multiple instances are ran. No information from
+      mk-kill is passed to the command.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;--wait-before-kill&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--kill</dt>
+  <dd class="It-tag">group: Actions
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Kill the connection for matching queries.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option makes mk-kill kill the connections (a.k.a. processes, threads)
+      that have matching queries. Use &quot;--kill-query&quot; if you only want
+      to kill individual queries and not their connections.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Unless &quot;--print&quot; is also given, no other information is printed
+      that shows that mk-kill matched and killed a query.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;--wait-before-kill&quot; and
+    &quot;--wait-after-kill&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--kill-query</dt>
+  <dd class="It-tag">group: Actions
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Kill matching queries.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option makes mk-kill kill matching queries. This requires MySQL 5.0 or
+      newer. Unlike &quot;--kill&quot; which kills the connection for matching
+      queries, this option only kills the query, not its connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--print</dt>
+  <dd class="It-tag">group: Actions
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print a KILL statement for matching queries; does not actually kill queries.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If you just want to see which queries match and would be killed without
+      actually killing them, specify &quot;--print&quot;. To both kill and print
+      matching queries, specify both &quot;--kill&quot; and
+    &quot;--print&quot;.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DSN_OPTIONS"><a class="selflink" href="#DSN_OPTIONS">DSN
+  OPTIONS</a></h1>
+These DSN options are used to create a DSN. Each option is given like
+  &quot;option=value&quot;. The options are case-sensitive, so P and p are not
+  the same option. There cannot be whitespace before or after the &quot;=&quot;
+  and if the value contains whitespace it must be quoted. DSN options are
+  comma-separated. See the maatkit manpage for full details.
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: charset; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">D
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: database; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default database.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">F
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_read_default_file; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only read default options from the given file</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">h
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: host; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">p
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: password; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">P
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: port; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">S
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_socket; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">u
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: user; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DOWNLOADING"><a class="selflink" href="#DOWNLOADING">DOWNLOADING</a></h1>
 You can download Maatkit from Google Code at
-&lt;http://code.google.com/p/maatkit/&gt;, or you can get
-any of the tools easily with a command like the
-following:</p>
-
-<p style="margin-top: 1em">wget
-http://www.maatkit.org/get/toolname <br>
-or <br>
-wget http://www.maatkit.org/trunk/toolname</p>
-
-<p style="margin-top: 1em">Where &quot;toolname&quot; can
-be replaced with the name (or fragment of a name) of any of
-the Maatkit tools. Once downloaded, they&rsquo;re ready to
-run; no installation is needed. The first <br>
-URL gets the latest released version of the tool, and the
-second gets the latest trunk code from Subversion.</p>
-
-<p style="margin-top: 1em">ENVIRONMENT <br>
-The environment variable &quot;MKDEBUG&quot; enables verbose
-debugging output in all of the Maatkit tools:</p>
-
-<p style="margin-top: 1em">MKDEBUG=1 mk-....</p>
-
-<p style="margin-top: 1em">SYSTEM REQUIREMENTS <br>
-You need Perl, DBI, DBD::mysql, and some core packages that
-ought to be installed in any reasonably new version of
-Perl.</p>
-
-<p style="margin-top: 1em">BUGS <br>
-For a list of known bugs see
-&lt;http://www.maatkit.org/bugs/mk-kill&gt;.</p>
-
-<p style="margin-top: 1em">Please use Google Code Issues
-and Groups to report bugs or request support:
-&lt;http://code.google.com/p/maatkit/&gt;. You can also join
-#maatkit on Freenode to discuss Maatkit.</p>
-
-<p style="margin-top: 1em">Please include the complete
-command-line used to reproduce the problem you are seeing,
-the version of all MySQL servers involved, the complete
-output of the tool when run with <br>
-&quot;--version&quot;, and if possible, debugging output
-produced by running with the &quot;MKDEBUG=1&quot;
-environment variable.</p>
-
-<p style="margin-top: 1em">COPYRIGHT, LICENSE AND WARRANTY
-<br>
-This program is copyright 2009-2011 Baron Schwartz. Feedback
-and improvements are welcome.</p>
-
-<p style="margin-top: 1em">THIS PROGRAM IS PROVIDED
-&quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A <br>
-PARTICULAR PURPOSE.</p>
-
-<p style="margin-top: 1em">This program is free software;
-you can redistribute it and/or modify it under the terms of
-the GNU General Public License as published by the Free
-Software Foundation, version 2; <br>
-OR the Perl Artistic License. On UNIX and similar systems,
-you can issue &lsquo;man perlgpl&rsquo; or &lsquo;man
-perlartistic&rsquo; to read these licenses.</p>
-
-<p style="margin-top: 1em">You should have received a copy
-of the GNU General Public License along with this program;
-if not, write to the Free Software Foundation, Inc., 59
-Temple Place, Suite 330, <br>
-Boston, MA 02111-1307 USA.</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Baron Schwartz, Daniel Nichter</p>
-
-<p style="margin-top: 1em">ABOUT MAATKIT <br>
-This tool is part of Maatkit, a toolkit for power users of
-MySQL. Maatkit was created by Baron Schwartz; Baron and
-Daniel Nichter are the primary code contributors. Both are
-<br>
-employed by Percona. Financial support for Maatkit
-development is primarily provided by Percona and its
-clients.</p>
-
-<p style="margin-top: 1em">VERSION <br>
-This manual page documents Ver 0.9.10 Distrib 7540
-$Revision: 7531 $.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2011-06-08
-MK-KILL(1)</p>
-<hr>
+  &lt;http://code.google.com/p/maatkit/&gt;, or you can get any of the tools
+  easily with a command like the following:
+<div class="Pp"></div>
+<pre>
+   wget http://www.maatkit.org/get/toolname
+   or
+   wget http://www.maatkit.org/trunk/toolname
+</pre>
+<div class="Pp"></div>
+Where &quot;toolname&quot; can be replaced with the name (or fragment of a name)
+  of any of the Maatkit tools. Once downloaded, they're ready to run; no
+  installation is needed. The first URL gets the latest released version of the
+  tool, and the second gets the latest trunk code from Subversion.
+<h1 class="Sh" title="Sh" id="ENVIRONMENT"><a class="selflink" href="#ENVIRONMENT">ENVIRONMENT</a></h1>
+The environment variable &quot;MKDEBUG&quot; enables verbose debugging output in
+  all of the Maatkit tools:
+<div class="Pp"></div>
+<pre>
+   MKDEBUG=1 mk-....
+</pre>
+<h1 class="Sh" title="Sh" id="SYSTEM_REQUIREMENTS"><a class="selflink" href="#SYSTEM_REQUIREMENTS">SYSTEM
+  REQUIREMENTS</a></h1>
+You need Perl, DBI, DBD::mysql, and some core packages that ought to be
+  installed in any reasonably new version of Perl.
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+For a list of known bugs see &lt;http://www.maatkit.org/bugs/mk-kill&gt;.
+<div class="Pp"></div>
+Please use Google Code Issues and Groups to report bugs or request support:
+  &lt;http://code.google.com/p/maatkit/&gt;. You can also join #maatkit on
+  Freenode to discuss Maatkit.
+<div class="Pp"></div>
+Please include the complete command-line used to reproduce the problem you are
+  seeing, the version of all MySQL servers involved, the complete output of the
+  tool when run with &quot;--version&quot;, and if possible, debugging output
+  produced by running with the &quot;MKDEBUG=1&quot; environment variable.
+<h1 class="Sh" title="Sh" id="COPYRIGHT,_LICENSE_AND_WARRANTY"><a class="selflink" href="#COPYRIGHT,_LICENSE_AND_WARRANTY">COPYRIGHT,
+  LICENSE AND WARRANTY</a></h1>
+This program is copyright 2009-2011 Baron Schwartz. Feedback and improvements
+  are welcome.
+<div class="Pp"></div>
+THIS PROGRAM IS PROVIDED &quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
+  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+<div class="Pp"></div>
+This program is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, version 2; OR the Perl Artistic License. On UNIX and similar
+  systems, you can issue `man perlgpl' or `man perlartistic' to read these
+  licenses.
+<div class="Pp"></div>
+You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+  Place, Suite 330, Boston, MA 02111-1307 USA.
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Baron Schwartz, Daniel Nichter
+<h1 class="Sh" title="Sh" id="ABOUT_MAATKIT"><a class="selflink" href="#ABOUT_MAATKIT">ABOUT
+  MAATKIT</a></h1>
+This tool is part of Maatkit, a toolkit for power users of MySQL. Maatkit was
+  created by Baron Schwartz; Baron and Daniel Nichter are the primary code
+  contributors. Both are employed by Percona. Financial support for Maatkit
+  development is primarily provided by Percona and its clients.
+<h1 class="Sh" title="Sh" id="VERSION"><a class="selflink" href="#VERSION">VERSION</a></h1>
+This manual page documents Ver 0.9.10 Distrib 7540 $Revision: 7531 $.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2011-06-08</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

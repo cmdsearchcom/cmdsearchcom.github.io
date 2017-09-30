@@ -1,1555 +1,1327 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:25:30 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MK-ARCHIVER(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MK-ARCHIVER(1) User Contributed Perl Documentation
-MK-ARCHIVER(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-mk-archiver - Archive rows from a MySQL table into another
-table or a file.</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-Usage: mk-archiver [OPTION...] --source DSN --where
-WHERE</p>
-
-<p style="margin-top: 1em">mk-archiver nibbles records from
-a MySQL table. The --source and --dest arguments use DSN
-syntax; if COPY is yes, --dest defaults to the key&rsquo;s
-value from --source.</p>
-
-<p style="margin-top: 1em">Examples:</p>
-
-<p style="margin-top: 1em">Archive all rows from
-oltp_server to olap_server and to a file:</p>
-
-<p style="margin-top: 1em">mk-archiver --source
-h=oltp_server,D=test,t=tbl --dest h=olap_server --file
-&rsquo;/var/log/archive/%Y-%m-%d-%D.%t&rsquo; --where
-&quot;1=1&quot; --limit 1000 --commit-each</p>
-
-<p style="margin-top: 1em">Purge (delete) orphan rows from
-child table:</p>
-
-<p style="margin-top: 1em">mk-archiver --source
-h=host,D=db,t=child --purge --where &rsquo;NOT EXISTS(SELECT
-* FROM parent WHERE col=child.col)&rsquo;</p>
-
-<p style="margin-top: 1em">RISKS <br>
-The following section is included to inform users about the
-potential risks, whether known or unknown, of using this
-tool. The two main categories of risks are those created by
-<br>
-the nature of the tool (e.g. read-only tools vs. read-write
-tools) and those created by bugs.</p>
-
-<p style="margin-top: 1em">mk-achiver is a read-write tool.
-It deletes data from the source by default, so you should
-test your archiving jobs with the &quot;--dry-run&quot;
-option if you&rsquo;re not sure about them. <br>
-It is designed to have as little impact on production
-systems as possible, but tuning with &quot;--limit&quot;,
-&quot;--txn-size&quot; and similar options might be a good
-idea too.</p>
-
-<p style="margin-top: 1em">If you write or use
-&quot;--plugin&quot; modules, you should ensure they are
-good quality and well-tested.</p>
-
-<p style="margin-top: 1em">At the time of this release
-there is an unverified bug with &quot;--bulk-insert&quot;
-that may cause data loss.</p>
-
-<p style="margin-top: 1em">The authoritative source for
-updated information is always the online issue tracking
-system. Issues that affect this tool will be marked as such.
-You can see a list of such <br>
-issues at the following URL:
-&lt;http://www.maatkit.org/bugs/mk-archiver&gt;.</p>
-
-<p style="margin-top: 1em">See also &quot;BUGS&quot; for
-more information on filing bugs and getting help.</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-mk-archiver is the tool I use to archive tables as described
-in &lt;http://tinyurl.com/mysql-archiving&gt;. The goal is a
-low-impact, forward-only job to nibble old data out of the
-<br>
-table without impacting OLTP queries much. You can insert
-the data into another table, which need not be on the same
-server. You can also write it to a file in a format <br>
-suitable for LOAD DATA INFILE. Or you can do neither, in
-which case it&rsquo;s just an incremental DELETE.</p>
-
-<p style="margin-top: 1em">mk-archiver is extensible via a
-plugin mechanism. You can inject your own code to add
-advanced archiving logic that could be useful for archiving
-dependent data, applying <br>
-complex business rules, or building a data warehouse during
-the archiving process.</p>
-
-<p style="margin-top: 1em">You need to choose values
-carefully for some options. The most important are
-&quot;--limit&quot;, &quot;--retries&quot;, and
-&quot;--txn-size&quot;.</p>
-
-<p style="margin-top: 1em">The strategy is to find the
-first row(s), then scan some index forward-only to find more
-rows efficiently. Each subsequent query should not scan the
-entire table; it should seek <br>
-into the index, then scan until it finds more archivable
-rows. Specifying the index with the &rsquo;i&rsquo; part of
-the &quot;--source&quot; argument can be crucial for this;
-use &quot;--dry-run&quot; to <br>
-examine the generated queries and be sure to EXPLAIN them to
-see if they are efficient (most of the time you probably
-want to scan the PRIMARY key, which is the default). Even
-<br>
-better, profile mk-archiver with mk-query-profiler and make
-sure it is not scanning the whole table every query.</p>
-
-<p style="margin-top: 1em">You can disable the
-seek-then-scan optimizations partially or wholly with
-&quot;--no-ascend&quot; and &quot;--ascend-first&quot;.
-Sometimes this may be more efficient for multi-column keys.
-Be <br>
-aware that mk-archiver is built to start at the beginning of
-the index it chooses and scan it forward-only. This might
-result in long table scans if you&rsquo;re trying to nibble
-from <br>
-the end of the table by an index other than the one it
-prefers. See &quot;--source&quot; and read the documentation
-on the &quot;i&quot; part if this applies to you.</p>
-
-<p style="margin-top: 1em">OUTPUT <br>
-If you specify &quot;--progress&quot;, the output is a
-header row, plus status output at intervals. Each row in the
-status output lists the current date and time, how many
-seconds mk- <br>
-archiver has been running, and how many rows it has
-archived.</p>
-
-<p style="margin-top: 1em">If you specify
-&quot;--statistics&quot;, &quot;mk-archiver&quot; outputs
-timing and other information to help you identify which part
-of your archiving process takes the most time.</p>
-
-<p style="margin-top: 1em">ERROR-HANDLING <br>
-mk-archiver tries to catch signals and exit gracefully; for
-example, if you send it SIGTERM (Ctrl-C on UNIX-ish
-systems), it will catch the signal, print a message about
-the <br>
-signal, and exit fairly normally. It will not execute
-&quot;--analyze&quot; or &quot;--optimize&quot;, because
-these may take a long time to finish. It will run all other
-code normally, including <br>
-calling after_finish() on any plugins (see
-&quot;EXTENDING&quot;).</p>
-
-<p style="margin-top: 1em">In other words, a signal, if
-caught, will break out of the main archiving loop and skip
-optimize/analyze.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-Specify at least one of &quot;--dest&quot;,
-&quot;--file&quot;, or &quot;--purge&quot;.</p>
-
-<p style="margin-top: 1em">&quot;--ignore&quot; and
-&quot;--replace&quot; are mutually exclusive.</p>
-
-<p style="margin-top: 1em">&quot;--txn-size&quot; and
-&quot;--commit-each&quot; are mutually exclusive.</p>
-
-
-<p style="margin-top: 1em">&quot;--low-priority-insert&quot;
-and &quot;--delayed-insert&quot; are mutually exclusive.</p>
-
-<p style="margin-top: 1em">&quot;--share-lock&quot; and
-&quot;--for-update&quot; are mutually exclusive.</p>
-
-<p style="margin-top: 1em">&quot;--analyze&quot; and
-&quot;--optimize&quot; are mutually exclusive.</p>
-
-<p style="margin-top: 1em">&quot;--no-ascend&quot; and
-&quot;--no-delete&quot; are mutually exclusive.</p>
-
-<p style="margin-top: 1em">DSN values in &quot;--dest&quot;
-default to values from &quot;--source&quot; if COPY is
-yes.</p>
-
-<p style="margin-top: 1em">--analyze <br>
-type: string</p>
-
-<p style="margin-top: 1em">Run ANALYZE TABLE afterwards on
-&quot;--source&quot; and/or &quot;--dest&quot;.</p>
-
-<p style="margin-top: 1em">Runs ANALYZE TABLE after
-finishing. The argument is an arbitrary string. If it
-contains the letter &rsquo;s&rsquo;, the source will be
-analyzed. If it contains &rsquo;d&rsquo;, the destination
-<br>
-will be analyzed. You can specify either or both. For
-example, the following will analyze both:</p>
-
-<p style="margin-top: 1em">--analyze=ds</p>
-
-<p style="margin-top: 1em">See
-&lt;http://dev.mysql.com/doc/en/analyze-table.html&gt; for
-details on ANALYZE TABLE.</p>
-
-<p style="margin-top: 1em">--ascend-first <br>
-Ascend only first column of index.</p>
-
-<p style="margin-top: 1em">If you do want to use the
-ascending index optimization (see &quot;--no-ascend&quot;),
-but do not want to incur the overhead of ascending a large
-multi-column index, you can use this <br>
-option to tell mk-archiver to ascend only the leftmost
-column of the index. This can provide a significant
-performance boost over not ascending the index at all, while
-<br>
-avoiding the cost of ascending the whole index.</p>
-
-<p style="margin-top: 1em">See &quot;EXTENDING&quot; for a
-discussion of how this interacts with plugins.</p>
-
-<p style="margin-top: 1em">--ask-pass <br>
-Prompt for a password when connecting to MySQL.</p>
-
-<p style="margin-top: 1em">--buffer <br>
-Buffer output to &quot;--file&quot; and flush at commit.</p>
-
-<p style="margin-top: 1em">Disables autoflushing to
-&quot;--file&quot; and flushes &quot;--file&quot; to disk
-only when a transaction commits. This typically means the
-file is block-flushed by the operating system, so <br>
-there may be some implicit flushes to disk between commits
-as well. The default is to flush &quot;--file&quot; to disk
-after every row.</p>
-
-<p style="margin-top: 1em">The danger is that a crash might
-cause lost data.</p>
-
-<p style="margin-top: 1em">The performance increase I have
-seen from using &quot;--buffer&quot; is around 5 to 15
-percent. Your mileage may vary.</p>
-
-<p style="margin-top: 1em">--bulk-delete <br>
-Delete each chunk with a single statement (implies
-&quot;--commit-each&quot;).</p>
-
-<p style="margin-top: 1em">Delete each chunk of rows in
-bulk with a single &quot;DELETE&quot; statement. The
-statement deletes every row between the first and last row
-of the chunk, inclusive. It implies <br>
-&quot;--commit-each&quot;, since it would be a bad idea to
-&quot;INSERT&quot; rows one at a time and commit them before
-the bulk &quot;DELETE&quot;.</p>
-
-<p style="margin-top: 1em">The normal method is to delete
-every row by its primary key. Bulk deletes might be a lot
-faster. They also might not be faster if you have a complex
-&quot;WHERE&quot; clause.</p>
-
-<p style="margin-top: 1em">This option completely defers
-all &quot;DELETE&quot; processing until the chunk of rows is
-finished. If you have a plugin on the source, its
-&quot;before_delete&quot; method will not be called. <br>
-Instead, its &quot;before_bulk_delete&quot; method is called
-later.</p>
-
-<p style="margin-top: 1em">WARNING: if you have a plugin on
-the source that sometimes doesn&rsquo;t return true from
-&quot;is_archivable()&quot;, you should use this option only
-if you understand what it does. If the <br>
-plugin instructs &quot;mk-archiver&quot; not to archive a
-row, it will still be deleted by the bulk delete!</p>
-
-<p style="margin-top: 1em">--[no]bulk-delete-limit <br>
-default: yes</p>
-
-<p style="margin-top: 1em">Add &quot;--limit&quot; to
-&quot;--bulk-delete&quot; statement.</p>
-
-<p style="margin-top: 1em">This is an advanced option and
-you should not disable it unless you know what you are doing
-and why! By default, &quot;--bulk-delete&quot; appends a
-&quot;--limit&quot; clause to the bulk <br>
-delete SQL statement. In certain cases, this clause can be
-omitted by specifying &quot;--no-bulk-delete-limit&quot;.
-&quot;--limit&quot; must still be specified.</p>
-
-<p style="margin-top: 1em">--bulk-insert <br>
-Insert each chunk with LOAD DATA INFILE (implies
-&quot;--bulk-delete&quot; &quot;--commit-each&quot;).</p>
-
-<p style="margin-top: 1em">Insert each chunk of rows with
-&quot;LOAD DATA LOCAL INFILE&quot;. This may be much faster
-than inserting a row at a time with &quot;INSERT&quot;
-statements. It is implemented by creating a <br>
-temporary file for each chunk of rows, and writing the rows
-to this file instead of inserting them. When the chunk is
-finished, it uploads the rows.</p>
-
-<p style="margin-top: 1em">To protect the safety of your
-data, this option forces bulk deletes to be used. It would
-be unsafe to delete each row as it is found, before
-inserting the rows into the <br>
-destination first. Forcing bulk deletes guarantees that the
-deletion waits until the insertion is successful.</p>
-
-<p style="margin-top: 1em">The
-&quot;--low-priority-insert&quot;, &quot;--replace&quot;,
-and &quot;--ignore&quot; options work with this option, but
-&quot;--delayed-insert&quot; does not.</p>
-
-<p style="margin-top: 1em">--charset <br>
-short form: -A; type: string</p>
-
-<p style="margin-top: 1em">Default character set. If the
-value is utf8, sets Perl&rsquo;s binmode on STDOUT to utf8,
-passes the mysql_enable_utf8 option to DBD::mysql, and runs
-SET NAMES UTF8 after <br>
-connecting to MySQL. Any other value sets binmode on STDOUT
-without the utf8 layer, and runs SET NAMES after connecting
-to MySQL.</p>
-
-<p style="margin-top: 1em">See also
-&quot;--[no]check-charset&quot;.</p>
-
-<p style="margin-top: 1em">--[no]check-charset <br>
-default: yes</p>
-
-<p style="margin-top: 1em">Ensure connection and table
-character sets are the same. Disabling this check may cause
-text to be erroneously converted from one character set to
-another (usually from utf8 <br>
-to latin1) which may cause data loss or mojibake. Disabling
-this check may be useful or necessary when character set
-conversions are intended.</p>
-
-<p style="margin-top: 1em">--[no]check-columns <br>
-default: yes</p>
-
-<p style="margin-top: 1em">Ensure &quot;--source&quot; and
-&quot;--dest&quot; have same columns.</p>
-
-<p style="margin-top: 1em">Enabled by default; causes
-mk-archiver to check that the source and destination tables
-have the same columns. It does not check column order, data
-type, etc. It just checks <br>
-that all columns in the source exist in the destination and
-vice versa. If there are any differences, mk-archiver will
-exit with an error.</p>
-
-<p style="margin-top: 1em">To disable this check, specify
---no-check-columns.</p>
-
-<p style="margin-top: 1em">--check-interval <br>
-type: time; default: 1s</p>
-
-<p style="margin-top: 1em">How often to check for slave lag
-if &quot;--check-slave-lag&quot; is given.</p>
-
-<p style="margin-top: 1em">--check-slave-lag <br>
-type: string</p>
-
-<p style="margin-top: 1em">Pause archiving until the
-specified DSN&rsquo;s slave lag is less than
-&quot;--max-lag&quot;.</p>
-
-<p style="margin-top: 1em">--columns <br>
-short form: -c; type: array</p>
-
-<p style="margin-top: 1em">Comma-separated list of columns
-to archive.</p>
-
-<p style="margin-top: 1em">Specify a comma-separated list
-of columns to fetch, write to the file, and insert into the
-destination table. If specified, mk-archiver ignores other
-columns unless it needs <br>
-to add them to the &quot;SELECT&quot; statement for
-ascending an index or deleting rows. It fetches and uses
-these extra columns internally, but does not write them to
-the file or to <br>
-the destination table. It does pass them to plugins.</p>
-
-<p style="margin-top: 1em">See also
-&quot;--primary-key-only&quot;.</p>
-
-<p style="margin-top: 1em">--commit-each <br>
-Commit each set of fetched and archived rows (disables
-&quot;--txn-size&quot;).</p>
-
-<p style="margin-top: 1em">Commits transactions and flushes
-&quot;--file&quot; after each set of rows has been archived,
-before fetching the next set of rows, and before sleeping if
-&quot;--sleep&quot; is specified. <br>
-Disables &quot;--txn-size&quot;; use &quot;--limit&quot; to
-control the transaction size with
-&quot;--commit-each&quot;.</p>
-
-<p style="margin-top: 1em">This option is useful as a
-shortcut to make &quot;--limit&quot; and
-&quot;--txn-size&quot; the same value, but more importantly
-it avoids transactions being held open while searching for
-more <br>
-rows. For example, imagine you are archiving old rows from
-the beginning of a very large table, with
-&quot;--limit&quot; 1000 and &quot;--txn-size&quot; 1000.
-After some period of finding and <br>
-archiving 1000 rows at a time, mk-archiver finds the last
-999 rows and archives them, then executes the next SELECT to
-find more rows. This scans the rest of the table, but <br>
-never finds any more rows. It has held open a transaction
-for a very long time, only to determine it is finished
-anyway. You can use &quot;--commit-each&quot; to avoid
-this.</p>
-
-<p style="margin-top: 1em">--config <br>
-type: Array</p>
-
-<p style="margin-top: 1em">Read this comma-separated list
-of config files; if specified, this must be the first option
-on the command line.</p>
-
-<p style="margin-top: 1em">--delayed-insert <br>
-Add the DELAYED modifier to INSERT statements.</p>
-
-<p style="margin-top: 1em">Adds the DELAYED modifier to
-INSERT or REPLACE statements. See
-&lt;http://dev.mysql.com/doc/en/insert.html&gt; for
-details.</p>
-
-<p style="margin-top: 1em">--dest <br>
-type: DSN</p>
-
-<p style="margin-top: 1em">DSN specifying the table to
-archive to.</p>
-
-<p style="margin-top: 1em">This item specifies a table into
-which mk-archiver will insert rows archived from
-&quot;--source&quot;. It uses the same key=val argument
-format as &quot;--source&quot;. Most missing values <br>
-default to the same values as &quot;--source&quot;, so you
-don&rsquo;t have to repeat options that are the same in
-&quot;--source&quot; and &quot;--dest&quot;. Use the
-&quot;--help&quot; option to see which values are <br>
-copied from &quot;--source&quot;.</p>
-
-<p style="margin-top: 1em">WARNING: Using a default options
-file (F) DSN option that defines a socket for
-&quot;--source&quot; causes mk-archiver to connect to
-&quot;--dest&quot; using that socket unless another socket
-<br>
-for &quot;--dest&quot; is specified. This means that
-mk-archiver may incorrectly connect to &quot;--source&quot;
-when it connects to &quot;--dest&quot;. For example:</p>
-
-<p style="margin-top: 1em">--source F=host1.cnf,D=db,t=tbl
---dest h=host2</p>
-
-<p style="margin-top: 1em">When mk-archiver connects to
-&quot;--dest&quot;, host2, it will connect via the
-&quot;--source&quot;, host1, socket defined in
-host1.cnf.</p>
-
-<p style="margin-top: 1em">--dry-run <br>
-Print queries and exit without doing anything.</p>
-
-<p style="margin-top: 1em">Causes mk-archiver to exit after
-printing the filename and SQL statements it will use.</p>
-
-<p style="margin-top: 1em">--file <br>
-type: string</p>
-
-<p style="margin-top: 1em">File to archive to, with
-DATE_FORMAT()-like formatting.</p>
-
-<p style="margin-top: 1em">Filename to write archived rows
-to. A subset of MySQL&rsquo;s DATE_FORMAT() formatting codes
-are allowed in the filename, as follows:</p>
-
-<p style="margin-top: 1em">%d Day of the month, numeric
-(01..31) <br>
-%H Hour (00..23) <br>
-%i Minutes, numeric (00..59) <br>
-%m Month, numeric (01..12) <br>
-%s Seconds (00..59) <br>
-%Y Year, numeric, four digits</p>
-
-<p style="margin-top: 1em">You can use the following extra
-format codes too:</p>
-
-<p style="margin-top: 1em">%D Database name <br>
-%t Table name</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em">--file
-&rsquo;/var/log/archive/%Y-%m-%d-%D.%t&rsquo;</p>
-
-<p style="margin-top: 1em">The file&rsquo;s contents are in
-the same format used by SELECT INTO OUTFILE, as documented
-in the MySQL manual: rows terminated by newlines, columns
-terminated by tabs, NULL <br>
-characters are represented by nd special characters are
-escaped by . This lets you reload a file with LOAD DATA
-INFILE&rsquo;s default settings.</p>
-
-<p style="margin-top: 1em">If you want a column header at
-the top of the file, see &quot;--header&quot;. The file is
-auto-flushed by default; see &quot;--buffer&quot;.</p>
-
-<p style="margin-top: 1em">--for-update <br>
-Adds the FOR UPDATE modifier to SELECT statements.</p>
-
-<p style="margin-top: 1em">For details, see
-&lt;http://dev.mysql.com/doc/en/innodb-locking-reads.html&gt;.</p>
-
-<p style="margin-top: 1em">--header <br>
-Print column header at top of &quot;--file&quot;.</p>
-
-<p style="margin-top: 1em">Writes column names as the first
-line in the file given by &quot;--file&quot;. If the file
-exists, does not write headers; this keeps the file loadable
-with LOAD DATA INFILE in case <br>
-you append more output to it.</p>
-
-<p style="margin-top: 1em">--help <br>
-Show help and exit.</p>
-
-<p style="margin-top: 1em">--high-priority-select <br>
-Adds the HIGH_PRIORITY modifier to SELECT statements.</p>
-
-<p style="margin-top: 1em">See
-&lt;http://dev.mysql.com/doc/en/select.html&gt; for
-details.</p>
-
-<p style="margin-top: 1em">--host <br>
-short form: -h; type: string</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">--ignore <br>
-Use IGNORE for INSERT statements.</p>
-
-<p style="margin-top: 1em">Causes INSERTs into
-&quot;--dest&quot; to be INSERT IGNORE.</p>
-
-<p style="margin-top: 1em">--limit <br>
-type: int; default: 1</p>
-
-<p style="margin-top: 1em">Number of rows to fetch and
-archive per statement.</p>
-
-<p style="margin-top: 1em">Limits the number of rows
-returned by the SELECT statements that retrieve rows to
-archive. Default is one row. It may be more efficient to
-increase the limit, but be <br>
-careful if you are archiving sparsely, skipping over many
-rows; this can potentially cause more contention with other
-queries, depending on the storage engine, transaction <br>
-isolation level, and options such as
-&quot;--for-update&quot;.</p>
-
-<p style="margin-top: 1em">--local <br>
-Do not write OPTIMIZE or ANALYZE queries to binlog.</p>
-
-<p style="margin-top: 1em">Adds the NO_WRITE_TO_BINLOG
-modifier to ANALYZE and OPTIMIZE queries. See
-&quot;--analyze&quot; for details.</p>
-
-<p style="margin-top: 1em">--low-priority-delete <br>
-Adds the LOW_PRIORITY modifier to DELETE statements.</p>
-
-<p style="margin-top: 1em">See
-&lt;http://dev.mysql.com/doc/en/delete.html&gt; for
-details.</p>
-
-<p style="margin-top: 1em">--low-priority-insert <br>
-Adds the LOW_PRIORITY modifier to INSERT or REPLACE
-statements.</p>
-
-<p style="margin-top: 1em">See
-&lt;http://dev.mysql.com/doc/en/insert.html&gt; for
-details.</p>
-
-<p style="margin-top: 1em">--max-lag <br>
-type: time; default: 1s</p>
-
-<p style="margin-top: 1em">Pause archiving if the slave
-given by &quot;--check-slave-lag&quot; lags.</p>
-
-<p style="margin-top: 1em">This option causes mk-archiver
-to look at the slave every time it&rsquo;s about to fetch
-another row. If the slave&rsquo;s lag is greater than the
-option&rsquo;s value, or if the slave isn&rsquo;t <br>
-running (so its lag is NULL), mk-table-checksum sleeps for
-&quot;--check-interval&quot; seconds and then looks at the
-lag again. It repeats until the slave is caught up, then
-proceeds <br>
-to fetch and archive the row.</p>
-
-<p style="margin-top: 1em">This option may eliminate the
-need for &quot;--sleep&quot; or
-&quot;--sleep-coef&quot;.</p>
-
-<p style="margin-top: 1em">--no-ascend <br>
-Do not use ascending index optimization.</p>
-
-<p style="margin-top: 1em">The default ascending-index
-optimization causes &quot;mk-archiver&quot; to optimize
-repeated &quot;SELECT&quot; queries so they seek into the
-index where the previous query ended, then scan <br>
-along it, rather than scanning from the beginning of the
-table every time. This is enabled by default because it is
-generally a good strategy for repeated accesses.</p>
-
-<p style="margin-top: 1em">Large, multiple-column indexes
-may cause the WHERE clause to be complex enough that this
-could actually be less efficient. Consider for example a
-four-column PRIMARY KEY on <br>
-(a, b, c, d). The WHERE clause to start where the last query
-ended is as follows:</p>
-
-<p style="margin-top: 1em">WHERE (a &gt; ?) <br>
-OR (a = ? AND b &gt; ?) <br>
-OR (a = ? AND b = ? AND c &gt; ?) <br>
-OR (a = ? AND b = ? AND c = ? AND d &gt;= ?)</p>
-
-<p style="margin-top: 1em">Populating the placeholders with
-values uses memory and CPU, adds network traffic and parsing
-overhead, and may make the query harder for MySQL to
-optimize. A four-column <br>
-key isn&rsquo;t a big deal, but a ten-column key in which
-every column allows &quot;NULL&quot; might be.</p>
-
-<p style="margin-top: 1em">Ascending the index might not be
-necessary if you know you are simply removing rows from the
-beginning of the table in chunks, but not leaving any holes,
-so starting at the <br>
-beginning of the table is actually the most efficient thing
-to do.</p>
-
-<p style="margin-top: 1em">See also
-&quot;--ascend-first&quot;. See &quot;EXTENDING&quot; for a
-discussion of how this interacts with plugins.</p>
-
-<p style="margin-top: 1em">--no-delete <br>
-Do not delete archived rows.</p>
-
-<p style="margin-top: 1em">Causes &quot;mk-archiver&quot;
-not to delete rows after processing them. This disallows
-&quot;--no-ascend&quot;, because enabling them both would
-cause an infinite loop.</p>
-
-<p style="margin-top: 1em">If there is a plugin on the
-source DSN, its &quot;before_delete&quot; method is called
-anyway, even though &quot;mk-archiver&quot; will not execute
-the delete. See &quot;EXTENDING&quot; for more on <br>
-plugins.</p>
-
-<p style="margin-top: 1em">--optimize <br>
-type: string</p>
-
-<p style="margin-top: 1em">Run OPTIMIZE TABLE afterwards on
-&quot;--source&quot; and/or &quot;--dest&quot;.</p>
-
-<p style="margin-top: 1em">Runs OPTIMIZE TABLE after
-finishing. See &quot;--analyze&quot; for the option syntax
-and &lt;http://dev.mysql.com/doc/en/optimize-table.html&gt;
-for details on OPTIMIZE TABLE.</p>
-
-<p style="margin-top: 1em">--password <br>
-short form: -p; type: string</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">--pid <br>
-type: string</p>
-
-<p style="margin-top: 1em">Create the given PID file when
-daemonized. The file contains the process ID of the
-daemonized instance. The PID file is removed when the
-daemonized instance exits. The <br>
-program checks for the existence of the PID file when
-starting; if it exists and the process with the matching PID
-exists, the program exits.</p>
-
-<p style="margin-top: 1em">--plugin <br>
-type: string</p>
-
-<p style="margin-top: 1em">Perl module name to use as a
-generic plugin.</p>
-
-<p style="margin-top: 1em">Specify the Perl module name of
-a general-purpose plugin. It is currently used only for
-statistics (see &quot;--statistics&quot;) and must have
-&quot;new()&quot; and a &quot;statistics()&quot; method.</p>
-
-<p style="margin-top: 1em">The &quot;new( src =&quot; $src,
-dst =&gt; $dst, opts =&gt; $o )&gt; method gets the source
-and destination DSNs, and their database connections, just
-like the connection-specific plugins do. <br>
-It also gets an OptionParser object ($o) for accessing
-command-line options (example:
-&quot;$o-&quot;get(&rsquo;purge&rsquo;);&gt;).</p>
-
-<p style="margin-top: 1em">The &quot;statistics(stats,
-$time)&quot; method gets a hashref of the statistics
-collected by the archiving job, and the time the whole job
-started.</p>
-
-<p style="margin-top: 1em">--port <br>
-short form: -P; type: int</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">--primary-key-only <br>
-Primary key columns only.</p>
-
-<p style="margin-top: 1em">A shortcut for specifying
-&quot;--columns&quot; with the primary key columns. This is
-an efficiency if you just want to purge rows; it avoids
-fetching the entire row, when only the <br>
-primary key columns are needed for &quot;DELETE&quot;
-statements. See also &quot;--purge&quot;.</p>
-
-<p style="margin-top: 1em">--progress <br>
-type: int</p>
-
-<p style="margin-top: 1em">Print progress information every
-X rows.</p>
-
-<p style="margin-top: 1em">Prints current time, elapsed
-time, and rows archived every X rows.</p>
-
-<p style="margin-top: 1em">--purge <br>
-Purge instead of archiving; allows omitting
-&quot;--file&quot; and &quot;--dest&quot;.</p>
-
-<p style="margin-top: 1em">Allows archiving without a
-&quot;--file&quot; or &quot;--dest&quot; argument, which is
-effectively a purge since the rows are just deleted.</p>
-
-<p style="margin-top: 1em">If you just want to purge rows,
-consider specifying the table&rsquo;s primary key columns
-with &quot;--primary-key-only&quot;. This will prevent
-fetching all columns from the server for no <br>
-reason.</p>
-
-<p style="margin-top: 1em">--quick-delete <br>
-Adds the QUICK modifier to DELETE statements.</p>
-
-<p style="margin-top: 1em">See
-&lt;http://dev.mysql.com/doc/en/delete.html&gt; for details.
-As stated in the documentation, in some cases it may be
-faster to use DELETE QUICK followed by OPTIMIZE TABLE. <br>
-You can use &quot;--optimize&quot; for this.</p>
-
-<p style="margin-top: 1em">--quiet <br>
-short form: -q</p>
-
-<p style="margin-top: 1em">Do not print any output, such as
-for &quot;--statistics&quot;.</p>
-
-<p style="margin-top: 1em">Suppresses normal output,
-including the output of &quot;--statistics&quot;, but
-doesn&rsquo;t suppress the output from
-&quot;--why-quit&quot;.</p>
-
-<p style="margin-top: 1em">--replace <br>
-Causes INSERTs into &quot;--dest&quot; to be written as
-REPLACE.</p>
-
-<p style="margin-top: 1em">--retries <br>
-type: int; default: 1</p>
-
-<p style="margin-top: 1em">Number of retries per timeout or
-deadlock.</p>
-
-<p style="margin-top: 1em">Specifies the number of times
-mk-archiver should retry when there is an InnoDB lock wait
-timeout or deadlock. When retries are exhausted, mk-archiver
-will exit with an <br>
-error.</p>
-
-<p style="margin-top: 1em">Consider carefully what you want
-to happen when you are archiving between a mixture of
-transactional and non-transactional storage engines. The
-INSERT to &quot;--dest&quot; and DELETE <br>
-from &quot;--source&quot; are on separate connections, so
-they do not actually participate in the same transaction
-even if they&rsquo;re on the same server. However,
-mk-archiver implements <br>
-simple distributed transactions in code, so commits and
-rollbacks should happen as desired across the two
-connections.</p>
-
-<p style="margin-top: 1em">At this time I have not written
-any code to handle errors with transactional storage engines
-other than InnoDB. Request that feature if you need it.</p>
-
-<p style="margin-top: 1em">--run-time <br>
-type: time</p>
-
-<p style="margin-top: 1em">Time to run before exiting.</p>
-
-<p style="margin-top: 1em">Optional suffix s=seconds,
-m=minutes, h=hours, d=days; if no suffix, s is used.</p>
-
-<p style="margin-top: 1em">--[no]safe-auto-increment <br>
-default: yes</p>
-
-<p style="margin-top: 1em">Do not archive row with max
-AUTO_INCREMENT.</p>
-
-<p style="margin-top: 1em">Adds an extra WHERE clause to
-prevent mk-archiver from removing the newest row when
-ascending a single-column AUTO_INCREMENT key. This guards
-against re-using AUTO_INCREMENT <br>
-values if the server restarts, and is enabled by
-default.</p>
-
-<p style="margin-top: 1em">The extra WHERE clause contains
-the maximum value of the auto-increment column as of the
-beginning of the archive or purge job. If new rows are
-inserted while mk-archiver is <br>
-running, it will not see them.</p>
-
-<p style="margin-top: 1em">--sentinel <br>
-type: string; default: /tmp/mk-archiver-sentinel</p>
-
-<p style="margin-top: 1em">Exit if this file exists.</p>
-
-<p style="margin-top: 1em">The presence of the file
-specified by &quot;--sentinel&quot; will cause mk-archiver
-to stop archiving and exit. The default is
-/tmp/mk-archiver-sentinel. You might find this handy to <br>
-stop cron jobs gracefully if necessary. See also
-&quot;--stop&quot;.</p>
-
-<p style="margin-top: 1em">--set-vars <br>
-type: string; default: wait_timeout=10000</p>
-
-<p style="margin-top: 1em">Set these MySQL variables.</p>
-
-<p style="margin-top: 1em">Specify any variables you want
-to be set immediately after connecting to MySQL. These will
-be included in a &quot;SET&quot; command.</p>
-
-<p style="margin-top: 1em">--share-lock <br>
-Adds the LOCK IN SHARE MODE modifier to SELECT
-statements.</p>
-
-<p style="margin-top: 1em">See
-&lt;http://dev.mysql.com/doc/en/innodb-locking-reads.html&gt;.</p>
-
-<p style="margin-top: 1em">--skip-foreign-key-checks <br>
-Disables foreign key checks with SET
-FOREIGN_KEY_CHECKS=0.</p>
-
-<p style="margin-top: 1em">--sleep <br>
-type: int</p>
-
-<p style="margin-top: 1em">Sleep time between fetches.</p>
-
-<p style="margin-top: 1em">Specifies how long to sleep
-between SELECT statements. Default is not to sleep at all.
-Transactions are NOT committed, and the &quot;--file&quot;
-file is NOT flushed, before <br>
-sleeping. See &quot;--txn-size&quot; to control that.</p>
-
-<p style="margin-top: 1em">If &quot;--commit-each&quot; is
-specified, committing and flushing happens before
-sleeping.</p>
-
-<p style="margin-top: 1em">--sleep-coef <br>
-type: float</p>
-
-<p style="margin-top: 1em">Calculate &quot;--sleep&quot; as
-a multiple of the last SELECT time.</p>
-
-<p style="margin-top: 1em">If this option is specified,
-mk-archiver will sleep for the query time of the last SELECT
-multiplied by the specified coefficient.</p>
-
-<p style="margin-top: 1em">This is a slightly more
-sophisticated way to throttle the SELECTs: sleep a varying
-amount of time between each SELECT, depending on how long
-the SELECTs are taking.</p>
-
-<p style="margin-top: 1em">--socket <br>
-short form: -S; type: string</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">--source <br>
-type: DSN</p>
-
-<p style="margin-top: 1em">DSN specifying the table to
-archive from (required). This argument is a DSN. See
-&quot;DSN OPTIONS&quot; for the syntax. Most options control
-how mk-archiver connects to MySQL, but <br>
-there are some extended DSN options in this tool&rsquo;s
-syntax. The D, t, and i options select a table to
-archive:</p>
-
-<p style="margin-top: 1em">--source
-h=my_server,D=my_database,t=my_tbl</p>
-
-<p style="margin-top: 1em">The a option specifies the
-database to set as the connection&rsquo;s default with USE.
-If the b option is true, it disables binary logging with
-SQL_LOG_BIN. The m option <br>
-specifies pluggable actions, which an external Perl module
-can provide. The only required part is the table; other
-parts may be read from various places in the environment
-<br>
-(such as options files).</p>
-
-<p style="margin-top: 1em">The &rsquo;i&rsquo; part
-deserves special mention. This tells mk-archiver which index
-it should scan to archive. This appears in a FORCE INDEX or
-USE INDEX hint in the SELECT <br>
-statements used to fetch archivable rows. If you don&rsquo;t
-specify anything, mk-archiver will auto-discover a good
-index, preferring a &quot;PRIMARY KEY&quot; if one exists.
-In my <br>
-experience this usually works well, so most of the time you
-can probably just omit the &rsquo;i&rsquo; part.</p>
-
-<p style="margin-top: 1em">The index is used to optimize
-repeated accesses to the table; mk-archiver remembers the
-last row it retrieves from each SELECT statement, and uses
-it to construct a WHERE <br>
-clause, using the columns in the specified index, that
-should allow MySQL to start the next SELECT where the last
-one ended, rather than potentially scanning from the <br>
-beginning of the table with each successive SELECT. If you
-are using external plugins, please see &quot;EXTENDING&quot;
-for a discussion of how they interact with ascending
-indexes.</p>
-
-<p style="margin-top: 1em">The &rsquo;a&rsquo; and
-&rsquo;b&rsquo; options allow you to control how statements
-flow through the binary log. If you specify the
-&rsquo;b&rsquo; option, binary logging will be disabled on
-the specified <br>
-connection. If you specify the &rsquo;a&rsquo; option, the
-connection will &quot;USE&quot; the specified database,
-which you can use to prevent slaves from executing the
-binary log events with <br>
-&quot;--replicate-ignore-db&quot; options. These two options
-can be used as different methods to achieve the same goal:
-archive data off the master, but leave it on the slave. For
-<br>
-example, you can run a purge job on the master and prevent
-it from happening on the slave using your method of
-choice.</p>
-
-<p style="margin-top: 1em">WARNING: Using a default options
-file (F) DSN option that defines a socket for
-&quot;--source&quot; causes mk-archiver to connect to
-&quot;--dest&quot; using that socket unless another socket
-<br>
-for &quot;--dest&quot; is specified. This means that
-mk-archiver may incorrectly connect to &quot;--source&quot;
-when it is meant to connect to &quot;--dest&quot;. For
-example:</p>
-
-<p style="margin-top: 1em">--source F=host1.cnf,D=db,t=tbl
---dest h=host2</p>
-
-<p style="margin-top: 1em">When mk-archiver connects to
-&quot;--dest&quot;, host2, it will connect via the
-&quot;--source&quot;, host1, socket defined in
-host1.cnf.</p>
-
-<p style="margin-top: 1em">--statistics <br>
-Collect and print timing statistics.</p>
-
-<p style="margin-top: 1em">Causes mk-archiver to collect
-timing statistics about what it does. These statistics are
-available to the plugin specified by
-&quot;--plugin&quot;</p>
-
-<p style="margin-top: 1em">Unless you specify
-&quot;--quiet&quot;, &quot;mk-archiver&quot; prints the
-statistics when it exits. The statistics look like this:</p>
-
-<p style="margin-top: 1em">Started at 2008-07-18T07:18:53,
-ended at 2008-07-18T07:18:53 <br>
-Source: D=db,t=table <br>
-SELECT 4 <br>
-INSERT 4 <br>
-DELETE 4 <br>
-Action Count Time Pct <br>
-commit 10 0.1079 88.27 <br>
-select 5 0.0047 3.87 <br>
-deleting 4 0.0028 2.29 <br>
-inserting 4 0.0028 2.28 <br>
-other 0 0.0040 3.29</p>
-
-<p style="margin-top: 1em">The first two (or three) lines
-show times and the source and destination tables. The next
-three lines show how many rows were fetched, inserted, and
-deleted.</p>
-
-<p style="margin-top: 1em">The remaining lines show counts
-and timing. The columns are the action, the total number of
-times that action was timed, the total time it took, and the
-percent of the <br>
-program&rsquo;s total runtime. The rows are sorted in order
-of descending total time. The last row is the rest of the
-time not explicitly attributed to anything. Actions will
-<br>
-vary depending on command-line options.</p>
-
-<p style="margin-top: 1em">If &quot;--why-quit&quot; is
-given, its behavior is changed slightly. This option causes
-it to print the reason for exiting even when it&rsquo;s just
-because there are no more rows.</p>
-
-<p style="margin-top: 1em">This option requires the
-standard Time::HiRes module, which is part of core Perl on
-reasonably new Perl releases.</p>
-
-<p style="margin-top: 1em">--stop <br>
-Stop running instances by creating the sentinel file.</p>
-
-<p style="margin-top: 1em">Causes mk-archiver to create the
-sentinel file specified by &quot;--sentinel&quot; and exit.
-This should have the effect of stopping all running
-instances which are watching the same <br>
-sentinel file.</p>
-
-<p style="margin-top: 1em">--txn-size <br>
-type: int; default: 1</p>
-
-<p style="margin-top: 1em">Number of rows per
-transaction.</p>
-
-<p style="margin-top: 1em">Specifies the size, in number of
-rows, of each transaction. Zero disables transactions
-altogether. After mk-archiver processes this many rows, it
-commits both the &quot;--source&quot; <br>
-and the &quot;--dest&quot; if given, and flushes the file
-given by &quot;--file&quot;.</p>
-
-<p style="margin-top: 1em">This parameter is critical to
-performance. If you are archiving from a live server, which
-for example is doing heavy OLTP work, you need to choose a
-good balance between <br>
-transaction size and commit overhead. Larger transactions
-create the possibility of more lock contention and
-deadlocks, but smaller transactions cause more frequent
-commit <br>
-overhead, which can be significant. To give an idea, on a
-small test set I worked with while writing mk-archiver, a
-value of 500 caused archiving to take about 2 seconds per
-<br>
-1000 rows on an otherwise quiet MySQL instance on my desktop
-machine, archiving to disk and to another table. Disabling
-transactions with a value of zero, which turns on <br>
-autocommit, dropped performance to 38 seconds per thousand
-rows.</p>
-
-<p style="margin-top: 1em">If you are not archiving from or
-to a transactional storage engine, you may want to disable
-transactions so mk-archiver doesn&rsquo;t try to commit.</p>
-
-<p style="margin-top: 1em">--user <br>
-short form: -u; type: string</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">--version <br>
-Show version and exit.</p>
-
-<p style="margin-top: 1em">--where <br>
-type: string</p>
-
-<p style="margin-top: 1em">WHERE clause to limit which rows
-to archive (required).</p>
-
-<p style="margin-top: 1em">Specifies a WHERE clause to
-limit which rows are archived. Do not include the word
-WHERE. You may need to quote the argument to prevent your
-shell from interpreting it. <br>
-For example:</p>
-
-<p style="margin-top: 1em">--where &rsquo;ts &lt;
-current_date - interval 90 day&rsquo;</p>
-
-<p style="margin-top: 1em">For safety, &quot;--where&quot;
-is required. If you do not require a WHERE clause, use
-&quot;--where&quot; 1=1.</p>
-
-<p style="margin-top: 1em">--why-quit <br>
-Print reason for exiting unless rows exhausted.</p>
-
-<p style="margin-top: 1em">Causes mk-archiver to print a
-message if it exits for any reason other than running out of
-rows to archive. This can be useful if you have a cron job
-with &quot;--run-time&quot; <br>
-specified, for example, and you want to be sure mk-archiver
-is finishing before running out of time.</p>
-
-<p style="margin-top: 1em">If &quot;--statistics&quot; is
-given, the behavior is changed slightly. It will print the
-reason for exiting even when it&rsquo;s just because there
-are no more rows.</p>
-
-<p style="margin-top: 1em">This output prints even if
-&quot;--quiet&quot; is given. That&rsquo;s so you can put
-&quot;mk-archiver&quot; in a &quot;cron&quot; job and get an
-email if there&rsquo;s an abnormal exit.</p>
-
-<p style="margin-top: 1em">DSN OPTIONS <br>
-These DSN options are used to create a DSN. Each option is
-given like &quot;option=value&quot;. The options are
-case-sensitive, so P and p are not the same option. There
-cannot be <br>
-whitespace before or after the &quot;=&quot; and if the
-value contains whitespace it must be quoted. DSN options are
-comma-separated. See the maatkit manpage for full
-details.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; a</p>
-
-<p style="margin-top: 1em">copy: no</p>
-
-<p style="margin-top: 1em">Database to USE when executing
-queries.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A</p>
-
-<p style="margin-top: 1em">dsn: charset; copy: yes</p>
-
-<p style="margin-top: 1em">Default character set.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; b</p>
-
-<p style="margin-top: 1em">copy: no</p>
-
-<p style="margin-top: 1em">If true, disable binlog with
-SQL_LOG_BIN.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; D</p>
-
-<p style="margin-top: 1em">dsn: database; copy: yes</p>
-
-<p style="margin-top: 1em">Database that contains the
-table.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; F</p>
-
-<p style="margin-top: 1em">dsn: mysql_read_default_file;
-copy: yes</p>
-
-<p style="margin-top: 1em">Only read default options from
-the given file</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; h</p>
-
-<p style="margin-top: 1em">dsn: host; copy: yes</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; i</p>
-
-<p style="margin-top: 1em">copy: yes</p>
-
-<p style="margin-top: 1em">Index to use.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; m</p>
-
-<p style="margin-top: 1em">copy: no</p>
-
-<p style="margin-top: 1em">Plugin module name.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; p</p>
-
-<p style="margin-top: 1em">dsn: password; copy: yes</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; P</p>
-
-<p style="margin-top: 1em">dsn: port; copy: yes</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; S</p>
-
-<p style="margin-top: 1em">dsn: mysql_socket; copy: yes</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; t</p>
-
-<p style="margin-top: 1em">copy: yes</p>
-
-<p style="margin-top: 1em">Table to archive from/to.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; u</p>
-
-<p style="margin-top: 1em">dsn: user; copy: yes</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">EXTENDING <br>
-mk-archiver is extensible by plugging in external Perl
-modules to handle some logic and/or actions. You can specify
-a module for both the &quot;--source&quot; and the
-&quot;--dest&quot;, with the <br>
-&rsquo;m&rsquo; part of the specification. For example:</p>
-
-<p style="margin-top: 1em">--source
-D=test,t=test1,m=My::Module1 --dest
-m=My::Module2,t=test2</p>
-
-<p style="margin-top: 1em">This will cause mk-archiver to
-load the My::Module1 and My::Module2 packages, create
-instances of them, and then make calls to them during the
-archiving process.</p>
-
-<p style="margin-top: 1em">You can also specify a plugin
-with &quot;--plugin&quot;.</p>
-
-<p style="margin-top: 1em">The module must provide this
-interface:</p>
-
-<p style="margin-top: 1em">new(dbh =&gt; $dbh, db =&gt;
-$db_name, tbl =&gt; $tbl_name) <br>
-The plugin&rsquo;s constructor is passed a reference to the
-database handle, the database name, and table name. The
-plugin is created just after mk-archiver opens the
-connection, <br>
-and before it examines the table given in the arguments.
-This gives the plugin a chance to create and populate
-temporary tables, or do other setup work.</p>
-
-<p style="margin-top: 1em">before_begin(cols =&gt; @cols,
-allcols =&gt; @allcols) <br>
-This method is called just before mk-archiver begins
-iterating through rows and archiving them, but after it does
-all other setup work (examining table structures, designing
-<br>
-SQL queries, and so on). This is the only time mk-archiver
-tells the plugin column names for the rows it will pass the
-plugin while archiving.</p>
-
-<p style="margin-top: 1em">The &quot;cols&quot; argument is
-the column names the user requested to be archived, either
-by default or by the &quot;--columns&quot; option. The
-&quot;allcols&quot; argument is the list of column names
-<br>
-for every row mk-archiver will fetch from the source table.
-It may fetch more columns than the user requested, because
-it needs some columns for its own use. When <br>
-subsequent plugin functions receive a row, it is the full
-row containing all the extra columns, if any, added to the
-end.</p>
-
-<p style="margin-top: 1em">is_archivable(row =&gt; @row)
-<br>
-This method is called for each row to determine whether it
-is archivable. This applies only to &quot;--source&quot;.
-The argument is the row itself, as an arrayref. If the
-method <br>
-returns true, the row will be archived; otherwise it will be
-skipped.</p>
-
-<p style="margin-top: 1em">Skipping a row adds
-complications for non-unique indexes. Normally mk-archiver
-uses a WHERE clause designed to target the last processed
-row as the place to start the scan <br>
-for the next SELECT statement. If you have skipped the row
-by returning false from is_archivable(), mk-archiver could
-get into an infinite loop because the row still exists. <br>
-Therefore, when you specify a plugin for the
-&quot;--source&quot; argument, mk-archiver will change its
-WHERE clause slightly. Instead of starting at &quot;greater
-than or equal to&quot; the <br>
-last processed row, it will start &quot;strictly greater
-than.&quot; This will work fine on unique indexes such as
-primary keys, but it may skip rows (leave holes) on
-non-unique <br>
-indexes or when ascending only the first column of an
-index.</p>
-
-<p style="margin-top: 1em">&quot;mk-archiver&quot; will
-change the clause in the same way if you specify
-&quot;--no-delete&quot;, because again an infinite loop is
-possible.</p>
-
-<p style="margin-top: 1em">If you specify the
-&quot;--bulk-delete&quot; option and return false from this
-method, &quot;mk-archiver&quot; may not do what you want.
-The row won&rsquo;t be archived, but it will be deleted,
-since <br>
-bulk deletes operate on ranges of rows and don&rsquo;t know
-which rows the plugin selected to keep.</p>
-
-<p style="margin-top: 1em">If you specify the
-&quot;--bulk-insert&quot; option, this method&rsquo;s return
-value will influence whether the row is written to the
-temporary file for the bulk insert, so bulk inserts <br>
-will work as expected. However, bulk inserts require bulk
-deletes.</p>
-
-<p style="margin-top: 1em">before_delete(row =&gt; @row)
-<br>
-This method is called for each row just before it is
-deleted. This applies only to &quot;--source&quot;. This is
-a good place for you to handle dependencies, such as
-deleting things <br>
-that are foreign-keyed to the row you are about to delete.
-You could also use this to recursively archive all dependent
-tables.</p>
-
-<p style="margin-top: 1em">This plugin method is called
-even if &quot;--no-delete&quot; is given, but not if
-&quot;--bulk-delete&quot; is given.</p>
-
-<p style="margin-top: 1em">before_bulk_delete(first_row
-=&gt; @row, last_row =&gt; @row) <br>
-This method is called just before a bulk delete is executed.
-It is similar to the &quot;before_delete&quot; method,
-except its arguments are the first and last row of the range
-to be <br>
-deleted. It is called even if &quot;--no-delete&quot; is
-given.</p>
-
-<p style="margin-top: 1em">before_insert(row =&gt; @row)
-<br>
-This method is called for each row just before it is
-inserted. This applies only to &quot;--dest&quot;. You could
-use this to insert the row into multiple tables, perhaps
-with an ON <br>
-DUPLICATE KEY UPDATE clause to build summary tables in a
-data warehouse.</p>
-
-<p style="margin-top: 1em">This method is not called if
-&quot;--bulk-insert&quot; is given.</p>
-
-<p style="margin-top: 1em">before_bulk_insert(first_row
-=&gt; @row, last_row =&gt; @row, filename =&gt;
-bulk_insert_filename) <br>
-This method is called just before a bulk insert is executed.
-It is similar to the &quot;before_insert&quot; method,
-except its arguments are the first and last row of the range
-to be <br>
-deleted.</p>
-
-<p style="margin-top: 1em">custom_sth(row =&gt; @row, sql
-=&gt; $sql) <br>
-This method is called just before inserting the row, but
-after &quot;before_insert()&quot;. It allows the plugin to
-specify different &quot;INSERT&quot; statement if desired.
-The return value <br>
-(if any) should be a DBI statement handle. The
-&quot;sql&quot; parameter is the SQL text used to prepare
-the default &quot;INSERT&quot; statement. This method is not
-called if you specify <br>
-&quot;--bulk-insert&quot;.</p>
-
-<p style="margin-top: 1em">If no value is returned, the
-default &quot;INSERT&quot; statement handle is used.</p>
-
-<p style="margin-top: 1em">This method applies only to the
-plugin specified for &quot;--dest&quot;, so if your plugin
-isn&rsquo;t doing what you expect, check that you&rsquo;ve
-specified it for the destination and not the <br>
-source.</p>
-
-<p style="margin-top: 1em">custom_sth_bulk(first_row =&gt;
-@row, last_row =&gt; @row, sql =&gt; $sql, filename =&gt;
-$bulk_insert_filename) <br>
-If you&rsquo;ve specified &quot;--bulk-insert&quot;, this
-method is called just before the bulk insert, but after
-&quot;before_bulk_insert()&quot;, and the arguments are
-different.</p>
-
-<p style="margin-top: 1em">This method&rsquo;s return value
-etc is similar to the &quot;custom_sth()&quot; method.</p>
-
-<p style="margin-top: 1em">after_finish() <br>
-This method is called after mk-archiver exits the archiving
-loop, commits all database handles, closes
-&quot;--file&quot;, and prints the final statistics, but
-before mk-archiver runs <br>
-ANALYZE or OPTIMIZE (see &quot;--analyze&quot; and
-&quot;--optimize&quot;).</p>
-
-<p style="margin-top: 1em">If you specify a plugin for both
-&quot;--source&quot; and &quot;--dest&quot;, mk-archiver
-constructs, calls before_begin(), and calls after_finish()
-on the two plugins in the order &quot;--source&quot;, <br>
-&quot;--dest&quot;.</p>
-
-<p style="margin-top: 1em">mk-archiver assumes it controls
-transactions, and that the plugin will NOT commit or roll
-back the database handle. The database handle passed to the
-plugin&rsquo;s constructor is the <br>
-same handle mk-archiver uses itself. Remember that
-&quot;--source&quot; and &quot;--dest&quot; are separate
-handles.</p>
-
-<p style="margin-top: 1em">A sample module might look like
-this:</p>
-
-<p style="margin-top: 1em">package My::Module;</p>
-
-<p style="margin-top: 1em">sub new { <br>
-my ( $class, %args ) = @_; <br>
-return bless(args, $class); <br>
-}</p>
-
-<p style="margin-top: 1em">sub before_begin { <br>
-my ( $self, %args ) = @_; <br>
-# Save column names for later <br>
-$self-&gt;{cols} = $args{cols}; <br>
-}</p>
-
-<p style="margin-top: 1em">sub is_archivable { <br>
-my ( $self, %args ) = @_; <br>
-# Do some advanced logic with $args{row} <br>
-return 1; <br>
-}</p>
-
-<p style="margin-top: 1em">sub before_delete {} # Take no
-action <br>
-sub before_insert {} # Take no action <br>
-sub custom_sth {} # Take no action <br>
-sub after_finish {} # Take no action</p>
-
-<p style="margin-top: 1em">1;</p>
-
-<p style="margin-top: 1em">DOWNLOADING <br>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MK-ARCHIVER(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">MK-ARCHIVER(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+mk-archiver - Archive rows from a MySQL table into another table or a file.
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+Usage: mk-archiver [OPTION...] --source DSN --where WHERE
+<div class="Pp"></div>
+mk-archiver nibbles records from a MySQL table. The --source and --dest
+  arguments use DSN syntax; if COPY is yes, --dest defaults to the key's value
+  from --source.
+<div class="Pp"></div>
+Examples:
+<div class="Pp"></div>
+Archive all rows from oltp_server to olap_server and to a file:
+<div class="Pp"></div>
+<pre>
+  mk-archiver --source h=oltp_server,D=test,t=tbl --dest h=olap_server \
+    --file '/var/log/archive/%Y-%m-%d-%D.%t'                           \
+    --where &quot;1=1&quot; --limit 1000 --commit-each
+</pre>
+<div class="Pp"></div>
+Purge (delete) orphan rows from child table:
+<div class="Pp"></div>
+<pre>
+  mk-archiver --source h=host,D=db,t=child --purge \
+    --where 'NOT EXISTS(SELECT * FROM parent WHERE col=child.col)'
+</pre>
+<h1 class="Sh" title="Sh" id="RISKS"><a class="selflink" href="#RISKS">RISKS</a></h1>
+The following section is included to inform users about the potential risks,
+  whether known or unknown, of using this tool. The two main categories of risks
+  are those created by the nature of the tool (e.g. read-only tools vs.
+  read-write tools) and those created by bugs.
+<div class="Pp"></div>
+mk-achiver is a read-write tool. It deletes data from the source by default, so
+  you should test your archiving jobs with the &quot;--dry-run&quot; option if
+  you're not sure about them. It is designed to have as little impact on
+  production systems as possible, but tuning with &quot;--limit&quot;,
+  &quot;--txn-size&quot; and similar options might be a good idea too.
+<div class="Pp"></div>
+If you write or use &quot;--plugin&quot; modules, you should ensure they are
+  good quality and well-tested.
+<div class="Pp"></div>
+At the time of this release there is an unverified bug with
+  &quot;--bulk-insert&quot; that may cause data loss.
+<div class="Pp"></div>
+The authoritative source for updated information is always the online issue
+  tracking system. Issues that affect this tool will be marked as such. You can
+  see a list of such issues at the following URL:
+  &lt;http://www.maatkit.org/bugs/mk-archiver&gt;.
+<div class="Pp"></div>
+See also &quot;BUGS&quot; for more information on filing bugs and getting help.
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+mk-archiver is the tool I use to archive tables as described in
+  &lt;http://tinyurl.com/mysql-archiving&gt;. The goal is a low-impact,
+  forward-only job to nibble old data out of the table without impacting OLTP
+  queries much. You can insert the data into another table, which need not be on
+  the same server. You can also write it to a file in a format suitable for LOAD
+  DATA INFILE. Or you can do neither, in which case it's just an incremental
+  DELETE.
+<div class="Pp"></div>
+mk-archiver is extensible via a plugin mechanism. You can inject your own code
+  to add advanced archiving logic that could be useful for archiving dependent
+  data, applying complex business rules, or building a data warehouse during the
+  archiving process.
+<div class="Pp"></div>
+You need to choose values carefully for some options. The most important are
+  &quot;--limit&quot;, &quot;--retries&quot;, and &quot;--txn-size&quot;.
+<div class="Pp"></div>
+The strategy is to find the first row(s), then scan some index forward-only to
+  find more rows efficiently. Each subsequent query should not scan the entire
+  table; it should seek into the index, then scan until it finds more archivable
+  rows. Specifying the index with the 'i' part of the &quot;--source&quot;
+  argument can be crucial for this; use &quot;--dry-run&quot; to examine the
+  generated queries and be sure to EXPLAIN them to see if they are efficient
+  (most of the time you probably want to scan the PRIMARY key, which is the
+  default). Even better, profile mk-archiver with mk-query-profiler and make
+  sure it is not scanning the whole table every query.
+<div class="Pp"></div>
+You can disable the seek-then-scan optimizations partially or wholly with
+  &quot;--no-ascend&quot; and &quot;--ascend-first&quot;. Sometimes this may be
+  more efficient for multi-column keys. Be aware that mk-archiver is built to
+  start at the beginning of the index it chooses and scan it forward-only. This
+  might result in long table scans if you're trying to nibble from the end of
+  the table by an index other than the one it prefers. See &quot;--source&quot;
+  and read the documentation on the &quot;i&quot; part if this applies to you.
+<h1 class="Sh" title="Sh" id="OUTPUT"><a class="selflink" href="#OUTPUT">OUTPUT</a></h1>
+If you specify &quot;--progress&quot;, the output is a header row, plus status
+  output at intervals. Each row in the status output lists the current date and
+  time, how many seconds mk-archiver has been running, and how many rows it has
+  archived.
+<div class="Pp"></div>
+If you specify &quot;--statistics&quot;, &quot;mk-archiver&quot; outputs timing
+  and other information to help you identify which part of your archiving
+  process takes the most time.
+<h1 class="Sh" title="Sh" id="ERROR-HANDLING"><a class="selflink" href="#ERROR-HANDLING">ERROR-HANDLING</a></h1>
+mk-archiver tries to catch signals and exit gracefully; for example, if you send
+  it SIGTERM (Ctrl-C on UNIX-ish systems), it will catch the signal, print a
+  message about the signal, and exit fairly normally. It will not execute
+  &quot;--analyze&quot; or &quot;--optimize&quot;, because these may take a long
+  time to finish. It will run all other code normally, including calling
+  <i>after_finish()</i> on any plugins (see &quot;EXTENDING&quot;).
+<div class="Pp"></div>
+In other words, a signal, if caught, will break out of the main archiving loop
+  and skip optimize/analyze.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+Specify at least one of &quot;--dest&quot;, &quot;--file&quot;, or
+  &quot;--purge&quot;.
+<div class="Pp"></div>
+&quot;--ignore&quot; and &quot;--replace&quot; are mutually exclusive.
+<div class="Pp"></div>
+&quot;--txn-size&quot; and &quot;--commit-each&quot; are mutually exclusive.
+<div class="Pp"></div>
+&quot;--low-priority-insert&quot; and &quot;--delayed-insert&quot; are mutually
+  exclusive.
+<div class="Pp"></div>
+&quot;--share-lock&quot; and &quot;--for-update&quot; are mutually exclusive.
+<div class="Pp"></div>
+&quot;--analyze&quot; and &quot;--optimize&quot; are mutually exclusive.
+<div class="Pp"></div>
+&quot;--no-ascend&quot; and &quot;--no-delete&quot; are mutually exclusive.
+<div class="Pp"></div>
+DSN values in &quot;--dest&quot; default to values from &quot;--source&quot; if
+  COPY is yes.
+<dl class="Bl-tag">
+  <dt class="It-tag">--analyze</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Run ANALYZE TABLE afterwards on &quot;--source&quot; and/or
+      &quot;--dest&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Runs ANALYZE TABLE after finishing. The argument is an arbitrary string. If
+      it contains the letter 's', the source will be analyzed. If it contains
+      'd', the destination will be analyzed. You can specify either or both. For
+      example, the following will analyze both:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  --analyze=ds
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &lt;http://dev.mysql.com/doc/en/analyze-table.html&gt; for details on
+      ANALYZE TABLE.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ascend-first</dt>
+  <dd class="It-tag">Ascend only first column of index.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If you do want to use the ascending index optimization (see
+      &quot;--no-ascend&quot;), but do not want to incur the overhead of
+      ascending a large multi-column index, you can use this option to tell
+      mk-archiver to ascend only the leftmost column of the index. This can
+      provide a significant performance boost over not ascending the index at
+      all, while avoiding the cost of ascending the whole index.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &quot;EXTENDING&quot; for a discussion of how this interacts with
+      plugins.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ask-pass</dt>
+  <dd class="It-tag">Prompt for a password when connecting to MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--buffer</dt>
+  <dd class="It-tag">Buffer output to &quot;--file&quot; and flush at commit.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Disables autoflushing to &quot;--file&quot; and flushes &quot;--file&quot;
+      to disk only when a transaction commits. This typically means the file is
+      block-flushed by the operating system, so there may be some implicit
+      flushes to disk between commits as well. The default is to flush
+      &quot;--file&quot; to disk after every row.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The danger is that a crash might cause lost data.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The performance increase I have seen from using &quot;--buffer&quot; is
+      around 5 to 15 percent. Your mileage may vary.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--bulk-delete</dt>
+  <dd class="It-tag">Delete each chunk with a single statement (implies
+      &quot;--commit-each&quot;).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Delete each chunk of rows in bulk with a single &quot;DELETE&quot;
+      statement. The statement deletes every row between the first and last row
+      of the chunk, inclusive. It implies &quot;--commit-each&quot;, since it
+      would be a bad idea to &quot;INSERT&quot; rows one at a time and commit
+      them before the bulk &quot;DELETE&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The normal method is to delete every row by its primary key. Bulk deletes
+      might be a lot faster. <b>They also might not be faster</b> if you have a
+      complex &quot;WHERE&quot; clause.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option completely defers all &quot;DELETE&quot; processing until the
+      chunk of rows is finished. If you have a plugin on the source, its
+      &quot;before_delete&quot; method will not be called. Instead, its
+      &quot;before_bulk_delete&quot; method is called later.
+    <div style="height: 1.00em;">&#x00A0;</div>
+     <b>WARNING</b>: if you have a plugin on the source that sometimes doesn't
+      return true from &quot;is_archivable()&quot;, you should use this option
+      only if you understand what it does. If the plugin instructs
+      &quot;mk-archiver&quot; not to archive a row, it will still be deleted by
+      the bulk delete!</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]bulk-delete-limit</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Add &quot;--limit&quot; to &quot;--bulk-delete&quot; statement.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This is an advanced option and you should not disable it unless you know
+      what you are doing and why! By default, &quot;--bulk-delete&quot; appends
+      a &quot;--limit&quot; clause to the bulk delete SQL statement. In certain
+      cases, this clause can be omitted by specifying
+      &quot;--no-bulk-delete-limit&quot;. &quot;--limit&quot; must still be
+      specified.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--bulk-insert</dt>
+  <dd class="It-tag">Insert each chunk with LOAD DATA INFILE (implies
+      &quot;--bulk-delete&quot; &quot;--commit-each&quot;).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Insert each chunk of rows with &quot;LOAD DATA LOCAL INFILE&quot;. This may
+      be much faster than inserting a row at a time with &quot;INSERT&quot;
+      statements. It is implemented by creating a temporary file for each chunk
+      of rows, and writing the rows to this file instead of inserting them. When
+      the chunk is finished, it uploads the rows.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    To protect the safety of your data, this option forces bulk deletes to be
+      used. It would be unsafe to delete each row as it is found, before
+      inserting the rows into the destination first. Forcing bulk deletes
+      guarantees that the deletion waits until the insertion is successful.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The &quot;--low-priority-insert&quot;, &quot;--replace&quot;, and
+      &quot;--ignore&quot; options work with this option, but
+      &quot;--delayed-insert&quot; does not.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--charset</dt>
+  <dd class="It-tag">short form: -A; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set. If the value is utf8, sets Perl's binmode on STDOUT
+      to utf8, passes the mysql_enable_utf8 option to DBD::mysql, and runs SET
+      NAMES UTF8 after connecting to MySQL. Any other value sets binmode on
+      STDOUT without the utf8 layer, and runs SET NAMES after connecting to
+      MySQL.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;--[no]check-charset&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]check-charset</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ensure connection and table character sets are the same. Disabling this
+      check may cause text to be erroneously converted from one character set to
+      another (usually from utf8 to latin1) which may cause data loss or
+      mojibake. Disabling this check may be useful or necessary when character
+      set conversions are intended.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]check-columns</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ensure &quot;--source&quot; and &quot;--dest&quot; have same columns.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Enabled by default; causes mk-archiver to check that the source and
+      destination tables have the same columns. It does not check column order,
+      data type, etc. It just checks that all columns in the source exist in the
+      destination and vice versa. If there are any differences, mk-archiver will
+      exit with an error.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    To disable this check, specify --no-check-columns.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--check-interval</dt>
+  <dd class="It-tag">type: time; default: 1s
+    <div style="height: 1.00em;">&#x00A0;</div>
+    How often to check for slave lag if &quot;--check-slave-lag&quot; is
+    given.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--check-slave-lag</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Pause archiving until the specified DSN's slave lag is less than
+      &quot;--max-lag&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--columns</dt>
+  <dd class="It-tag">short form: -c; type: array
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Comma-separated list of columns to archive.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specify a comma-separated list of columns to fetch, write to the file, and
+      insert into the destination table. If specified, mk-archiver ignores other
+      columns unless it needs to add them to the &quot;SELECT&quot; statement
+      for ascending an index or deleting rows. It fetches and uses these extra
+      columns internally, but does not write them to the file or to the
+      destination table. It <i>does</i> pass them to plugins.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;--primary-key-only&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--commit-each</dt>
+  <dd class="It-tag">Commit each set of fetched and archived rows (disables
+      &quot;--txn-size&quot;).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Commits transactions and flushes &quot;--file&quot; after each set of rows
+      has been archived, before fetching the next set of rows, and before
+      sleeping if &quot;--sleep&quot; is specified. Disables
+      &quot;--txn-size&quot;; use &quot;--limit&quot; to control the transaction
+      size with &quot;--commit-each&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option is useful as a shortcut to make &quot;--limit&quot; and
+      &quot;--txn-size&quot; the same value, but more importantly it avoids
+      transactions being held open while searching for more rows. For example,
+      imagine you are archiving old rows from the beginning of a very large
+      table, with &quot;--limit&quot; 1000 and &quot;--txn-size&quot; 1000.
+      After some period of finding and archiving 1000 rows at a time,
+      mk-archiver finds the last 999 rows and archives them, then executes the
+      next SELECT to find more rows. This scans the rest of the table, but never
+      finds any more rows. It has held open a transaction for a very long time,
+      only to determine it is finished anyway. You can use
+      &quot;--commit-each&quot; to avoid this.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--config</dt>
+  <dd class="It-tag">type: Array
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Read this comma-separated list of config files; if specified, this must be
+      the first option on the command line.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--delayed-insert</dt>
+  <dd class="It-tag">Add the DELAYED modifier to INSERT statements.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Adds the DELAYED modifier to INSERT or REPLACE statements. See
+      &lt;http://dev.mysql.com/doc/en/insert.html&gt; for details.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--dest</dt>
+  <dd class="It-tag">type: DSN
+    <div style="height: 1.00em;">&#x00A0;</div>
+    DSN specifying the table to archive to.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This item specifies a table into which mk-archiver will insert rows archived
+      from &quot;--source&quot;. It uses the same key=val argument format as
+      &quot;--source&quot;. Most missing values default to the same values as
+      &quot;--source&quot;, so you don't have to repeat options that are the
+      same in &quot;--source&quot; and &quot;--dest&quot;. Use the
+      &quot;--help&quot; option to see which values are copied from
+      &quot;--source&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+     <b>WARNING</b>: Using a default options file (F) DSN option that defines a
+      socket for &quot;--source&quot; causes mk-archiver to connect to
+      &quot;--dest&quot; using that socket unless another socket for
+      &quot;--dest&quot; is specified. This means that mk-archiver may
+      incorrectly connect to &quot;--source&quot; when it connects to
+      &quot;--dest&quot;. For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  --source F=host1.cnf,D=db,t=tbl --dest h=host2
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    When mk-archiver connects to &quot;--dest&quot;, host2, it will connect via
+      the &quot;--source&quot;, host1, socket defined in host1.cnf.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--dry-run</dt>
+  <dd class="It-tag">Print queries and exit without doing anything.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Causes mk-archiver to exit after printing the filename and SQL statements it
+      will use.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--file</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    File to archive to, with <i>DATE_FORMAT()</i>-like formatting.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Filename to write archived rows to. A subset of MySQL's <i>DATE_FORMAT()</i>
+      formatting codes are allowed in the filename, as follows:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+   %d    Day of the month, numeric (01..31)
+   %H    Hour (00..23)
+   %i    Minutes, numeric (00..59)
+   %m    Month, numeric (01..12)
+   %s    Seconds (00..59)
+   %Y    Year, numeric, four digits
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    You can use the following extra format codes too:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+   %D    Database name
+   %t    Table name
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+   --file '/var/log/archive/%Y-%m-%d-%D.%t'
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The file's contents are in the same format used by SELECT INTO OUTFILE, as
+      documented in the MySQL manual: rows terminated by newlines, columns
+      terminated by tabs, NULL characters are represented by \N, and special
+      characters are escaped by \. This lets you reload a file with LOAD DATA
+      INFILE's default settings.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If you want a column header at the top of the file, see
+      &quot;--header&quot;. The file is auto-flushed by default; see
+      &quot;--buffer&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--for-update</dt>
+  <dd class="It-tag">Adds the FOR UPDATE modifier to SELECT statements.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    For details, see
+      &lt;http://dev.mysql.com/doc/en/innodb-locking-reads.html&gt;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--header</dt>
+  <dd class="It-tag">Print column header at top of &quot;--file&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Writes column names as the first line in the file given by
+      &quot;--file&quot;. If the file exists, does not write headers; this keeps
+      the file loadable with LOAD DATA INFILE in case you append more output to
+      it.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--help</dt>
+  <dd class="It-tag">Show help and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--high-priority-select</dt>
+  <dd class="It-tag">Adds the HIGH_PRIORITY modifier to SELECT statements.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &lt;http://dev.mysql.com/doc/en/select.html&gt; for details.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--host</dt>
+  <dd class="It-tag">short form: -h; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore</dt>
+  <dd class="It-tag">Use IGNORE for INSERT statements.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Causes INSERTs into &quot;--dest&quot; to be INSERT IGNORE.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--limit</dt>
+  <dd class="It-tag">type: int; default: 1
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Number of rows to fetch and archive per statement.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Limits the number of rows returned by the SELECT statements that retrieve
+      rows to archive. Default is one row. It may be more efficient to increase
+      the limit, but be careful if you are archiving sparsely, skipping over
+      many rows; this can potentially cause more contention with other queries,
+      depending on the storage engine, transaction isolation level, and options
+      such as &quot;--for-update&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--local</dt>
+  <dd class="It-tag">Do not write OPTIMIZE or ANALYZE queries to binlog.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Adds the NO_WRITE_TO_BINLOG modifier to ANALYZE and OPTIMIZE queries. See
+      &quot;--analyze&quot; for details.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--low-priority-delete</dt>
+  <dd class="It-tag">Adds the LOW_PRIORITY modifier to DELETE statements.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &lt;http://dev.mysql.com/doc/en/delete.html&gt; for details.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--low-priority-insert</dt>
+  <dd class="It-tag">Adds the LOW_PRIORITY modifier to INSERT or REPLACE
+      statements.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &lt;http://dev.mysql.com/doc/en/insert.html&gt; for details.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--max-lag</dt>
+  <dd class="It-tag">type: time; default: 1s
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Pause archiving if the slave given by &quot;--check-slave-lag&quot; lags.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option causes mk-archiver to look at the slave every time it's about to
+      fetch another row. If the slave's lag is greater than the option's value,
+      or if the slave isn't running (so its lag is NULL), mk-table-checksum
+      sleeps for &quot;--check-interval&quot; seconds and then looks at the lag
+      again. It repeats until the slave is caught up, then proceeds to fetch and
+      archive the row.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option may eliminate the need for &quot;--sleep&quot; or
+      &quot;--sleep-coef&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--no-ascend</dt>
+  <dd class="It-tag">Do not use ascending index optimization.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The default ascending-index optimization causes &quot;mk-archiver&quot; to
+      optimize repeated &quot;SELECT&quot; queries so they seek into the index
+      where the previous query ended, then scan along it, rather than scanning
+      from the beginning of the table every time. This is enabled by default
+      because it is generally a good strategy for repeated accesses.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Large, multiple-column indexes may cause the WHERE clause to be complex
+      enough that this could actually be less efficient. Consider for example a
+      four-column PRIMARY KEY on (a, b, c, d). The WHERE clause to start where
+      the last query ended is as follows:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+   WHERE (a &gt; ?)
+      OR (a = ? AND b &gt; ?)
+      OR (a = ? AND b = ? AND c &gt; ?)
+      OR (a = ? AND b = ? AND c = ? AND d &gt;= ?)
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Populating the placeholders with values uses memory and CPU, adds network
+      traffic and parsing overhead, and may make the query harder for MySQL to
+      optimize. A four-column key isn't a big deal, but a ten-column key in
+      which every column allows &quot;NULL&quot; might be.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ascending the index might not be necessary if you know you are simply
+      removing rows from the beginning of the table in chunks, but not leaving
+      any holes, so starting at the beginning of the table is actually the most
+      efficient thing to do.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;--ascend-first&quot;. See &quot;EXTENDING&quot; for a
+      discussion of how this interacts with plugins.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--no-delete</dt>
+  <dd class="It-tag">Do not delete archived rows.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Causes &quot;mk-archiver&quot; not to delete rows after processing them.
+      This disallows &quot;--no-ascend&quot;, because enabling them both would
+      cause an infinite loop.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If there is a plugin on the source DSN, its &quot;before_delete&quot; method
+      is called anyway, even though &quot;mk-archiver&quot; will not execute the
+      delete. See &quot;EXTENDING&quot; for more on plugins.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--optimize</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Run OPTIMIZE TABLE afterwards on &quot;--source&quot; and/or
+      &quot;--dest&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Runs OPTIMIZE TABLE after finishing. See &quot;--analyze&quot; for the
+      option syntax and &lt;http://dev.mysql.com/doc/en/optimize-table.html&gt;
+      for details on OPTIMIZE TABLE.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--password</dt>
+  <dd class="It-tag">short form: -p; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--pid</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Create the given PID file when daemonized. The file contains the process ID
+      of the daemonized instance. The PID file is removed when the daemonized
+      instance exits. The program checks for the existence of the PID file when
+      starting; if it exists and the process with the matching PID exists, the
+      program exits.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--plugin</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Perl module name to use as a generic plugin.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specify the Perl module name of a general-purpose plugin. It is currently
+      used only for statistics (see &quot;--statistics&quot;) and must have
+      &quot;new()&quot; and a &quot;statistics()&quot; method.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The &quot;new( src =&quot; $src, dst =&gt; $dst, opts =&gt; $o )&gt; method
+      gets the source and destination DSNs, and their database connections, just
+      like the connection-specific plugins do. It also gets an OptionParser
+      object ($o) for accessing command-line options (example:
+      &quot;$o-&quot;get('purge');&gt;).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The &quot;statistics(\%stats, $time)&quot; method gets a hashref of the
+      statistics collected by the archiving job, and the time the whole job
+      started.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--port</dt>
+  <dd class="It-tag">short form: -P; type: int
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--primary-key-only</dt>
+  <dd class="It-tag">Primary key columns only.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    A shortcut for specifying &quot;--columns&quot; with the primary key
+      columns. This is an efficiency if you just want to purge rows; it avoids
+      fetching the entire row, when only the primary key columns are needed for
+      &quot;DELETE&quot; statements. See also &quot;--purge&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--progress</dt>
+  <dd class="It-tag">type: int
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print progress information every X rows.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Prints current time, elapsed time, and rows archived every X rows.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--purge</dt>
+  <dd class="It-tag">Purge instead of archiving; allows omitting
+      &quot;--file&quot; and &quot;--dest&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Allows archiving without a &quot;--file&quot; or &quot;--dest&quot;
+      argument, which is effectively a purge since the rows are just deleted.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If you just want to purge rows, consider specifying the table's primary key
+      columns with &quot;--primary-key-only&quot;. This will prevent fetching
+      all columns from the server for no reason.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--quick-delete</dt>
+  <dd class="It-tag">Adds the QUICK modifier to DELETE statements.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &lt;http://dev.mysql.com/doc/en/delete.html&gt; for details. As stated
+      in the documentation, in some cases it may be faster to use DELETE QUICK
+      followed by OPTIMIZE TABLE. You can use &quot;--optimize&quot; for
+    this.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--quiet</dt>
+  <dd class="It-tag">short form: -q
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Do not print any output, such as for &quot;--statistics&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Suppresses normal output, including the output of &quot;--statistics&quot;,
+      but doesn't suppress the output from &quot;--why-quit&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--replace</dt>
+  <dd class="It-tag">Causes INSERTs into &quot;--dest&quot; to be written as
+      REPLACE.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--retries</dt>
+  <dd class="It-tag">type: int; default: 1
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Number of retries per timeout or deadlock.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specifies the number of times mk-archiver should retry when there is an
+      InnoDB lock wait timeout or deadlock. When retries are exhausted,
+      mk-archiver will exit with an error.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Consider carefully what you want to happen when you are archiving between a
+      mixture of transactional and non-transactional storage engines. The INSERT
+      to &quot;--dest&quot; and DELETE from &quot;--source&quot; are on separate
+      connections, so they do not actually participate in the same transaction
+      even if they're on the same server. However, mk-archiver implements simple
+      distributed transactions in code, so commits and rollbacks should happen
+      as desired across the two connections.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    At this time I have not written any code to handle errors with transactional
+      storage engines other than InnoDB. Request that feature if you need
+    it.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--run-time</dt>
+  <dd class="It-tag">type: time
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Time to run before exiting.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Optional suffix s=seconds, m=minutes, h=hours, d=days; if no suffix, s is
+      used.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]safe-auto-increment</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Do not archive row with max AUTO_INCREMENT.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Adds an extra WHERE clause to prevent mk-archiver from removing the newest
+      row when ascending a single-column AUTO_INCREMENT key. This guards against
+      re-using AUTO_INCREMENT values if the server restarts, and is enabled by
+      default.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The extra WHERE clause contains the maximum value of the auto-increment
+      column as of the beginning of the archive or purge job. If new rows are
+      inserted while mk-archiver is running, it will not see them.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--sentinel</dt>
+  <dd class="It-tag">type: string; default: /tmp/mk-archiver-sentinel
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Exit if this file exists.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The presence of the file specified by &quot;--sentinel&quot; will cause
+      mk-archiver to stop archiving and exit. The default is
+      /tmp/mk-archiver-sentinel. You might find this handy to stop cron jobs
+      gracefully if necessary. See also &quot;--stop&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--set-vars</dt>
+  <dd class="It-tag">type: string; default: wait_timeout=10000
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Set these MySQL variables.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specify any variables you want to be set immediately after connecting to
+      MySQL. These will be included in a &quot;SET&quot; command.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--share-lock</dt>
+  <dd class="It-tag">Adds the LOCK IN SHARE MODE modifier to SELECT statements.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See &lt;http://dev.mysql.com/doc/en/innodb-locking-reads.html&gt;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--skip-foreign-key-checks</dt>
+  <dd class="It-tag">Disables foreign key checks with SET
+    FOREIGN_KEY_CHECKS=0.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--sleep</dt>
+  <dd class="It-tag">type: int
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Sleep time between fetches.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specifies how long to sleep between SELECT statements. Default is not to
+      sleep at all. Transactions are NOT committed, and the &quot;--file&quot;
+      file is NOT flushed, before sleeping. See &quot;--txn-size&quot; to
+      control that.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If &quot;--commit-each&quot; is specified, committing and flushing happens
+      before sleeping.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--sleep-coef</dt>
+  <dd class="It-tag">type: float
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Calculate &quot;--sleep&quot; as a multiple of the last SELECT time.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If this option is specified, mk-archiver will sleep for the query time of
+      the last SELECT multiplied by the specified coefficient.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This is a slightly more sophisticated way to throttle the SELECTs: sleep a
+      varying amount of time between each SELECT, depending on how long the
+      SELECTs are taking.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--socket</dt>
+  <dd class="It-tag">short form: -S; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--source</dt>
+  <dd class="It-tag">type: DSN
+    <div style="height: 1.00em;">&#x00A0;</div>
+    DSN specifying the table to archive from (required). This argument is a DSN.
+      See &quot;DSN OPTIONS&quot; for the syntax. Most options control how
+      mk-archiver connects to MySQL, but there are some extended DSN options in
+      this tool's syntax. The D, t, and i options select a table to archive:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  --source h=my_server,D=my_database,t=my_tbl
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The a option specifies the database to set as the connection's default with
+      USE. If the b option is true, it disables binary logging with SQL_LOG_BIN.
+      The m option specifies pluggable actions, which an external Perl module
+      can provide. The only required part is the table; other parts may be read
+      from various places in the environment (such as options files).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The 'i' part deserves special mention. This tells mk-archiver which index it
+      should scan to archive. This appears in a FORCE INDEX or USE INDEX hint in
+      the SELECT statements used to fetch archivable rows. If you don't specify
+      anything, mk-archiver will auto-discover a good index, preferring a
+      &quot;PRIMARY KEY&quot; if one exists. In my experience this usually works
+      well, so most of the time you can probably just omit the 'i' part.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The index is used to optimize repeated accesses to the table; mk-archiver
+      remembers the last row it retrieves from each SELECT statement, and uses
+      it to construct a WHERE clause, using the columns in the specified index,
+      that should allow MySQL to start the next SELECT where the last one ended,
+      rather than potentially scanning from the beginning of the table with each
+      successive SELECT. If you are using external plugins, please see
+      &quot;EXTENDING&quot; for a discussion of how they interact with ascending
+      indexes.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The 'a' and 'b' options allow you to control how statements flow through the
+      binary log. If you specify the 'b' option, binary logging will be disabled
+      on the specified connection. If you specify the 'a' option, the connection
+      will &quot;USE&quot; the specified database, which you can use to prevent
+      slaves from executing the binary log events with
+      &quot;--replicate-ignore-db&quot; options. These two options can be used
+      as different methods to achieve the same goal: archive data off the
+      master, but leave it on the slave. For example, you can run a purge job on
+      the master and prevent it from happening on the slave using your method of
+      choice.
+    <div style="height: 1.00em;">&#x00A0;</div>
+     <b>WARNING</b>: Using a default options file (F) DSN option that defines a
+      socket for &quot;--source&quot; causes mk-archiver to connect to
+      &quot;--dest&quot; using that socket unless another socket for
+      &quot;--dest&quot; is specified. This means that mk-archiver may
+      incorrectly connect to &quot;--source&quot; when it is meant to connect to
+      &quot;--dest&quot;. For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  --source F=host1.cnf,D=db,t=tbl --dest h=host2
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    When mk-archiver connects to &quot;--dest&quot;, host2, it will connect via
+      the &quot;--source&quot;, host1, socket defined in host1.cnf.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--statistics</dt>
+  <dd class="It-tag">Collect and print timing statistics.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Causes mk-archiver to collect timing statistics about what it does. These
+      statistics are available to the plugin specified by &quot;--plugin&quot;
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Unless you specify &quot;--quiet&quot;, &quot;mk-archiver&quot; prints the
+      statistics when it exits. The statistics look like this:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+ Started at 2008-07-18T07:18:53, ended at 2008-07-18T07:18:53
+ Source: D=db,t=table
+ SELECT 4
+ INSERT 4
+ DELETE 4
+ Action         Count       Time        Pct
+ commit            10     0.1079      88.27
+ select             5     0.0047       3.87
+ deleting           4     0.0028       2.29
+ inserting          4     0.0028       2.28
+ other              0     0.0040       3.29
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The first two (or three) lines show times and the source and destination
+      tables. The next three lines show how many rows were fetched, inserted,
+      and deleted.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The remaining lines show counts and timing. The columns are the action, the
+      total number of times that action was timed, the total time it took, and
+      the percent of the program's total runtime. The rows are sorted in order
+      of descending total time. The last row is the rest of the time not
+      explicitly attributed to anything. Actions will vary depending on
+      command-line options.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If &quot;--why-quit&quot; is given, its behavior is changed slightly. This
+      option causes it to print the reason for exiting even when it's just
+      because there are no more rows.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option requires the standard Time::HiRes module, which is part of core
+      Perl on reasonably new Perl releases.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--stop</dt>
+  <dd class="It-tag">Stop running instances by creating the sentinel file.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Causes mk-archiver to create the sentinel file specified by
+      &quot;--sentinel&quot; and exit. This should have the effect of stopping
+      all running instances which are watching the same sentinel file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--txn-size</dt>
+  <dd class="It-tag">type: int; default: 1
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Number of rows per transaction.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specifies the size, in number of rows, of each transaction. Zero disables
+      transactions altogether. After mk-archiver processes this many rows, it
+      commits both the &quot;--source&quot; and the &quot;--dest&quot; if given,
+      and flushes the file given by &quot;--file&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This parameter is critical to performance. If you are archiving from a live
+      server, which for example is doing heavy OLTP work, you need to choose a
+      good balance between transaction size and commit overhead. Larger
+      transactions create the possibility of more lock contention and deadlocks,
+      but smaller transactions cause more frequent commit overhead, which can be
+      significant. To give an idea, on a small test set I worked with while
+      writing mk-archiver, a value of 500 caused archiving to take about 2
+      seconds per 1000 rows on an otherwise quiet MySQL instance on my desktop
+      machine, archiving to disk and to another table. Disabling transactions
+      with a value of zero, which turns on autocommit, dropped performance to 38
+      seconds per thousand rows.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If you are not archiving from or to a transactional storage engine, you may
+      want to disable transactions so mk-archiver doesn't try to commit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--user</dt>
+  <dd class="It-tag">short form: -u; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--version</dt>
+  <dd class="It-tag">Show version and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--where</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    WHERE clause to limit which rows to archive (required).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Specifies a WHERE clause to limit which rows are archived. Do not include
+      the word WHERE. You may need to quote the argument to prevent your shell
+      from interpreting it. For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+   --where 'ts &lt; current_date - interval 90 day'
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    For safety, &quot;--where&quot; is required. If you do not require a WHERE
+      clause, use &quot;--where&quot; 1=1.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--why-quit</dt>
+  <dd class="It-tag">Print reason for exiting unless rows exhausted.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Causes mk-archiver to print a message if it exits for any reason other than
+      running out of rows to archive. This can be useful if you have a cron job
+      with &quot;--run-time&quot; specified, for example, and you want to be
+      sure mk-archiver is finishing before running out of time.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If &quot;--statistics&quot; is given, the behavior is changed slightly. It
+      will print the reason for exiting even when it's just because there are no
+      more rows.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This output prints even if &quot;--quiet&quot; is given. That's so you can
+      put &quot;mk-archiver&quot; in a &quot;cron&quot; job and get an email if
+      there's an abnormal exit.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DSN_OPTIONS"><a class="selflink" href="#DSN_OPTIONS">DSN
+  OPTIONS</a></h1>
+These DSN options are used to create a DSN. Each option is given like
+  &quot;option=value&quot;. The options are case-sensitive, so P and p are not
+  the same option. There cannot be whitespace before or after the &quot;=&quot;
+  and if the value contains whitespace it must be quoted. DSN options are
+  comma-separated. See the maatkit manpage for full details.
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">a
+    <div style="height: 1.00em;">&#x00A0;</div>
+    copy: no
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Database to USE when executing queries.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: charset; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">b
+    <div style="height: 1.00em;">&#x00A0;</div>
+    copy: no
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If true, disable binlog with SQL_LOG_BIN.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">D
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: database; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Database that contains the table.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">F
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_read_default_file; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only read default options from the given file</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">h
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: host; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">i
+    <div style="height: 1.00em;">&#x00A0;</div>
+    copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Index to use.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">m
+    <div style="height: 1.00em;">&#x00A0;</div>
+    copy: no
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Plugin module name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">p
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: password; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">P
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: port; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">S
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_socket; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">t
+    <div style="height: 1.00em;">&#x00A0;</div>
+    copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Table to archive from/to.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">u
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: user; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="EXTENDING"><a class="selflink" href="#EXTENDING">EXTENDING</a></h1>
+mk-archiver is extensible by plugging in external Perl modules to handle some
+  logic and/or actions. You can specify a module for both the
+  &quot;--source&quot; and the &quot;--dest&quot;, with the 'm' part of the
+  specification. For example:
+<div class="Pp"></div>
+<pre>
+   --source D=test,t=test1,m=My::Module1 --dest m=My::Module2,t=test2
+</pre>
+<div class="Pp"></div>
+This will cause mk-archiver to load the My::Module1 and My::Module2 packages,
+  create instances of them, and then make calls to them during the archiving
+  process.
+<div class="Pp"></div>
+You can also specify a plugin with &quot;--plugin&quot;.
+<div class="Pp"></div>
+The module must provide this interface:
+<dl class="Bl-tag">
+  <dt class="It-tag">new(dbh =&gt; $dbh, db =&gt; $db_name, tbl =&gt;
+    $tbl_name)</dt>
+  <dd class="It-tag">The plugin's constructor is passed a reference to the
+      database handle, the database name, and table name. The plugin is created
+      just after mk-archiver opens the connection, and before it examines the
+      table given in the arguments. This gives the plugin a chance to create and
+      populate temporary tables, or do other setup work.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">before_begin(cols =&gt; \@cols, allcols =&gt;
+    \@allcols)</dt>
+  <dd class="It-tag">This method is called just before mk-archiver begins
+      iterating through rows and archiving them, but after it does all other
+      setup work (examining table structures, designing SQL queries, and so on).
+      This is the only time mk-archiver tells the plugin column names for the
+      rows it will pass the plugin while archiving.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The &quot;cols&quot; argument is the column names the user requested to be
+      archived, either by default or by the &quot;--columns&quot; option. The
+      &quot;allcols&quot; argument is the list of column names for every row
+      mk-archiver will fetch from the source table. It may fetch more columns
+      than the user requested, because it needs some columns for its own use.
+      When subsequent plugin functions receive a row, it is the full row
+      containing all the extra columns, if any, added to the end.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">is_archivable(row =&gt; \@row)</dt>
+  <dd class="It-tag">This method is called for each row to determine whether it
+      is archivable. This applies only to &quot;--source&quot;. The argument is
+      the row itself, as an arrayref. If the method returns true, the row will
+      be archived; otherwise it will be skipped.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Skipping a row adds complications for non-unique indexes. Normally
+      mk-archiver uses a WHERE clause designed to target the last processed row
+      as the place to start the scan for the next SELECT statement. If you have
+      skipped the row by returning false from <i>is_archivable()</i>,
+      mk-archiver could get into an infinite loop because the row still exists.
+      Therefore, when you specify a plugin for the &quot;--source&quot;
+      argument, mk-archiver will change its WHERE clause slightly. Instead of
+      starting at &quot;greater than or equal to&quot; the last processed row,
+      it will start &quot;strictly greater than.&quot; This will work fine on
+      unique indexes such as primary keys, but it may skip rows (leave holes) on
+      non-unique indexes or when ascending only the first column of an index.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    &quot;mk-archiver&quot; will change the clause in the same way if you
+      specify &quot;--no-delete&quot;, because again an infinite loop is
+      possible.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If you specify the &quot;--bulk-delete&quot; option and return false from
+      this method, &quot;mk-archiver&quot; may not do what you want. The row
+      won't be archived, but it will be deleted, since bulk deletes operate on
+      ranges of rows and don't know which rows the plugin selected to keep.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If you specify the &quot;--bulk-insert&quot; option, this method's return
+      value will influence whether the row is written to the temporary file for
+      the bulk insert, so bulk inserts will work as expected. However, bulk
+      inserts require bulk deletes.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">before_delete(row =&gt; \@row)</dt>
+  <dd class="It-tag">This method is called for each row just before it is
+      deleted. This applies only to &quot;--source&quot;. This is a good place
+      for you to handle dependencies, such as deleting things that are
+      foreign-keyed to the row you are about to delete. You could also use this
+      to recursively archive all dependent tables.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This plugin method is called even if &quot;--no-delete&quot; is given, but
+      not if &quot;--bulk-delete&quot; is given.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">before_bulk_delete(first_row =&gt; \@row, last_row =&gt;
+    \@row)</dt>
+  <dd class="It-tag">This method is called just before a bulk delete is
+      executed. It is similar to the &quot;before_delete&quot; method, except
+      its arguments are the first and last row of the range to be deleted. It is
+      called even if &quot;--no-delete&quot; is given.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">before_insert(row =&gt; \@row)</dt>
+  <dd class="It-tag">This method is called for each row just before it is
+      inserted. This applies only to &quot;--dest&quot;. You could use this to
+      insert the row into multiple tables, perhaps with an ON DUPLICATE KEY
+      UPDATE clause to build summary tables in a data warehouse.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This method is not called if &quot;--bulk-insert&quot; is given.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">before_bulk_insert(first_row =&gt; \@row, last_row =&gt;
+    \@row, filename =&gt; bulk_insert_filename)</dt>
+  <dd class="It-tag">This method is called just before a bulk insert is
+      executed. It is similar to the &quot;before_insert&quot; method, except
+      its arguments are the first and last row of the range to be deleted.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">custom_sth(row =&gt; \@row, sql =&gt; $sql)</dt>
+  <dd class="It-tag">This method is called just before inserting the row, but
+      after &quot; <i>before_insert()</i>&quot;. It allows the plugin to specify
+      different &quot;INSERT&quot; statement if desired. The return value (if
+      any) should be a DBI statement handle. The &quot;sql&quot; parameter is
+      the SQL text used to prepare the default &quot;INSERT&quot; statement.
+      This method is not called if you specify &quot;--bulk-insert&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If no value is returned, the default &quot;INSERT&quot; statement handle is
+      used.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This method applies only to the plugin specified for &quot;--dest&quot;, so
+      if your plugin isn't doing what you expect, check that you've specified it
+      for the destination and not the source.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">custom_sth_bulk(first_row =&gt; \@row, last_row =&gt;
+    \@row, sql =&gt; $sql, filename =&gt; $bulk_insert_filename)</dt>
+  <dd class="It-tag">If you've specified &quot;--bulk-insert&quot;, this method
+      is called just before the bulk insert, but after &quot;
+      <i>before_bulk_insert()</i>&quot;, and the arguments are different.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This method's return value etc is similar to the &quot;
+      <i>custom_sth()</i>&quot; method.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>after_finish()</i></dt>
+  <dd class="It-tag">This method is called after mk-archiver exits the archiving
+      loop, commits all database handles, closes &quot;--file&quot;, and prints
+      the final statistics, but before mk-archiver runs ANALYZE or OPTIMIZE (see
+      &quot;--analyze&quot; and &quot;--optimize&quot;).</dd>
+</dl>
+<div class="Pp"></div>
+If you specify a plugin for both &quot;--source&quot; and &quot;--dest&quot;,
+  mk-archiver constructs, calls <i>before_begin()</i>, and calls
+  <i>after_finish()</i> on the two plugins in the order &quot;--source&quot;,
+  &quot;--dest&quot;.
+<div class="Pp"></div>
+mk-archiver assumes it controls transactions, and that the plugin will NOT
+  commit or roll back the database handle. The database handle passed to the
+  plugin's constructor is the same handle mk-archiver uses itself. Remember that
+  &quot;--source&quot; and &quot;--dest&quot; are separate handles.
+<div class="Pp"></div>
+A sample module might look like this:
+<div class="Pp"></div>
+<pre>
+   package My::Module;
+   sub new {
+      my ( $class, %args ) = @_;
+      return bless(\%args, $class);
+   }
+   sub before_begin {
+      my ( $self, %args ) = @_;
+      # Save column names for later
+      $self-&gt;{cols} = $args{cols};
+   }
+   sub is_archivable {
+      my ( $self, %args ) = @_;
+      # Do some advanced logic with $args{row}
+      return 1;
+   }
+   sub before_delete {} # Take no action
+   sub before_insert {} # Take no action
+   sub custom_sth    {} # Take no action
+   sub after_finish  {} # Take no action
+   1;
+</pre>
+<h1 class="Sh" title="Sh" id="DOWNLOADING"><a class="selflink" href="#DOWNLOADING">DOWNLOADING</a></h1>
 You can download Maatkit from Google Code at
-&lt;http://code.google.com/p/maatkit/&gt;, or you can get
-any of the tools easily with a command like the
-following:</p>
-
-<p style="margin-top: 1em">wget
-http://www.maatkit.org/get/toolname <br>
-or <br>
-wget http://www.maatkit.org/trunk/toolname</p>
-
-<p style="margin-top: 1em">Where &quot;toolname&quot; can
-be replaced with the name (or fragment of a name) of any of
-the Maatkit tools. Once downloaded, they&rsquo;re ready to
-run; no installation is needed. The first <br>
-URL gets the latest released version of the tool, and the
-second gets the latest trunk code from Subversion.</p>
-
-<p style="margin-top: 1em">ENVIRONMENT <br>
-The environment variable &quot;MKDEBUG&quot; enables verbose
-debugging output in all of the Maatkit tools:</p>
-
-<p style="margin-top: 1em">MKDEBUG=1 mk-....</p>
-
-<p style="margin-top: 1em">SYSTEM REQUIREMENTS <br>
-You need Perl, DBI, DBD::mysql, and some core packages that
-ought to be installed in any reasonably new version of
-Perl.</p>
-
-<p style="margin-top: 1em">BUGS <br>
-For a list of known bugs see
-&lt;http://www.maatkit.org/bugs/mk-archiver&gt;.</p>
-
-<p style="margin-top: 1em">Please use Google Code Issues
-and Groups to report bugs or request support:
-&lt;http://code.google.com/p/maatkit/&gt;. You can also join
-#maatkit on Freenode to discuss Maatkit.</p>
-
-<p style="margin-top: 1em">Please include the complete
-command-line used to reproduce the problem you are seeing,
-the version of all MySQL servers involved, the complete
-output of the tool when run with <br>
-&quot;--version&quot;, and if possible, debugging output
-produced by running with the &quot;MKDEBUG=1&quot;
-environment variable.</p>
-
-<p style="margin-top: 1em">ACKNOWLEDGMENTS <br>
-Thanks to the following people, and apologies to anyone
-I&rsquo;ve omitted:</p>
-
-<p style="margin-top: 1em">Andrew O&rsquo;Brien,</p>
-
-<p style="margin-top: 1em">COPYRIGHT, LICENSE AND WARRANTY
-<br>
-This program is copyright 2007-2011 Baron Schwartz. Feedback
-and improvements are welcome.</p>
-
-<p style="margin-top: 1em">THIS PROGRAM IS PROVIDED
-&quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A <br>
-PARTICULAR PURPOSE.</p>
-
-<p style="margin-top: 1em">This program is free software;
-you can redistribute it and/or modify it under the terms of
-the GNU General Public License as published by the Free
-Software Foundation, version 2; <br>
-OR the Perl Artistic License. On UNIX and similar systems,
-you can issue &lsquo;man perlgpl&rsquo; or &lsquo;man
-perlartistic&rsquo; to read these licenses.</p>
-
-<p style="margin-top: 1em">You should have received a copy
-of the GNU General Public License along with this program;
-if not, write to the Free Software Foundation, Inc., 59
-Temple Place, Suite 330, <br>
-Boston, MA 02111-1307 USA.</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Baron Schwartz</p>
-
-<p style="margin-top: 1em">ABOUT MAATKIT <br>
-This tool is part of Maatkit, a toolkit for power users of
-MySQL. Maatkit was created by Baron Schwartz; Baron and
-Daniel Nichter are the primary code contributors. Both are
-<br>
-employed by Percona. Financial support for Maatkit
-development is primarily provided by Percona and its
-clients.</p>
-
-<p style="margin-top: 1em">VERSION <br>
-This manual page documents Ver 1.0.27 Distrib 7540
-$Revision: 7531 $.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2011-06-08
-MK-ARCHIVER(1)</p>
-<hr>
+  &lt;http://code.google.com/p/maatkit/&gt;, or you can get any of the tools
+  easily with a command like the following:
+<div class="Pp"></div>
+<pre>
+   wget http://www.maatkit.org/get/toolname
+   or
+   wget http://www.maatkit.org/trunk/toolname
+</pre>
+<div class="Pp"></div>
+Where &quot;toolname&quot; can be replaced with the name (or fragment of a name)
+  of any of the Maatkit tools. Once downloaded, they're ready to run; no
+  installation is needed. The first URL gets the latest released version of the
+  tool, and the second gets the latest trunk code from Subversion.
+<h1 class="Sh" title="Sh" id="ENVIRONMENT"><a class="selflink" href="#ENVIRONMENT">ENVIRONMENT</a></h1>
+The environment variable &quot;MKDEBUG&quot; enables verbose debugging output in
+  all of the Maatkit tools:
+<div class="Pp"></div>
+<pre>
+   MKDEBUG=1 mk-....
+</pre>
+<h1 class="Sh" title="Sh" id="SYSTEM_REQUIREMENTS"><a class="selflink" href="#SYSTEM_REQUIREMENTS">SYSTEM
+  REQUIREMENTS</a></h1>
+You need Perl, DBI, DBD::mysql, and some core packages that ought to be
+  installed in any reasonably new version of Perl.
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+For a list of known bugs see &lt;http://www.maatkit.org/bugs/mk-archiver&gt;.
+<div class="Pp"></div>
+Please use Google Code Issues and Groups to report bugs or request support:
+  &lt;http://code.google.com/p/maatkit/&gt;. You can also join #maatkit on
+  Freenode to discuss Maatkit.
+<div class="Pp"></div>
+Please include the complete command-line used to reproduce the problem you are
+  seeing, the version of all MySQL servers involved, the complete output of the
+  tool when run with &quot;--version&quot;, and if possible, debugging output
+  produced by running with the &quot;MKDEBUG=1&quot; environment variable.
+<h1 class="Sh" title="Sh" id="ACKNOWLEDGMENTS"><a class="selflink" href="#ACKNOWLEDGMENTS">ACKNOWLEDGMENTS</a></h1>
+Thanks to the following people, and apologies to anyone I've omitted:
+<div class="Pp"></div>
+Andrew O'Brien,
+<h1 class="Sh" title="Sh" id="COPYRIGHT,_LICENSE_AND_WARRANTY"><a class="selflink" href="#COPYRIGHT,_LICENSE_AND_WARRANTY">COPYRIGHT,
+  LICENSE AND WARRANTY</a></h1>
+This program is copyright 2007-2011 Baron Schwartz. Feedback and improvements
+  are welcome.
+<div class="Pp"></div>
+THIS PROGRAM IS PROVIDED &quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
+  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+<div class="Pp"></div>
+This program is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, version 2; OR the Perl Artistic License. On UNIX and similar
+  systems, you can issue `man perlgpl' or `man perlartistic' to read these
+  licenses.
+<div class="Pp"></div>
+You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+  Place, Suite 330, Boston, MA 02111-1307 USA.
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Baron Schwartz
+<h1 class="Sh" title="Sh" id="ABOUT_MAATKIT"><a class="selflink" href="#ABOUT_MAATKIT">ABOUT
+  MAATKIT</a></h1>
+This tool is part of Maatkit, a toolkit for power users of MySQL. Maatkit was
+  created by Baron Schwartz; Baron and Daniel Nichter are the primary code
+  contributors. Both are employed by Percona. Financial support for Maatkit
+  development is primarily provided by Percona and its clients.
+<h1 class="Sh" title="Sh" id="VERSION"><a class="selflink" href="#VERSION">VERSION</a></h1>
+This manual page documents Ver 1.0.27 Distrib 7540 $Revision: 7531 $.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2011-06-08</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

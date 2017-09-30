@@ -1,228 +1,208 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:38:54 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>sqlgrey(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>sqlgrey(1) User Contributed Perl Documentation
-sqlgrey(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-sqlgrey - Postfix Greylisting Policy Server</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-sqlgrey [options...]</p>
-
-<p style="margin-top: 1em">-h, --help display this help and
-exit <br>
---man display man page <br>
---version output version information and exit <br>
--d, --daemonize run in the background <br>
--p, --pidfile=FILE write process ID to FILE <br>
-(overrides &rsquo;pidfile&rsquo; in configfile) <br>
--k, --kill kill a running sqlgrey <br>
-(identified by &rsquo;pidfile&rsquo; content) <br>
--f, --configfile=FILE read config from FILE <br>
-(default /etc/sqlgrey/sqlgrey.conf) <br>
-expecting config_param=value lines, <br>
-- spaces are ignored, <br>
-- &rsquo;#&rsquo; is used for comments</p>
-
-<p style="margin-top: 1em">See the default config file at
-/etc/sqlgrey/sqlgrey.conf for runtime parameters. If you got
-sqlgrey from sources, read the HOWTO file in the compressed
-archive. If it came <br>
-prepackaged, look into the documentation tree for this file:
-/usr/share/doc/sqlgrey-&lt;version&gt;/ on most Linux
-distributions for example.</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-Sqlgrey is a Postfix policy server implementing
-greylisting.</p>
-
-<p style="margin-top: 1em">When a request for delivery of a
-mail is received by Postfix via SMTP, the triplet
-&quot;CLIENT_IP&quot; / &quot;SENDER&quot; /
-&quot;RECIPIENT&quot; is built. If it is the first time that
-this triplet is <br>
-seen, or if the triplet was first seen less than
-reconnect-delay minutes (1 is the default), then the mail
-gets rejected with a temporary error. Hopefully spammers or
-viruses <br>
-will not try again later, as it is however required per
-RFC.</p>
-
-<p style="margin-top: 1em">In order to alleviate the
-reconnect delay, sqlgrey uses a 2-level auto-white-list
-(AWL) system:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; As soon as a
-&quot;CLIENT IP&quot; / &quot;SENDER&quot; is accepted, it
-is added to an AWL. The couple expires when it isn&rsquo;t
-seen for more than awl-age days (60 is the default).</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; If
-group-domain-level &quot;SENDER&quot;s (2 is the default)
-from the same domain or more use the same &quot;CLIENT
-IP&quot;, another AWL is used based on a &quot;CLIENT
-IP&quot; / &quot;DOMAIN&quot; couple. This <br>
-couple expires after awl-age days too. This AWL is meant to
-be used on high throughput sites in order to :</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; minimize the
-amount of data stored in database,</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; minimize the
-amount of processing required to find an entry in the
-AWL.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; don&rsquo;t
-impose any further mail delay when a &quot;CLIENT IP&quot; /
-&quot;DOMAIN&quot; couple is known.</p>
-
-<p style="margin-top: 1em">It can be disabled by setting
-group-domain-level to 0.</p>
-
-<p style="margin-top: 1em">General idea:</p>
-
-<p style="margin-top: 1em">When a SMTP client has been
-accepted once, if the IP isn&rsquo;t dynamic, greylisting
-the IP again is only a waste of time when it sends another
-e-mail. As we already know that this IP <br>
-runs an RFC-compliant MTA (at least the 4xx error code
-handling) and will get the new e-mail through anyway.</p>
-
-<p style="margin-top: 1em">In the case of mail relays,
-these AWLs works very well as the same senders and mail
-domains are constantly coming through the same IP addresses
--&gt; the e-mails are quickly <br>
-accepted on the first try. In the case of individual SMTP
-servers, this works well if the IP is fixed too. When using
-a floating IP address, the AWLs are defeated, but it <br>
-should be the least common case by far.</p>
-
-<p style="margin-top: 1em">Why do we put the domain in the
-AWL and not the IP only ? If we did only store IP addresses,
-polluting the AWL would be far too easy. It would only take
-one correctly configured <br>
-MTA sending one e-mail from one IP one single time to put it
-in a whitelist used whatever future mails from this IP look
-like.</p>
-
-<p style="margin-top: 1em">With this AWL system, one single
-mail can only allow whitelisting of mails from a single
-sender from the same IP...</p>
-
-<p style="margin-top: 1em">INSTALLATION <br>
-&Acirc;&middot; Create a &quot;sqlgrey&quot; user. This will
-be the user the daemon runs as.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; When using a
-full-fledge SGBD (MySQL and PostgreSQL, not SQLite), create
-a &rsquo;sqlgrey&rsquo; db user and a &rsquo;sqlgrey&rsquo;
-database. Grant access to the newly created database to
-sqlgrey.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Use the packaged
-init script to start sqlgrey at boot and start it
-manually.</p>
-
-<p style="margin-top: 1em">CONFIGURATION <br>
-General <br>
-&Acirc;&middot; Start by adding check_policy_service after
-reject_unauth_destination in /etc/postfix/main.cf :</p>
-
-<p style="margin-top: 1em">smtpd_recipient_restrictions =
-<br>
-... <br>
-reject_unauth_destination <br>
-check_policy_service inet:127.0.0.1:2501</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Be aware that
-some servers do not behave correctly and do not resend mails
-(as required by the standard) or use unique return
-addresses. This is the reason why you should <br>
-maintain whitelists for them.</p>
-
-<p style="margin-top: 1em">SQLgrey comes with a
-comprehensive whitelisting system. It can even be configured
-to fetch up-to-date whitelists from a repository. See the
-HOWTO for the details.</p>
-
-<p style="margin-top: 1em">Disabling greylisting for some
-users <br>
-If you want to disable greylisting for some users you can
-configure Postfix like this:</p>
-
-
-<p style="margin-top: 1em">/etc/postfix/sqlgrey_recipient_access:
-<br>
-i_like_spam@ee.ethz.ch OK</p>
-
-<p style="margin-top: 1em">Then you&rsquo;ll add a
-check_recipient_access in main.cf before the
-check_policy_service : <br>
-smtpd_recipient_restrictions = <br>
-... <br>
-reject_unauth_destination <br>
-check_client_access hash:/etc/postfix/sqlgrey_client_access
-<br>
-check_recipient_access
-hash:/etc/postfix/sqlgrey_recipient_access <br>
-check_policy_service inet:127.0.0.1:10023</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-See &lt;http://www.greylisting.org/&gt; for a description of
-what greylisting is and
-&lt;http://www.postfix.org/SMTPD_POLICY_README.html&gt; for
-a description of how Postfix policy servers <br>
-work.</p>
-
-<p style="margin-top: 1em">COPYRIGHT <br>
-Copyright (c) 2004 by Lionel Bouton.</p>
-
-<p style="margin-top: 1em">LICENSE <br>
-This program is free software; you can redistribute it
-and/or modify it under the terms of the GNU General Public
-License as published by the Free Software Foundation; either
-<br>
-version 2 of the License, or (at your option) any later
-version.</p>
-
-<p style="margin-top: 1em">This program is distributed in
-the hope that it will be useful, but WITHOUT ANY WARRANTY;
-without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR <br>
-PURPOSE. See the GNU General Public License for more
-details.</p>
-
-<p style="margin-top: 1em">You should have received a copy
-of the GNU General Public License along with this program;
-if not, write to the Free Software Foundation, Inc., 59
-Temple Place, Suite 330, <br>
-Boston, MA 02111-1307 USA</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Lionel Bouton &lt;lionel-dev@bouton.name&gt;</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2017-02-12
-sqlgrey(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">sqlgrey(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">sqlgrey(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+sqlgrey - Postfix Greylisting Policy Server
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<b>sqlgrey</b> [<i>options</i>...]
+<div class="Pp"></div>
+<pre>
+ -h, --help                 display this help and exit
+     --man                  display man page
+     --version              output version information and exit
+ -d, --daemonize            run in the background
+ -p, --pidfile=FILE         write process ID to FILE
+                            (overrides 'pidfile' in configfile)
+ -k, --kill                 kill a running sqlgrey
+                            (identified by 'pidfile' content)
+ -f, --configfile=FILE      read config from FILE
+                            (default /etc/sqlgrey/sqlgrey.conf)
+                            expecting config_param=value lines,
+                            - spaces are ignored,
+                            - '#' is used for comments
+</pre>
+<div class="Pp"></div>
+See the default config file at /etc/sqlgrey/sqlgrey.conf for runtime parameters.
+  If you got sqlgrey from sources, read the HOWTO file in the compressed
+  archive. If it came prepackaged, look into the documentation tree for this
+  file: /usr/share/doc/sqlgrey-&lt;version&gt;/ on most Linux distributions for
+  example.
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+Sqlgrey is a Postfix policy server implementing greylisting.
+<div class="Pp"></div>
+When a request for delivery of a mail is received by Postfix via SMTP, the
+  triplet &quot;CLIENT_IP&quot; / &quot;SENDER&quot; / &quot;RECIPIENT&quot; is
+  built. If it is the first time that this triplet is seen, or if the triplet
+  was first seen less than <i>reconnect-delay</i> minutes (1 is the default),
+  then the mail gets rejected with a temporary error. Hopefully spammers or
+  viruses will not try again later, as it is however required per RFC.
+<div class="Pp"></div>
+In order to alleviate the reconnect delay, sqlgrey uses a 2-level
+  auto-white-list (AWL) system:
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">As soon as a &quot;CLIENT IP&quot; / &quot;SENDER&quot; is
+      accepted, it is added to an AWL. The couple expires when it isn't seen for
+      more than <i>awl-age</i> days (60 is the default).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">If <i>group-domain-level</i> &quot;SENDER&quot;s (2 is the
+      default) from the same domain or more use the same &quot;CLIENT IP&quot;,
+      another AWL is used based on a &quot;CLIENT IP&quot; / &quot;DOMAIN&quot;
+      couple. This couple expires after awl-age days too. This AWL is meant to
+      be used on high throughput sites in order to :</dd>
+</dl>
+<div style="margin-left: 4.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">minimize the amount of data stored in database,</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">minimize the amount of processing required to find an entry
+      in the AWL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">don't impose any further mail delay when a &quot;CLIENT
+      IP&quot; / &quot;DOMAIN&quot; couple is known.</dd>
+</dl>
+</div>
+<div style="margin-left: 4.00ex;">
+<div style="height: 1.00em;">&#x00A0;</div>
+It can be disabled by setting <i>group-domain-level</i> to 0.</div>
+<div class="Pp"></div>
+General idea:
+<div class="Pp"></div>
+When a SMTP client has been accepted once, if the IP isn't dynamic, greylisting
+  the IP again is only a waste of time when it sends another e-mail. As we
+  already know that this IP runs an RFC-compliant MTA (at least the 4xx error
+  code handling) and will get the new e-mail through anyway.
+<div class="Pp"></div>
+In the case of mail relays, these AWLs works very well as the same senders and
+  mail domains are constantly coming through the same IP addresses -&gt; the
+  e-mails are quickly accepted on the first try. In the case of individual SMTP
+  servers, this works well if the IP is fixed too. When using a floating IP
+  address, the AWLs are defeated, but it should be the least common case by far.
+<div class="Pp"></div>
+Why do we put the domain in the AWL and not the IP only ? If we did only store
+  IP addresses, polluting the AWL would be far too easy. It would only take one
+  correctly configured MTA sending one e-mail from one IP one single time to put
+  it in a whitelist used whatever future mails from this IP look like.
+<div class="Pp"></div>
+With this AWL system, one single mail can only allow whitelisting of mails from
+  a single sender from the same IP...
+<h1 class="Sh" title="Sh" id="INSTALLATION"><a class="selflink" href="#INSTALLATION">INSTALLATION</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Create a &quot;sqlgrey&quot; user. This will be the user
+      the daemon runs as.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">When using a full-fledge SGBD (MySQL and PostgreSQL, not
+      SQLite), create a 'sqlgrey' db user and a 'sqlgrey' database. Grant access
+      to the newly created database to sqlgrey.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Use the packaged init script to start sqlgrey at boot and
+      start it manually.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="CONFIGURATION"><a class="selflink" href="#CONFIGURATION">CONFIGURATION</a></h1>
+<h2 class="Ss" title="Ss" id="General"><a class="selflink" href="#General">General</a></h2>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Start by adding check_policy_service after
+      reject_unauth_destination in /etc/postfix/main.cf :
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+ smtpd_recipient_restrictions =
+               ...
+               reject_unauth_destination
+               check_policy_service inet:127.0.0.1:2501
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Be aware that some servers do not behave correctly and do
+      not resend mails (as required by the standard) or use unique return
+      addresses. This is the reason why you should maintain whitelists for them.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    SQLgrey comes with a comprehensive whitelisting system. It can even be
+      configured to fetch up-to-date whitelists from a repository. See the HOWTO
+      for the details.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Disabling_greylisting_for_some_users"><a class="selflink" href="#Disabling_greylisting_for_some_users">Disabling
+  greylisting for some users</a></h2>
+If you want to disable greylisting for some users you can configure Postfix like
+  this:
+<div class="Pp"></div>
+/etc/postfix/sqlgrey_recipient_access:
+<br/>
+ i_like_spam@ee.ethz.ch OK
+<div class="Pp"></div>
+Then you'll add a check_recipient_access in main.cf before the
+  check_policy_service :
+<br/>
+ smtpd_recipient_restrictions =
+<br/>
+ ...
+<br/>
+ reject_unauth_destination
+<br/>
+ check_client_access hash:/etc/postfix/sqlgrey_client_access
+<br/>
+ check_recipient_access hash:/etc/postfix/sqlgrey_recipient_access
+<br/>
+ check_policy_service inet:127.0.0.1:10023
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+See &lt;http://www.greylisting.org/&gt; for a description of what greylisting is
+  and &lt;http://www.postfix.org/SMTPD_POLICY_README.html&gt; for a description
+  of how Postfix policy servers work.
+<h1 class="Sh" title="Sh" id="COPYRIGHT"><a class="selflink" href="#COPYRIGHT">COPYRIGHT</a></h1>
+Copyright (c) 2004 by Lionel Bouton.
+<h1 class="Sh" title="Sh" id="LICENSE"><a class="selflink" href="#LICENSE">LICENSE</a></h1>
+This program is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation; either version 2 of the License, or (at your option) any later
+  version.
+<div class="Pp"></div>
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+  A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+<div class="Pp"></div>
+You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+  Place, Suite 330, Boston, MA 02111-1307 USA
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Lionel&#x00A0;Bouton&#x00A0;&lt;lionel-dev@bouton.name&gt;</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2017-02-12</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

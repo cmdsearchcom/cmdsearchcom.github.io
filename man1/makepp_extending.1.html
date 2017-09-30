@@ -1,559 +1,463 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:23:45 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MAKEPP_EXTENDING(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MAKEPP_EXTENDING(1) Makepp MAKEPP_EXTENDING(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-makepp_extending -- How to extend makepp using Perl</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-Makepp internally is flexible enough so that by writing a
-little bit of Perl code, you can add functions or do a
-number of other operations.</p>
-
-<p style="margin-top: 1em">General notes on writing Perl
-code to work with makepp <br>
-Each makefile lives in its own package. Thus definitions in
-one makefile do not affect definitions in another makefile.
-A common set of functions including all the standard <br>
-textual manipulation functions is imported into the package
-when it is created.</p>
-
-<p style="margin-top: 1em">Makefile variables are stored as
-Perl scalars in that package. (There are exceptions to this:
-automatic variables and the default value of variables like
-CC are actually <br>
-implemented as functions with no arguments. Target specific
-vars, command line vars and environment vars are not seen
-this way.) Thus any Perl code you write has access to all
-<br>
-makefile variables. Global variables are stored in the
-&quot;Mpp::global&quot; package. See Makefile variables for
-the details.</p>
-
-<p style="margin-top: 1em">Each of the statements (ifperl /
-ifmakeperl, perl / makeperl, sub / makesub), the functions
-(perl / makeperl, map / makemap) and the rule action (perl /
-makeperl) for writing <br>
-Perl code directly in the makefile come in two flavours. The
-first is absolutely normal Perl, meaning you have to use the
-&quot;f_&quot; prefix as explained in the next section, if
-you <br>
-want to call makepp functions. The second variant first
-passes the statement through Make-style variable expansion,
-meaning you have to double the &quot;$&quot;s you want Perl
-to see.</p>
-
-<p style="margin-top: 1em">End handling is special because
-makepp&rsquo;s huge (depending on your build system) data
-structures would take several seconds to garbage collect
-with a normal exit. So we do a brute <br>
-force exit. In the main process you can still have
-&quot;END&quot; blocks but if you have any global file
-handles they may not get flushed. But you should be using
-the modern lexical <br>
-filehandles, which get closed properly when going out of
-scope.</p>
-
-<p style="margin-top: 1em">In Perl code run directly as a
-rule action or via a command you define, it is the opposite.
-&quot;END&quot; blocks will not be run, but global
-filehandles get flushed for you. The <br>
-&quot;DESTROY&quot; of global objects will never be run.</p>
-
-<p style="margin-top: 1em">Adding new textual functions
-<br>
-You can add a new function to makepp&rsquo;s repertoire by
-simply defining a Perl subroutine of the same name but with
-a prefix of &quot;f_&quot;. For example:</p>
-
-<p style="margin-top: 1em">sub f_myfunc { <br>
-my $argument = &amp;arg; # Name the argument. <br>
-my( undef, $mkfile, $mkfile_line ) = @_; # Name the
-arguments.</p>
-
-<p style="margin-top: 1em">... do something here</p>
-
-<p style="margin-top: 1em">return $return_value; <br>
-}</p>
-
-<p style="margin-top: 1em">XYZ := $(myfunc my func
-arguments)</p>
-
-<p style="margin-top: 1em">If your function takes no
-arguments, there is nothing to do. If your function takes
-one argument, as in the example above, use the simple
-accessor &amp;arg to obtain it. If you <br>
-expect more arguments, you need the more complex accessor
-&quot;args&quot; described below.</p>
-
-<p style="margin-top: 1em">These accessors processes the
-same three parameters that should be passed to any
-&quot;f_&quot; function, namely the function arguments, the
-makefile object and a line descriptor for <br>
-messages. Therefore you can use the efficient &amp;arg form
-in the first case.</p>
-
-<p style="margin-top: 1em">The &amp;arg accessor takes care
-of the following for you: If the arguments were already
-expanded (e.g. to find the name of the function in
-&quot;$(my$(function) arg)&quot; the arg is passed <br>
-as a string and just returned. If the argument still needs
-expansion, this is the usual case, it is instead a reference
-to a string. The &amp;arg accessor expands it for you, for
-<br>
-which it needs the makefile object as its 2nd parameter.</p>
-
-<p style="margin-top: 1em">If you expect more arguments,
-possibly in variable number, the job is performed by
-&quot;args&quot;. This accessor takes the same 3 parameters
-as arg, plus additional parameters:</p>
-
-<p style="margin-top: 1em">max: number of args (default 2):
-give ~0 (maxint) for endless <br>
-min: number of args (default 0 if max is ~0, else same as
-max) <br>
-only_comma: don&rsquo;t eat space around commas, usual for
-non-filename</p>
-
-<p style="margin-top: 1em">At most max, but at least min
-commas present before expansion are used to split the
-arguments. Some examples from makepp&rsquo;s builtin
-functions:</p>
-
-<p style="margin-top: 1em">my( $prefix, $text ) = args
-$_[0], $_[1], $_[2], 2, 2, 1; # addprefix <br>
-for my $cond ( args $_[0], undef, $_[2], ~0 ) ... # and, or
-<br>
-my @args= args $_[0], $_[1], $_[2], ~0, 1, 1; # call <br>
-my( $filters, $words ) = args $_[0], $_[1], $_[2]; #
-filter</p>
-
-<p style="margin-top: 1em">The function should return a
-scalar string (not an array) which is then inserted into the
-text at that point.</p>
-
-<p style="margin-top: 1em">If your function encounters an
-error, it should die using the usual Perl die statement.
-This will be trapped by makepp and an error message
-displaying the file name and the line <br>
-number of the expression causing the error will be printed
-out.</p>
-
-<p style="margin-top: 1em">There are essentially no limits
-on what the function can do; you can access the file, run
-shell commands, etc.</p>
-
-<p style="margin-top: 1em">At present, expressions
-appearing in dependencies and in the rule actions are
-expanded once while expressions appearing in targets are
-expanded twice, so be careful if your <br>
-function has side effects and is present in an expression
-for a target.</p>
-
-<p style="margin-top: 1em">Note that the environment (in
-particular, the cwd) in which the function evaluates will
-not necessarily match the environment in which the rules
-from the Makefile in which the <br>
-function was evaluated are executed. If this is a problem
-for you, then your function probably ought to look something
-like this:</p>
-
-<p style="margin-top: 1em">sub f_foo { <br>
-... <br>
-chdir $makefile-&gt;{CWD};</p>
-
-<p style="margin-top: 1em">... etc. <br>
-}</p>
-
-<p style="margin-top: 1em">Putting functions into a Perl
-module <br>
-If you put functions into an include file, you will have one
-copy per Makeppfile which uses it. To avoid that, you can
-write them as a normal Perl module with an
-&quot;Exporter&quot; <br>
-interface, and use that. This will load faster and save
-memory:</p>
-
-<p style="margin-top: 1em">perl { use mymodule } <br>
-perl { <br>
-use my::module; # put : on a new line so this is not parsed
-as a rule <br>
-}</p>
-
-<p style="margin-top: 1em">If you need any of the functions
-normally available in a Makefile (like the &quot;f_&quot;
-functions, &quot;arg&quot; or &quot;args&quot;), you must
-put this line into your module:</p>
-
-<p style="margin-top: 1em">use Mpp::Subs;</p>
-
-<p style="margin-top: 1em">The drawback is that the module
-would be in a different package than a function directly
-appearing in a makefile. So you need to pass in everything
-as parameters, or construct <br>
-names with Perl&rsquo;s &quot;caller&quot; function.</p>
-
-<p style="margin-top: 1em">Calling external Perl scripts
-<br>
-If you call an external Perl script via &quot;system&quot;,
-or as a rule action, makepp will fork a new process (unless
-it&rsquo;s the last rule action) and fire off a brand new
-perl <br>
-interpreter. There&rsquo;s nothing wrong with that, except
-that there&rsquo;s a more efficient way:</p>
-
-<p style="margin-top: 1em">&amp;command arguments... <br>
-This can be a rule action. It will call a function command
-with a &quot;c_&quot; prefix, and pass it the remaining
-(optionally quoted makepp style -- not exactly the same as
-Shell) <br>
-arguments. If such a function cannot be found, this passes
-all strings to &quot;run&quot;.</p>
-
-<p style="margin-top: 1em">sub c_mycmd { my @args = @_; ...
-}</p>
-
-<p style="margin-top: 1em">$(phony callcmd): <br>
-&amp;mycmd &rsquo;arg with space&rsquo; arg2
-&quot;arg3&quot; # calls c_mycmd</p>
-
-<p style="margin-top: 1em">%.out: %.in <br>
-&amp;myscript -o $(output) $(input) # calls external
-myscript</p>
-
-<p style="margin-top: 1em">You can write your commands
-within the framework of the builtins, allowing you to use
-the same standard options as they have, and the I/O handling
-they give.</p>
-
-<p style="margin-top: 1em">The block operator
-&quot;Mpp::Cmds::frame&quot; is followed by a single letter
-option list of the builtins (maximally &quot;qw(f i I o O r
-s)&quot;). Even if you specify your own option <br>
-overriding one of these, you still give the single letter of
-the standard option.</p>
-
-<p style="margin-top: 1em">Each own option is specified as
-&quot;[qw(n name), ef, arg, sub]&quot;. The first two
-elements are short and long name, followed by the variable
-reference and optionally by a <br>
-boolean for whether to take an argument. Without an arg, the
-variable is incremented each time the option is given, else
-the option value is stored in it.</p>
-
-<p style="margin-top: 1em">sub c_my_ocmd { # Typical output
-case <br>
-local @ARGV = @_; <br>
-Mpp::Cmds::frame {</p>
-
-<p style="margin-top: 1em">... print something here with
-@ARGV, with options already automatically removed</p>
-
-<p style="margin-top: 1em">} &rsquo;f&rsquo;, qw(o O); <br>
-}</p>
-
-<p style="margin-top: 1em">sub c_my_icmd { # Typical input
-case with 2 options <br>
-local @ARGV = @_; <br>
-my( $short, $long ); <br>
-Mpp::Cmds::frame {</p>
-
-<p style="margin-top: 1em">... do something here with
-&lt;&gt;</p>
-
-<p style="margin-top: 1em">} qw(i I r s), # s specifies
-only --separator, not -s <br>
-[qw(s short), hort], # No option arg -&gt; $short == 1 <br>
-[qw(l long), ong, 1, sub { warn &quot;got arg $long&quot;}];
-<br>
-}</p>
-
-<p style="margin-top: 1em">Here comes a simple command
-which upcases only the first character of each input record
-(equivalent to &quot;&amp;sed &rsquo;$$_ =
-&quot;_&quot;&rsquo;&quot;):</p>
-
-<p style="margin-top: 1em">sub c_uc { <br>
-local @ARGV = @_; <br>
-Mpp::Cmds::frame { <br>
-print &quot;&quot; while &lt;&gt;; <br>
-} &rsquo;f&rsquo;, qw(i I o O r s); <br>
-}</p>
-
-<p style="margin-top: 1em">Within the block handled by
-frame, you can have nested blocks for performing critical
-operations, like opening other files.</p>
-
-<p style="margin-top: 1em">Mpp::Cmds::perform { ... }
-&rsquo;message&rsquo;;</p>
-
-<p style="margin-top: 1em">This will output message with
-&quot;--verbose&quot; (which every command accepts) iff the
-command is successfully run. But if the block evaluates as
-false, it dies with negated <br>
-message.</p>
-
-<p style="margin-top: 1em">run script arguments... <br>
-This is a normal Perl function you can use in any Perl
-context within your makefile. It is similar to the
-multi-argument form of system, but it runs the Perl script
-within <br>
-the current process. For makepp statements, the perl
-function or your own functions that is the process running
-makepp. But for a rule that is the subprocess performing it.
-<br>
-The script gets parsed as many times as it gets called, but
-you can put the real work into a lib, as pod2html does. This
-lib can then get used in the top level, so that it&rsquo;s
-<br>
-already present:</p>
-
-<p style="margin-top: 1em">perl { use mylib } # gets forked
-to all rules which needn&rsquo;t reparse it</p>
-
-<p style="margin-top: 1em">%.out: %.in <br>
-makeperl { run qw&rsquo;myscript -o $(output)
-$(input)&rsquo; }</p>
-
-<p style="margin-top: 1em">If the script calls
-&quot;exit&quot;, closes standard file descriptors or relies
-on the system to clean up after it (open files, memory...),
-this can be a problem with &quot;run&quot;. If you <br>
-call &quot;run&quot; within statements or the perl function,
-makepp can get disturbed or the cleanup only happens at the
-end of makepp.</p>
-
-<p style="margin-top: 1em">If you have one the
-aforementioned problems, run the script externally, i.e. as
-from the command line instead. Within a rule cleanup is less
-of a problem, especially not as <br>
-the last action of a rule, since the rule subprocess will
-exit afterwards anyway, except on Windows.</p>
-
-<p style="margin-top: 1em">Writing your own signature
-methods <br>
-Sometimes you want makepp to compute a signature method
-using a different technique. For example, suppose you have a
-binary that depends on a shared library. Ordinarily, if you
-<br>
-change the shared library, you don&rsquo;t have to relink
-executables that depend on it because the linking is done at
-run time. (However, it is possible that relinking the
-executable <br>
-might be necessary, which is why I did not make this the
-default.) What you want makepp to do is to have the same
-signature for the shared library even if it changes.</p>
-
-<p style="margin-top: 1em">This can be accomplished in
-several ways. The easiest way is to create your own new
-signature method (let&rsquo;s call it
-&quot;shared_object&quot;). You would use this signature
-method only <br>
-on rules that link binaries, like this:</p>
-
-<p style="margin-top: 1em">myprogram : *.o lib1/lib1.so
-lib2/lib2.so <br>
-: signature shared_object <br>
-$(CC) $(inputs) -o $(output)</p>
-
-<p style="margin-top: 1em">Now we have to create the
-signature method.</p>
-
-<p style="margin-top: 1em">All signature methods must be
-their own class, and the class must contain a few special
-items (see Mpp/Signature.pm in the distribution for
-details). The class&rsquo;s name must be <br>
-prefixed with &quot;Mpp::Signature::&quot;, so in this case
-our class should be called
-&quot;Mpp::Signature::shared_object&quot;. We have to create
-a file called shared_object.pm and put it into a <br>
-Mpp::Signature directory somewhere in the Perl include path;
-the easiest place might be in the Mpp/Signature directory in
-the makepp installation (e.g., <br>
-/usr/local/share/makepp/Mpp/Signature or wherever you
-installed it).</p>
-
-<p style="margin-top: 1em">For precise details about what
-has to go in this class, you should look carefully through
-the file Mpp/Signature.pm and probably also
-Mpp/Signature/exact_match.pm in the makepp <br>
-distribution. But in our case, all we want to do is to make
-a very small change to an existing signature mechanism; if
-the file is a shared library, we want to have a constant
-<br>
-signature, whereas if the file is anything else, we want to
-rely on makepp&rsquo;s normal signature mechanism. The best
-way to do this is to inherit from <br>
-&quot;Mpp::Signature::c_compilation_md5&quot;, which is the
-signature method that is usually chosen when makepp
-recognizes a link command.</p>
-
-<p style="margin-top: 1em">So the file
-Mpp/Signature/shared_object.pm might contain the
-following:</p>
-
-<p style="margin-top: 1em">use strict; <br>
-package Mpp::Signature::shared_object; <br>
-use Mpp::Signature::c_compilation_md5; <br>
-our @ISA = qw(Mpp::Signature::c_compilation_md5); # Indicate
-inheritance. <br>
-our $shared_object = bless @ISA; # A piece of magic that
-helps makepp find <br>
-# the subroutines for this method. All <br>
-# signature methods must have one of these. <br>
-# The value is not used, just any object. <br>
-# Now here&rsquo;s the method that gets called when we need
-the signature of <br>
-# any target or dependency for which this signature method
-is active: <br>
-sub signature { <br>
-my ($self, # This will be the same as $shared_object. <br>
-$finfo) = @_; # A special structure that contains everything
-<br>
-# makepp knows about this file. See <br>
-# Mpp/File.pm for details.</p>
-
-<p style="margin-top: 1em">if ($finfo-&gt;{NAME} =~
-/.s[oa]$/) { # Does the file name end in .so or .sa? <br>
-return $finfo-&gt;file_exists ? &rsquo;exists&rsquo; :
-&rsquo;&rsquo;; <br>
-# Always return the same signature if the file <br>
-# exists. In this case, the signature is the <br>
-# string &quot;exists&quot;. <br>
-}</p>
-
-
-<p style="margin-top: 1em">Mpp::Signature::c_compilation_md5::signature;
-<br>
-# If the file didn&rsquo;t end in .so or .sa, <br>
-# delegate to makepp&rsquo;s usual signature method. <br>
-}</p>
-
-<p style="margin-top: 1em">This file is provided as an
-example in the makepp distribution, with some additional
-comments.</p>
-
-<p style="margin-top: 1em">Incidentally, why don&rsquo;t we
-make this the default? Well, there are times when changing a
-shared library will require a relinking of your program. If
-you ever change either the <br>
-symbols that a shared library defines, or the symbols that
-it depends on other libraries for, a relink may sometimes be
-necessary.</p>
-
-<p style="margin-top: 1em">Suppose, for example, that the
-shared library invokes some subroutines that your program
-provides. E.g., suppose you change the shared library so it
-now calls an external <br>
-subroutine &quot;xyz()&quot;. Unless you use the
-&quot;-E&quot; or &quot;--export-dynamic&quot; option to the
-linker (for GNU binutils; other linkers have different
-option names), the symbol &quot;xyz()&quot; may not <br>
-be accessible to the run-time linker even if it exists in
-your program.</p>
-
-<p style="margin-top: 1em">Even worse, suppose you defined
-&quot;xyz()&quot; in another library (call it libxyz), like
-this:</p>
-
-<p style="margin-top: 1em">my_program: main.o lib1/lib1.so
-xyz/libxyz.a</p>
-
-<p style="margin-top: 1em">Since &quot;libxyz&quot; is a .a
-file and not a .so file, then &quot;xyz()&quot; may not be
-pulled in correctly from libxyz.a unless you relink your
-binary.</p>
-
-<p style="margin-top: 1em">Mpp::Signature methods also
-control not only the string that is used to determine if a
-file has changed, but the algorithm that is used to compare
-the strings. For example, the <br>
-signature method &quot;target_newer&quot; in the makepp
-distribution merely requires that the targets be newer than
-the dependencies, whereas the signature method
-&quot;exact_match&quot; (and <br>
-everything that depends on it, such as &quot;md5&quot; and
-&quot;c_compilation_md5&quot;) requires that the file have
-the same signature as on the last build.</p>
-
-<p style="margin-top: 1em">Here are some other kinds of
-signature methods that might be useful, to help you realize
-the possibilities. If general purpose enough, some of these
-may eventually be <br>
-incorporated into makepp:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A signature
-method for shared libraries that returns a checksum of all
-the exported symbols, and also all the symbols that it needs
-from other libraries. This solves the <br>
-problem with the example above, and guarantees a correct
-link under all circumstances. An experimental attempt has
-been made to do this in the makepp distribution (see <br>
-Mpp/Signature/shared_object.pm), but it will only work with
-GNU binutils and ELF libraries at the moment.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A signature
-method that ignores a date stamp written into a file. E.g.,
-if you generate a .c file automatically using some program
-that insists on putting a string in like <br>
-this:</p>
-
-<p style="margin-top: 1em">static char * date_stamp =
-&quot;Generated automatically on 01 Apr 2004 by
-nobody&quot;;</p>
-
-<p style="margin-top: 1em">you could write a signature
-method that specifically ignores changes in date stamps.
-Thus if the date stamp is the only thing that has changed,
-makepp will not rebuild.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A signature
-method that computes the signatures the normal way, but
-ignores the architecture dependence when deciding whether to
-rebuild. This could be useful for truly <br>
-architecture-independent files; currently if you build on
-one architecture, makepp will insist on rebuilding even
-architecture-independent files when you switch to a <br>
-different architecture.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A signature
-method that knows how to ignore comments in latex files, as
-the &quot;c_compilation_md5&quot; method knows how to ignore
-comments in C files.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A signature
-method for automatic documentation extraction that checksums
-only to the comments that a documentation extractor needs
-and ignores other changes to the source <br>
-file.</p>
-
-<p style="margin-top: 1em">Unfinished <br>
-This document is not finished yet. It should cover how to
-write your own scanners for include files and things like
-that.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2016-11-28
-MAKEPP_EXTENDING(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MAKEPP_EXTENDING(1)</td>
+    <td class="head-vol">Makepp</td>
+    <td class="head-rtitle">MAKEPP_EXTENDING(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+makepp_extending -- How to extend makepp using Perl
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+Makepp internally is flexible enough so that by writing a little bit of Perl
+  code, you can add functions or do a number of other operations.
+<h2 class="Ss" title="Ss" id="General_notes_on_writing_Perl_code_to_work_with_makepp"><a class="selflink" href="#General_notes_on_writing_Perl_code_to_work_with_makepp">General
+  notes on writing Perl code to work with makepp</a></h2>
+Each makefile lives in its own package. Thus definitions in one makefile do not
+  affect definitions in another makefile. A common set of functions including
+  all the standard textual manipulation functions is imported into the package
+  when it is created.
+<div class="Pp"></div>
+Makefile variables are stored as Perl scalars in that package. (There are
+  exceptions to this: automatic variables and the default value of variables
+  like CC are actually implemented as functions with no arguments. Target
+  specific vars, command line vars and environment vars are not seen this way.)
+  Thus any Perl code you write has access to all makefile variables. Global
+  variables are stored in the &quot;Mpp::global&quot; package. See Makefile
+  variables for the details.
+<div class="Pp"></div>
+Each of the statements (ifperl / ifmakeperl, perl / makeperl, sub / makesub),
+  the functions (perl / makeperl, map / makemap) and the rule action (perl /
+  makeperl) for writing Perl code directly in the makefile come in two flavours.
+  The first is absolutely normal Perl, meaning you have to use the
+  &quot;f_&quot; prefix as explained in the next section, if you want to call
+  makepp functions. The second variant first passes the statement through
+  Make-style variable expansion, meaning you have to double the &quot;$&quot;s
+  you want Perl to see.
+<div class="Pp"></div>
+End handling is special because makepp's huge (depending on your build system)
+  data structures would take several seconds to garbage collect with a normal
+  exit. So we do a brute force exit. In the main process you can still have
+  &quot;END&quot; blocks but if you have any global file handles they may not
+  get flushed. But you should be using the modern lexical filehandles, which get
+  closed properly when going out of scope.
+<div class="Pp"></div>
+In Perl code run directly as a rule action or via a command you define, it is
+  the opposite. &quot;END&quot; blocks will not be run, but global filehandles
+  get flushed for you. The &quot;DESTROY&quot; of global objects will never be
+  run.
+<h2 class="Ss" title="Ss" id="Adding_new_textual_functions"><a class="selflink" href="#Adding_new_textual_functions">Adding
+  new textual functions</a></h2>
+You can add a new function to makepp's repertoire by simply defining a Perl
+  subroutine of the same name but with a prefix of &quot;f_&quot;. For example:
+<div class="Pp"></div>
+<pre>
+    sub f_myfunc {
+      my $argument = &amp;arg;      # Name the argument.
+      my( undef, $mkfile, $mkfile_line ) = @_; # Name the arguments.
+ 
+      ... do something here
+ 
+      return $return_value;
+    }
+ 
+    XYZ := $(myfunc my func arguments)
+</pre>
+<div class="Pp"></div>
+If your function takes no arguments, there is nothing to do. If your function
+  takes one argument, as in the example above, use the simple accessor &amp;arg
+  to obtain it. If you expect more arguments, you need the more complex accessor
+  &quot;args&quot; described below.
+<div class="Pp"></div>
+These accessors processes the same three parameters that should be passed to any
+  &quot;f_&quot; function, namely the function arguments, the makefile object
+  and a line descriptor for messages. Therefore you can use the efficient
+  &amp;arg form in the first case.
+<div class="Pp"></div>
+The &amp;arg accessor takes care of the following for you: If the arguments were
+  already expanded (e.g. to find the name of the function in
+  &quot;$(my$(function) arg)&quot; the arg is passed as a string and just
+  returned. If the argument still needs expansion, this is the usual case, it is
+  instead a reference to a string. The &amp;arg accessor expands it for you, for
+  which it needs the makefile object as its 2nd parameter.
+<div class="Pp"></div>
+If you expect more arguments, possibly in variable number, the job is performed
+  by &quot;args&quot;. This accessor takes the same 3 parameters as arg, plus
+  additional parameters:
+<dl class="Bl-tag">
+  <dt class="It-tag">max: number of args (default 2): give ~0 (maxint) for
+    endless</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">min: number of args (default 0 if max is ~0, else same as
+    max)</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">only_comma: don't eat space around commas, usual for
+    non-filename</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+At most max, but at least min commas present before expansion are used to split
+  the arguments. Some examples from makepp's builtin functions:
+<div class="Pp"></div>
+<pre>
+    my( $prefix, $text ) = args $_[0], $_[1], $_[2], 2, 2, 1; # addprefix
+    for my $cond ( args $_[0], undef, $_[2], ~0 ) ... # and, or
+    my @args= args $_[0], $_[1], $_[2], ~0, 1, 1; # call
+    my( $filters, $words ) = args $_[0], $_[1], $_[2]; # filter
+</pre>
+<div class="Pp"></div>
+The function should return a scalar string (not an array) which is then inserted
+  into the text at that point.
+<div class="Pp"></div>
+If your function encounters an error, it should die using the usual Perl die
+  statement. This will be trapped by makepp and an error message displaying the
+  file name and the line number of the expression causing the error will be
+  printed out.
+<div class="Pp"></div>
+There are essentially no limits on what the function can do; you can access the
+  file, run shell commands, etc.
+<div class="Pp"></div>
+At present, expressions appearing in dependencies and in the rule actions are
+  expanded once while expressions appearing in targets are expanded twice, so be
+  careful if your function has side effects and is present in an expression for
+  a target.
+<div class="Pp"></div>
+Note that the environment (in particular, the cwd) in which the function
+  evaluates will not necessarily match the environment in which the rules from
+  the Makefile in which the function was evaluated are executed. If this is a
+  problem for you, then your function probably ought to look something like
+  this:
+<div class="Pp"></div>
+<pre>
+    sub f_foo {
+      ...
+      chdir $makefile-&gt;{CWD};
+ 
+      ... etc.
+    }
+</pre>
+<h2 class="Ss" title="Ss" id="Putting_functions_into_a_Perl_module"><a class="selflink" href="#Putting_functions_into_a_Perl_module">Putting
+  functions into a Perl module</a></h2>
+If you put functions into an include file, you will have one copy per Makeppfile
+  which uses it. To avoid that, you can write them as a normal Perl module with
+  an &quot;Exporter&quot; interface, and use that. This will load faster and
+  save memory:
+<div class="Pp"></div>
+<pre>
+    perl { use mymodule }
+    perl {
+        use my::module;         # put : on a new line so this is not parsed as a rule
+    }
+</pre>
+<div class="Pp"></div>
+If you need any of the functions normally available in a Makefile (like the
+  &quot;f_&quot; functions, &quot;arg&quot; or &quot;args&quot;), you must put
+  this line into your module:
+<div class="Pp"></div>
+<pre>
+    use Mpp::Subs;
+</pre>
+<div class="Pp"></div>
+The drawback is that the module would be in a different package than a function
+  directly appearing in a makefile. So you need to pass in everything as
+  parameters, or construct names with Perl's &quot;caller&quot; function.
+<h2 class="Ss" title="Ss" id="Calling_external_Perl_scripts"><a class="selflink" href="#Calling_external_Perl_scripts">Calling
+  external Perl scripts</a></h2>
+If you call an external Perl script via &quot;system&quot;, or as a rule action,
+  makepp will fork a new process (unless it's the last rule action) and fire off
+  a brand new perl interpreter. There's nothing wrong with that, except that
+  there's a more efficient way:
+<dl class="Bl-tag">
+  <dt class="It-tag">&amp;<i>command arguments...</i></dt>
+  <dd class="It-tag">This can be a rule action. It will call a function
+      <i>command</i> with a &quot;c_&quot; prefix, and pass it the remaining
+      (optionally quoted makepp style -- not exactly the same as Shell)
+      arguments. If such a function cannot be found, this passes all strings to
+      &quot;run&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    sub c_mycmd { my @args = @_; ... }
+ 
+    $(phony callcmd):
+        &amp;mycmd 'arg with space' arg2 &quot;arg3&quot; # calls c_mycmd
+ 
+    %.out: %.in
+        &amp;myscript -o $(output) $(input) # calls external myscript
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    You can write your commands within the framework of the builtins, allowing
+      you to use the same standard options as they have, and the I/O handling
+      they give.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The block operator &quot;Mpp::Cmds::frame&quot; is followed by a single
+      letter option list of the builtins (maximally &quot;qw(f i I o O r
+      s)&quot;). Even if you specify your own option overriding one of these,
+      you still give the single letter of the standard option.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Each own option is specified as &quot;[qw(n name), <i>\$ref</i>, <i>arg</i>,
+      <i>sub</i>]&quot;. The first two elements are short and long name,
+      followed by the variable reference and optionally by a boolean for whether
+      to take an argument. Without an arg, the variable is incremented each time
+      the option is given, else the option value is stored in it.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    sub c_my_ocmd {             # Typical output case
+      local @ARGV = @_;
+      Mpp::Cmds::frame {
+ 
+        ... print something here with @ARGV, with options already automatically removed
+ 
+      } 'f', qw(o O);
+    }
+ 
+    sub c_my_icmd {             # Typical input case with 2 options
+      local @ARGV = @_;
+      my( $short, $long );
+      Mpp::Cmds::frame {
+ 
+        ... do something here with &lt;&gt;
+ 
+      } qw(i I r s),            # s specifies only --separator, not -s
+        [qw(s short), \$short], # No option arg -&gt; $short == 1
+        [qw(l long), \$long, 1, sub { warn &quot;got arg $long&quot;}];
+    }
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Here comes a simple command which upcases only the first character of each
+      input record (equivalent to &quot;&amp;sed '$$_ =
+      &quot;\u\L$$_&quot;'&quot;):
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    sub c_uc {
+      local @ARGV = @_;
+      Mpp::Cmds::frame {
+        print &quot;\u\L$_&quot; while &lt;&gt;;
+      } 'f', qw(i I o O r s);
+    }
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Within the block handled by frame, you can have nested blocks for performing
+      critical operations, like opening other files.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    Mpp::Cmds::perform { ... } 'message';
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This will output message with &quot;--verbose&quot; (which every command
+      accepts) iff the command is successfully run. But if the block evaluates
+      as false, it dies with negated message.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">run <i>script arguments...</i></dt>
+  <dd class="It-tag">This is a normal Perl function you can use in any Perl
+      context within your makefile. It is similar to the multi-argument form of
+      system, but it runs the Perl script within the current process. For makepp
+      statements, the perl function or your own functions that is the process
+      running makepp. But for a rule that is the subprocess performing it. The
+      script gets parsed as many times as it gets called, but you can put the
+      real work into a lib, as pod2html does. This lib can then get used in the
+      top level, so that it's already present:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    perl { use mylib }          # gets forked to all rules which needn't reparse it
+ 
+    %.out: %.in
+        makeperl { run qw'myscript -o $(output) $(input)' }
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If the script calls &quot;exit&quot;, closes standard file descriptors or
+      relies on the system to clean up after it (open files, memory...), this
+      can be a problem with &quot;run&quot;. If you call &quot;run&quot; within
+      statements or the perl function, makepp can get disturbed or the cleanup
+      only happens at the end of makepp.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If you have one the aforementioned problems, run the script externally, i.e.
+      as from the command line instead. Within a rule cleanup is less of a
+      problem, especially not as the last action of a rule, since the rule
+      subprocess will exit afterwards anyway, except on Windows.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Writing_your_own_signature_methods"><a class="selflink" href="#Writing_your_own_signature_methods">Writing
+  your own signature methods</a></h2>
+Sometimes you want makepp to compute a signature method using a different
+  technique. For example, suppose you have a binary that depends on a shared
+  library. Ordinarily, if you change the shared library, you don't have to
+  relink executables that depend on it because the linking is done at run time.
+  (However, it is possible that relinking the executable might be necessary,
+  which is why I did not make this the default.) What you want makepp to do is
+  to have the same signature for the shared library even if it changes.
+<div class="Pp"></div>
+This can be accomplished in several ways. The easiest way is to create your own
+  new signature method (let's call it &quot;shared_object&quot;). You would use
+  this signature method only on rules that link binaries, like this:
+<div class="Pp"></div>
+<pre>
+    myprogram : *.o lib1/lib1.so lib2/lib2.so
+        : signature shared_object
+        $(CC) $(inputs) -o $(output)
+</pre>
+<div class="Pp"></div>
+Now we have to create the signature method.
+<div class="Pp"></div>
+All signature methods must be their own class, and the class must contain a few
+  special items (see Mpp/Signature.pm in the distribution for details). The
+  class's name must be prefixed with &quot;Mpp::Signature::&quot;, so in this
+  case our class should be called &quot;Mpp::Signature::shared_object&quot;. We
+  have to create a file called <i>shared_object.pm</i> and put it into a
+  <i>Mpp::Signature</i> directory somewhere in the Perl include path; the
+  easiest place might be in the <i>Mpp/Signature</i> directory in the makepp
+  installation (e.g., <i>/usr/local/share/makepp/Mpp/Signature</i> or wherever
+  you installed it).
+<div class="Pp"></div>
+For precise details about what has to go in this class, you should look
+  carefully through the file <i>Mpp/Signature.pm</i> and probably also
+  <i>Mpp/Signature/exact_match.pm</i> in the makepp distribution. But in our
+  case, all we want to do is to make a very small change to an existing
+  signature mechanism; if the file is a shared library, we want to have a
+  constant signature, whereas if the file is anything else, we want to rely on
+  makepp's normal signature mechanism. The best way to do this is to inherit
+  from &quot;Mpp::Signature::c_compilation_md5&quot;, which is the signature
+  method that is usually chosen when makepp recognizes a link command.
+<div class="Pp"></div>
+So the file <i>Mpp/Signature/shared_object.pm</i> might contain the following:
+<div class="Pp"></div>
+<pre>
+    use strict;
+    package Mpp::Signature::shared_object;
+    use Mpp::Signature::c_compilation_md5;
+    our @ISA = qw(Mpp::Signature::c_compilation_md5); # Indicate inheritance.
+    our $shared_object = bless \@ISA; # A piece of magic that helps makepp find
+                                # the subroutines for this method.  All
+                                # signature methods must have one of these.
+                                # The value is not used, just any object.
+    # Now here's the method that gets called when we need the signature of
+    # any target or dependency for which this signature method is active:
+    sub signature {
+      my ($self,                 # This will be the same as $shared_object.
+          $finfo) = @_;          # A special structure that contains everything
+                                 # makepp knows about this file.  See
+                                 # Mpp/File.pm for details.
+ 
+      if ($finfo-&gt;{NAME} =~ /\.s[oa]$/) { # Does the file name end in .so or .sa?
+        return $finfo-&gt;file_exists ? 'exists' : '';
+                                 # Always return the same signature if the file
+                                 # exists.  In this case, the signature is the
+                                 # string &quot;exists&quot;.
+      }
+ 
+      Mpp::Signature::c_compilation_md5::signature;
+                                 # If the file didn't end in .so or .sa,
+                                 # delegate to makepp's usual signature method.
+    }
+</pre>
+<div class="Pp"></div>
+This file is provided as an example in the makepp distribution, with some
+  additional comments.
+<div class="Pp"></div>
+Incidentally, why don't we make this the default? Well, there are times when
+  changing a shared library will require a relinking of your program. If you
+  ever change either the symbols that a shared library defines, or the symbols
+  that it depends on other libraries for, a relink may sometimes be necessary.
+<div class="Pp"></div>
+Suppose, for example, that the shared library invokes some subroutines that your
+  program provides. E.g., suppose you change the shared library so it now calls
+  an external subroutine &quot;xyz()&quot;. Unless you use the &quot;-E&quot; or
+  &quot;--export-dynamic&quot; option to the linker (for GNU binutils; other
+  linkers have different option names), the symbol &quot;xyz()&quot; may not be
+  accessible to the run-time linker even if it exists in your program.
+<div class="Pp"></div>
+Even worse, suppose you defined &quot;xyz()&quot; in another library (call it
+  <i>libxyz</i>), like this:
+<div class="Pp"></div>
+<pre>
+    my_program: main.o lib1/lib1.so xyz/libxyz.a
+</pre>
+<div class="Pp"></div>
+Since &quot;libxyz&quot; is a <i>.a</i> file and not a <i>.so</i> file, then
+  &quot;xyz()&quot; may not be pulled in correctly from <i>libxyz.a</i> unless
+  you relink your binary.
+<div class="Pp"></div>
+Mpp::Signature methods also control not only the string that is used to
+  determine if a file has changed, but the algorithm that is used to compare the
+  strings. For example, the signature method &quot;target_newer&quot; in the
+  makepp distribution merely requires that the targets be newer than the
+  dependencies, whereas the signature method &quot;exact_match&quot; (and
+  everything that depends on it, such as &quot;md5&quot; and
+  &quot;c_compilation_md5&quot;) requires that the file have the same signature
+  as on the last build.
+<div class="Pp"></div>
+Here are some other kinds of signature methods that might be useful, to help you
+  realize the possibilities. If general purpose enough, some of these may
+  eventually be incorporated into makepp:
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A signature method for shared libraries that returns a
+      checksum of all the exported symbols, and also all the symbols that it
+      needs from other libraries. This solves the problem with the example
+      above, and guarantees a correct link under all circumstances. An
+      experimental attempt has been made to do this in the makepp distribution
+      (see <i>Mpp/Signature/shared_object.pm</i>), but it will only work with
+      GNU binutils and ELF libraries at the moment.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A signature method that ignores a date stamp written into a
+      file. E.g., if you generate a <i>.c</i> file automatically using some
+      program that insists on putting a string in like this:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    static char * date_stamp = &quot;Generated automatically on 01 Apr 2004 by nobody&quot;;
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    you could write a signature method that specifically ignores changes in date
+      stamps. Thus if the date stamp is the only thing that has changed, makepp
+      will not rebuild.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A signature method that computes the signatures the normal
+      way, but ignores the architecture dependence when deciding whether to
+      rebuild. This could be useful for truly architecture-independent files;
+      currently if you build on one architecture, makepp will insist on
+      rebuilding even architecture-independent files when you switch to a
+      different architecture.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A signature method that knows how to ignore comments in
+      latex files, as the &quot;c_compilation_md5&quot; method knows how to
+      ignore comments in C files.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A signature method for automatic documentation extraction
+      that checksums only to the comments that a documentation extractor needs
+      and ignores other changes to the source file.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Unfinished"><a class="selflink" href="#Unfinished">Unfinished</a></h2>
+This document is not finished yet. It should cover how to write your own
+  scanners for include files and things like that.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2016-11-28</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

@@ -1,740 +1,664 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:25:35 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MK-INDEX-USAGE(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MK-INDEX-USAGE(1) User Contributed Perl Documentation
-MK-INDEX-USAGE(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-mk-index-usage - Read queries from a log and analyze how
-they use indexes.</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-Usage: mk-index-usage [OPTION...] [FILE...]</p>
-
-<p style="margin-top: 1em">mk-index-usage reads queries
-from logs and analyzes how they use indexes.</p>
-
-<p style="margin-top: 1em">Analyze queries in slow.log and
-print reports:</p>
-
-<p style="margin-top: 1em">mk-index-usage /path/to/slow.log
---host localhost</p>
-
-<p style="margin-top: 1em">Disable reports and save results
-to mk database for later analysis:</p>
-
-<p style="margin-top: 1em">mk-index-usage slow.log
---no-report --save-results-database mk</p>
-
-<p style="margin-top: 1em">RISKS <br>
-The following section is included to inform users about the
-potential risks, whether known or unknown, of using this
-tool. The two main categories of risks are those created by
-<br>
-the nature of the tool (e.g. read-only tools vs. read-write
-tools) and those created by bugs.</p>
-
-<p style="margin-top: 1em">This tool is read-only unless
-you use &quot;--save-results-database&quot;. It reads a log
-of queries and EXPLAIN them. It also gathers information
-about all tables in all databases. It <br>
-should be very low-risk.</p>
-
-<p style="margin-top: 1em">At the time of this release, we
-know of no bugs that could cause serious harm to users.</p>
-
-<p style="margin-top: 1em">The authoritative source for
-updated information is always the online issue tracking
-system. Issues that affect this tool will be marked as such.
-You can see a list of such <br>
-issues at the following URL:
-&lt;http://www.maatkit.org/bugs/mk-index-usage&gt;.</p>
-
-<p style="margin-top: 1em">See also &quot;BUGS&quot; for
-more information on filing bugs and getting help.</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-This tool connects to a MySQL database server, reads through
-a query log, and uses EXPLAIN to ask MySQL how it will use
-each query. When it is finished, it prints out a report <br>
-on indexes that the queries didn&rsquo;t use.</p>
-
-<p style="margin-top: 1em">The query log needs to be in
-MySQL&rsquo;s slow query log format. If you need to input a
-different format, you can use mk-query-digest to translate
-the formats. If you don&rsquo;t specify <br>
-a filename, the tool reads from STDIN.</p>
-
-<p style="margin-top: 1em">The tool runs two stages. In the
-first stage, the tool takes inventory of all the tables and
-indexes in your database, so it can compare the existing
-indexes to those that were <br>
-actually used by the queries in the log. In the second
-stage, it runs EXPLAIN on each query in the query log. It
-uses separate database connections to inventory the tables
-and <br>
-run EXPLAIN, so it opens two connections to the
-database.</p>
-
-<p style="margin-top: 1em">If a query is not a SELECT, it
-tries to transform it to a roughly equivalent SELECT query
-so it can be EXPLAINed. This is not a perfect process, but
-it is good enough to be <br>
-useful.</p>
-
-<p style="margin-top: 1em">The tool skips the EXPLAIN step
-for queries that are exact duplicates of those seen before.
-It assumes that the same query will generate the same
-EXPLAIN plan as it did <br>
-previously (usually a safe assumption, and generally good
-for performance), and simply increments the count of times
-that the indexes were used. However, queries that have the
-<br>
-same fingerprint but different checksums will be
-re-EXPLAINed. Queries that have different literal constants
-can have different execution plans, and this is important to
-<br>
-measure.</p>
-
-<p style="margin-top: 1em">After EXPLAIN-ing the query, it
-is necessary to try to map aliases in the query back to the
-original table names. For example, consider the EXPLAIN plan
-for the following query:</p>
-
-<p style="margin-top: 1em">SELECT * FROM tbl1 AS foo;</p>
-
-<p style="margin-top: 1em">The EXPLAIN output will show
-access to table &quot;foo&quot;, and that must be translated
-back to &quot;tbl1&quot;. This process involves complex
-parsing. It is generally very accurate, but there <br>
-is some chance that it might not work right. If you find
-cases where it fails, submit a bug report and a reproducible
-test case.</p>
-
-<p style="margin-top: 1em">Queries that cannot be EXPLAINed
-will cause all subsequent queries with the same fingerprint
-to be blacklisted. This is to reduce the work they cause,
-and prevent them from <br>
-continuing to print error messages. However, at least in
-this stage of the tool&rsquo;s development, it is my opinion
-that it&rsquo;s not a good idea to preemptively silence
-these, or <br>
-prevent them from being EXPLAINed at all. I am looking for
-lots of feedback on how to improve things like the query
-parsing. So please submit your test cases based on the <br>
-errors the tool prints!</p>
-
-<p style="margin-top: 1em">OUTPUT <br>
-After it reads all the events in the log, the tool prints
-out DROP statements for every index that was not used. It
-skips indexes for tables that were never accessed by any
-<br>
-queries in the log, to avoid false-positive results.</p>
-
-<p style="margin-top: 1em">If you don&rsquo;t specify
-&quot;--quiet&quot;, the tool also outputs warnings about
-statements that cannot be EXPLAINed and similar. These go to
-standard error.</p>
-
-<p style="margin-top: 1em">Progress reports are enabled by
-default (see &quot;--progress&quot;). These also go to
-standard error.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-This tool accepts additional command-line arguments. Refer
-to the &quot;SYNOPSIS&quot; and usage information for
-details.</p>
-
-<p style="margin-top: 1em">--ask-pass <br>
-Prompt for a password when connecting to MySQL.</p>
-
-<p style="margin-top: 1em">--charset <br>
-short form: -A; type: string</p>
-
-<p style="margin-top: 1em">Default character set. If the
-value is utf8, sets Perl&rsquo;s binmode on STDOUT to utf8,
-passes the mysql_enable_utf8 option to DBD::mysql, and runs
-SET NAMES UTF8 after <br>
-connecting to MySQL. Any other value sets binmode on STDOUT
-without the utf8 layer, and runs SET NAMES after connecting
-to MySQL.</p>
-
-<p style="margin-top: 1em">--config <br>
-type: Array</p>
-
-<p style="margin-top: 1em">Read this comma-separated list
-of config files; if specified, this must be the first option
-on the command line.</p>
-
-<p style="margin-top: 1em">--create-save-results-database
-<br>
-Create the &quot;--save-results-database&quot; if it does
-not exist.</p>
-
-<p style="margin-top: 1em">If the
-&quot;--save-results-database&quot; already exists and this
-option is specified, the database is used and the necessary
-tables are created if they do not already exist.</p>
-
-<p style="margin-top: 1em">--[no]create-views <br>
-Create views for &quot;--save-results-database&quot; example
-queries.</p>
-
-<p style="margin-top: 1em">Several example queries are
-given for querying the tables in the
-&quot;--save-results-database&quot;. These example queries
-are, by default, created as views. Specifying <br>
-&quot;--no-create-views&quot; prevents these views from
-being created.</p>
-
-<p style="margin-top: 1em">--database <br>
-short form: -D; type: string</p>
-
-<p style="margin-top: 1em">The database to use for the
-connection.</p>
-
-<p style="margin-top: 1em">--databases <br>
-short form: -d; type: hash</p>
-
-<p style="margin-top: 1em">Only get tables and indexes from
-this comma-separated list of databases.</p>
-
-<p style="margin-top: 1em">--databases-regex <br>
-type: string</p>
-
-<p style="margin-top: 1em">Only get tables and indexes from
-database whose names match this Perl regex.</p>
-
-<p style="margin-top: 1em">--defaults-file <br>
-short form: -F; type: string</p>
-
-<p style="margin-top: 1em">Only read mysql options from the
-given file. You must give an absolute pathname.</p>
-
-<p style="margin-top: 1em">--drop <br>
-type: Hash; default: non-unique</p>
-
-<p style="margin-top: 1em">Suggest dropping only these
-types of unused indexes.</p>
-
-<p style="margin-top: 1em">By default mk-index-usage will
-only suggest to drop unused secondary indexes, not primary
-or unique indexes. You can specify which types of unused
-indexes the tool suggests <br>
-to drop: primary, unique, non-unique, all.</p>
-
-<p style="margin-top: 1em">A separate &quot;ALTER
-TABLE&quot; statement for each type is printed. So if you
-specify &quot;--drop all&quot; and there is a primary key
-and a non-unique index, the &quot;ALTER TABLE ... DROP&quot;
-for <br>
-each will be printed on separate lines.</p>
-
-<p style="margin-top: 1em">--empty-save-results-tables <br>
-Drop and re-create all pre-existing tables in the
-&quot;--save-results-database&quot;. This allows information
-from previous runs to be removed before the current run.</p>
-
-<p style="margin-top: 1em">--help <br>
-Show help and exit.</p>
-
-<p style="margin-top: 1em">--host <br>
-short form: -h; type: string</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">--ignore-databases <br>
-type: Hash</p>
-
-<p style="margin-top: 1em">Ignore this comma-separated list
-of databases.</p>
-
-<p style="margin-top: 1em">--ignore-databases-regex <br>
-type: string</p>
-
-<p style="margin-top: 1em">Ignore databases whose names
-match this Perl regex.</p>
-
-<p style="margin-top: 1em">--ignore-tables <br>
-type: Hash</p>
-
-<p style="margin-top: 1em">Ignore this comma-separated list
-of table names.</p>
-
-<p style="margin-top: 1em">Table names may be qualified
-with the database name.</p>
-
-<p style="margin-top: 1em">--ignore-tables-regex <br>
-type: string</p>
-
-<p style="margin-top: 1em">Ignore tables whose names match
-the Perl regex.</p>
-
-<p style="margin-top: 1em">--password <br>
-short form: -p; type: string</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">--port <br>
-short form: -P; type: int</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">--progress <br>
-type: array; default: time,30</p>
-
-<p style="margin-top: 1em">Print progress reports to
-STDERR. The value is a comma-separated list with two parts.
-The first part can be percentage, time, or iterations; the
-second part specifies how <br>
-often an update should be printed, in percentage, seconds,
-or number of iterations.</p>
-
-<p style="margin-top: 1em">--quiet <br>
-short form: -q</p>
-
-<p style="margin-top: 1em">Do not print any warnings. Also
-disables &quot;--progress&quot;.</p>
-
-<p style="margin-top: 1em">--[no]report <br>
-default: yes</p>
-
-<p style="margin-top: 1em">Print the reports for
-&quot;--report-format&quot;.</p>
-
-<p style="margin-top: 1em">You may want to disable the
-reports by specifying &quot;--no-report&quot; if, for
-example, you also specify
-&quot;--save-results-database&quot; and you only want to
-query the results tables <br>
-later.</p>
-
-<p style="margin-top: 1em">--report-format <br>
-type: Array; default: drop_unused_indexes</p>
-
-<p style="margin-top: 1em">Right now there is only one
-report: drop_unused_indexes. This report prints SQL
-statements for dropping any unused indexes. See also
-&quot;--drop&quot;.</p>
-
-<p style="margin-top: 1em">See also
-&quot;--[no]report&quot;.</p>
-
-<p style="margin-top: 1em">--save-results-database <br>
-type: DSN</p>
-
-<p style="margin-top: 1em">Save results to tables in this
-database. Information about indexes, queries, tables and
-their usage is stored in several tables in the specified
-database. The tables are <br>
-auto-created if they do not exist. If the database
-doesn&rsquo;t exist, it can be auto-created with
-&quot;--create-save-results-database&quot;. In this case the
-connection is initially <br>
-created with no default database, then after the database is
-created, it is USE&rsquo;ed.</p>
-
-<p style="margin-top: 1em">mk-index-usage executes INSERT
-statements to save the results. Therefore, you should be
-careful if you use this feature on a production server. It
-might increase load, or <br>
-cause trouble if you don&rsquo;t want the server to be
-written to, or so on.</p>
-
-<p style="margin-top: 1em">This is a new feature. It may
-change in future releases.</p>
-
-<p style="margin-top: 1em">After a run, you can query the
-usage tables to answer various questions about index usage.
-The tables have the following CREATE TABLE definitions:</p>
-
-<p style="margin-top: 1em">MAGIC_create_indexes:</p>
-
-<p style="margin-top: 1em">CREATE TABLE IF NOT EXISTS
-indexes ( <br>
-db VARCHAR(64) NOT NULL, <br>
-tbl VARCHAR(64) NOT NULL, <br>
-idx VARCHAR(64) NOT NULL, <br>
-cnt BIGINT UNSIGNED NOT NULL DEFAULT 0, <br>
-PRIMARY KEY (db, tbl, idx) <br>
-)</p>
-
-<p style="margin-top: 1em">MAGIC_create_queries:</p>
-
-<p style="margin-top: 1em">CREATE TABLE IF NOT EXISTS
-queries ( <br>
-query_id BIGINT UNSIGNED NOT NULL, <br>
-fingerprint TEXT NOT NULL, <br>
-sample TEXT NOT NULL, <br>
-PRIMARY KEY (query_id) <br>
-)</p>
-
-<p style="margin-top: 1em">MAGIC_create_tables:</p>
-
-<p style="margin-top: 1em">CREATE TABLE IF NOT EXISTS
-tables ( <br>
-db VARCHAR(64) NOT NULL, <br>
-tbl VARCHAR(64) NOT NULL, <br>
-cnt BIGINT UNSIGNED NOT NULL DEFAULT 0, <br>
-PRIMARY KEY (db, tbl) <br>
-)</p>
-
-<p style="margin-top: 1em">MAGIC_create_index_usage:</p>
-
-<p style="margin-top: 1em">CREATE TABLE IF NOT EXISTS
-index_usage ( <br>
-query_id BIGINT UNSIGNED NOT NULL, <br>
-db VARCHAR(64) NOT NULL, <br>
-tbl VARCHAR(64) NOT NULL, <br>
-idx VARCHAR(64) NOT NULL, <br>
-cnt BIGINT UNSIGNED NOT NULL DEFAULT 1, <br>
-UNIQUE INDEX (query_id, db, tbl, idx) <br>
-)</p>
-
-
-<p style="margin-top: 1em">MAGIC_create_index_alternatives:</p>
-
-<p style="margin-top: 1em">CREATE TABLE IF NOT EXISTS
-index_alternatives ( <br>
-query_id BIGINT UNSIGNED NOT NULL, -- This query used <br>
-db VARCHAR(64) NOT NULL, -- this index, but... <br>
-tbl VARCHAR(64) NOT NULL, -- <br>
-idx VARCHAR(64) NOT NULL, -- <br>
-alt_idx VARCHAR(64) NOT NULL, -- was an alternative <br>
-cnt BIGINT UNSIGNED NOT NULL DEFAULT 1, <br>
-UNIQUE INDEX (query_id, db, tbl, idx, alt_idx), <br>
-INDEX (db, tbl, idx), <br>
-INDEX (db, tbl, alt_idx) <br>
-)</p>
-
-<p style="margin-top: 1em">The following are some queries
-you can run against these tables to answer common questions
-you might have. Each query is also created as a view (with
-MySQL v5.0 and newer) <br>
-if &quot;--[no]create-views&quot; is true (it is by
-default). The view names are the strings after the
-&quot;MAGIC_view_&quot; prefix.</p>
-
-<p style="margin-top: 1em">Question: which queries
-sometimes use different indexes, and what fraction of the
-time is each index chosen?
-MAGIC_view_query_uses_several_indexes:</p>
-
-<p style="margin-top: 1em">SELECT iu.query_id,
-CONCAT_WS(&rsquo;.&rsquo;, iu.db, iu.tbl, iu.idx) AS idx,
-<br>
-variations, iu.cnt, iu.cnt / total_cnt * 100 AS pct <br>
-FROM index_usage AS iu <br>
-INNER JOIN ( <br>
-SELECT query_id, db, tbl, SUM(cnt) AS total_cnt, <br>
-COUNT(*) AS variations <br>
-FROM index_usage <br>
-GROUP BY query_id, db, tbl <br>
-HAVING COUNT(*) &gt; 1 <br>
-) AS qv USING(query_id, db, tbl);</p>
-
-<p style="margin-top: 1em">Question: which indexes have
-lots of alternatives, i.e. are chosen instead of other
-indexes, and for what queries?
-MAGIC_view_index_has_alternates:</p>
-
-<p style="margin-top: 1em">SELECT
-CONCAT_WS(&rsquo;.&rsquo;, db, tbl, idx) AS idx_chosen, <br>
-GROUP_CONCAT(DISTINCT alt_idx) AS alternatives, <br>
-GROUP_CONCAT(DISTINCT query_id) AS queries, SUM(cnt) AS cnt
-<br>
-FROM index_alternatives <br>
-GROUP BY db, tbl, idx <br>
-HAVING COUNT(*) &gt; 1;</p>
-
-<p style="margin-top: 1em">Question: which indexes are
-considered as alternates for other indexes, and for what
-queries? MAGIC_view_index_alternates:</p>
-
-<p style="margin-top: 1em">SELECT
-CONCAT_WS(&rsquo;.&rsquo;, db, tbl, alt_idx) AS
-idx_considered, <br>
-GROUP_CONCAT(DISTINCT idx) AS alternative_to, <br>
-GROUP_CONCAT(DISTINCT query_id) AS queries, SUM(cnt) AS cnt
-<br>
-FROM index_alternatives <br>
-GROUP BY db, tbl, alt_idx <br>
-HAVING COUNT(*) &gt; 1;</p>
-
-<p style="margin-top: 1em">Question: which of those are
-never chosen by any queries, and are therefore superfluous?
-MAGIC_view_unused_index_alternates:</p>
-
-<p style="margin-top: 1em">SELECT
-CONCAT_WS(&rsquo;.&rsquo;, i.db, i.tbl, i.idx) AS idx, <br>
-alt.alternative_to, alt.queries, alt.cnt <br>
-FROM indexes AS i <br>
-INNER JOIN ( <br>
-SELECT db, tbl, alt_idx, GROUP_CONCAT(DISTINCT idx) AS
-alternative_to, <br>
-GROUP_CONCAT(DISTINCT query_id) AS queries, SUM(cnt) AS cnt
-<br>
-FROM index_alternatives <br>
-GROUP BY db, tbl, alt_idx <br>
-HAVING COUNT(*) &gt; 1 <br>
-) AS alt ON i.db = alt.db AND i.tbl = alt.tbl <br>
-AND i.idx = alt.alt_idx <br>
-WHERE i.cnt = 0;</p>
-
-<p style="margin-top: 1em">Question: given a table, which
-indexes were used, by how many queries, with how many
-distinct fingerprints? Were there alternatives? Which
-indexes were not used? You can <br>
-edit the following query&rsquo;s SELECT list to also see the
-query IDs in question. MAGIC_view_index_usage:</p>
-
-<p style="margin-top: 1em">SELECT i.idx, iu.usage_cnt,
-iu.usage_total, <br>
-ia.alt_cnt, ia.alt_total <br>
-FROM indexes AS i <br>
-LEFT OUTER JOIN ( <br>
-SELECT db, tbl, idx, COUNT(*) AS usage_cnt, <br>
-SUM(cnt) AS usage_total, GROUP_CONCAT(query_id) AS used_by
-<br>
-FROM index_usage <br>
-GROUP BY db, tbl, idx <br>
-) AS iu ON i.db=iu.db AND i.tbl=iu.tbl AND i.idx = iu.idx
-<br>
-LEFT OUTER JOIN ( <br>
-SELECT db, tbl, idx, COUNT(*) AS alt_cnt, <br>
-SUM(cnt) AS alt_total, <br>
-GROUP_CONCAT(query_id) AS alt_queries <br>
-FROM index_alternatives <br>
-GROUP BY db, tbl, idx <br>
-) AS ia ON i.db=ia.db AND i.tbl=ia.tbl AND i.idx =
-ia.idx;</p>
-
-<p style="margin-top: 1em">Question: which indexes on a
-given table are vital for at least one query (there is no
-alternative)? MAGIC_view_required_indexes:</p>
-
-<p style="margin-top: 1em">SELECT i.db, i.tbl, i.idx,
-no_alt.queries <br>
-FROM indexes AS i <br>
-INNER JOIN ( <br>
-SELECT iu.db, iu.tbl, iu.idx, <br>
-GROUP_CONCAT(iu.query_id) AS queries <br>
-FROM index_usage AS iu <br>
-LEFT OUTER JOIN index_alternatives AS ia <br>
-USING(db, tbl, idx) <br>
-WHERE ia.db IS NULL <br>
-GROUP BY iu.db, iu.tbl, iu.idx <br>
-) AS no_alt ON no_alt.db = i.db AND no_alt.tbl = i.tbl <br>
-AND no_alt.idx = i.idx <br>
-ORDER BY i.db, i.tbl, i.idx, no_alt.queries;</p>
-
-<p style="margin-top: 1em">--set-vars <br>
-type: string; default: wait_timeout=10000</p>
-
-<p style="margin-top: 1em">Set these MySQL variables.
-Immediately after connecting to MySQL, this string will be
-appended to SET and executed.</p>
-
-<p style="margin-top: 1em">--socket <br>
-short form: -S; type: string</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">--tables <br>
-short form: -t; type: hash</p>
-
-<p style="margin-top: 1em">Only get indexes from this
-comma-separated list of tables.</p>
-
-<p style="margin-top: 1em">--tables-regex <br>
-type: string</p>
-
-<p style="margin-top: 1em">Only get indexes from tables
-whose names match this Perl regex.</p>
-
-<p style="margin-top: 1em">--user <br>
-short form: -u; type: string</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">--version <br>
-Show version and exit.</p>
-
-<p style="margin-top: 1em">DSN OPTIONS <br>
-These DSN options are used to create a DSN. Each option is
-given like &quot;option=value&quot;. The options are
-case-sensitive, so P and p are not the same option. There
-cannot be <br>
-whitespace before or after the &quot;=&quot; and if the
-value contains whitespace it must be quoted. DSN options are
-comma-separated. See the maatkit manpage for full
-details.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A</p>
-
-<p style="margin-top: 1em">dsn: charset; copy: yes</p>
-
-<p style="margin-top: 1em">Default character set.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; D</p>
-
-<p style="margin-top: 1em">dsn: database; copy: yes</p>
-
-<p style="margin-top: 1em">Database to connect to.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; F</p>
-
-<p style="margin-top: 1em">dsn: mysql_read_default_file;
-copy: yes</p>
-
-<p style="margin-top: 1em">Only read default options from
-the given file</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; h</p>
-
-<p style="margin-top: 1em">dsn: host; copy: yes</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; p</p>
-
-<p style="margin-top: 1em">dsn: password; copy: yes</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; P</p>
-
-<p style="margin-top: 1em">dsn: port; copy: yes</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; S</p>
-
-<p style="margin-top: 1em">dsn: mysql_socket; copy: yes</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; u</p>
-
-<p style="margin-top: 1em">dsn: user; copy: yes</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">DOWNLOADING <br>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MK-INDEX-USAGE(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">MK-INDEX-USAGE(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+mk-index-usage - Read queries from a log and analyze how they use indexes.
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+Usage: mk-index-usage [OPTION...] [FILE...]
+<div class="Pp"></div>
+mk-index-usage reads queries from logs and analyzes how they use indexes.
+<div class="Pp"></div>
+Analyze queries in slow.log and print reports:
+<div class="Pp"></div>
+<pre>
+  mk-index-usage /path/to/slow.log --host localhost
+</pre>
+<div class="Pp"></div>
+Disable reports and save results to mk database for later analysis:
+<div class="Pp"></div>
+<pre>
+  mk-index-usage slow.log --no-report --save-results-database mk
+</pre>
+<h1 class="Sh" title="Sh" id="RISKS"><a class="selflink" href="#RISKS">RISKS</a></h1>
+The following section is included to inform users about the potential risks,
+  whether known or unknown, of using this tool. The two main categories of risks
+  are those created by the nature of the tool (e.g. read-only tools vs.
+  read-write tools) and those created by bugs.
+<div class="Pp"></div>
+This tool is read-only unless you use &quot;--save-results-database&quot;. It
+  reads a log of queries and EXPLAIN them. It also gathers information about all
+  tables in all databases. It should be very low-risk.
+<div class="Pp"></div>
+At the time of this release, we know of no bugs that could cause serious harm to
+  users.
+<div class="Pp"></div>
+The authoritative source for updated information is always the online issue
+  tracking system. Issues that affect this tool will be marked as such. You can
+  see a list of such issues at the following URL:
+  &lt;http://www.maatkit.org/bugs/mk-index-usage&gt;.
+<div class="Pp"></div>
+See also &quot;BUGS&quot; for more information on filing bugs and getting help.
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+This tool connects to a MySQL database server, reads through a query log, and
+  uses EXPLAIN to ask MySQL how it will use each query. When it is finished, it
+  prints out a report on indexes that the queries didn't use.
+<div class="Pp"></div>
+The query log needs to be in MySQL's slow query log format. If you need to input
+  a different format, you can use mk-query-digest to translate the formats. If
+  you don't specify a filename, the tool reads from STDIN.
+<div class="Pp"></div>
+The tool runs two stages. In the first stage, the tool takes inventory of all
+  the tables and indexes in your database, so it can compare the existing
+  indexes to those that were actually used by the queries in the log. In the
+  second stage, it runs EXPLAIN on each query in the query log. It uses separate
+  database connections to inventory the tables and run EXPLAIN, so it opens two
+  connections to the database.
+<div class="Pp"></div>
+If a query is not a SELECT, it tries to transform it to a roughly equivalent
+  SELECT query so it can be EXPLAINed. This is not a perfect process, but it is
+  good enough to be useful.
+<div class="Pp"></div>
+The tool skips the EXPLAIN step for queries that are exact duplicates of those
+  seen before. It assumes that the same query will generate the same EXPLAIN
+  plan as it did previously (usually a safe assumption, and generally good for
+  performance), and simply increments the count of times that the indexes were
+  used. However, queries that have the same fingerprint but different checksums
+  will be re-EXPLAINed. Queries that have different literal constants can have
+  different execution plans, and this is important to measure.
+<div class="Pp"></div>
+After EXPLAIN-ing the query, it is necessary to try to map aliases in the query
+  back to the original table names. For example, consider the EXPLAIN plan for
+  the following query:
+<div class="Pp"></div>
+<pre>
+  SELECT * FROM tbl1 AS foo;
+</pre>
+<div class="Pp"></div>
+The EXPLAIN output will show access to table &quot;foo&quot;, and that must be
+  translated back to &quot;tbl1&quot;. This process involves complex parsing. It
+  is generally very accurate, but there is some chance that it might not work
+  right. If you find cases where it fails, submit a bug report and a
+  reproducible test case.
+<div class="Pp"></div>
+Queries that cannot be EXPLAINed will cause all subsequent queries with the same
+  fingerprint to be blacklisted. This is to reduce the work they cause, and
+  prevent them from continuing to print error messages. However, at least in
+  this stage of the tool's development, it is my opinion that it's not a good
+  idea to preemptively silence these, or prevent them from being EXPLAINed at
+  all. I am looking for lots of feedback on how to improve things like the query
+  parsing. So please submit your test cases based on the errors the tool prints!
+<h1 class="Sh" title="Sh" id="OUTPUT"><a class="selflink" href="#OUTPUT">OUTPUT</a></h1>
+After it reads all the events in the log, the tool prints out DROP statements
+  for every index that was not used. It skips indexes for tables that were never
+  accessed by any queries in the log, to avoid false-positive results.
+<div class="Pp"></div>
+If you don't specify &quot;--quiet&quot;, the tool also outputs warnings about
+  statements that cannot be EXPLAINed and similar. These go to standard error.
+<div class="Pp"></div>
+Progress reports are enabled by default (see &quot;--progress&quot;). These also
+  go to standard error.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+This tool accepts additional command-line arguments. Refer to the
+  &quot;SYNOPSIS&quot; and usage information for details.
+<dl class="Bl-tag">
+  <dt class="It-tag">--ask-pass</dt>
+  <dd class="It-tag">Prompt for a password when connecting to MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--charset</dt>
+  <dd class="It-tag">short form: -A; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set. If the value is utf8, sets Perl's binmode on STDOUT
+      to utf8, passes the mysql_enable_utf8 option to DBD::mysql, and runs SET
+      NAMES UTF8 after connecting to MySQL. Any other value sets binmode on
+      STDOUT without the utf8 layer, and runs SET NAMES after connecting to
+      MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--config</dt>
+  <dd class="It-tag">type: Array
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Read this comma-separated list of config files; if specified, this must be
+      the first option on the command line.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--create-save-results-database</dt>
+  <dd class="It-tag">Create the &quot;--save-results-database&quot; if it does
+      not exist.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If the &quot;--save-results-database&quot; already exists and this option is
+      specified, the database is used and the necessary tables are created if
+      they do not already exist.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]create-views</dt>
+  <dd class="It-tag">Create views for &quot;--save-results-database&quot;
+      example queries.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Several example queries are given for querying the tables in the
+      &quot;--save-results-database&quot;. These example queries are, by
+      default, created as views. Specifying &quot;--no-create-views&quot;
+      prevents these views from being created.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--database</dt>
+  <dd class="It-tag">short form: -D; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The database to use for the connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--databases</dt>
+  <dd class="It-tag">short form: -d; type: hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only get tables and indexes from this comma-separated list of
+    databases.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--databases-regex</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only get tables and indexes from database whose names match this Perl
+    regex.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--defaults-file</dt>
+  <dd class="It-tag">short form: -F; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only read mysql options from the given file. You must give an absolute
+      pathname.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--drop</dt>
+  <dd class="It-tag">type: Hash; default: non-unique
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Suggest dropping only these types of unused indexes.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    By default mk-index-usage will only suggest to drop unused secondary
+      indexes, not primary or unique indexes. You can specify which types of
+      unused indexes the tool suggests to drop: primary, unique, non-unique,
+      all.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    A separate &quot;ALTER TABLE&quot; statement for each type is printed. So if
+      you specify &quot;--drop all&quot; and there is a primary key and a
+      non-unique index, the &quot;ALTER TABLE ... DROP&quot; for each will be
+      printed on separate lines.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--empty-save-results-tables</dt>
+  <dd class="It-tag">Drop and re-create all pre-existing tables in the
+      &quot;--save-results-database&quot;. This allows information from previous
+      runs to be removed before the current run.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--help</dt>
+  <dd class="It-tag">Show help and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--host</dt>
+  <dd class="It-tag">short form: -h; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-databases</dt>
+  <dd class="It-tag">type: Hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore this comma-separated list of databases.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-databases-regex</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore databases whose names match this Perl regex.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-tables</dt>
+  <dd class="It-tag">type: Hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore this comma-separated list of table names.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Table names may be qualified with the database name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-tables-regex</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore tables whose names match the Perl regex.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--password</dt>
+  <dd class="It-tag">short form: -p; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--port</dt>
+  <dd class="It-tag">short form: -P; type: int
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--progress</dt>
+  <dd class="It-tag">type: array; default: time,30
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print progress reports to STDERR. The value is a comma-separated list with
+      two parts. The first part can be percentage, time, or iterations; the
+      second part specifies how often an update should be printed, in
+      percentage, seconds, or number of iterations.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--quiet</dt>
+  <dd class="It-tag">short form: -q
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Do not print any warnings. Also disables &quot;--progress&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]report</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print the reports for &quot;--report-format&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    You may want to disable the reports by specifying &quot;--no-report&quot;
+      if, for example, you also specify &quot;--save-results-database&quot; and
+      you only want to query the results tables later.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--report-format</dt>
+  <dd class="It-tag">type: Array; default: drop_unused_indexes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Right now there is only one report: drop_unused_indexes. This report prints
+      SQL statements for dropping any unused indexes. See also
+      &quot;--drop&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    See also &quot;--[no]report&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--save-results-database</dt>
+  <dd class="It-tag">type: DSN
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Save results to tables in this database. Information about indexes, queries,
+      tables and their usage is stored in several tables in the specified
+      database. The tables are auto-created if they do not exist. If the
+      database doesn't exist, it can be auto-created with
+      &quot;--create-save-results-database&quot;. In this case the connection is
+      initially created with no default database, then after the database is
+      created, it is USE'ed.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    mk-index-usage executes INSERT statements to save the results. Therefore,
+      you should be careful if you use this feature on a production server. It
+      might increase load, or cause trouble if you don't want the server to be
+      written to, or so on.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This is a new feature. It may change in future releases.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    After a run, you can query the usage tables to answer various questions
+      about index usage. The tables have the following CREATE TABLE definitions:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    MAGIC_create_indexes:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  CREATE TABLE IF NOT EXISTS indexes (
+    db           VARCHAR(64) NOT NULL,
+    tbl          VARCHAR(64) NOT NULL,
+    idx          VARCHAR(64) NOT NULL,
+    cnt          BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY  (db, tbl, idx)
+  )
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    MAGIC_create_queries:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  CREATE TABLE IF NOT EXISTS queries (
+    query_id     BIGINT UNSIGNED NOT NULL,
+    fingerprint  TEXT NOT NULL,
+    sample       TEXT NOT NULL,
+    PRIMARY KEY  (query_id)
+  )
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    MAGIC_create_tables:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  CREATE TABLE IF NOT EXISTS tables (
+    db           VARCHAR(64) NOT NULL,
+    tbl          VARCHAR(64) NOT NULL,
+    cnt          BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY  (db, tbl)
+  )
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    MAGIC_create_index_usage:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  CREATE TABLE IF NOT EXISTS index_usage (
+    query_id      BIGINT UNSIGNED NOT NULL,
+    db            VARCHAR(64) NOT NULL,
+    tbl           VARCHAR(64) NOT NULL,
+    idx           VARCHAR(64) NOT NULL,
+    cnt           BIGINT UNSIGNED NOT NULL DEFAULT 1,
+    UNIQUE INDEX  (query_id, db, tbl, idx)
+  )
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    MAGIC_create_index_alternatives:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  CREATE TABLE IF NOT EXISTS index_alternatives (
+    query_id      BIGINT UNSIGNED NOT NULL, -- This query used
+    db            VARCHAR(64) NOT NULL,     -- this index, but...
+    tbl           VARCHAR(64) NOT NULL,     --
+    idx           VARCHAR(64) NOT NULL,     --
+    alt_idx       VARCHAR(64) NOT NULL,     -- was an alternative
+    cnt           BIGINT UNSIGNED NOT NULL DEFAULT 1,
+    UNIQUE INDEX  (query_id, db, tbl, idx, alt_idx),
+    INDEX         (db, tbl, idx),
+    INDEX         (db, tbl, alt_idx)
+  )
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The following are some queries you can run against these tables to answer
+      common questions you might have. Each query is also created as a view
+      (with MySQL v5.0 and newer) if &quot;--[no]create-views&quot; is true (it
+      is by default). The view names are the strings after the
+      &quot;MAGIC_view_&quot; prefix.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Question: which queries sometimes use different indexes, and what fraction
+      of the time is each index chosen? MAGIC_view_query_uses_several_indexes:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+ SELECT iu.query_id, CONCAT_WS('.', iu.db, iu.tbl, iu.idx) AS idx,
+    variations, iu.cnt, iu.cnt / total_cnt * 100 AS pct
+ FROM index_usage AS iu
+    INNER JOIN (
+       SELECT query_id, db, tbl, SUM(cnt) AS total_cnt,
+         COUNT(*) AS variations
+       FROM index_usage
+       GROUP BY query_id, db, tbl
+       HAVING COUNT(*) &gt; 1
+    ) AS qv USING(query_id, db, tbl);
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Question: which indexes have lots of alternatives, i.e. are chosen instead
+      of other indexes, and for what queries? MAGIC_view_index_has_alternates:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+ SELECT CONCAT_WS('.', db, tbl, idx) AS idx_chosen,
+    GROUP_CONCAT(DISTINCT alt_idx) AS alternatives,
+    GROUP_CONCAT(DISTINCT query_id) AS queries, SUM(cnt) AS cnt
+ FROM index_alternatives
+ GROUP BY db, tbl, idx
+ HAVING COUNT(*) &gt; 1;
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Question: which indexes are considered as alternates for other indexes, and
+      for what queries? MAGIC_view_index_alternates:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+ SELECT CONCAT_WS('.', db, tbl, alt_idx) AS idx_considered,
+    GROUP_CONCAT(DISTINCT idx) AS alternative_to,
+    GROUP_CONCAT(DISTINCT query_id) AS queries, SUM(cnt) AS cnt
+ FROM index_alternatives
+ GROUP BY db, tbl, alt_idx
+ HAVING COUNT(*) &gt; 1;
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Question: which of those are never chosen by any queries, and are therefore
+      superfluous? MAGIC_view_unused_index_alternates:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+ SELECT CONCAT_WS('.', i.db, i.tbl, i.idx) AS idx,
+    alt.alternative_to, alt.queries, alt.cnt
+ FROM indexes AS i
+    INNER JOIN (
+       SELECT db, tbl, alt_idx, GROUP_CONCAT(DISTINCT idx) AS alternative_to,
+          GROUP_CONCAT(DISTINCT query_id) AS queries, SUM(cnt) AS cnt
+       FROM index_alternatives
+       GROUP BY db, tbl, alt_idx
+       HAVING COUNT(*) &gt; 1
+    ) AS alt ON i.db = alt.db AND i.tbl = alt.tbl
+      AND i.idx = alt.alt_idx
+ WHERE i.cnt = 0;
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Question: given a table, which indexes were used, by how many queries, with
+      how many distinct fingerprints? Were there alternatives? Which indexes
+      were not used? You can edit the following query's SELECT list to also see
+      the query IDs in question. MAGIC_view_index_usage:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+ SELECT i.idx, iu.usage_cnt, iu.usage_total,
+    ia.alt_cnt, ia.alt_total
+ FROM indexes AS i
+    LEFT OUTER JOIN (
+       SELECT db, tbl, idx, COUNT(*) AS usage_cnt,
+          SUM(cnt) AS usage_total, GROUP_CONCAT(query_id) AS used_by
+       FROM index_usage
+       GROUP BY db, tbl, idx
+    ) AS iu ON i.db=iu.db AND i.tbl=iu.tbl AND i.idx = iu.idx
+    LEFT OUTER JOIN (
+       SELECT db, tbl, idx, COUNT(*) AS alt_cnt,
+          SUM(cnt) AS alt_total,
+          GROUP_CONCAT(query_id) AS alt_queries
+       FROM index_alternatives
+       GROUP BY db, tbl, idx
+    ) AS ia ON i.db=ia.db AND i.tbl=ia.tbl AND i.idx = ia.idx;
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Question: which indexes on a given table are vital for at least one query
+      (there is no alternative)? MAGIC_view_required_indexes:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+   SELECT i.db, i.tbl, i.idx, no_alt.queries
+   FROM indexes AS i
+      INNER JOIN (
+         SELECT iu.db, iu.tbl, iu.idx,
+            GROUP_CONCAT(iu.query_id) AS queries
+         FROM index_usage AS iu
+            LEFT OUTER JOIN index_alternatives AS ia
+               USING(db, tbl, idx)
+         WHERE ia.db IS NULL
+         GROUP BY iu.db, iu.tbl, iu.idx
+      ) AS no_alt ON no_alt.db = i.db AND no_alt.tbl = i.tbl
+         AND no_alt.idx = i.idx
+   ORDER BY i.db, i.tbl, i.idx, no_alt.queries;
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--set-vars</dt>
+  <dd class="It-tag">type: string; default: wait_timeout=10000
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Set these MySQL variables. Immediately after connecting to MySQL, this
+      string will be appended to SET and executed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--socket</dt>
+  <dd class="It-tag">short form: -S; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--tables</dt>
+  <dd class="It-tag">short form: -t; type: hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only get indexes from this comma-separated list of tables.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--tables-regex</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only get indexes from tables whose names match this Perl regex.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--user</dt>
+  <dd class="It-tag">short form: -u; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--version</dt>
+  <dd class="It-tag">Show version and exit.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DSN_OPTIONS"><a class="selflink" href="#DSN_OPTIONS">DSN
+  OPTIONS</a></h1>
+These DSN options are used to create a DSN. Each option is given like
+  &quot;option=value&quot;. The options are case-sensitive, so P and p are not
+  the same option. There cannot be whitespace before or after the &quot;=&quot;
+  and if the value contains whitespace it must be quoted. DSN options are
+  comma-separated. See the maatkit manpage for full details.
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: charset; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">D
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: database; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Database to connect to.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">F
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_read_default_file; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only read default options from the given file</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">h
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: host; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">p
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: password; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">P
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: port; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">S
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_socket; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">u
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: user; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DOWNLOADING"><a class="selflink" href="#DOWNLOADING">DOWNLOADING</a></h1>
 You can download Maatkit from Google Code at
-&lt;http://code.google.com/p/maatkit/&gt;, or you can get
-any of the tools easily with a command like the
-following:</p>
-
-<p style="margin-top: 1em">wget
-http://www.maatkit.org/get/toolname <br>
-or <br>
-wget http://www.maatkit.org/trunk/toolname</p>
-
-<p style="margin-top: 1em">Where &quot;toolname&quot; can
-be replaced with the name (or fragment of a name) of any of
-the Maatkit tools. Once downloaded, they&rsquo;re ready to
-run; no installation is needed. The first <br>
-URL gets the latest released version of the tool, and the
-second gets the latest trunk code from Subversion.</p>
-
-<p style="margin-top: 1em">ENVIRONMENT <br>
-The environment variable &quot;MKDEBUG&quot; enables verbose
-debugging output in all of the Maatkit tools:</p>
-
-<p style="margin-top: 1em">MKDEBUG=1 mk-....</p>
-
-<p style="margin-top: 1em">SYSTEM REQUIREMENTS <br>
-You need Perl and some core packages that ought to be
-installed in any reasonably new version of Perl.</p>
-
-<p style="margin-top: 1em">BUGS <br>
-For a list of known bugs see
-&lt;http://www.maatkit.org/bugs/mk-index-usage&gt;.</p>
-
-<p style="margin-top: 1em">Please use Google Code Issues
-and Groups to report bugs or request support:
-&lt;http://code.google.com/p/maatkit/&gt;. You can also join
-#maatkit on Freenode to discuss Maatkit.</p>
-
-<p style="margin-top: 1em">Please include the complete
-command-line used to reproduce the problem you are seeing,
-the version of all MySQL servers involved, the complete
-output of the tool when run with <br>
-&quot;--version&quot;, and if possible, debugging output
-produced by running with the &quot;MKDEBUG=1&quot;
-environment variable.</p>
-
-<p style="margin-top: 1em">COPYRIGHT, LICENSE AND WARRANTY
-<br>
-This program is copyright 2010-2011 Baron Schwartz. Feedback
-and improvements are welcome.</p>
-
-<p style="margin-top: 1em">THIS PROGRAM IS PROVIDED
-&quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A <br>
-PARTICULAR PURPOSE.</p>
-
-<p style="margin-top: 1em">This program is free software;
-you can redistribute it and/or modify it under the terms of
-the GNU General Public License as published by the Free
-Software Foundation, version 2; <br>
-OR the Perl Artistic License. On UNIX and similar systems,
-you can issue &lsquo;man perlgpl&rsquo; or &lsquo;man
-perlartistic&rsquo; to read these licenses.</p>
-
-<p style="margin-top: 1em">You should have received a copy
-of the GNU General Public License along with this program;
-if not, write to the Free Software Foundation, Inc., 59
-Temple Place, Suite 330, <br>
-Boston, MA 02111-1307 USA.</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Baron Schwartz, Daniel Nichter</p>
-
-<p style="margin-top: 1em">ABOUT MAATKIT <br>
-This tool is part of Maatkit, a toolkit for power users of
-MySQL. Maatkit was created by Baron Schwartz; Baron and
-Daniel Nichter are the primary code contributors. Both are
-<br>
-employed by Percona. Financial support for Maatkit
-development is primarily provided by Percona and its
-clients.</p>
-
-<p style="margin-top: 1em">VERSION <br>
-This manual page documents Ver 0.9.4 Distrib 7540 $Revision:
-7477 $.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2011-06-08
-MK-INDEX-USAGE(1)</p>
-<hr>
+  &lt;http://code.google.com/p/maatkit/&gt;, or you can get any of the tools
+  easily with a command like the following:
+<div class="Pp"></div>
+<pre>
+   wget http://www.maatkit.org/get/toolname
+   or
+   wget http://www.maatkit.org/trunk/toolname
+</pre>
+<div class="Pp"></div>
+Where &quot;toolname&quot; can be replaced with the name (or fragment of a name)
+  of any of the Maatkit tools. Once downloaded, they're ready to run; no
+  installation is needed. The first URL gets the latest released version of the
+  tool, and the second gets the latest trunk code from Subversion.
+<h1 class="Sh" title="Sh" id="ENVIRONMENT"><a class="selflink" href="#ENVIRONMENT">ENVIRONMENT</a></h1>
+The environment variable &quot;MKDEBUG&quot; enables verbose debugging output in
+  all of the Maatkit tools:
+<div class="Pp"></div>
+<pre>
+   MKDEBUG=1 mk-....
+</pre>
+<h1 class="Sh" title="Sh" id="SYSTEM_REQUIREMENTS"><a class="selflink" href="#SYSTEM_REQUIREMENTS">SYSTEM
+  REQUIREMENTS</a></h1>
+You need Perl and some core packages that ought to be installed in any
+  reasonably new version of Perl.
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+For a list of known bugs see &lt;http://www.maatkit.org/bugs/mk-index-usage&gt;.
+<div class="Pp"></div>
+Please use Google Code Issues and Groups to report bugs or request support:
+  &lt;http://code.google.com/p/maatkit/&gt;. You can also join #maatkit on
+  Freenode to discuss Maatkit.
+<div class="Pp"></div>
+Please include the complete command-line used to reproduce the problem you are
+  seeing, the version of all MySQL servers involved, the complete output of the
+  tool when run with &quot;--version&quot;, and if possible, debugging output
+  produced by running with the &quot;MKDEBUG=1&quot; environment variable.
+<h1 class="Sh" title="Sh" id="COPYRIGHT,_LICENSE_AND_WARRANTY"><a class="selflink" href="#COPYRIGHT,_LICENSE_AND_WARRANTY">COPYRIGHT,
+  LICENSE AND WARRANTY</a></h1>
+This program is copyright 2010-2011 Baron Schwartz. Feedback and improvements
+  are welcome.
+<div class="Pp"></div>
+THIS PROGRAM IS PROVIDED &quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
+  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+<div class="Pp"></div>
+This program is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, version 2; OR the Perl Artistic License. On UNIX and similar
+  systems, you can issue `man perlgpl' or `man perlartistic' to read these
+  licenses.
+<div class="Pp"></div>
+You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+  Place, Suite 330, Boston, MA 02111-1307 USA.
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Baron Schwartz, Daniel Nichter
+<h1 class="Sh" title="Sh" id="ABOUT_MAATKIT"><a class="selflink" href="#ABOUT_MAATKIT">ABOUT
+  MAATKIT</a></h1>
+This tool is part of Maatkit, a toolkit for power users of MySQL. Maatkit was
+  created by Baron Schwartz; Baron and Daniel Nichter are the primary code
+  contributors. Both are employed by Percona. Financial support for Maatkit
+  development is primarily provided by Percona and its clients.
+<h1 class="Sh" title="Sh" id="VERSION"><a class="selflink" href="#VERSION">VERSION</a></h1>
+This manual page documents Ver 0.9.4 Distrib 7540 $Revision: 7477 $.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2011-06-08</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

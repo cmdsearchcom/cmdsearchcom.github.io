@@ -1,983 +1,896 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:14:53 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>PSAD(8)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>PSAD(8) System Manager&rsquo;s Manual PSAD(8)</p>
-
-<p style="margin-top: 1em">NAME <br>
-psad - The Port Scan Attack Detector</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-psad [options]</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-psad makes use of iptables log messages to detect, alert,
-and (optionally) block port scans and other suspect traffic.
-For TCP scans psad analyzes TCP flags to determine the <br>
-scan type (syn, fin, xmas, etc.) and corresponding command
-line options that could be supplied to nmap to generate such
-a scan. In addition, psad makes use of many TCP, UDP, and
-<br>
-ICMP signatures contained within the Snort intrusion
-detection system (see http://www.snort.org/) to detect
-suspicious network traffic such as probes for common
-backdoors, DDoS <br>
-tools, OS fingerprinting attempts, and more. By default psad
-also provides alerts for snort rules that are detected
-directly by iptables through the use of a ruleset generated
-<br>
-by fwsnort (http://www.cipherdyne.org/fwsnort/). This
-enables psad to send alerts for application layer attacks.
-psad features a set of highly configurable danger thresholds
-<br>
-(with sensible defaults provided) that allow the
-administrator to define what constitutes a port scan or
-other suspect traffic. Email alerts sent by psad contain the
-scanning <br>
-ip, number of packets sent to each port, any TCP, UDP, or
-ICMP signatures that have been matched (e.g. &quot;NMAP XMAS
-scan&quot;), the scanned port range, the current danger
-level (from 1 <br>
-to 5), reverse dns info, and whois information. psad also
-makes use of various packet header fields associated with
-TCP SYN packets to passively fingerprint remote operating
-<br>
-systems (in a manner similar to the p0f fingerprinter) from
-which scans originate. This requires the use of the
---log-tcp-options argument for iptables logging rules; if
-this <br>
-option is not used, psad will fall back to a fingerprinting
-method that makes use of packet length, TTL and TOS values,
-IP ID, and TCP window sizes.</p>
-
-<p style="margin-top: 1em">psad reads all iptables log data
-by default from the /var/log/messages file. By parsing
-firewall log messages, psad is provided with data that
-represents packets that have been <br>
-logged (and possibly dropped) by the running iptables
-policy. In this sense, psad is supplied with a pure data
-stream that exclusively contains packets that the firewall
-has <br>
-deemed unfit to enter the network. psad consists of three
-daemons: psad, kmsgsd, and psadwatchd. psad is responsible
-for processing all packets that have been logged by the <br>
-firewall and applying the signature logic in order to
-determine what type of scan has been leveraged against the
-machine and/or network. kmsgsd (deprecated) reads all
-messages <br>
-that have been written to the /var/lib/psad/psadfifo named
-pipe and writes any message that matches a particular
-regular expression (or string) to /var/log/psad/fwdata.
-kmsgsd <br>
-is only used if the ENABLE_SYSLOG_FILE variable is disabled
-in psad.conf. psadwatchd is a software watchdog that will
-restart any of the other two daemons should a daemon die
-<br>
-for any reason.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
--A, --Analyze-msgs <br>
-Analyze an iptables logfile for scans and exit. This will
-generate email alerts just as a normal running psad process
-would have for all logged scans. By default the <br>
-psad data file /var/log/psad/fwdata is parsed for old scans,
-but any file can be specified through the use of the
---messages-file command line option. For example it <br>
-might be useful to point psad at your /var/log/messages
-file.</p>
-
-<p style="margin-top: 1em">--analysis-fields &lt;search
-fields&gt; <br>
-In --Analyze mode restrict analysis to iptables log messages
-that have specific values for particular fields. Examples
-include &quot;SRC:1.2.3.4&quot;, &quot;DST:10.0.0.0/24, and
-<br>
-&quot;TTL:64&quot;, and multiple fields are supported as a
-comma-separated list like &quot;SRC:1.2.3.4, LEN:44,
-DST:10.0.0.0/24&quot;.</p>
-
-<p style="margin-top: 1em">-i, --interface
-&lt;interface&gt; <br>
-Specify the interface that psad will examine for iptables
-log messages. This interface will be the IN= interface for
-packets that are logged in the INPUT and FORWARD <br>
-chains, and the OUT= interface for packets logged in the
-OUTPUT chain.</p>
-
-<p style="margin-top: 1em">--sig-update <br>
-Instruct psad to download the latest set of modified Snort
-signatures from http://www.cipherdyne.org/psad/signatures so
-that psad can take advantage of signature updates <br>
-before a new release is made.</p>
-
-<p style="margin-top: 1em">-O, --Override-config
-&lt;file&gt; <br>
-Override config variable values that are normally read from
-the /etc/psad/psad.conf file with values from the specified
-file. Multiple override config files can be given <br>
-as a comma separated list.</p>
-
-<p style="margin-top: 1em">-D, --Dump-conf <br>
-Dump the current psad config to STDOUT and exit. Various
-pieces of information such as the home network, alert email
-addresses, and DShield user id are removed from the <br>
-resulting output so it is safe to send to others.</p>
-
-<p style="margin-top: 1em">-F, --Flush <br>
-Remove any auto-generated firewall block rules if psad was
-configured to automatically respond to scans (see the
-ENABLE_AUTO_IDS variable in psad.conf).</p>
-
-<p style="margin-top: 1em">-S, --Status <br>
-Display the status of any psad processes that may or not be
-running. The status output contains a listing of the number
-of packets that have been processed by psad, along <br>
-with all IP addresses and corresponding danger levels that
-have scanned the network.</p>
-
-<p style="margin-top: 1em">--status-ip &lt;ip&gt; <br>
-Display status information associated with ip such as the
-protocol packet counters as well as the last 10 packets
-logged by iptables.</p>
-
-<p style="margin-top: 1em">--status-dl &lt;dl&gt; <br>
-Display status information only for scans that have reached
-a danger level of at least dl</p>
-
-<p style="margin-top: 1em">--status-summary <br>
-Instruct psad to omit detailed IP information from --Status
-and --Analyze modes.</p>
-
-<p style="margin-top: 1em">-m, --messages-file &lt;file&gt;
-<br>
-This option is used to specify the file that will be parsed
-in analysis mode (see the --Analyze-msgs option). The
-default path is the psad data file /var/log/psad/fwdata.</p>
-
-<p style="margin-top: 1em">--CSV Instruct psad to parse
-iptables log messages out of /var/log/messages (by defult,
-but this path can be changed with the -m option), and print
-the packet fields on STDOUT <br>
-in comma-separate value format. This is useful for graphing
-iptables log data with AfterGlow (see
-http://afterglow.sourceforge.net/index.html).</p>
-
-<p style="margin-top: 1em">--stdin <br>
-Acquire iptables log data from STDIN instead of the default
-/var/log/messages file.</p>
-
-<p style="margin-top: 1em">--CSV-fields &lt;tokens&gt; <br>
-Instruct psad to only include a specific set of iptables log
-message fields within the CSV output. AfterGlow accepts up
-to three fields for its graph data, so the most <br>
-common usage of this option is &quot;src dst dp&quot; to
-print the source and destination IP addresses, and the
-destination port number.</p>
-
-<p style="margin-top: 1em">-K, --Kill <br>
-Kill the current psad process along with psadwatchd and
-kmsgsd. This provides a quick and easy way to kill all psad
-processes without having to look in the process table <br>
-or appeal to the psad-init script.</p>
-
-<p style="margin-top: 1em">-R, --Restart <br>
-Restart the currently running psad processes. This option
-will preserve the command line options that were supplied to
-the original psad process.</p>
-
-<p style="margin-top: 1em">-U, --USR1 <br>
-Send a running psad process a USR1 signal. This will cause
-psad to dump the contents of the %Scan hash to the file
-&quot;/var/log/psad/scan_hash.$$&quot; where &quot;$$&quot;
-represents the <br>
-pid of the psad process. This is mostly useful for debugging
-purposes, but it also allows the administrator to peer into
-the %Scan hash, which is the primary data struc&acirc; <br>
-ture used to store scan data within system memory.</p>
-
-<p style="margin-top: 1em">-H, --HUP <br>
-Send all running psad daemons a HUP signal. This will
-instruct the daemons to re-read their respective
-configuration files without causing scan data to be lost in
-the <br>
-process.</p>
-
-<p style="margin-top: 1em">-B, --Benchmark <br>
-Run psad in benchmark mode. By default benchmark mode will
-simulate a scan of 10,000 packets (see the --packets option)
-and then report the elapsed time. This is useful <br>
-to see how fast psad can process packets on a specific
-machine.</p>
-
-<p style="margin-top: 1em">-p, --packets &lt;packets&gt;
-<br>
-Specify the number of packets to analyze in --Analyze mode
-or use in --Benchmark mode. The default is 10,000 packets in
---Benchmark mode, and unlimited in --Analyze mode.</p>
-
-<p style="margin-top: 1em">-d, --debug <br>
-Run psad in debugging mode. This will automatically prevent
-psad from running as a daemon, and will print the contents
-of the %Scan hash and a few other things on STDOUT <br>
-at crucial points as psad executes.</p>
-
-<p style="margin-top: 1em">-c, --config
-&lt;configuration-file&gt; <br>
-By default all of the psad makes use of the configuration
-file /etc/psad/psad.conf for almost all configuration
-parameters. psad can be made to override this path by <br>
-specifying a different file on the command line with the
---config option.</p>
-
-<p style="margin-top: 1em">--signatures
-&lt;signatures-file&gt; <br>
-The iptables firewalling code included within the linux
-2.4.x kernel series has the ability to distinguish and log
-any of the TCP flags present within TCP packets that <br>
-traverse the firewall interfaces. psad makes use of this
-logging capability to detect several types of TCP scan
-signatures included within /etc/psad/signatures. The
-sig&acirc; <br>
-natures were originally included within the snort intrusion
-detection system. New signatures can be included and
-modifications to existing signatures can be made to the <br>
-signature file and psad will import the changes upon
-receiving a HUP signal (see the --HUP command line option)
-without having to restart the psad process. psad also <br>
-detects many UDP and ICMP signatures that were originally
-included within snort.</p>
-
-<p style="margin-top: 1em">-e, --email-analysis <br>
-Send alert emails when run in --Analyze-msgs mode. Depending
-on the size of the iptables logfile, using the
---email-analysis option could extend the runtime of psad by
-<br>
-quite a bit since normally both DNS and whois lookups will
-be issued against each scanning IP address. As usual these
-lookups can be disabled with the --no-rdns and --no- <br>
-whois options respectively.</p>
-
-<p style="margin-top: 1em">-w, --whois-analysis <br>
-By default psad does not issue whois lookups when running in
---Analyze-msgs mode. The --whois-analysis option will
-override this behavior (when run in analysis mode) and <br>
-instruct psad to issue whois lookups against IP addresses
-from which scans or other suspect traffic has
-originated.</p>
-
-<p style="margin-top: 1em">--analysis-auto-block <br>
-Enable auto-blocking responses when running in
---Analyze-msgs mode. This is mostly useful only for the psad
-test suite when auto-blocking responses are tested and
-veri&acirc; <br>
-fied.</p>
-
-<p style="margin-top: 1em">--snort-type &lt;type&gt; <br>
-Restrict the type of snort sids to type. Allowed types match
-the file names given to snort rules files such as
-&quot;ddos&quot;, &quot;backdoor&quot;, and
-&quot;web-attacks&quot;.</p>
-
-<p style="margin-top: 1em">--snort-rdir
-&lt;snort-rules-directory&gt; <br>
-Manually specify the directory where the snort rules files
-are located. The default is /etc/psad/snort_rules.</p>
-
-<p style="margin-top: 1em">--passive-os-sigs
-&lt;passive-os-sigs-file&gt; <br>
-Manually specify the path to the passive operating system
-fingerprinting signatures file. The default is
-/etc/psad/posf.</p>
-
-<p style="margin-top: 1em">--auto-dl &lt;auto-dl-file&gt;
-<br>
-Occasionally certain IP addresses are repeat offenders and
-should automatically be given a higher danger level than
-would normally be assigned. Additionally, some IP <br>
-addresses can always be ignored depending on your network
-configuration (the loopback interface 127.0.0.1 might be a
-good candidate for example). /etc/psad/auto_dl pro&acirc;
-<br>
-vides an interface for psad to automatically
-increase/decrease/ignore scanning IP danger levels.
-Modifications can be made to auto_dl (installed by default
-in /etc/psad) <br>
-and psad will import them with &rsquo;psad -H&rsquo; or by
-restarting the psad process.</p>
-
-<p style="margin-top: 1em">--fw-search
-&lt;fw_search-file&gt; <br>
-By default all of the psad makes use of the firewall search
-configuration file /etc/psad/fw_search.conf for firewall
-search mode and search strings. psad can be made to <br>
-override this path by specifying a different file on the
-command line with the --fw-search option.</p>
-
-<p style="margin-top: 1em">--fw-list-auto <br>
-List all rules in iptables chains that are used by psad in
-auto-blocking mode.</p>
-
-<p style="margin-top: 1em">--fw-analyze <br>
-Analyze the local iptables ruleset, send any alerts if
-errors are discovered, and then exit.</p>
-
-<p style="margin-top: 1em">--fw-del-chains <br>
-By default, if ENABLE_AUTO_IDS is set to &quot;Y&quot; psad
-will not delete the auto-generated iptables chains (see the
-IPT_AUTO_CHAIN keywords in psad.conf) if the --Flush option
-<br>
-is given. The --fw-del-chains option overrides this behavior
-and deletes the auto-blocking chains from a running iptables
-firewall.</p>
-
-<p style="margin-top: 1em">--fw-dump <br>
-Instruct psad to dump the contents of the iptables policy
-that is running on the local system. All IP addresses are
-removed from the resulting output, so it is safe to <br>
-post to the psad list, or communicate to others. This option
-is most often used with --Dump-conf.</p>
-
-<p style="margin-top: 1em">--fw-block-ip &lt;ip&gt; <br>
-Specify an IP address or network to add to the iptables
-controls that are auto-generated by psad. This allows psad
-to manage the rule timeouts.</p>
-
-<p style="margin-top: 1em">--fw-rm-block-ip &lt;ip&gt; <br>
-Specify an IP address or network to remove from the iptables
-controls that are auto-generated by psad.</p>
-
-<p style="margin-top: 1em">--fw-file &lt;policy-file&gt;
-<br>
-Analyze the iptables ruleset contained within policy-file
-instead of the ruleset currently loaded on the local
-system.</p>
-
-<p style="margin-top: 1em">--CSV-regex &lt;regex&gt; <br>
-Instruct psad to only print CSV data that matches the
-supplied regex. This regex is used to match against each of
-the entire iptables log messages.</p>
-
-<p style="margin-top: 1em">--CSV-neg-regex &lt;regex&gt;
-<br>
-Instruct psad to only print CSV data that does not match the
-supplied regex. This regex is used to negatively match
-against each of the entire iptables log messages.</p>
-
-<p style="margin-top: 1em">--CSV-uniq-lines <br>
-Instruct psad to only print unique CSV data. That is, each
-line printed in --CSV mode will be unique.</p>
-
-<p style="margin-top: 1em">--CSV-max-lines &lt;num&gt; <br>
-Limit the number of CSV-formatted lines that psad generates
-on STDOUT. This is useful to allow AfterGlow graphs to be
-created that are not too cluttered.</p>
-
-<p style="margin-top: 1em">--CSV-start-line &lt;num&gt;
-<br>
-Specify the beginning line number to start parsing out of
-the iptables log file in --CSV output mode. This is useful
-for when the log file is extremely large, and you <br>
-want to begin parsing a specific place within the file. The
-default is begin parsing at the beginning of the file.</p>
-
-<p style="margin-top: 1em">--CSV-end-line &lt;num&gt; <br>
-Specify the ending line number to stop parsing the iptables
-log file in --CSV output mode. This is useful for when the
-log file is extremely large, and you do not want <br>
-psad to process the entire thing.</p>
-
-<p style="margin-top: 1em">--gnuplot <br>
-Enter into Gnuplot mode whereby psad parses an iptables
-logfile and creates .gnu and .dat files that are suitable
-for graphing with Gnuplot. The various --CSV command <br>
-line arguments apply to plotting iptables log with
-Gnuplot.</p>
-
-<p style="margin-top: 1em">--gnuplot-template &lt;file&gt;
-<br>
-Use a template file for all Gnuplot graphing directives
-(this is usually a .gnu file by convention). Normally psad
-builds all of the graphing directives based on various <br>
---gnuplot command line arguments, but the --gnuplot-template
-switch allows you to override this behavior.</p>
-
-<p style="margin-top: 1em">--gnuplot-file-prefix
-&lt;file&gt; <br>
-Specify a prefix for the .gnu, .dat, and .png files that are
-generated in --gnuplot mode. So, when visualizing attacks
-captured in an iptables logfile (let&rsquo;s say you are
-<br>
-interested in port scans), you could use this option to have
-psad create the two files portscan.dat, portscan.gnu, and
-Gnuplot will create an additional file portscan.png <br>
-when the portscan.gnu file is loaded.</p>
-
-<p style="margin-top: 1em">--gnuplot-x-label &lt;label&gt;
-<br>
-Set the label associated with the x-axis.</p>
-
-<p style="margin-top: 1em">--gnuplot-x-range &lt;range&gt;
-<br>
-Set the x-axis range.</p>
-
-<p style="margin-top: 1em">--gnuplot-y-label &lt;label&gt;
-<br>
-Set the label associated with the y-axis.</p>
-
-<p style="margin-top: 1em">--gnuplot-y-range &lt;range&gt;
-<br>
-Set the y-axis range.</p>
-
-<p style="margin-top: 1em">--gnuplot-z-label &lt;label&gt;
-<br>
-Set the label associated with the z-axis (only if
---gnuplot-3D is used).</p>
-
-<p style="margin-top: 1em">--gnuplot-z-range &lt;range&gt;
-<br>
-Set the z-axis range. (only if --gnuplot-3D is used).</p>
-
-<p style="margin-top: 1em">--gnuplot-3D <br>
-Generate a Gnuplot splot graph. This produces a
-three-dimensional graph.</p>
-
-<p style="margin-top: 1em">--gnuplot-view <br>
-Set the viewing angle when graphing data in --gnuplot-3D
-mode.</p>
-
-<p style="margin-top: 1em">--gnuplot-title &lt;title&gt;
-<br>
-Set the graph title for the Gnuplot graph.</p>
-
-<p style="margin-top: 1em">-I, --Interval &lt;seconds&gt;
-<br>
-Specify the interval (in seconds) that psad should use to
-check whether or not packets have been logged by the
-firewall. psad will use the default of 15 seconds unless a
-<br>
-different value is specified.</p>
-
-<p style="margin-top: 1em">-l, --log-server <br>
-This option should be used if psad is being executed on a
-syslog logging server. Running psad on a logging server
-requires that check_firewall_rules() and <br>
-auto_psad_response() not be executed since the firewall is
-probably not being run locally.</p>
-
-<p style="margin-top: 1em">-V, --Version <br>
-Print the psad version and exit.</p>
-
-<p style="margin-top: 1em">--no-daemon <br>
-Do not run psad as a daemon. This option will display scan
-alerts on STDOUT instead of emailing them out.</p>
-
-<p style="margin-top: 1em">--no-ipt-errors <br>
-Occasionally iptables messages written by syslog to
-/var/log/messages seem to not conform to the normal firewall
-logging format if the kernel ring buffer used by klogd <br>
-becomes full. psad will write these message to
-/var/log/psad/errs/fwerrorlog by default. Passing the
---no-ipt-errors option will make psad ignore all such
-erroneous <br>
-firewall messages.</p>
-
-<p style="margin-top: 1em">--no-whois <br>
-By default psad will issue a whois query against any IP from
-which a scan has originated, but this can be disabled with
-the --no-whois command line argument.</p>
-
-<p style="margin-top: 1em">--no-fwcheck <br>
-psad performs a rudimentary check of the firewall ruleset
-that exists on the machine on which psad is deployed to
-determine whether or not the firewall has a compatible <br>
-configuration (i.e. iptables has been configured to log
-packets). Passing the --no-fwcheck or --log-server options
-will disable this check.</p>
-
-<p style="margin-top: 1em">--no-auto-dl <br>
-Disable auto danger level assignments. This will instruct to
-not import any IP addresses or networks from the file
-/etc/psad/auto_dl.</p>
-
-<p style="margin-top: 1em">--no-snort-sids <br>
-Disable snort sid processing mode. This will instruct psad
-to not import snort rules (for snort SID matching in a
-policy generated by fwsnort ).</p>
-
-<p style="margin-top: 1em">--no-signatures <br>
-Disable psad signature processing. Note that this is
-independent of snort SID matching in iptables messages
-generated by fwsnort and also from the ICMP type/code
-valida&acirc; <br>
-tion routines.</p>
-
-<p style="margin-top: 1em">--no-icmp-types <br>
-Disable ICMP type and code field validation.</p>
-
-<p style="margin-top: 1em">--no-passive-os <br>
-By default psad will attempt to passively (i.e. without
-sending any packets) fingerprint the remote operating system
-from which a scan originates. Passing the --no-pas&acirc;
-<br>
-sive-os option will disable this feature.</p>
-
-<p style="margin-top: 1em">--no-rdns <br>
-psad normally attempts to find the name associated with a
-scanning IP address, but this feature can be disabled with
-the --no-rdns command line argument.</p>
-
-<p style="margin-top: 1em">--no-kmsgsd <br>
-Disable startup of kmsgsd. This option is most useful for
-debugging with individual iptables messages so that new
-messages are not appended to the /var/log/psad/fwdata <br>
-file.</p>
-
-<p style="margin-top: 1em">--no-netstat <br>
-By default for iptables firewalls psad will determine
-whether or not your machine is listening on a port for which
-a TCP signature has been matched. Specifying --no-net&acirc;
-<br>
-stat disables this feature.</p>
-
-<p style="margin-top: 1em">-h, --help <br>
-Print a page of usage information for psad and exit.</p>
-
-<p style="margin-top: 1em">FILES <br>
-/etc/psad/psad.conf <br>
-The main psad configuration file which contains
-configuration variables mentioned in the section below.</p>
-
-<p style="margin-top: 1em">/etc/psad/fw_search.conf <br>
-Used to configure the strategy both psad and kmsgsd employ
-to parse iptables messages. Using configuration directive
-within this file, psad can be configured to parse all <br>
-iptables messages or only those that match specific log
-prefix strings (see the --log-prefix option to
-iptables).</p>
-
-<p style="margin-top: 1em">/etc/psad/signatures <br>
-Contains the signatures psad uses to recognize nasty
-traffic. The signatures are written in a manner similar to
-the *lib signature files used in the snort IDS.</p>
-
-<p style="margin-top: 1em">/etc/psad/icmp_types <br>
-Contains all valid ICMP types and corresponding codes as
-defined by RFC 792. By default, ICMP packets are validated
-against these values and an alert will be generated if <br>
-a non-matching ICMP packet is logged by iptables.</p>
-
-<p style="margin-top: 1em">/etc/psad/snort_rules/*.rules
-<br>
-Snort rules files that are consulted by default unless the
---no-snort-sids commmand line argument is given.</p>
-
-<p style="margin-top: 1em">/etc/psad/auto_dl <br>
-Contains a listing of any IP addresses that should be
-assigned a danger level based on any traffic that is logged
-by the firewall. The syntax is &quot;&lt;IP address&gt;
-&lt;danger <br>
-level&gt;&quot; where &lt;danger level&gt; is an integer
-from 0 to 5, with 0 meaning to ignore all traffic from
-&lt;IP address&gt;, and 5 is to assign the highest danger
-level to &lt;IP <br>
-address&gt;.</p>
-
-<p style="margin-top: 1em">/etc/psad/posf <br>
-Contains a listing of all passive operating system
-fingerprinting signatures. These signatures include packet
-lengths, ttl, tos, IP ID, and TCP window size values that
-<br>
-are specific to various operating systems.</p>
-
-<p style="margin-top: 1em">PSAD CONFIGURATION VARIABLES
-<br>
-This section describes what each of the more important psad
-configuration variables do and how they can be tuned to meet
-your needs. Most of the variables are located in the <br>
-psad configuration file /etc/psad/psad.conf but the
-FW_SEARCH_ALL and FW_MSG_SEARCH variables are located in the
-file /etc/psad/fw_search.conf. Each variable is assigned
-sensi&acirc; <br>
-ble defaults for most network architectures during the
-install process. More information on psad config keywords
-may be found at:
-http://www.cipherdyne.org/psad/config.html</p>
-
-<p style="margin-top: 1em">EMAIL_ADDRESSES <br>
-Contains a comma-separated list of email addresses to which
-email alerts will be sent. The default is
-&quot;root@localhost&quot;.</p>
-
-<p style="margin-top: 1em">HOSTNAME <br>
-Defines the hostname of the machine on which psad is
-running. This will be used in the email alerts generated by
-psad.</p>
-
-<p style="margin-top: 1em">HOME_NET <br>
-Define the internal network(s) that are connected to the
-local system. This will be used in the signature matching
-code to determine whether traffic matches snort rules, <br>
-which invariably contain a source and destination network.
-Multiple networks are supported as a comma separated list,
-and each network should be specified in CIDR nota&acirc;
-<br>
-tion. Normally the network(s) contained in the HOME_NET
-variable should be directly connected to the machine that is
-running psad.</p>
-
-<p style="margin-top: 1em">IMPORT_OLD_SCANS <br>
-Preserve scan data across restarts of psad or even across
-reboots of the machine. This is accomplished by importing
-the data contained in the filesystem cache psad writes <br>
-to during normal operation back into memory as psad is
-started. The filesystem cache data in contained within the
-directory /var/log/psad.</p>
-
-<p style="margin-top: 1em">FW_SEARCH_ALL <br>
-Defines the search mode psad uses to parse iptables
-messages. By default FW_SEARCH_ALL is set to &quot;Y&quot;
-since normally most people want all iptables log messages to
-be <br>
-parsed for scan activity. However, if FW_SEARCH_ALL is set
-to &quot;N&quot;, psad will only parse those iptables log
-messages that match certain search strings that appear in
-ipta&acirc; <br>
-bles logs with the --log-prefix option. This is useful for
-restricting psad to only operate on specific iptables chains
-or rules. The strings that will be searched for <br>
-are defined with the FW_MSG_SEARCH variable (see below). The
-FW_SEARCH_ALL variable is defined in the file
-/etc/psad/fw_search.conf since it is referenced by both psad
-<br>
-and kmsgsd.</p>
-
-<p style="margin-top: 1em">FW_MSG_SEARCH <br>
-Defines a set of search strings that psad uses to identify
-iptables messages that should be parsed for scan activity.
-These search strings should match the log prefix <br>
-strings specified in the iptables ruleset with the
---log-prefix option, and the default value for FW_MSG_SEARCH
-is &quot;DROP&quot;. Note that psad normally parses all
-iptables <br>
-messages, and so the FW_MSG_SEARCH variable is only needed
-if FW_SEARCH_ALL (see above) is set to &quot;N&quot;. The
-FW_MSG_SEARCH variable is referenced by both psad and kmsgsd
-so <br>
-it lives in the file /etc/psad/fw_search.conf.</p>
-
-<p style="margin-top: 1em">SYSLOG_DAEMON <br>
-Define the specific syslog daemon that psad should interface
-with. Psad supports three syslog daemons: syslogd,
-syslog-ng, and metalog. The default value of
-SYSLOG_DAE&acirc; <br>
-MON is syslogd.</p>
-
-<p style="margin-top: 1em">IGNORE_PORTS <br>
-Specify a list of port ranges and/or individual ports and
-corresponding protocols that psad should complete ignore.
-This is particularly useful for ignore ports that are <br>
-used as a part of a port knocking scheme (such as fwknop
-http://www.cipherdyne.org/fwknop/) for network
-authentication since such log messages generated by the
-knock <br>
-sequence may otherwise be interpreted as a scan. Multiple
-ports and/or port ranges may be specified as a
-comma-separated list, e.g. &quot;tcp/22, tcp/61000-61356,
-udp/53&quot;.</p>
-
-<p style="margin-top: 1em">ENABLE_PERSISTENCE <br>
-If &quot;Y&quot;, psad will keep all scans in memory and not
-let them timeout. This can help discover stealthy scans
-where an attacker tries to slip beneath IDS thresholds by
-only <br>
-scanning a few ports over a long period of time.
-ENABLE_PERSISTENCE is set to &quot;Y&quot; by default.</p>
-
-<p style="margin-top: 1em">SCAN_TIMEOUT <br>
-If ENABLE_PERSISTENCE is &quot;N&quot; then psad will use
-the value set by SCAN_TIMEOUT to remove packets from the
-scan threshold calculation. The default is 3600 seconds (1
-hour).</p>
-
-<p style="margin-top: 1em">DANGER_LEVEL{1,2,3,4,5} <br>
-psad uses a scoring system to keep track of the severity a
-scans reaches (represented as a &quot;danger level&quot;)
-over time. The DANGER_LEVEL{n} variables define the number
-of <br>
-packets that must be dropped by the firewall before psad
-will assign the respective danger level to the scan. A scan
-may also be assigned a danger level if the scan <br>
-matches a particular signature contained in the signatures
-file. There are five possible danger levels with one being
-the lowest and five the highest. Note there are <br>
-several factors that can influence how danger levels are
-calculated: whether or not a scan matches a signature listed
-in /etc/psad/signatures, the value of <br>
-PORT_RANGE_SCAN_THRESHOLD (see below), whether or not a scan
-comes from an IP that is listed in the /etc/psad/auto_dl
-file, and finally whether or not scans are allowed to <br>
-timeout as determined by SCAN_TIMEOUT above. If a signature
-is matched or the scanning IP is listed in
-/etc/psad/auto_dl, then the corresponding danger level is
-automati&acirc; <br>
-cally assigned to the scan.</p>
-
-<p style="margin-top: 1em">PORT_RANGE_SCAN_THRESHOLD <br>
-Defines the minimum difference between the lowest port and
-the highest port scanned before an alert is sent (the
-default is 1 which means that at least two ports must be
-<br>
-scanned to generate an alert). For example, suppose an ip
-repeatedly scans a single port for which there is no special
-signature in signatures. Then if <br>
-PORT_RANGE_SCAN_THRESHOLD=1, psad will never send an alert
-for this &quot;scan&quot; no matter how many packets are
-sent to the port (i.e. no matter what the value of
-DANGER_LEVEL1 <br>
-is). The reason for the default of 1 is that a
-&quot;scan&quot; usually means that at least two ports are
-probed, but if you want psad to be extra paranoid you can
-set <br>
-PORT_RANGE_SCAN_THRESHOLD=0 to alert on scans to single
-ports (as long as the number of packets also exceeds
-DANGER_LEVEL1).</p>
-
-<p style="margin-top: 1em">SHOW_ALL_SIGNATURES <br>
-If &quot;Y&quot;, psad will display all signatures detected
-from a single scanning IP since a scan was first detected
-instead of just displaying newly-detected signatures. <br>
-SHOW_ALL_SIGNATURES is set to &quot;N&quot; by default. All
-signatures are listed in the file /etc/psad/signatures.</p>
-
-<p style="margin-top: 1em">SNORT_SID_STR <br>
-Defines the string kmsgsd will search for in iptables log
-messages that are generated by iptables rules designed to
-detect snort rules. The default is &quot;SID&quot;. See
-fwsnort <br>
-(http://www.cipherdyne.org/fwsnort/).</p>
-
-<p style="margin-top: 1em">ENABLE_DSHIELD_ALERTS <br>
-Enable dshield alerting mode. This will send a parsed
-version of iptables log messages to dshield.org which is a
-(free) distributed intrusion detection service. For more
-<br>
-information, see http://www.dshield.org/</p>
-
-<p style="margin-top: 1em">IGNORE_CONNTRACK_BUG_PKTS <br>
-If &quot;Y&quot;, all TCP packets that have the ACK or RST
-flag bits set will be ignored by psad since usually we see
-such packets being blocked as a result of the iptables
-connec&acirc; <br>
-tion tracking bug. Note there are no signatures that make
-use of the RST flag and very few that use ACK flag.</p>
-
-<p style="margin-top: 1em">ALERT_ALL <br>
-If &quot;Y&quot;, send email for all new bad packets instead
-of just when a danger level increases. ALERT_ALL is set to
-&quot;Y&quot; by default.</p>
-
-<p style="margin-top: 1em">PSAD_EMAIL_LIMIT <br>
-Defines the maximum number of emails that will be sent for a
-single scanning IP (default is 50). This variable gives you
-some protection from psad sending countless <br>
-alerts if an IP scans your machine constantly. psad will
-send a special alert if an IP has exceeded the email limit.
-If PSAD_EMAIL_LIMIT is set to zero, then psad will <br>
-ignore the limit and send alert emails indefinitely for any
-scanning ip.</p>
-
-<p style="margin-top: 1em">EMAIL_ALERT_DANGER_LEVEL <br>
-Defines the danger level a scan must reach before any alert
-is sent. This variable is set to 1 by default.</p>
-
-<p style="margin-top: 1em">ENABLE_AUTO_IDS <br>
-psad has the capability of dynamically blocking all traffic
-from an IP that has reached a (configurable) danger level
-through modification of iptables or tcpwrapper rule&acirc;
-<br>
-sets. IMPORTANT: This feature is disabled by default since
-it is possible for an attacker to spoof packets from a well
-known (web)site in an effort to make it look as <br>
-though the site is scanning your machine, and then psad will
-consequently block all access to it. Also, psad works by
-parsing firewall messages for packets the firewall <br>
-has already dropped, so the &quot;scans&quot; are
-unsuccessful anyway. However, some administrators prefer to
-take this risk anyway reasoning that they can always review
-which <br>
-sites are being blocked and manually remove the block if
-necessary (see the --Flush option). Your mileage will
-vary.</p>
-
-<p style="margin-top: 1em">AUTO_IDS_DANGER_LEVEL <br>
-Defines the danger level a scan must reach before psad will
-automatically block the IP (ENABLE_AUTO_IDS must be set to
-&quot;Y&quot;).</p>
-
-<p style="margin-top: 1em">EXAMPLES <br>
-The following examples illustrate the command line arguments
-that could be supplied to psad in a few situations:</p>
-
-<p style="margin-top: 1em">Signature checking, passive OS
-fingerprinting, and automatic IP danger level assignments
-are enabled by default without having to specify any command
-line arguments (best for <br>
-most situations):</p>
-
-<p style="margin-top: 1em"># psad</p>
-
-<p style="margin-top: 1em">Same as above, but this time we
-use the init script to start psad:</p>
-
-<p style="margin-top: 1em"># /etc/init.d/psad start</p>
-
-<p style="margin-top: 1em">Use psad as a forensics tool to
-analyze an old iptables logfile (psad defaults to analyzing
-the /var/log/messages file if the -m option is not
-specified):</p>
-
-<p style="margin-top: 1em"># psad -A -m &lt;iptables
-logfile&gt;</p>
-
-<p style="margin-top: 1em">Run psad in forensics mode, but
-limit its operations to a specific IP address
-&quot;10.1.1.1&quot;:</p>
-
-<p style="margin-top: 1em"># psad -A -m &lt;iptables
-logfile&gt; --analysis-fields src:10.1.1.1</p>
-
-<p style="margin-top: 1em">Generate graphs of scan data
-using AfterGlow:</p>
-
-<p style="margin-top: 1em"># psad --CSV --CSV-fields src
-dst dp --CSV-max 1000 -m &lt;iptables logfile&gt; | perl
-afterglow.pl -c color.properties | neato -Tgif -o
-iptables_graph.gif</p>
-
-<p style="margin-top: 1em">The psad.conf, signatures, and
-auto_dl files are normally located within the /etc/psad/
-directory, but the paths to each of these files can be
-changed:</p>
-
-<p style="margin-top: 1em"># psad -c &lt;config file&gt; -s
-&lt;signatures file&gt; -a &lt;auto ips file&gt;</p>
-
-<p style="margin-top: 1em">Disable the firewall check and
-the local port lookup subroutines; most useful if psad is
-deployed on a syslog logging server:</p>
-
-<p style="margin-top: 1em"># psad --log-server
---no-netstat</p>
-
-<p style="margin-top: 1em">Disable reverse dns and whois
-lookups of scanning IP addresses; most useful if speed of
-psad is the main concern:</p>
-
-<p style="margin-top: 1em"># psad --no-rdns --no-whois</p>
-
-<p style="margin-top: 1em">DEPENDENCIES <br>
-psad requires that iptables is configured with a &quot;drop
-and log&quot; policy for any traffic that is not explicitly
-allowed through. This is consistent with a secure network
-configu&acirc; <br>
-ration since all traffic that has not been explicitly
-allowed should be blocked by the firewall ruleset. By
-default, psad attempts to determine whether or not the
-firewall has <br>
-been configured in this way. This feature can be disabled
-with the --no-fwcheck or --log-server options. The
---log-server option is useful if psad is running on a syslog
-log&acirc; <br>
-ging server that is separate from the firewall. For more
-information on compatible iptables rulesets, see the
-FW_EXAMPLE_RULES file that is bundled with the psad source
-distri&acirc; <br>
-bution.</p>
-
-<p style="margin-top: 1em">psad by default parses the
-/var/log/messages file for all iptables log data.</p>
-
-<p style="margin-top: 1em">DIAGNOSTICS <br>
-The --debug option can be used to display crucial
-information about the psad data structures on STDOUT as a
-scan generates firewall log messages. --debug disables
-daemon mode <br>
-execution.</p>
-
-<p style="margin-top: 1em">Another more effective way to
-peer into the runtime execution of psad is to send (as root)
-a USR1 signal to the psad process which will cause psad to
-dump the contents of the <br>
-%Scan hash to /var/log/psad/scan_hash.$$ where $$ represents
-the pid of the psad process.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-iptables(8), kmsgsd(8), psadwatchd(8), fwsnort(8), snort(8),
-nmap(1), p0f(1), gnuplot(1)</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Michael Rash &lt;mbr@cipherdyne.org&gt;</p>
-
-<p style="margin-top: 1em">CONTRIBUTORS <br>
-Many people who are active in the open source community have
-contributed to psad. See the CREDITS file in the psad
-sources, or visit
-http://www.cipherdyne.org/psad/docs/contrib&acirc; <br>
-utors.html to view the online list of contributors.</p>
-
-<p style="margin-top: 1em">BUGS <br>
-Send bug reports to mbr@cipherdyne.org. Suggestions and/or
-comments are always welcome as well.</p>
-
-<p style="margin-top: 1em">For iptables firewalls as of
-Linux kernel version 2.4.26, if the ip_conntrack module is
-loaded (or compiled into the kernel) and the firewall has
-been configured to keep state of <br>
-connections, occasionally packets that are supposed to be
-part of normal TCP traffic will not be correctly identified
-due to a bug in the firewall state timeouts and hence <br>
-dropped. Such packets will then be interpreted as a scan by
-psad even though they are not part of any malicious
-activity. Fortunately, an interim fix for this problem is to
-<br>
-simply extend the TCP_CONNTRACK_CLOSE_WAIT timeout value in
-linux/net/ipv4/netfilter/ip_conntrack_proto_tcp.c from 60
-seconds to 2 minutes, and a set of kernel patches is <br>
-included within the patches/ directory in the psad sources
-to change this. (Requires a kernel recompile of course; see
-the Kernel-HOWTO.) Also, by default the IGNORE_CON&acirc;
-<br>
-NTRACK_BUG_PKTS variable is set to &quot;Y&quot; in
-psad.conf which causes psad to ignore all TCP packets that
-have the ACK bit set unless the packets match a specific
-signature.</p>
-
-<p style="margin-top: 1em">DISTRIBUTION <br>
-psad is distributed under the GNU General Public License
-(GPL), and the latest version may be downloaded from:
-http://www.cipherdyne.org/ Snort is a registered trademark
-of <br>
-Sourcefire, Inc.</p>
-
-<p style="margin-top: 1em">Linux March 2009 PSAD(8)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">PSAD(8)</td>
+    <td class="head-vol">System Manager's Manual</td>
+    <td class="head-rtitle">PSAD(8)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+<b>psad</b> - The Port Scan Attack Detector
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<b>psad [options]</b>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+<b>psad</b> makes use of iptables log messages to detect, alert, and
+  (optionally) block port scans and other suspect traffic. For TCP scans psad
+  analyzes TCP flags to determine the scan type (syn, fin, xmas, etc.) and
+  corresponding command line options that could be supplied to nmap to generate
+  such a scan. In addition, psad makes use of many TCP, UDP, and ICMP signatures
+  contained within the Snort intrusion detection system (see
+  http://www.snort.org/) to detect suspicious network traffic such as probes for
+  common backdoors, DDoS tools, OS fingerprinting attempts, and more. By default
+  psad also provides alerts for snort rules that are detected directly by
+  iptables through the use of a ruleset generated by <b>fwsnort</b>
+  (http://www.cipherdyne.org/fwsnort/). This enables psad to send alerts for
+  application layer attacks. <b>psad</b> features a set of highly configurable
+  danger thresholds (with sensible defaults provided) that allow the
+  administrator to define what constitutes a port scan or other suspect traffic.
+  Email alerts sent by psad contain the scanning ip, number of packets sent to
+  each port, any TCP, UDP, or ICMP signatures that have been matched (e.g.
+  &quot;NMAP XMAS scan&quot;), the scanned port range, the current danger level
+  (from 1 to 5), reverse dns info, and whois information. <b>psad</b> also makes
+  use of various packet header fields associated with TCP SYN packets to
+  passively fingerprint remote operating systems (in a manner similar to the
+  <b>p0f</b> fingerprinter) from which scans originate. This requires the use of
+  the <b>--log-tcp-options</b> argument for iptables logging rules; if this
+  option is not used, <b>psad</b> will fall back to a fingerprinting method that
+  makes use of packet length, TTL and TOS values, IP ID, and TCP window sizes.
+<div class="Pp"></div>
+<b>psad</b> reads all iptables log data by default from the
+  <i>/var/log/messages</i> file. By parsing firewall log messages, psad is
+  provided with data that represents packets that have been logged (and possibly
+  dropped) by the running iptables policy. In this sense, psad is supplied with
+  a pure data stream that exclusively contains packets that the firewall has
+  deemed unfit to enter the network. <b>psad</b> consists of three daemons:
+  psad, kmsgsd, and psadwatchd. <b>psad</b> is responsible for processing all
+  packets that have been logged by the firewall and applying the signature logic
+  in order to determine what type of scan has been leveraged against the machine
+  and/or network. <b>kmsgsd</b> <b>(deprecated)</b> reads all messages that have
+  been written to the <i>/var/lib/psad/psadfifo</i> named pipe and writes any
+  message that matches a particular regular expression (or string) to
+  <i>/var/log/psad/fwdata.</i> kmsgsd is only used if the
+  <b>ENABLE_SYSLOG_FILE</b> variable is disabled in psad.conf. <b>psadwatchd</b>
+  is a software watchdog that will restart any of the other two daemons should a
+  daemon die for any reason.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-A</b>, <b>--Analyze-msgs</b></dt>
+  <dd class="It-tag">Analyze an iptables logfile for scans and exit. This will
+      generate email alerts just as a normal running psad process would have for
+      all logged scans. By default the psad data file
+      <i>/var/log/psad/fwdata</i> is parsed for old scans, but any file can be
+      specified through the use of the --messages-file command line option. For
+      example it might be useful to point psad at your <i>/var/log/messages</i>
+      file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--analysis-fields&#x00A0;&lt;search&#x00A0;fields&gt;</b></dt>
+  <dd class="It-tag">In --Analyze mode restrict analysis to iptables log
+      messages that have specific values for particular fields. Examples include
+      &quot;SRC:1.2.3.4&quot;, &quot;DST:10.0.0.0/24, and &quot;TTL:64&quot;,
+      and multiple fields are supported as a comma-separated list like
+      &quot;SRC:1.2.3.4, LEN:44, DST:10.0.0.0/24&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-i</b>, <b>--interface&#x00A0;&lt;interface&gt;</b></dt>
+  <dd class="It-tag">Specify the interface that <b>psad</b> will examine for
+      iptables log messages. This interface will be the <b>IN=</b> interface for
+      packets that are logged in the <b>INPUT</b> and <b>FORWARD</b> chains, and
+      the <b>OUT=</b> interface for packets logged in the <b>OUTPUT</b>
+    chain.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--sig-update</b></dt>
+  <dd class="It-tag">Instruct <b>psad</b> to download the latest set of modified
+      Snort signatures from http://www.cipherdyne.org/psad/signatures so that
+      psad can take advantage of signature updates before a new release is
+    made.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-O</b>,
+    <b>--Override-config&#x00A0;&lt;file&gt;</b></dt>
+  <dd class="It-tag">Override config variable values that are normally read from
+      the /etc/psad/psad.conf file with values from the specified file. Multiple
+      override config files can be given as a comma separated list.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-D</b>, <b>--Dump-conf</b></dt>
+  <dd class="It-tag">Dump the current psad config to STDOUT and exit. Various
+      pieces of information such as the home network, alert email addresses, and
+      DShield user id are removed from the resulting output so it is safe to
+      send to others.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-F</b>, <b>--Flush</b></dt>
+  <dd class="It-tag">Remove any auto-generated firewall block rules if psad was
+      configured to automatically respond to scans (see the ENABLE_AUTO_IDS
+      variable in psad.conf).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-S</b>, <b>--Status</b></dt>
+  <dd class="It-tag">Display the status of any psad processes that may or not be
+      running. The status output contains a listing of the number of packets
+      that have been processed by psad, along with all IP addresses and
+      corresponding danger levels that have scanned the network.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--status-ip&#x00A0;&lt;ip&gt;</b></dt>
+  <dd class="It-tag">Display status information associated with <i>ip</i> such
+      as the protocol packet counters as well as the last 10 packets logged by
+      iptables.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--status-dl&#x00A0;&lt;dl&gt;</b></dt>
+  <dd class="It-tag">Display status information only for scans that have reached
+      a danger level of at least <i>dl</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--status-summary</b></dt>
+  <dd class="It-tag">Instruct <b>psad</b> to omit detailed IP information from
+      <i>--Status</i> and <i>--Analyze</i> modes.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-m</b>, <b>--messages-file&#x00A0;&lt;file&gt;</b></dt>
+  <dd class="It-tag">This option is used to specify the file that will be parsed
+      in analysis mode (see the --Analyze-msgs option). The default path is the
+      psad data file <i>/var/log/psad/fwdata.</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--CSV</b></dt>
+  <dd class="It-tag">Instruct <b>psad</b> to parse iptables log messages out of
+      <i>/var/log/messages</i> (by defult, but this path can be changed with the
+      <i>-m</i> option), and print the packet fields on STDOUT in comma-separate
+      value format. This is useful for graphing iptables log data with AfterGlow
+      (see http://afterglow.sourceforge.net/index.html).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--stdin</b></dt>
+  <dd class="It-tag">Acquire iptables log data from STDIN instead of the default
+      <i>/var/log/messages</i> file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--CSV-fields&#x00A0;&lt;tokens&gt;</b></dt>
+  <dd class="It-tag">Instruct <b>psad</b> to only include a specific set of
+      iptables log message fields within the CSV output. AfterGlow accepts up to
+      three fields for its graph data, so the most common usage of this option
+      is &quot;src dst dp&quot; to print the source and destination IP
+      addresses, and the destination port number.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-K</b>, <b>--Kill</b></dt>
+  <dd class="It-tag">Kill the current psad process along with psadwatchd and
+      kmsgsd. This provides a quick and easy way to kill all psad processes
+      without having to look in the process table or appeal to the psad-init
+      script.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-R</b>, <b>--Restart</b></dt>
+  <dd class="It-tag">Restart the currently running psad processes. This option
+      will preserve the command line options that were supplied to the original
+      psad process.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-U</b>, <b>--USR1</b></dt>
+  <dd class="It-tag">Send a running psad process a USR1 signal. This will cause
+      psad to dump the contents of the %Scan hash to the file
+      &quot;/var/log/psad/scan_hash.$$&quot; where &quot;$$&quot; represents the
+      pid of the psad process. This is mostly useful for debugging purposes, but
+      it also allows the administrator to peer into the %Scan hash, which is the
+      primary data structure used to store scan data within system memory.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-H</b>, <b>--HUP</b></dt>
+  <dd class="It-tag">Send all running psad daemons a HUP signal. This will
+      instruct the daemons to re-read their respective configuration files
+      without causing scan data to be lost in the process.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-B</b>, <b>--Benchmark</b></dt>
+  <dd class="It-tag">Run psad in benchmark mode. By default benchmark mode will
+      simulate a scan of 10,000 packets (see the --packets option) and then
+      report the elapsed time. This is useful to see how fast psad can process
+      packets on a specific machine.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-p</b>, <b>--packets&#x00A0;&lt;packets&gt;</b></dt>
+  <dd class="It-tag">Specify the number of packets to analyze in --Analyze mode
+      or use in --Benchmark mode. The default is 10,000 packets in --Benchmark
+      mode, and unlimited in --Analyze mode.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-d</b>, <b>--debug</b></dt>
+  <dd class="It-tag">Run psad in debugging mode. This will automatically prevent
+      psad from running as a daemon, and will print the contents of the %Scan
+      hash and a few other things on STDOUT at crucial points as psad
+    executes.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-c</b>,
+    <b>--config&#x00A0;&lt;configuration-file&gt;</b></dt>
+  <dd class="It-tag">By default all of the psad makes use of the configuration
+      file <i>/etc/psad/psad.conf</i> for almost all configuration parameters.
+      <b>psad</b> can be made to override this path by specifying a different
+      file on the command line with the --config option.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--signatures&#x00A0;&lt;signatures-file&gt;</b></dt>
+  <dd class="It-tag">The iptables firewalling code included within the linux
+      2.4.x kernel series has the ability to distinguish and log any of the TCP
+      flags present within TCP packets that traverse the firewall interfaces.
+      <b>psad</b> makes use of this logging capability to detect several types
+      of TCP scan signatures included within <i>/etc/psad/signatures.</i> The
+      signatures were originally included within the snort intrusion detection
+      system. New signatures can be included and modifications to existing
+      signatures can be made to the signature file and psad will import the
+      changes upon receiving a HUP signal (see the --HUP command line option)
+      without having to restart the psad process. <b>psad</b> also detects many
+      UDP and ICMP signatures that were originally included within snort.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-e</b>, <b>--email-analysis</b></dt>
+  <dd class="It-tag">Send alert emails when run in --Analyze-msgs mode.
+      Depending on the size of the iptables logfile, using the --email-analysis
+      option could extend the runtime of psad by quite a bit since normally both
+      DNS and whois lookups will be issued against each scanning IP address. As
+      usual these lookups can be disabled with the --no-rdns and --no-whois
+      options respectively.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-w</b>, <b>--whois-analysis</b></dt>
+  <dd class="It-tag">By default <b>psad</b> does not issue whois lookups when
+      running in --Analyze-msgs mode. The --whois-analysis option will override
+      this behavior (when run in analysis mode) and instruct psad to issue whois
+      lookups against IP addresses from which scans or other suspect traffic has
+      originated.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--analysis-auto-block</b></dt>
+  <dd class="It-tag">Enable auto-blocking responses when running in
+      --Analyze-msgs mode. This is mostly useful only for the <b>psad</b> test
+      suite when auto-blocking responses are tested and verified.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--snort-type&#x00A0;&lt;type&gt;</b></dt>
+  <dd class="It-tag">Restrict the type of snort sids to <i>type.</i> Allowed
+      types match the file names given to snort rules files such as
+      &quot;ddos&quot;, &quot;backdoor&quot;, and &quot;web-attacks&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--snort-rdir&#x00A0;&lt;snort-rules-directory&gt;</b></dt>
+  <dd class="It-tag">Manually specify the directory where the snort rules files
+      are located. The default is <i>/etc/psad/snort_rules.</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--passive-os-sigs&#x00A0;&lt;passive-os-sigs-file&gt;</b></dt>
+  <dd class="It-tag">Manually specify the path to the passive operating system
+      fingerprinting signatures file. The default is <i>/etc/psad/posf.</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--auto-dl&#x00A0;&lt;auto-dl-file&gt;</b></dt>
+  <dd class="It-tag">Occasionally certain IP addresses are repeat offenders and
+      should automatically be given a higher danger level than would normally be
+      assigned. Additionally, some IP addresses can always be ignored depending
+      on your network configuration (the loopback interface 127.0.0.1 might be a
+      good candidate for example). <i>/etc/psad/auto_dl</i> provides an
+      interface for psad to automatically increase/decrease/ignore scanning IP
+      danger levels. Modifications can be made to auto_dl (installed by default
+      in /etc/psad) and psad will import them with 'psad -H' or by restarting
+      the psad process.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--fw-search&#x00A0;&lt;fw_search-file&gt;</b></dt>
+  <dd class="It-tag">By default all of the psad makes use of the firewall search
+      configuration file <i>/etc/psad/fw_search.conf</i> for firewall search
+      mode and search strings. <b>psad</b> can be made to override this path by
+      specifying a different file on the command line with the --fw-search
+      option.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--fw-list-auto</b></dt>
+  <dd class="It-tag">List all rules in iptables chains that are used by
+      <b>psad</b> in auto-blocking mode.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--fw-analyze</b></dt>
+  <dd class="It-tag">Analyze the local iptables ruleset, send any alerts if
+      errors are discovered, and then exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--fw-del-chains</b></dt>
+  <dd class="It-tag">By default, if ENABLE_AUTO_IDS is set to &quot;Y&quot;
+      <b>psad</b> will not delete the auto-generated iptables chains (see the
+      IPT_AUTO_CHAIN keywords in psad.conf) if the --Flush option is given. The
+      --fw-del-chains option overrides this behavior and deletes the
+      auto-blocking chains from a running iptables firewall.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--fw-dump</b></dt>
+  <dd class="It-tag">Instruct <b>psad</b> to dump the contents of the iptables
+      policy that is running on the local system. All IP addresses are removed
+      from the resulting output, so it is safe to post to the psad list, or
+      communicate to others. This option is most often used with
+    --Dump-conf.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--fw-block-ip&#x00A0;&lt;ip&gt;</b></dt>
+  <dd class="It-tag">Specify an IP address or network to add to the iptables
+      controls that are auto-generated by psad. This allows psad to manage the
+      rule timeouts.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--fw-rm-block-ip&#x00A0;&lt;ip&gt;</b></dt>
+  <dd class="It-tag">Specify an IP address or network to remove from the
+      iptables controls that are auto-generated by psad.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--fw-file&#x00A0;&lt;policy-file&gt;</b></dt>
+  <dd class="It-tag">Analyze the iptables ruleset contained within
+      <b>policy-file</b> instead of the ruleset currently loaded on the local
+      system.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--CSV-regex&#x00A0;&lt;regex&gt;</b></dt>
+  <dd class="It-tag">Instruct <b>psad</b> to only print CSV data that matches
+      the supplied regex. This regex is used to match against each of the entire
+      iptables log messages.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--CSV-neg-regex&#x00A0;&lt;regex&gt;</b></dt>
+  <dd class="It-tag">Instruct <b>psad</b> to only print CSV data that does not
+      match the supplied regex. This regex is used to negatively match against
+      each of the entire iptables log messages.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--CSV-uniq-lines</b></dt>
+  <dd class="It-tag">Instruct <b>psad</b> to only print unique CSV data. That
+      is, each line printed in <i>--CSV</i> mode will be unique.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--CSV-max-lines&#x00A0;&lt;num&gt;</b></dt>
+  <dd class="It-tag">Limit the number of CSV-formatted lines that <b>psad</b>
+      generates on STDOUT. This is useful to allow AfterGlow graphs to be
+      created that are not too cluttered.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--CSV-start-line&#x00A0;&lt;num&gt;</b></dt>
+  <dd class="It-tag">Specify the beginning line number to start parsing out of
+      the iptables log file in <i>--CSV</i> output mode. This is useful for when
+      the log file is extremely large, and you want to begin parsing a specific
+      place within the file. The default is begin parsing at the beginning of
+      the file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--CSV-end-line&#x00A0;&lt;num&gt;</b></dt>
+  <dd class="It-tag">Specify the ending line number to stop parsing the iptables
+      log file in <i>--CSV</i> output mode. This is useful for when the log file
+      is extremely large, and you do not want <b>psad</b> to process the entire
+      thing.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot</b></dt>
+  <dd class="It-tag">Enter into Gnuplot mode whereby <b>psad</b> parses an
+      iptables logfile and creates .gnu and .dat files that are suitable for
+      graphing with Gnuplot. The various <i>--CSV</i> command line arguments
+      apply to plotting iptables log with Gnuplot.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-template&#x00A0;&lt;file&gt;</b></dt>
+  <dd class="It-tag">Use a template file for all Gnuplot graphing directives
+      (this is usually a .gnu file by convention). Normally <b>psad builds all
+      of the graphing directives based on various --gnuplot</b> command line
+      arguments, but the --gnuplot-template switch allows you to override this
+      behavior.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-file-prefix&#x00A0;&lt;file&gt;</b></dt>
+  <dd class="It-tag">Specify a prefix for the .gnu, .dat, and .png files that
+      are generated in <i>--gnuplot</i> mode. So, when visualizing attacks
+      captured in an iptables logfile (let's say you are interested in port
+      scans), you could use this option to have <b>psad</b> create the two files
+      portscan.dat, portscan.gnu, and Gnuplot will create an additional file
+      portscan.png when the portscan.gnu file is loaded.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-x-label&#x00A0;&lt;label&gt;</b></dt>
+  <dd class="It-tag">Set the label associated with the x-axis.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-x-range&#x00A0;&lt;range&gt;</b></dt>
+  <dd class="It-tag">Set the x-axis range.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-y-label&#x00A0;&lt;label&gt;</b></dt>
+  <dd class="It-tag">Set the label associated with the y-axis.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-y-range&#x00A0;&lt;range&gt;</b></dt>
+  <dd class="It-tag">Set the y-axis range.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-z-label&#x00A0;&lt;label&gt;</b></dt>
+  <dd class="It-tag">Set the label associated with the z-axis (only if
+      <i>--gnuplot-3D</i> is used).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-z-range&#x00A0;&lt;range&gt;</b></dt>
+  <dd class="It-tag">Set the z-axis range. (only if <i>--gnuplot-3D</i> is
+      used).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-3D</b></dt>
+  <dd class="It-tag">Generate a Gnuplot <b>splot</b> graph. This produces a
+      three-dimensional graph.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-view</b></dt>
+  <dd class="It-tag">Set the viewing angle when graphing data in
+      <i>--gnuplot-3D</i> mode.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--gnuplot-title&#x00A0;&lt;title&gt;</b></dt>
+  <dd class="It-tag">Set the graph title for the Gnuplot graph.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-I</b>, <b>--Interval&#x00A0;&lt;seconds&gt;</b></dt>
+  <dd class="It-tag">Specify the interval (in seconds) that psad should use to
+      check whether or not packets have been logged by the firewall. <b>psad</b>
+      will use the default of 15 seconds unless a different value is
+    specified.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-l</b>, <b>--log-server</b></dt>
+  <dd class="It-tag">This option should be used if psad is being executed on a
+      syslog logging server. Running psad on a logging server requires that
+      check_firewall_rules() and auto_psad_response() not be executed since the
+      firewall is probably not being run locally.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-V</b>, <b>--Version</b></dt>
+  <dd class="It-tag">Print the psad version and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-daemon</b></dt>
+  <dd class="It-tag">Do not run psad as a daemon. This option will display scan
+      alerts on STDOUT instead of emailing them out.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-ipt-errors</b></dt>
+  <dd class="It-tag">Occasionally iptables messages written by syslog to
+      <i>/var/log/messages</i> seem to not conform to the normal firewall
+      logging format if the kernel ring buffer used by klogd becomes full.
+      <b>psad</b> will write these message to
+      <i>/var/log/psad/errs/fwerrorlog</i> by default. Passing the
+      --no-ipt-errors option will make psad ignore all such erroneous firewall
+      messages.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-whois</b></dt>
+  <dd class="It-tag">By default psad will issue a whois query against any IP
+      from which a scan has originated, but this can be disabled with the
+      --no-whois command line argument.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-fwcheck</b></dt>
+  <dd class="It-tag">psad performs a rudimentary check of the firewall ruleset
+      that exists on the machine on which psad is deployed to determine whether
+      or not the firewall has a compatible configuration (i.e. iptables has been
+      configured to log packets). Passing the --no-fwcheck or --log-server
+      options will disable this check.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-auto-dl</b></dt>
+  <dd class="It-tag">Disable auto danger level assignments. This will instruct
+      to not import any IP addresses or networks from the file
+      <i>/etc/psad/auto_dl.</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-snort-sids</b></dt>
+  <dd class="It-tag">Disable snort sid processing mode. This will instruct psad
+      to not import snort rules (for snort SID matching in a policy generated by
+      <b>fwsnort</b> ).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-signatures</b></dt>
+  <dd class="It-tag">Disable psad signature processing. Note that this is
+      independent of snort SID matching in iptables messages generated by
+      <b>fwsnort</b> and also from the ICMP type/code validation routines.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-icmp-types</b></dt>
+  <dd class="It-tag">Disable ICMP type and code field validation.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-passive-os</b></dt>
+  <dd class="It-tag">By default psad will attempt to passively (i.e. without
+      sending any packets) fingerprint the remote operating system from which a
+      scan originates. Passing the --no-passive-os option will disable this
+      feature.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-rdns</b></dt>
+  <dd class="It-tag"><b>psad</b> normally attempts to find the name associated
+      with a scanning IP address, but this feature can be disabled with the
+      --no-rdns command line argument.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-kmsgsd</b></dt>
+  <dd class="It-tag">Disable startup of kmsgsd. This option is most useful for
+      debugging with individual iptables messages so that new messages are not
+      appended to the <i>/var/log/psad/fwdata</i> file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-netstat</b></dt>
+  <dd class="It-tag">By default for iptables firewalls psad will determine
+      whether or not your machine is listening on a port for which a TCP
+      signature has been matched. Specifying --no-netstat disables this
+    feature.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-h</b>, <b>--help</b></dt>
+  <dd class="It-tag">Print a page of usage information for psad and exit.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="FILES"><a class="selflink" href="#FILES">FILES</a></h1>
+<i>/etc/psad/psad.conf</i>
+<div style="margin-left: 5.00ex;">The main psad configuration file which
+  contains configuration variables mentioned in the section below.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<i>/etc/psad/fw_search.conf</i>
+<div style="margin-left: 5.00ex;">Used to configure the strategy both
+  <b>psad</b> and <b>kmsgsd</b> employ to parse iptables messages. Using
+  configuration directive within this file, psad can be configured to parse all
+  iptables messages or only those that match specific log prefix strings (see
+  the --log-prefix option to iptables).</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<i>/etc/psad/signatures</i>
+<div style="margin-left: 5.00ex;">Contains the signatures <b>psad</b> uses to
+  recognize nasty traffic. The signatures are written in a manner similar to the
+  *lib signature files used in the snort IDS.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<i>/etc/psad/icmp_types</i>
+<div style="margin-left: 5.00ex;">Contains all valid ICMP types and
+  corresponding codes as defined by RFC 792. By default, ICMP packets are
+  validated against these values and an alert will be generated if a
+  non-matching ICMP packet is logged by iptables.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<i>/etc/psad/snort_rules/*.rules</i>
+<div style="margin-left: 5.00ex;">Snort rules files that are consulted by
+  default unless the --no-snort-sids commmand line argument is given.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<i>/etc/psad/auto_dl</i>
+<div style="margin-left: 5.00ex;">Contains a listing of any IP addresses that
+  should be assigned a danger level based on any traffic that is logged by the
+  firewall. The syntax is &quot;&lt;IP address&gt; &lt;danger level&gt;&quot;
+  where &lt;danger level&gt; is an integer from 0 to 5, with 0 meaning to ignore
+  all traffic from &lt;IP address&gt;, and 5 is to assign the highest danger
+  level to &lt;IP address&gt;.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<i>/etc/psad/posf</i>
+<div style="margin-left: 5.00ex;">Contains a listing of all passive operating
+  system fingerprinting signatures. These signatures include packet lengths,
+  ttl, tos, IP ID, and TCP window size values that are specific to various
+  operating systems.</div>
+<h1 class="Sh" title="Sh" id="PSAD_CONFIGURATION_VARIABLES"><a class="selflink" href="#PSAD_CONFIGURATION_VARIABLES">PSAD
+  CONFIGURATION VARIABLES</a></h1>
+This section describes what each of the more important <b>psad</b> configuration
+  variables do and how they can be tuned to meet your needs. Most of the
+  variables are located in the <b>psad</b> configuration file
+  <i>/etc/psad/psad.conf</i> but the FW_SEARCH_ALL and FW_MSG_SEARCH variables
+  are located in the file <i>/etc/psad/fw_search.conf.</i> Each variable is
+  assigned sensible defaults for most network architectures during the install
+  process. More information on psad config keywords may be found at:
+  <b>http://www.cipherdyne.org/psad/config.html</b>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>EMAIL_ADDRESSES</b></dt>
+  <dd class="It-tag">Contains a comma-separated list of email addresses to which
+      email alerts will be sent. The default is &quot;root@localhost&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>HOSTNAME</b></dt>
+  <dd class="It-tag">Defines the hostname of the machine on which <b>psad is
+      running. This will be</b> used in the email alerts generated by psad.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>HOME_NET</b></dt>
+  <dd class="It-tag">Define the internal network(s) that are connected to the
+      local system. This will be used in the signature matching code to
+      determine whether traffic matches snort rules, which invariably contain a
+      source and destination network. Multiple networks are supported as a comma
+      separated list, and each network should be specified in CIDR notation.
+      Normally the network(s) contained in the HOME_NET variable should be
+      directly connected to the machine that is running psad.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>IMPORT_OLD_SCANS</b></dt>
+  <dd class="It-tag">Preserve scan data across restarts of <b>psad</b> or even
+      across reboots of the machine. This is accomplished by importing the data
+      contained in the filesystem cache psad writes to during normal operation
+      back into memory as psad is started. The filesystem cache data in
+      contained within the directory <i>/var/log/psad.</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>FW_SEARCH_ALL</b></dt>
+  <dd class="It-tag">Defines the search mode <b>psad</b> uses to parse iptables
+      messages. By default FW_SEARCH_ALL is set to &quot;Y&quot; since normally
+      most people want all iptables log messages to be parsed for scan activity.
+      However, if FW_SEARCH_ALL is set to &quot;N&quot;, psad will only parse
+      those iptables log messages that match certain search strings that appear
+      in iptables logs with the --log-prefix option. This is useful for
+      restricting psad to only operate on specific iptables chains or rules. The
+      strings that will be searched for are defined with the FW_MSG_SEARCH
+      variable (see below). The FW_SEARCH_ALL variable is defined in the file
+      <i>/etc/psad/fw_search.conf</i> since it is referenced by both psad and
+      kmsgsd.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>FW_MSG_SEARCH</b></dt>
+  <dd class="It-tag">Defines a set of search strings that <b>psad</b> uses to
+      identify iptables messages that should be parsed for scan activity. These
+      search strings should match the log prefix strings specified in the
+      iptables ruleset with the --log-prefix option, and the default value for
+      FW_MSG_SEARCH is &quot;DROP&quot;. Note that <b>psad</b> normally parses
+      all iptables messages, and so the FW_MSG_SEARCH variable is only needed if
+      FW_SEARCH_ALL (see above) is set to &quot;N&quot;. The FW_MSG_SEARCH
+      variable is referenced by both <b>psad</b> and <b>kmsgsd</b> so it lives
+      in the file <i>/etc/psad/fw_search.conf.</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>SYSLOG_DAEMON</b></dt>
+  <dd class="It-tag">Define the specific syslog daemon that <b>psad</b> should
+      interface with. Psad supports three syslog daemons: <b>syslogd,</b>
+      <b>syslog-ng,</b> and <b>metalog.</b> The default value of SYSLOG_DAEMON
+      is <b>syslogd.</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>IGNORE_PORTS</b></dt>
+  <dd class="It-tag">Specify a list of port ranges and/or individual ports and
+      corresponding protocols that <b>psad</b> should complete ignore. This is
+      particularly useful for ignore ports that are used as a part of a port
+      knocking scheme (such as <b>fwknop</b> http://www.cipherdyne.org/fwknop/)
+      for network authentication since such log messages generated by the knock
+      sequence may otherwise be interpreted as a scan. Multiple ports and/or
+      port ranges may be specified as a comma-separated list, e.g. &quot;tcp/22,
+      tcp/61000-61356, udp/53&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ENABLE_PERSISTENCE</b></dt>
+  <dd class="It-tag">If &quot;Y&quot;, psad will keep all scans in memory and
+      not let them timeout. This can help discover stealthy scans where an
+      attacker tries to slip beneath IDS thresholds by only scanning a few ports
+      over a long period of time. ENABLE_PERSISTENCE is set to &quot;Y&quot; by
+      default.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>SCAN_TIMEOUT</b></dt>
+  <dd class="It-tag">If ENABLE_PERSISTENCE is &quot;N&quot; then psad will use
+      the value set by SCAN_TIMEOUT to remove packets from the scan threshold
+      calculation. The default is 3600 seconds (1 hour).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>DANGER_LEVEL{1,2,3,4,5}</b></dt>
+  <dd class="It-tag">psad uses a scoring system to keep track of the severity a
+      scans reaches (represented as a &quot;danger level&quot;) over time. The
+      DANGER_LEVEL{n} variables define the number of packets that must be
+      dropped by the firewall before psad will assign the respective danger
+      level to the scan. A scan may also be assigned a danger level if the scan
+      matches a particular signature contained in the <b>signatures</b> file.
+      There are five possible danger levels with one being the lowest and five
+      the highest. Note there are several factors that can influence how danger
+      levels are calculated: whether or not a scan matches a signature listed in
+      <i>/etc/psad/signatures,</i> the value of PORT_RANGE_SCAN_THRESHOLD (see
+      below), whether or not a scan comes from an IP that is listed in the
+      <i>/etc/psad/auto_dl</i> file, and finally whether or not scans are
+      allowed to timeout as determined by SCAN_TIMEOUT above. If a signature is
+      matched or the scanning IP is listed in <i>/etc/psad/auto_dl,</i> then the
+      corresponding danger level is automatically assigned to the scan.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>PORT_RANGE_SCAN_THRESHOLD</b></dt>
+  <dd class="It-tag">Defines the minimum difference between the lowest port and
+      the highest port scanned before an alert is sent (the default is 1 which
+      means that at least two ports must be scanned to generate an alert). For
+      example, suppose an ip repeatedly scans a single port for which there is
+      no special signature in <b>signatures.</b> Then if
+      PORT_RANGE_SCAN_THRESHOLD=1, psad will never send an alert for this
+      &quot;scan&quot; no matter how many packets are sent to the port (i.e. no
+      matter what the value of DANGER_LEVEL1 is). The reason for the default of
+      1 is that a &quot;scan&quot; usually means that at least two ports are
+      probed, but if you want psad to be extra paranoid you can set
+      PORT_RANGE_SCAN_THRESHOLD=0 to alert on scans to single ports (as long as
+      the number of packets also exceeds DANGER_LEVEL1).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>SHOW_ALL_SIGNATURES</b></dt>
+  <dd class="It-tag">If &quot;Y&quot;, psad will display all signatures detected
+      from a single scanning IP since a scan was first detected instead of just
+      displaying newly-detected signatures. SHOW_ALL_SIGNATURES is set to
+      &quot;N&quot; by default. All signatures are listed in the file
+      <i>/etc/psad/signatures.</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>SNORT_SID_STR</b></dt>
+  <dd class="It-tag">Defines the string kmsgsd will search for in iptables log
+      messages that are generated by iptables rules designed to detect snort
+      rules. The default is &quot;SID&quot;. See <b>fwsnort</b>
+      (http://www.cipherdyne.org/fwsnort/).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ENABLE_DSHIELD_ALERTS</b></dt>
+  <dd class="It-tag">Enable dshield alerting mode. This will send a parsed
+      version of iptables log messages to dshield.org which is a (free)
+      distributed intrusion detection service. For more information, see
+      http://www.dshield.org/</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>IGNORE_CONNTRACK_BUG_PKTS</b></dt>
+  <dd class="It-tag">If &quot;Y&quot;, all TCP packets that have the ACK or RST
+      flag bits set will be ignored by psad since usually we see such packets
+      being blocked as a result of the iptables connection tracking bug. Note
+      there are no signatures that make use of the RST flag and very few that
+      use ACK flag.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ALERT_ALL</b></dt>
+  <dd class="It-tag">If &quot;Y&quot;, send email for all new bad packets
+      instead of just when a danger level increases. ALERT_ALL is set to
+      &quot;Y&quot; by default.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>PSAD_EMAIL_LIMIT</b></dt>
+  <dd class="It-tag">Defines the maximum number of emails that will be sent for
+      a single scanning IP (default is 50). This variable gives you some
+      protection from psad sending countless alerts if an IP scans your machine
+      constantly. <b>psad</b> will send a special alert if an IP has exceeded
+      the email limit. If PSAD_EMAIL_LIMIT is set to zero, then psad will ignore
+      the limit and send alert emails indefinitely for any scanning ip.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>EMAIL_ALERT_DANGER_LEVEL</b></dt>
+  <dd class="It-tag">Defines the danger level a scan must reach before any alert
+      is sent. This variable is set to 1 by default.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ENABLE_AUTO_IDS</b></dt>
+  <dd class="It-tag"><b>psad</b> has the capability of dynamically blocking all
+      traffic from an IP that has reached a (configurable) danger level through
+      modification of iptables or tcpwrapper rulesets. <b>IMPORTANT:</b> This
+      feature is disabled by default since it is possible for an attacker to
+      spoof packets from a well known (web)site in an effort to make it look as
+      though the site is scanning your machine, and then psad will consequently
+      block all access to it. Also, psad works by parsing firewall messages for
+      packets the firewall has already dropped, so the &quot;scans&quot; are
+      unsuccessful anyway. However, some administrators prefer to take this risk
+      anyway reasoning that they can always review which sites are being blocked
+      and manually remove the block if necessary (see the <b>--Flush</b>
+      option). Your mileage will vary.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>AUTO_IDS_DANGER_LEVEL</b></dt>
+  <dd class="It-tag">Defines the danger level a scan must reach before psad will
+      automatically block the IP (ENABLE_AUTO_IDS must be set to
+    &quot;Y&quot;).</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="EXAMPLES"><a class="selflink" href="#EXAMPLES">EXAMPLES</a></h1>
+The following examples illustrate the command line arguments that could be
+  supplied to psad in a few situations:
+<div class="Pp"></div>
+Signature checking, passive OS fingerprinting, and automatic IP danger level
+  assignments are enabled by default without having to specify any command line
+  arguments (best for most situations):
+<div class="Pp"></div>
+<b># psad</b>
+<div class="Pp"></div>
+Same as above, but this time we use the init script to start psad:
+<div class="Pp"></div>
+<b># /etc/init.d/psad start</b>
+<div class="Pp"></div>
+Use psad as a forensics tool to analyze an old iptables logfile (psad defaults
+  to analyzing the <i>/var/log/messages</i> file if the -m option is not
+  specified):
+<div class="Pp"></div>
+<b># psad -A -m &lt;iptables logfile&gt;</b>
+<div class="Pp"></div>
+Run psad in forensics mode, but limit its operations to a specific IP address
+  &quot;10.1.1.1&quot;:
+<div class="Pp"></div>
+<b># psad -A -m &lt;iptables logfile&gt; --analysis-fields src:10.1.1.1</b>
+<div class="Pp"></div>
+Generate graphs of scan data using AfterGlow:
+<div class="Pp"></div>
+<b># psad --CSV --CSV-fields src dst dp --CSV-max 1000 -m &lt;iptables
+  logfile&gt; | perl afterglow.pl -c color.properties | neato -Tgif -o
+  iptables_graph.gif</b>
+<div class="Pp"></div>
+The <b>psad.conf,</b> <b>signatures,</b> and <b>auto_dl</b> files are normally
+  located within the /etc/psad/ directory, but the paths to each of these files
+  can be changed:
+<div class="Pp"></div>
+<b># psad -c &lt;config file&gt; -s &lt;signatures file&gt; -a &lt;auto ips
+  file&gt;</b>
+<div class="Pp"></div>
+Disable the firewall check and the local port lookup subroutines; most useful if
+  psad is deployed on a syslog logging server:
+<div class="Pp"></div>
+<b># psad --log-server --no-netstat</b>
+<div class="Pp"></div>
+Disable reverse dns and whois lookups of scanning IP addresses; most useful if
+  speed of psad is the main concern:
+<div class="Pp"></div>
+<b># psad --no-rdns --no-whois</b>
+<h1 class="Sh" title="Sh" id="DEPENDENCIES"><a class="selflink" href="#DEPENDENCIES">DEPENDENCIES</a></h1>
+<b>psad</b> requires that iptables is configured with a &quot;drop and log&quot;
+  policy for any traffic that is not explicitly allowed through. This is
+  consistent with a secure network configuration since all traffic that has not
+  been explicitly allowed should be blocked by the firewall ruleset. By default,
+  psad attempts to determine whether or not the firewall has been configured in
+  this way. This feature can be disabled with the --no-fwcheck or --log-server
+  options. The --log-server option is useful if psad is running on a syslog
+  logging server that is separate from the firewall. For more information on
+  compatible iptables rulesets, see the <b>FW_EXAMPLE_RULES</b> file that is
+  bundled with the psad source distribution.
+<div class="Pp"></div>
+<b>psad</b> by default parses the <i>/var/log/messages</i> file for all iptables
+  log data.
+<h1 class="Sh" title="Sh" id="DIAGNOSTICS"><a class="selflink" href="#DIAGNOSTICS">DIAGNOSTICS</a></h1>
+The --debug option can be used to display crucial information about the psad
+  data structures on STDOUT as a scan generates firewall log messages. --debug
+  disables daemon mode execution.
+<div class="Pp"></div>
+Another more effective way to peer into the runtime execution of psad is to send
+  (as root) a USR1 signal to the psad process which will cause psad to dump the
+  contents of the %Scan hash to <i>/var/log/psad/scan_hash.$$</i> where
+  <b>$$</b> represents the pid of the psad process.
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<b>iptables</b>(8), <b>kmsgsd</b>(8), <b>psadwatchd</b>(8), <b>fwsnort</b>(8),
+  <b>snort</b>(8), <b>nmap</b>(1), <b>p0f</b>(1), <b>gnuplot</b>(1)
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Michael Rash &lt;mbr@cipherdyne.org&gt;
+<h1 class="Sh" title="Sh" id="CONTRIBUTORS"><a class="selflink" href="#CONTRIBUTORS">CONTRIBUTORS</a></h1>
+Many people who are active in the open source community have contributed to
+  psad. See the <b>CREDITS</b> file in the psad sources, or visit
+  <b>http://www.cipherdyne.org/psad/docs/contributors.html</b> to view the
+  online list of contributors.
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+Send bug reports to mbr@cipherdyne.org. Suggestions and/or comments are always
+  welcome as well.
+<div class="Pp"></div>
+For iptables firewalls as of Linux kernel version 2.4.26, if the ip_conntrack
+  module is loaded (or compiled into the kernel) and the firewall has been
+  configured to keep state of connections, occasionally packets that are
+  supposed to be part of normal TCP traffic will not be correctly identified due
+  to a bug in the firewall state timeouts and hence dropped. Such packets will
+  then be interpreted as a scan by psad even though they are not part of any
+  malicious activity. Fortunately, an interim fix for this problem is to simply
+  extend the TCP_CONNTRACK_CLOSE_WAIT timeout value in
+  linux/net/ipv4/netfilter/ip_conntrack_proto_tcp.c from 60 seconds to 2
+  minutes, and a set of kernel patches is included within the patches/ directory
+  in the psad sources to change this. (Requires a kernel recompile of course;
+  see the Kernel-HOWTO.) Also, by default the IGNORE_CONNTRACK_BUG_PKTS variable
+  is set to &quot;Y&quot; in psad.conf which causes psad to ignore all TCP
+  packets that have the ACK bit set unless the packets match a specific
+  signature.
+<h1 class="Sh" title="Sh" id="DISTRIBUTION"><a class="selflink" href="#DISTRIBUTION">DISTRIBUTION</a></h1>
+<b>psad</b> is distributed under the GNU General Public License (GPL), and the
+  latest version may be downloaded from: <b>http://www.cipherdyne.org/</b> Snort
+  is a registered trademark of Sourcefire, Inc.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">March 2009</td>
+    <td class="foot-os">Linux</td>
+  </tr>
+</table>
 </body>
 </html>

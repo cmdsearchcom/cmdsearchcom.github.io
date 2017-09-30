@@ -1,392 +1,455 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:21:13 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>lacme(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>lacme(1) lacme(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-lacme - ACME client written with process isolation and
-minimal privileges in mind</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-lacme [--config=FILENAME] [--socket=PATH] [OPTION ...]
-COMMAND [ARGUMENT ...]</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-lacme is a small ACME client written with process isolation
-and minimal privileges in mind. It is divided into four
-components, each with its own executable:</p>
-
-<p style="margin-top: 1em">1. A lacme-accountd(1) process
-to manage the account key and issue SHA-256 signatures
-needed for each ACME command. (This process binds to a
-UNIX-domain socket to reply to sig&acirc; <br>
-nature requests from the ACME client.) One can use the
-UNIX-domain socket forwarding facility of OpenSSH 6.7 and
-later to run lacme-accountd(1) and lacme on different hosts.
-<br>
-Alternatively, the lacme-accountd(1) process can be spawned
-by the &acirc;master&acirc; lacme process below; in that
-case, the two processes communicate through a socket
-pair.</p>
-
-<p style="margin-top: 1em">2. A &acirc;master&acirc; lacme
-process, which runs as root and is the only component with
-access to the private key material of the server keys. It is
-used to fork the ACME client (and op&acirc; <br>
-tionally the ACME webserver) after dropping root privileges.
-For certificate issuances (new-cert command), it also
-generates Certificate Signing Requests, then verifies the
-<br>
-validity of the issued certificate, and optionally reloads
-or restarts services when the notify option is set.</p>
-
-<p style="margin-top: 1em">3. An actual ACME client
-(specified with the command option of the [client] section
-of the configuration file), which builds ACME commands and
-dialogues with the remote ACME <br>
-server. Since ACME commands need to be signed with the
-account key, the &acirc;master&acirc; lacme process passes
-the lacme-accountd(1) UNIX-domain socket to the ACME client:
-data signa&acirc; <br>
-tures are requested by writing the data to be signed to the
-socket.</p>
-
-<p style="margin-top: 1em">4. For certificate issuances
-(new-cert command), an optional webserver (specified with
-the command option of the [webserver] section of the
-configuration file), which is spawned <br>
-by the &acirc;master&acirc; lacme process when no service is
-listening on the HTTP port. (The only challenge type
-currently supported by lacme is http-01, which requires a
-webserver to <br>
-answer challenges.) That webserver only processes GET and
-HEAD requests under the /.well-known/acme-challenge/ URI. By
-default some iptables(8) rules are automatically in&acirc;
-<br>
-stalled to open the HTTP port, and removed afterwards.</p>
-
-<p style="margin-top: 1em">COMMANDS <br>
-lacme [--agreement-uri=URI] new-reg [CONTACT ...] <br>
-Register the account key managed by lacme-accountd(1). A
-list of CONTACT information (such as maito: URIs) can be
-specified in order for the server to contact the client <br>
-for issues related to this registration (such as
-notifications about server-initiated revocations).</p>
-
-<p style="margin-top: 1em">--agreement-uri= can be used to
-specify a URI referring to a subscriber agreement or terms
-of service provided by the server; adding this options
-indicates the client&rsquo;s <br>
-agreement with the referenced terms. Note that the server
-might require the client to agree to subscriber agreement
-before performing any further actions.</p>
-
-<p style="margin-top: 1em">If the account key is already
-registered, lacme prints the URI of the existing
-registration and aborts.</p>
-
-<p style="margin-top: 1em">lacme [--agreement-uri=URI]
-reg=URI [CONTACT ...] <br>
-Dump or edit the registration URI (relative to the ACME
-server URI, which is specified with the server option of the
-[client] section of the configuration file).</p>
-
-<p style="margin-top: 1em">When specified, the list of
-CONTACT information and the agreement URI are sent to the
-server to replace the existing values.</p>
-
-<p style="margin-top: 1em">lacme [--config-certs=FILE]
-new-cert [SECTION ...] <br>
-Read the certificate configuration FILE (see the certificate
-configuration file section below for the configuration
-options), and request new Certificate Issuance for each <br>
-of its sections (or the given list of SECTIONs).</p>
-
-<p style="margin-top: 1em">lacme revoke-cert FILE [FILE
-...] <br>
-Request that the given certificate(s) FILE(s) be revoked.
-For this command, lacme-accountd(1) can be pointed to either
-the account key or the server&rsquo;s private key.</p>
-
-<p style="margin-top: 1em">GENERIC OPTIONS <br>
---config=filename <br>
-Use filename as configuration file. See the configuration
-file section below for the configuration options.</p>
-
-<p style="margin-top: 1em">--socket=path <br>
-Use path as the lacme-accountd(1) UNIX-domain socket to
-connect to for signature requests from the ACME client.
-lacme aborts if path is readable or writable by other <br>
-users, or if its parent directory is writable by other
-users. This command-line option overrides the socket option
-of the [client] section of the configuration file. <br>
-Moreover this option is ignored when the configuration file
-has an [accountd] section; in that case lacme spawns
-lacme-accountd(1), and the two processes communicate <br>
-through a socket pair.</p>
-
-<p style="margin-top: 1em">-h, --help <br>
-Display a brief help and exit.</p>
-
-<p style="margin-top: 1em">-q, --quiet <br>
-Be quiet.</p>
-
-<p style="margin-top: 1em">--debug <br>
-Turn on debug mode.</p>
-
-<p style="margin-top: 1em">CONFIGURATION FILE <br>
-If --config= is not given, lacme uses the first existing
-configuration file among ./lacme.conf,
-$XDG_CONFIG_HOME/lacme/lacme.conf (or
-~/.config/lacme/lacme.conf if the XDG_CON&acirc; <br>
-FIG_HOME environment variable is not set), and
-/etc/lacme/lacme.conf. Valid options are:</p>
-
-<p style="margin-top: 1em">DEFAULT SECTION <br>
-config-certs <br>
-For certificate issuances (new-cert command), specify the
-space-separated list of certificate configuration files or
-directories to use (see the certificate configuration <br>
-file section below for the configuration options).</p>
-
-<p style="margin-top: 1em">Paths not starting with / are
-relative to the directory name of the configuration
-filename. The list of files and directories is processed in
-order, with the later items <br>
-taking precedence. Files in a directory are processed in
-lexicographic order, only considering the ones with suffix
-.conf.</p>
-
-<p style="margin-top: 1em">Default: lacme-certs.conf
-lacme-certs.conf.d/.</p>
-
-<p style="margin-top: 1em">[client] SECTION <br>
-This section is used for configuring the ACME client (which
-takes care of ACME commands and dialogues with the remote
-ACME server).</p>
-
-<p style="margin-top: 1em">socket See --socket=. Default:
-$XDG_RUNTIME_DIR/S.lacme if the XDG_RUNTIME_DIR environment
-variable is set.</p>
-
-<p style="margin-top: 1em">user The username to drop
-privileges to (setting both effective and real uid).
-Preserve root privileges if the value is empty (not
-recommended). Default: nobody.</p>
-
-<p style="margin-top: 1em">group The groupname to drop
-privileges to (setting both effective and real gid, and also
-setting the list of supplementary gids to that single
-group). Preserve root privileges <br>
-if the value is empty (not recommended). Default:
-nogroup.</p>
-
-<p style="margin-top: 1em">command <br>
-Path to the ACME client executable. Default:
-/usr/lib/lacme/client.</p>
-
-<p style="margin-top: 1em">server Root URI of the ACME
-server. Default: https://acme-v01.api.letsencrypt.org/.</p>
-
-<p style="margin-top: 1em">timeout <br>
-Timeout in seconds after which the client stops polling the
-ACME server and considers the request failed. Default:
-10.</p>
-
-<p style="margin-top: 1em">SSL_verify <br>
-Whether to verify the server certificate chain. Default:
-Yes.</p>
-
-<p style="margin-top: 1em">SSL_version <br>
-Specify the version of the SSL protocol used to transmit
-data.</p>
-
-<p style="margin-top: 1em">SSL_cipher_list <br>
-Specify the cipher list for the connection, see
-ciphers(1ssl) for more information.</p>
-
-<p style="margin-top: 1em">[webserver] SECTION <br>
-This section is used for configuring the ACME webserver.</p>
-
-<p style="margin-top: 1em">listen Specify the local address
-to listen on, in the form ADDRESS[:PORT]. If ADDRESS is
-enclosed with brackets &lsquo;[&rsquo;/&acirc;]&rsquo; then
-it denotes an IPv6; an empty ADDRESS means 0.0.0.0. <br>
-Default: :80.</p>
-
-<p style="margin-top: 1em">challenge-directory <br>
-If a webserver is already running, specify a non-existent
-directory under which the webserver is configured to serve
-GET requests for challenge files under <br>
-/.well-known/acme-challenge/ (for each virtual hosts
-requiring authorization) as static files. Default:
-/var/www/acme-challenge.</p>
-
-<p style="margin-top: 1em">user The username to drop
-privileges to (setting both effective and real uid).
-Preserve root privileges if the value is empty (not
-recommended). Default: www-data.</p>
-
-<p style="margin-top: 1em">group The groupname to drop
-privileges to (setting both effective and real gid, and also
-setting the list of supplementary gids to that single
-group). Preserve root privileges <br>
-if the value is empty (not recommended). Default:
-www-data.</p>
-
-<p style="margin-top: 1em">command <br>
-Path to the ACME webserver executable. Default:
-/usr/lib/lacme/webserver.</p>
-
-<p style="margin-top: 1em">iptables <br>
-Whether to automatically install iptables(8) rules to open
-the ADDRESS[:PORT] specified with listen. Theses rules are
-automatically removed once lacme exits. Default: <br>
-Yes.</p>
-
-<p style="margin-top: 1em">[accountd] SECTION <br>
-This section is used for configuring the lacme-accountd(1)
-process. If the section (including its header) is absent or
-commented out, lacme connects to an existing UNIX-domain
-<br>
-socket bound by a running lacme-accountd(1) process.</p>
-
-<p style="margin-top: 1em">user The username to drop
-privileges to (setting both effective and real uid).
-Preserve root privileges if the value is empty.</p>
-
-<p style="margin-top: 1em">group The groupname to drop
-privileges to (setting both effective and real gid, and also
-setting the list of supplementary gids to that single
-group). Preserve root privileges <br>
-if the value is empty.</p>
-
-<p style="margin-top: 1em">command <br>
-Path to the lacme-accountd(1) executable. Default:
-/usr/bin/lacme-accountd.</p>
-
-<p style="margin-top: 1em">config Path to the
-lacme-accountd(1) configuration file. Default:
-/etc/lacme/lacme-accountd.conf.</p>
-
-<p style="margin-top: 1em">privkey <br>
-The (private) account key to use for signing requests. See
-lacme-accountd(1) for details.</p>
-
-<p style="margin-top: 1em">quiet Be quiet. Possible values:
-Yes/No.</p>
-
-<p style="margin-top: 1em">CERTIFICATE CONFIGURATION FILE
-<br>
-For certificate issuances (new-cert command), a separate
-file is used to configure paths to the certificate and key,
-as well as the subject, subjectAltName, etc. to generate
-<br>
-Certificate Signing Requests. Each section denotes a
-separate certificate issuance. Valid options are:</p>
-
-<p style="margin-top: 1em">certificate <br>
-Where to store the issued certificate (in PEM format). At
-least one of certificate or certificate-chain is
-required.</p>
-
-<p style="margin-top: 1em">certificate-chain <br>
-Where to store the issued certificate, concatenated with the
-content of the file specified specified with the CAfile
-option (in PEM format). At least one of certificate <br>
-or certificate-chain is required.</p>
-
-<p style="margin-top: 1em">certificate-key <br>
-Path the service&rsquo;s private key. This option is
-required. The following command can be used to generate a
-new 4096-bits RSA key in PEM format with mode 0600:</p>
-
-<p style="margin-top: 1em">openssl genrsa 4096 | install
--m0600 /dev/stdin /path/to/srv.key</p>
-
-<p style="margin-top: 1em">min-days <br>
-For an existing certificate, the minimum number of days
-before its expiration date the section is considered for
-re-issuance. Default: 10.</p>
-
-<p style="margin-top: 1em">CAfile Path to the
-issuer&rsquo;s certificate. This is used for
-certificate-chain and to verify the validity of each issued
-certificate. Specifying an empty value skip certificate <br>
-validation. Default:
-/usr/share/lacme/lets-encrypt-x3-cross-signed.pem.</p>
-
-<p style="margin-top: 1em">hash Message digest algorithm to
-sign the Certificate Signing Request with.</p>
-
-<p style="margin-top: 1em">keyUsage <br>
-Comma-separated list of Key Usages, see
-x509v3_config(5ssl).</p>
-
-<p style="margin-top: 1em">subject <br>
-Subject field of the Certificate Signing Request, in the
-form /type0=value0/type1=value1/type2=.... This option is
-required.</p>
-
-<p style="margin-top: 1em">subjectAltName <br>
-Comma-separated list of Subject Alternative Names, in the
-form type0:value1,type1:value1,type2:... The only type
-currently supported is DNS, to specify an alternative
-do&acirc; <br>
-main name.</p>
-
-<p style="margin-top: 1em">chown An optional
-username[:groupname] to chown the issued certificate and
-certificate-chain to.</p>
-
-<p style="margin-top: 1em">chmod An optional octal mode to
-chmod the issued certificate and certificate-chain to.</p>
-
-<p style="margin-top: 1em">notify Command to pass the the
-system&rsquo;s command shell (/bin/sh -c) after successful
-installation of the certificate and/or
-certificate-chain.</p>
-
-<p style="margin-top: 1em">EXAMPLES <br>
-~$ sudo lacme new-reg mailto:noreply@example.com <br>
-~$ sudo lacme reg=/acme/reg/123456
---agreement-uri=https://letsencrypt.org/documents/LE-SA-v1.1.1-August-1-2016.pdf
-<br>
-~$ sudo lacme new-cert <br>
-~$ sudo lacme revoke-cert
-/path/to/server/certificate.pem</p>
-
-<p style="margin-top: 1em">BUGS AND FEEDBACK <br>
-Bugs or feature requests for lacme should be filed with the
-Debian project&rsquo;s bug tracker at
-&lt;https://www.debian.org/Bugs/&gt;.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-lacme-accountd(1)</p>
-
-<p style="margin-top: 1em">AUTHORS <br>
-Guilhem Moulin (mailto:guilhem@fripost.org).</p>
-
-<p style="margin-top: 1em">December 2015 lacme(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">lacme(1)</td>
+    <td class="head-vol"></td>
+    <td class="head-rtitle">lacme(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+lacme - ACME client written with process isolation and minimal privileges in
+  mind
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+lacme [--config=FILENAME] [--socket=PATH] [ <i>OPTION</i> ...] <i>COMMAND</i>
+  [<i>ARGUMENT</i> ...]
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+lacme is a small ACME client written with process isolation and minimal
+  privileges in mind. It is divided into four components, each with its own
+  executable:
+<dl class="Bl-tag">
+  <dt class="It-tag">1.</dt>
+  <dd class="It-tag">A lacme-accountd(1) process to manage the account key and
+      issue SHA-256 signatures needed for each ACME command. (This process binds
+      to a UNIX-domain socket to reply to signature requests from the ACME
+      client.) One can use the UNIX-domain socket forwarding facility of OpenSSH
+      6.7 and later to run lacme-accountd(1) and lacme on different hosts.
+      Alternatively, the lacme-accountd(1) process can be spawned by the
+      &#x201C;master&#x201D; lacme process below; in that case, the two
+      processes communicate through a socket pair.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">2.</dt>
+  <dd class="It-tag">A &#x201C;master&#x201D; lacme process, which runs as root
+      and is the only component with access to the private key material of the
+      server keys. It is used to fork the ACME client (and optionally the ACME
+      webserver) after dropping root privileges. For certificate issuances
+      (new-cert command), it also generates Certificate Signing Requests, then
+      verifies the validity of the issued certificate, and optionally reloads or
+      restarts services when the <i>notify</i> option is set.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">3.</dt>
+  <dd class="It-tag">An actual ACME client (specified with the <i>command</i>
+      option of the [client] section of the configuration file), which builds
+      ACME commands and dialogues with the remote ACME server. Since ACME
+      commands need to be signed with the account key, the
+      &#x201C;master&#x201D; lacme process passes the lacme-accountd(1)
+      UNIX-domain socket to the ACME client: data signatures are requested by
+      writing the data to be signed to the socket.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">4.</dt>
+  <dd class="It-tag">For certificate issuances (new-cert command), an optional
+      webserver (specified with the <i>command</i> option of the [webserver]
+      section of the configuration file), which is spawned by the
+      &#x201C;master&#x201D; lacme process when no service is listening on the
+      HTTP port. (The only challenge type currently supported by lacme is
+      http-01, which requires a webserver to answer challenges.) That webserver
+      only processes GET and HEAD requests under the
+      /.well-known/acme-challenge/ URI. By default some iptables(8) rules are
+      automatically installed to open the HTTP port, and removed
+    afterwards.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="COMMANDS"><a class="selflink" href="#COMMANDS">COMMANDS</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>lacme [--agreement-uri=<i>URI</i>] new-reg
+    [<i>CONTACT</i> ...]</b></dt>
+  <dd class="It-tag">Register the account key managed by lacme-accountd(1). A
+      list of <i>CONTACT</i> information (such as maito: URIs) can be specified
+      in order for the server to contact the client for issues related to this
+      registration (such as notifications about server-initiated
+    revocations).</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<div class="Pp"></div>
+--agreement-uri= can be used to specify a <i>URI</i> referring to a subscriber
+  agreement or terms of service provided by the server; adding this options
+  indicates the client's agreement with the referenced terms. Note that the
+  server might require the client to agree to subscriber agreement before
+  performing any further actions.
+<div class="Pp"></div>
+If the account key is already registered, lacme prints the URI of the existing
+  registration and aborts.</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>lacme [--agreement-uri=<i>URI</i>] reg=<i>URI</i>
+    [<i>CONTACT</i> ...]</b></dt>
+  <dd class="It-tag">Dump or edit the registration <i>URI</i> (relative to the
+      ACME server URI, which is specified with the <i>server</i> option of the
+      [client] section of the configuration file).</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<div class="Pp"></div>
+When specified, the list of <i>CONTACT</i> information and the agreement
+  <i>URI</i> are sent to the server to replace the existing values.</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>lacme [--config-certs=<i>FILE</i>] new-cert
+    [<i>SECTION</i> ...]</b></dt>
+  <dd class="It-tag">Read the certificate configuration <i>FILE</i> (see the
+      <b>certificate configuration file</b> section below for the configuration
+      options), and request new Certificate Issuance for each of its sections
+      (or the given list of <i>SECTION</i>s).</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>lacme revoke-cert <i>FILE</i> [<i>FILE</i> ...]</b></dt>
+  <dd class="It-tag">Request that the given certificate(s) <i>FILE</i>(s) be
+      revoked. For this command, lacme-accountd(1) can be pointed to either the
+      account key or the server's private key.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<h1 class="Sh" title="Sh" id="GENERIC_OPTIONS"><a class="selflink" href="#GENERIC_OPTIONS">GENERIC
+  OPTIONS</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--config=<i>filename</i></b></dt>
+  <dd class="It-tag">Use <i>filename</i> as configuration file. See the
+      <b>configuration file</b> section below for the configuration
+    options.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--socket=<i>path</i></b></dt>
+  <dd class="It-tag">Use <i>path</i> as the lacme-accountd(1) UNIX-domain socket
+      to connect to for signature requests from the ACME client. lacme aborts if
+      path is readable or writable by other users, or if its parent directory is
+      writable by other users. This command-line option overrides the
+      <i>socket</i> option of the [client] section of the configuration file.
+      Moreover this option is ignored when the configuration file has an
+      [accountd] section; in that case lacme spawns lacme-accountd(1), and the
+      two processes communicate through a socket pair.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-h, --help</b></dt>
+  <dd class="It-tag">Display a brief help and exit.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-q, --quiet</b></dt>
+  <dd class="It-tag">Be quiet.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--debug</b></dt>
+  <dd class="It-tag">Turn on debug mode.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<h1 class="Sh" title="Sh" id="CONFIGURATION_FILE"><a class="selflink" href="#CONFIGURATION_FILE">CONFIGURATION
+  FILE</a></h1>
+If --config= is not given, lacme uses the first existing configuration file
+  among <i>./lacme.conf</i>, <i>$XDG_CONFIG_HOME/lacme/lacme.conf</i> (or
+  <i>~/.config/lacme/lacme.conf</i> if the XDG_CONFIG_HOME environment variable
+  is not set), and <i>/etc/lacme/lacme.conf</i>. Valid options are:
+<h2 class="Ss" title="Ss" id="DEFAULT_SECTION"><a class="selflink" href="#DEFAULT_SECTION">DEFAULT
+  SECTION</a></h2>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>config-certs</i></b></dt>
+  <dd class="It-tag">For certificate issuances (new-cert command), specify the
+      space-separated list of certificate configuration files or directories to
+      use (see the <b>certificate configuration file</b> section below for the
+      configuration options).</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<div class="Pp"></div>
+Paths not starting with / are relative to the directory name of the
+  <b>configuration filename</b>. The list of files and directories is processed
+  in order, with the later items taking precedence. Files in a directory are
+  processed in lexicographic order, only considering the ones with suffix .conf.
+<div class="Pp"></div>
+Default: lacme-certs.conf&#x00A0;lacme-certs.conf.d/.</div>
+<h2 class="Ss" title="Ss" id="[client]_SECTION"><a class="selflink" href="#[client]_SECTION">[client]
+  SECTION</a></h2>
+This section is used for configuring the ACME client (which takes care of ACME
+  commands and dialogues with the remote ACME server).
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>socket</i></b></dt>
+  <dd class="It-tag">See --socket=. Default: <i>$XDG_RUNTIME_DIR/S.lacme</i> if
+      the XDG_RUNTIME_DIR environment variable is set.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>user</i></b></dt>
+  <dd class="It-tag">The username to drop privileges to (setting both effective
+      and real uid). Preserve root privileges if the value is empty (not
+      recommended). Default: nobody.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>group</i></b></dt>
+  <dd class="It-tag">The groupname to drop privileges to (setting both effective
+      and real gid, and also setting the list of supplementary gids to that
+      single group). Preserve root privileges if the value is empty (not
+      recommended). Default: nogroup.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>command</i></b></dt>
+  <dd class="It-tag">Path to the ACME client executable. Default:
+      /usr/lib/lacme/client.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>server</i></b></dt>
+  <dd class="It-tag">Root URI of the ACME server. Default:
+      https://acme-v01.api.letsencrypt.org/.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>timeout</i></b></dt>
+  <dd class="It-tag">Timeout in seconds after which the client stops polling the
+      ACME server and considers the request failed. Default: 10.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>SSL_verify</i></b></dt>
+  <dd class="It-tag">Whether to verify the server certificate chain. Default:
+      Yes.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>SSL_version</i></b></dt>
+  <dd class="It-tag">Specify the version of the SSL protocol used to transmit
+      data.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>SSL_cipher_list</i></b></dt>
+  <dd class="It-tag">Specify the cipher list for the connection, see
+      ciphers(1ssl) for more information.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<h2 class="Ss" title="Ss" id="[webserver]_SECTION"><a class="selflink" href="#[webserver]_SECTION">[webserver]
+  SECTION</a></h2>
+This section is used for configuring the ACME webserver.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>listen</i></b></dt>
+  <dd class="It-tag">Specify the local address to listen on, in the form
+      ADDRESS[:PORT]. If ADDRESS is enclosed with brackets `['/&#x2018;]' then
+      it denotes an IPv6; an empty ADDRESS means 0.0.0.0. Default: :80.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>challenge-directory</i></b></dt>
+  <dd class="It-tag">If a webserver is already running, specify a non-existent
+      directory under which the webserver is configured to serve GET requests
+      for challenge files under /.well-known/acme-challenge/ (for each virtual
+      hosts requiring authorization) as static files. Default:
+      /var/www/acme-challenge.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>user</i></b></dt>
+  <dd class="It-tag">The username to drop privileges to (setting both effective
+      and real uid). Preserve root privileges if the value is empty (not
+      recommended). Default: www-data.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>group</i></b></dt>
+  <dd class="It-tag">The groupname to drop privileges to (setting both effective
+      and real gid, and also setting the list of supplementary gids to that
+      single group). Preserve root privileges if the value is empty (not
+      recommended). Default: www-data.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>command</i></b></dt>
+  <dd class="It-tag">Path to the ACME webserver executable. Default:
+      /usr/lib/lacme/webserver.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>iptables</i></b></dt>
+  <dd class="It-tag">Whether to automatically install iptables(8) rules to open
+      the ADDRESS[:PORT] specified with <i>listen</i>. Theses rules are
+      automatically removed once lacme exits. Default: Yes.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<h2 class="Ss" title="Ss" id="[accountd]_SECTION"><a class="selflink" href="#[accountd]_SECTION">[accountd]
+  SECTION</a></h2>
+This section is used for configuring the lacme-accountd(1) process. If the
+  section (including its header) is absent or commented out, lacme connects to
+  an existing UNIX-domain socket bound by a running lacme-accountd(1) process.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>user</i></b></dt>
+  <dd class="It-tag">The username to drop privileges to (setting both effective
+      and real uid). Preserve root privileges if the value is empty.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>group</i></b></dt>
+  <dd class="It-tag">The groupname to drop privileges to (setting both effective
+      and real gid, and also setting the list of supplementary gids to that
+      single group). Preserve root privileges if the value is empty.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>command</i></b></dt>
+  <dd class="It-tag">Path to the lacme-accountd(1) executable. Default:
+      /usr/bin/lacme-accountd.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>config</i></b></dt>
+  <dd class="It-tag">Path to the lacme-accountd(1) configuration file. Default:
+      /etc/lacme/lacme-accountd.conf.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>privkey</i></b></dt>
+  <dd class="It-tag">The (private) account key to use for signing requests. See
+      lacme-accountd(1) for details.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>quiet</i></b></dt>
+  <dd class="It-tag">Be quiet. Possible values: Yes/No.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<h1 class="Sh" title="Sh" id="CERTIFICATE_CONFIGURATION_FILE"><a class="selflink" href="#CERTIFICATE_CONFIGURATION_FILE">CERTIFICATE
+  CONFIGURATION FILE</a></h1>
+For certificate issuances (new-cert command), a separate file is used to
+  configure paths to the certificate and key, as well as the subject,
+  subjectAltName, etc. to generate Certificate Signing Requests. Each section
+  denotes a separate certificate issuance. Valid options are:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>certificate</i></b></dt>
+  <dd class="It-tag">Where to store the issued certificate (in PEM format). At
+      least one of <i>certificate</i> or <i>certificate-chain</i> is
+    required.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>certificate-chain</i></b></dt>
+  <dd class="It-tag">Where to store the issued certificate, concatenated with
+      the content of the file specified specified with the <i>CAfile</i> option
+      (in PEM format). At least one of <i>certificate</i> or
+      <i>certificate-chain</i> is required.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>certificate-key</i></b></dt>
+  <dd class="It-tag">Path the service's private key. This option is required.
+      The following command can be used to generate a new 4096-bits RSA key in
+      PEM format with mode 0600:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">
+    <pre>
+openssl&#x00A0;genrsa&#x00A0;4096&#x00A0;|&#x00A0;install&#x00A0;-m0600&#x00A0;/dev/stdin&#x00A0;/path/to/srv.key
+    </pre>
+  </dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>min-days</i></b></dt>
+  <dd class="It-tag">For an existing certificate, the minimum number of days
+      before its expiration date the section is considered for re-issuance.
+      Default: 10.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>CAfile</i></b></dt>
+  <dd class="It-tag">Path to the issuer's certificate. This is used for
+      <i>certificate-chain</i> and to verify the validity of each issued
+      certificate. Specifying an empty value skip certificate validation.
+      Default: /usr/share/lacme/lets-encrypt-x3-cross-signed.pem.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>hash</i></b></dt>
+  <dd class="It-tag">Message digest algorithm to sign the Certificate Signing
+      Request with.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>keyUsage</i></b></dt>
+  <dd class="It-tag">Comma-separated list of Key Usages, see
+      x509v3_config(5ssl).</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>subject</i></b></dt>
+  <dd class="It-tag">Subject field of the Certificate Signing Request, in the
+      form /type0=value0/type1=value1/type2=.... This option is required.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>subjectAltName</i></b></dt>
+  <dd class="It-tag">Comma-separated list of Subject Alternative Names, in the
+      form type0:value1,type1:value1,type2:... The only type currently supported
+      is DNS, to specify an alternative domain name.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>chown</i></b></dt>
+  <dd class="It-tag">An optional username[:groupname] to chown the issued
+      <i>certificate</i> and <i>certificate-chain</i> to.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>chmod</i></b></dt>
+  <dd class="It-tag">An optional octal mode to chmod the issued
+      <i>certificate</i> and <i>certificate-chain</i> to.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b><i>notify</i></b></dt>
+  <dd class="It-tag">Command to pass the the system's command shell
+      (/bin/sh&#x00A0;-c) after successful installation of the
+      <i>certificate</i> and/or <i>certificate-chain</i>.</dd>
+</dl>
+<div style="margin-left: 5.00ex;"></div>
+<h1 class="Sh" title="Sh" id="EXAMPLES"><a class="selflink" href="#EXAMPLES">EXAMPLES</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">
+    <pre>
+~$&#x00A0;sudo&#x00A0;lacme&#x00A0;new-reg&#x00A0;mailto:noreply@example.com
+~$&#x00A0;sudo&#x00A0;lacme&#x00A0;reg=/acme/reg/123456&#x00A0;--agreement-uri=https://letsencrypt.org/documents/LE-SA-v1.1.1-August-1-2016.pdf
+~$&#x00A0;sudo&#x00A0;lacme&#x00A0;new-cert
+~$&#x00A0;sudo&#x00A0;lacme&#x00A0;revoke-cert&#x00A0;/path/to/server/certificate.pem
+    </pre>
+  </dd>
+</dl>
+<h1 class="Sh" title="Sh" id="BUGS_AND_FEEDBACK"><a class="selflink" href="#BUGS_AND_FEEDBACK">BUGS
+  AND FEEDBACK</a></h1>
+Bugs or feature requests for lacme should be filed with the Debian project's bug
+  tracker at &lt;https://www.debian.org/Bugs/&gt;.
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+lacme-accountd(1)
+<h1 class="Sh" title="Sh" id="AUTHORS"><a class="selflink" href="#AUTHORS">AUTHORS</a></h1>
+Guilhem Moulin (mailto:guilhem@fripost.org).</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">December 2015</td>
+    <td class="foot-os"></td>
+  </tr>
+</table>
 </body>
 </html>

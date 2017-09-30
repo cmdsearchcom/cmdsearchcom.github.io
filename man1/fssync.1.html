@@ -1,301 +1,312 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:10:54 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>FSSYNC(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>FSSYNC(1) FSSYNC(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-fssync - File system synchronization tool (1-way, over
-SSH)</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-fssync -d db -r root [option...] host</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-fssync is a 1-way file-synchronization tool that tracks
-inodes and maintains a local database of files that are on
-the remote side, making it able to:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; handle
-efficiently a huge number of dirs/files</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; detect
-renames/moves and hard-links</p>
-
-<p style="margin-top: 1em">It aims at minimizing network
-traffic and synchronizing every detail of a file system:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; all types of
-inode: file, dir, block/character/fifo, socket, symlink</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; preserve hard
-links</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; modification
-time, ownership/permission/ACL, extended attributes</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; sparse files</p>
-
-<p style="margin-top: 1em">Other features:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; it can be
-configured to exclude files from synchronization</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; fssync can be
-interrupted and resumed at any time, making it tolerant to
-random failures (e.g. network error)</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; algorithm to
-synchronize file content is designed to handle big files
-like VM images efficiently, by updating fixed-size modified
-blocks in-place</p>
-
-<p style="margin-top: 1em">Main usage of fssync is to
-prevent data loss in case of hardware failure, where RAID1
-is not possible (e.g. in laptops).</p>
-
-<p style="margin-top: 1em">On Btrfs [1] file systems,
-fssync is an useful alternative to btrfs send (and receive)
-commands, thanks to filtering capabilities. This can be
-combined with Btrfs snapshotting at <br>
-destination side for a full backup solution.</p>
-
-<p style="margin-top: 1em">USAGE <br>
-Use fssync --help to get the complete list of options.</p>
-
-<p style="margin-top: 1em">The most important thing to
-remember is that the local database must match exactly
-what&rsquo;s on the destination host:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Files that are
-copied on the destination host must not be modified. And
-nothing should be manually created inside destination
-directories. If you still want to access data on <br>
-remote host, you should do it through a read-only bind
-mounts (requires Linux &gt;= 2.6.26).</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; You must have 1
-database per destination, if you plan to have several copies
-of the same source directory.</p>
-
-<p style="margin-top: 1em">Look at -c option if you wonder
-whether your database matches the destination directory.</p>
-
-<p style="margin-top: 1em">First run of fssync:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; The easiest way
-is to let fssync do everything. Specify a non-existing file
-path to -d option and a empty or non-existing destination
-directory (see -R option). fssync will <br>
-automatically creates the database and copy all dirs/files
-to remote host.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A faster way may
-be to do the initial copy by other means, like a raw copy of
-a partition. If you&rsquo;re absolutely sure the source and
-destination are exactly the same, you can <br>
-initialize the database by specifying - as host. If inode
-numbers are the same on both sides, which is the case if
-data were copied at block level, you can modify the source
-<br>
-partition while you are initializing the DB on the
-destination one, and get back the DB locally.</p>
-
-<p style="margin-top: 1em">An example of wrapper around
-fssync, with a filter, can be found at
-examples/fssync_home</p>
-
-<p style="margin-top: 1em">fssync does never descend
-directories on other filesystems. Inodes masked by mount
-points are also skipped, so they should be unmounted
-temporarily if you want them to be syn&acirc; <br>
-chronized. The same result can be achieved by synchronizing
-from a bind mount.</p>
-
-<p style="margin-top: 1em">See also the NONE cipher
-switching [3] patch if you don&rsquo;t need encryption and
-you want to speed up your SSH connection.</p>
-
-<p style="margin-top: 1em">HOW IT WORKS <br>
-fssync maintains a single SQLite table of all dirs/files
-that are on the remote side. Each row matches a path, with
-its inode (on local side), other metadata (on remote side)
-and <br>
-a checked flag.</p>
-
-<p style="margin-top: 1em">When running, fssync iterates
-recursively through all local dirs/files and for each path
-that is not ignored (see -f option), it queries the DB to
-decide what to do. If already <br>
-checked, path is skipped immediately. When a path is
-synchronized, it is marked as checked. At the end, all rows
-that are not checked corresponds to paths that don&rsquo;t
-exist any&acirc; <br>
-more. Once they are deleted on the remote side, all checked
-flags are reset.</p>
-
-<p style="margin-top: 1em">Failure tolerance <br>
-In fact, fssync doesn&rsquo;t require that the database
-matches perfectly the destination. It tolerates some
-differences in order to recover any interrupted
-synchronization caused by a <br>
-network failure, a file operation error, or anything other
-than an operating system crash of the local host (or
-something similar like a power failure).</p>
-
-<p style="margin-top: 1em">In most cases, this is done by
-the remote host, which automatically create (or overwrite)
-an inode of the expected type if necessary. The only
-exception is that the remote will <br>
-never delete a non-empty directory on its own. For most
-complex cases, fssync journalizes the operation in the
-database: in case of failure, fssync will be able to recover
-on <br>
-next sync.</p>
-
-<p style="margin-top: 1em">Race conditions <br>
-A race condition means that other processes on the local
-host are modifying inodes that fssync is synchronizing.
-fssync handles any kind of race condition. In fact, fssync
-has <br>
-nothing to do for most cases.</p>
-
-<p style="margin-top: 1em">When a race condition happens,
-fssync does not guarantee that the remote data is in a
-consistent state. Each sync always fixes existing
-inconsistencies but may introduces others, <br>
-so fssync is not suitable for hot backuping of
-databases.</p>
-
-<p style="margin-top: 1em">With Btrfs, you can get
-consistency by snapshotting at source side.</p>
-
-<p style="margin-top: 1em">SIMILAR PROJECTS <br>
-The idea of maintaining a local database actually comes from
-csync2 [4]. I was about to adopt it when I realized that I
-really needed a tool that always detects renames/moves of
-<br>
-big files. That&rsquo;s why I see fssync as a partial
-rewrite of csync2, with inode tracking and without
-bidirectional synchronization. The local database really
-makes fssync &amp; csync2 <br>
-faster than the well-known rsync [5].</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-sqlite3(1), ssh(1)</p>
-
-<p style="margin-top: 1em">BUGS/LIMITATIONS/TODO <br>
-1. For performance reasons, the SQLite database is never
-flushed to disk while fssync is running. Which means that if
-the operating system crashes, the DB might become corrupted,
-<br>
-and even if it isn&rsquo;t, it may not reflect anymore the
-status of the remote host and later runs may fail (for
-example, fssync refuses to replace a non-empty folder it
-doesn&rsquo;t <br>
-know by a non-folder). So in any case, it is advised to
-rebuild the DB.</p>
-
-<p style="margin-top: 1em">If the DB is not corrupted and
-you don&rsquo;t want to rebuild it, you can try to update it
-by running fssync again as soon as possible, so that the
-same changes are replayed. <br>
-fssync should be able to detect that all remote operations
-are already performed. See also -c and -F options.</p>
-
-<p style="margin-top: 1em">2. fssync should not trash the
-page cache by using posix_fadvise(2). Unfortunately, Linux
-does not implement POSIX_FADV_NOREUSE yet (see
-https://lkml.org/lkml/2011/6/24/136 for <br>
-more information). We could do like Bup [2], which uses
-information returned by mincore(2) in order to eject pages
-after save more selectively [6].</p>
-
-<p style="margin-top: 1em">3. fssync process on remote side
-might leave parent directories with wrong permissions or
-modification times if it is terminated during specific
-operation like recovery (at the <br>
-very beginning), cleanup (at the end), rename (if a
-directory is moved). That is, all operations that need to
-temporarily alter a directory that is not being checked.
-&quot;Wont&acirc; <br>
-fix&quot; for now, because it is unlikely to happen and any
-solution would be quite heavy, for little benefit.</p>
-
-<p style="margin-top: 1em">4. What is not synchronized:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; access &amp;
-change times: I won&rsquo;t implement it.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; inode flags (see
-chattr(1) and lsattr(1)): some flags like C or c are
-important on Btrfs so this could be a nice improvement, at
-least if it was implemented partially.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; file-system
-specific properties ?</p>
-
-<p style="margin-top: 1em">5. Add 2 options to map specific
-users or groups. You may want this if you get permission
-errors and this is certainly a better solution than an
-option not to preserve ownership. <br>
-Currently, on destination host, you must either run fssync
-as root, or configure security so that it is allowed to
-change ownership with same uid/gid than on source (or with
-<br>
-same user/group names if --map-users option is given).</p>
-
-<p style="margin-top: 1em">6. Don&rsquo;t rely on
-permissions settings to prevent access to inodes on
-destination side. This is because metadata are synchronized
-after data (in the case of a directory, it means <br>
-all inodes under this directory is synchronized before its
-metadata) and in some cases, an attacker could access to
-sensitive data while fssync is running. Access should be
-<br>
-denied on a parent directory of your destination tree (or at
-the root of this tree if you&rsquo;re careful enough to keep
-it secure on source side).</p>
-
-<p style="margin-top: 1em">NOTES <br>
-[1] https://btrfs.wiki.kernel.org/</p>
-
-<p style="margin-top: 1em">[2]
-https://github.com/bup/bup</p>
-
-<p style="margin-top: 1em">[3]
-http://www.psc.edu/networking/projects/hpn-ssh/</p>
-
-<p style="margin-top: 1em">[4]
-http://oss.linbit.com/csync2/</p>
-
-<p style="margin-top: 1em">[5] http://rsync.samba.org/</p>
-
-<p style="margin-top: 1em">[6]
-https://github.com/bup/bup/commit/b062252a5bca9b64d7b3034b6fd181424641f61e</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Julien Muchembled &lt;jm@jmuchemb.eu&gt;</p>
- 
-<p style="margin-top: 1em">FSSYNC(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">FSSYNC(1)</td>
+    <td class="head-vol"></td>
+    <td class="head-rtitle">FSSYNC(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+fssync - File system synchronization tool (1-way, over SSH)
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<b>fssync</b> <b>-d</b> <i>db</i> <b>-r</b> <i>root</i> [<i>option</i>...]
+  <i>host</i>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+fssync is a 1-way file-synchronization tool that tracks inodes and maintains a
+  local database of files that are on the remote side, making it able to:
+<div style="margin-left: 0.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">handle efficiently a huge number of dirs/files</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">detect renames/moves and hard-links</dd>
+</dl>
+</div>
+<br/>
+<div style="height: 1.00em;">&#x00A0;</div>
+It aims at minimizing network traffic and synchronizing every detail of a file
+  system:
+<div style="margin-left: 0.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">all types of inode: file, dir, block/character/fifo,
+      socket, symlink</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">preserve hard links</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">modification time, ownership/permission/ACL, extended
+      attributes</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">sparse files</dd>
+</dl>
+</div>
+<br/>
+<div style="height: 1.00em;">&#x00A0;</div>
+Other features:
+<div style="margin-left: 0.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">it can be configured to exclude files from
+    synchronization</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">fssync can be interrupted and resumed at any time, making
+      it tolerant to random failures (e.g. network error)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">algorithm to synchronize file content is designed to handle
+      big files like VM images efficiently, by updating fixed-size modified
+      blocks in-place</dd>
+</dl>
+</div>
+<br/>
+<div style="height: 1.00em;">&#x00A0;</div>
+Main usage of fssync is to prevent data loss in case of hardware failure, where
+  RAID1 is not possible (e.g. in laptops).
+<div style="height: 1.00em;">&#x00A0;</div>
+On <i>Btrfs</i> [1] file systems, fssync is an useful alternative to <i>btrfs
+  send</i> (and <i>receive</i>) commands, thanks to filtering capabilities. This
+  can be combined with Btrfs snapshotting at destination side for a full backup
+  solution.
+<h1 class="Sh" title="Sh" id="USAGE"><a class="selflink" href="#USAGE">USAGE</a></h1>
+Use <b>fssync --help</b> to get the complete list of options.
+<div style="height: 1.00em;">&#x00A0;</div>
+The most important thing to remember is that the local database must match
+  exactly what's on the destination host:
+<div style="margin-left: 0.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Files that are copied on the destination host must not be
+      modified. And nothing should be manually created inside destination
+      directories. If you still want to access data on remote host, you should
+      do it through a read-only bind mounts (requires Linux &gt;= 2.6.26).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">You must have 1 database per destination, if you plan to
+      have several copies of the same source directory.</dd>
+</dl>
+</div>
+<br/>
+<div style="height: 1.00em;">&#x00A0;</div>
+Look at <b>-c</b> option if you wonder whether your database matches the
+  destination directory.
+<div style="height: 1.00em;">&#x00A0;</div>
+First run of fssync:
+<div style="margin-left: 0.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">The easiest way is to let fssync do everything. Specify a
+      non-existing file path to <b>-d</b> option and a empty or non-existing
+      destination directory (see <b>-R</b> option). fssync will automatically
+      creates the database and copy all dirs/files to remote host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A faster way may be to do the initial copy by other means,
+      like a raw copy of a partition. If you're absolutely sure the source and
+      destination are exactly the same, you can initialize the database by
+      specifying <b>-</b> as host. If inode numbers are the same on both sides,
+      which is the case if data were copied at block level, you can modify the
+      source partition while you are initializing the DB on the destination one,
+      and get back the DB locally.</dd>
+</dl>
+</div>
+<br/>
+<div style="height: 1.00em;">&#x00A0;</div>
+An example of wrapper around fssync, with a filter, can be found at
+  <i>examples/fssync_home</i>
+<div style="height: 1.00em;">&#x00A0;</div>
+fssync does never descend directories on other filesystems. Inodes masked by
+  mount points are also skipped, so they should be unmounted temporarily if you
+  want them to be synchronized. The same result can be achieved by synchronizing
+  from a bind mount.
+<div style="height: 1.00em;">&#x00A0;</div>
+See also the <i>NONE cipher switching</i> [3] patch if you don't need encryption
+  and you want to speed up your SSH connection.
+<h1 class="Sh" title="Sh" id="HOW_IT_WORKS"><a class="selflink" href="#HOW_IT_WORKS">HOW
+  IT WORKS</a></h1>
+fssync maintains a single SQLite table of all dirs/files that are on the remote
+  side. Each row matches a path, with its inode (on local side), other metadata
+  (on remote side) and a <i>checked</i> flag.
+<div style="height: 1.00em;">&#x00A0;</div>
+When running, fssync iterates recursively through all local dirs/files and for
+  each path that is not ignored (see <b>-f</b> option), it queries the DB to
+  decide what to do. If already <i>checked</i>, path is skipped immediately.
+  When a path is synchronized, it is marked as <i>checked</i>. At the end, all
+  rows that are not <i>checked</i> corresponds to paths that don't exist
+  anymore. Once they are deleted on the remote side, all <i>checked</i> flags
+  are reset.
+<h2 class="Ss" title="Ss" id="Failure_tolerance"><a class="selflink" href="#Failure_tolerance">Failure
+  tolerance</a></h2>
+In fact, fssync doesn't require that the database matches perfectly the
+  destination. It tolerates some differences in order to recover any interrupted
+  synchronization caused by a network failure, a file operation error, or
+  anything other than an operating system crash of the local host (or something
+  similar like a power failure).
+<div style="height: 1.00em;">&#x00A0;</div>
+In most cases, this is done by the remote host, which automatically create (or
+  overwrite) an inode of the expected type if necessary. The only exception is
+  that the remote will never delete a non-empty directory on its own. For most
+  complex cases, fssync journalizes the operation in the database: in case of
+  failure, fssync will be able to recover on next sync.
+<h2 class="Ss" title="Ss" id="Race_conditions"><a class="selflink" href="#Race_conditions">Race
+  conditions</a></h2>
+A race condition means that other processes on the local host are modifying
+  inodes that fssync is synchronizing. fssync handles any kind of race
+  condition. In fact, fssync has nothing to do for most cases.
+<div style="height: 1.00em;">&#x00A0;</div>
+When a race condition happens, fssync does not guarantee that the remote data is
+  in a consistent state. Each sync always fixes existing inconsistencies but may
+  introduces others, so fssync is not suitable for hot backuping of databases.
+<div style="height: 1.00em;">&#x00A0;</div>
+With Btrfs, you can get consistency by snapshotting at source side.
+<h1 class="Sh" title="Sh" id="SIMILAR_PROJECTS"><a class="selflink" href="#SIMILAR_PROJECTS">SIMILAR
+  PROJECTS</a></h1>
+The idea of maintaining a local database actually comes from <i>csync2</i> [4].
+  I was about to adopt it when I realized that I really needed a tool that
+  always detects renames/moves of big files. That's why I see fssync as a
+  partial rewrite of csync2, with inode tracking and without bidirectional
+  synchronization. The local database really makes fssync &amp; csync2 faster
+  than the well-known <i>rsync</i> [5].
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<b>sqlite3</b>(1), <b>ssh</b>(1)
+<h1 class="Sh" title="Sh" id="BUGS/LIMITATIONS/TODO"><a class="selflink" href="#BUGS/LIMITATIONS/TODO">BUGS/LIMITATIONS/TODO</a></h1>
+<div style="margin-left: 0.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">1.</dt>
+  <dd class="It-tag">For performance reasons, the SQLite database is never
+      flushed to disk while fssync is running. Which means that if the operating
+      system crashes, the DB might become corrupted, and even if it isn't, it
+      may not reflect anymore the status of the remote host and later runs may
+      fail (for example, fssync refuses to replace a non-empty folder it doesn't
+      know by a non-folder). So in any case, it is advised to rebuild the DB.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If the DB is not corrupted and you don't want to rebuild it, you can try to
+      update it by running fssync again as soon as possible, so that the same
+      changes are replayed. fssync should be able to detect that all remote
+      operations are already performed. See also <b>-c</b> and <b>-F</b>
+      options.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">2.</dt>
+  <dd class="It-tag">fssync should not trash the page cache by using
+      <b>posix_fadvise</b>(2). Unfortunately, Linux does not implement
+      <b>POSIX_FADV_NOREUSE</b> yet (see
+      <i>https://lkml.org/lkml/2011/6/24/136</i> for more information). We could
+      do like <i>Bup</i> [2], which uses information returned by
+      <b>mincore</b>(2) in order to <i>eject pages after save more
+      selectively</i> [6].</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">3.</dt>
+  <dd class="It-tag">fssync process on remote side might leave parent
+      directories with wrong permissions or modification times if it is
+      terminated during specific operation like recovery (at the very
+      beginning), cleanup (at the end), rename (if a directory is moved). That
+      is, all operations that need to temporarily alter a directory that is not
+      being checked. &quot;Wontfix&quot; for now, because it is unlikely to
+      happen and any solution would be quite heavy, for little benefit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">4.</dt>
+  <dd class="It-tag">What is not synchronized:</dd>
+</dl>
+<div style="margin-left: 3.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">access &amp; change times: I won't implement it.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">inode flags (see <b>chattr</b>(1) and <b>lsattr</b>(1)):
+      some flags like <i>C</i> or <i>c</i> are important on Btrfs so this could
+      be a nice improvement, at least if it was implemented partially.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">file-system specific properties ?</dd>
+</dl>
+</div>
+<br/>
+<dl class="Bl-tag">
+  <dt class="It-tag">5.</dt>
+  <dd class="It-tag">Add 2 options to map specific users or groups. You may want
+      this if you get permission errors and this is certainly a better solution
+      than an option not to preserve ownership. Currently, on destination host,
+      you must either run fssync as root, or configure security so that it is
+      allowed to change ownership with same uid/gid than on source (or with same
+      user/group names if <b>--map-users</b> option is given).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">6.</dt>
+  <dd class="It-tag">Don't rely on permissions settings to prevent access to
+      inodes on destination side. This is because metadata are synchronized
+      after data (in the case of a directory, it means all inodes under this
+      directory is synchronized before its metadata) and in some cases, an
+      attacker could access to sensitive data while fssync is running. Access
+      should be denied on a parent directory of your destination tree (or at the
+      root of this tree if you're careful enough to keep it secure on source
+      side).</dd>
+</dl>
+</div>
+<br/>
+<h1 class="Sh" title="Sh" id="NOTES"><a class="selflink" href="#NOTES">NOTES</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag">[1]</dt>
+  <dd class="It-tag"><i>https://btrfs.wiki.kernel.org/</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[2]</dt>
+  <dd class="It-tag"><i>https://github.com/bup/bup</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[3]</dt>
+  <dd class="It-tag"><i>http://www.psc.edu/networking/projects/hpn-ssh/</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[4]</dt>
+  <dd class="It-tag"><i>http://oss.linbit.com/csync2/</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[5]</dt>
+  <dd class="It-tag"><i>http://rsync.samba.org/</i></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[6]</dt>
+  <dd class="It-tag"><i>https://github.com/bup/bup/commit/b062252a5bca9b64d7b3034b6fd181424641f61e</i></dd>
+</dl>
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Julien Muchembled &lt;jm@jmuchemb.eu&gt;</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date"></td>
+    <td class="foot-os"></td>
+  </tr>
+</table>
 </body>
 </html>

@@ -1,1572 +1,1171 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:31:01 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>PERLPERF(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>PERLPERF(1) Perl Programmers Reference Guide
-PERLPERF(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-perlperf - Perl Performance and Optimization Techniques</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-This is an introduction to the use of performance and
-optimization techniques which can be used with particular
-reference to perl programs. While many perl developers have
-come <br>
-from other languages, and can use their prior knowledge
-where appropriate, there are many other people who might
-benefit from a few perl specific pointers. If you want the
-<br>
-condensed version, perhaps the best advice comes from the
-renowned Japanese Samurai, Miyamoto Musashi, who said:</p>
-
-<p style="margin-top: 1em">&quot;Do Not Engage in Useless
-Activity&quot;</p>
-
-<p style="margin-top: 1em">in 1645.</p>
-
-<p style="margin-top: 1em">OVERVIEW <br>
-Perhaps the most common mistake programmers make is to
-attempt to optimize their code before a program actually
-does anything useful - this is a bad idea. There&rsquo;s no
-point in <br>
-having an extremely fast program that doesn&rsquo;t work.
-The first job is to get a program to correctly do something
-useful, (not to mention ensuring the test suite is fully
-<br>
-functional), and only then to consider optimizing it. Having
-decided to optimize existing working code, there are several
-simple but essential steps to consider which are <br>
-intrinsic to any optimization process.</p>
-
-<p style="margin-top: 1em">ONE STEP SIDEWAYS <br>
-Firstly, you need to establish a baseline time for the
-existing code, which timing needs to be reliable and
-repeatable. You&rsquo;ll probably want to use the
-&quot;Benchmark&quot; or <br>
-&quot;Devel::NYTProf&quot; modules, or something similar,
-for this step, or perhaps the Unix system &quot;time&quot;
-utility, whichever is appropriate. See the base of this
-document for a longer <br>
-list of benchmarking and profiling modules, and recommended
-further reading.</p>
-
-<p style="margin-top: 1em">ONE STEP FORWARD <br>
-Next, having examined the program for hot spots, (places
-where the code seems to run slowly), change the code with
-the intention of making it run faster. Using version control
-<br>
-software, like &quot;subversion&quot;, will ensure no
-changes are irreversible. It&rsquo;s too easy to fiddle here
-and fiddle there - don&rsquo;t change too much at any one
-time or you might not <br>
-discover which piece of code really was the slow bit.</p>
-
-<p style="margin-top: 1em">ANOTHER STEP SIDEWAYS <br>
-It&rsquo;s not enough to say: &quot;that will make it run
-faster&quot;, you have to check it. Rerun the code under
-control of the benchmarking or profiling modules, from the
-first step above, <br>
-and check that the new code executed the same task in less
-time. Save your work and repeat...</p>
-
-<p style="margin-top: 1em">GENERAL GUIDELINES <br>
-The critical thing when considering performance is to
-remember there is no such thing as a &quot;Golden
-Bullet&quot;, which is why there are no rules, only
-guidelines.</p>
-
-<p style="margin-top: 1em">It is clear that inline code is
-going to be faster than subroutine or method calls, because
-there is less overhead, but this approach has the
-disadvantage of being less <br>
-maintainable and comes at the cost of greater memory usage -
-there is no such thing as a free lunch. If you are searching
-for an element in a list, it can be more efficient to <br>
-store the data in a hash structure, and then simply look to
-see whether the key is defined, rather than to loop through
-the entire array using grep() for instance. substr() may
-<br>
-be (a lot) faster than grep() but not as flexible, so you
-have another trade-off to access. Your code may contain a
-line which takes 0.01 of a second to execute which if you
-<br>
-call it 1,000 times, quite likely in a program parsing even
-medium sized files for instance, you already have a 10
-second delay, in just one single code location, and if you
-call <br>
-that line 100,000 times, your entire program will slow down
-to an unbearable crawl.</p>
-
-<p style="margin-top: 1em">Using a subroutine as part of
-your sort is a powerful way to get exactly what you want,
-but will usually be slower than the built-in alphabetic
-&quot;cmp&quot; and numeric &quot;&lt;=&gt;&quot; sort <br>
-operators. It is possible to make multiple passes over your
-data, building indices to make the upcoming sort more
-efficient, and to use what is known as the &quot;OM&quot;
-(Orcish <br>
-Maneuver) to cache the sort keys in advance. The cache
-lookup, while a good idea, can itself be a source of
-slowdown by enforcing a double pass over the data - once to
-setup the <br>
-cache, and once to sort the data. Using &quot;pack()&quot;
-to extract the required sort key into a consistent string
-can be an efficient way to build a single string to compare,
-instead <br>
-of using multiple sort keys, which makes it possible to use
-the standard, written in &quot;c&quot; and fast, perl
-&quot;sort()&quot; function on the output, and is the basis
-of the &quot;GRT&quot; (Guttman <br>
-Rossler Transform). Some string combinations can slow the
-&quot;GRT&quot; down, by just being too plain complex for
-it&rsquo;s own good.</p>
-
-<p style="margin-top: 1em">For applications using database
-backends, the standard &quot;DBIx&quot; namespace has tries
-to help with keeping things nippy, not least because it
-tries to not query the database until <br>
-the latest possible moment, but always read the docs which
-come with your choice of libraries. Among the many issues
-facing developers dealing with databases should remain aware
-<br>
-of is to always use &quot;SQL&quot; placeholders and to
-consider pre-fetching data sets when this might prove
-advantageous. Splitting up a large file by assigning
-multiple processes to <br>
-parsing a single file, using say &quot;POE&quot;,
-&quot;threads&quot; or &quot;fork&quot; can also be a useful
-way of optimizing your usage of the available
-&quot;CPU&quot; resources, though this technique is fraught
-<br>
-with concurrency issues and demands high attention to
-detail.</p>
-
-<p style="margin-top: 1em">Every case has a specific
-application and one or more exceptions, and there is no
-replacement for running a few tests and finding out which
-method works best for your particular <br>
-environment, this is why writing optimal code is not an
-exact science, and why we love using Perl so much -
-TMTOWTDI.</p>
-
-<p style="margin-top: 1em">BENCHMARKS <br>
-Here are a few examples to demonstrate usage of Perl&rsquo;s
-benchmarking tools.</p>
-
-<p style="margin-top: 1em">Assigning and Dereferencing
-Variables. <br>
-I&rsquo;m sure most of us have seen code which looks like,
-(or worse than), this:</p>
-
-<p style="margin-top: 1em">if (
-$obj-&gt;{_ref}-&gt;{_myscore} &gt;=
-$obj-&gt;{_ref}-&gt;{_yourscore} ) { <br>
-...</p>
-
-<p style="margin-top: 1em">This sort of code can be a real
-eyesore to read, as well as being very sensitive to typos,
-and it&rsquo;s much clearer to dereference the variable
-explicitly. We&rsquo;re side-stepping the <br>
-issue of working with object-oriented programming techniques
-to encapsulate variable access via methods, only accessible
-through an object. Here we&rsquo;re just discussing the <br>
-technical implementation of choice, and whether this has an
-effect on performance. We can see whether this dereferencing
-operation, has any overhead by putting comparative code <br>
-in a file and running a &quot;Benchmark&quot; test.</p>
-
-<p style="margin-top: 1em"># dereference</p>
-
-<p style="margin-top: 1em">#!/usr/bin/perl</p>
-
-<p style="margin-top: 1em">use strict; <br>
-use warnings;</p>
-
-<p style="margin-top: 1em">use Benchmark;</p>
-
-<p style="margin-top: 1em">my $ref = { <br>
-&rsquo;ref&rsquo; =&gt; { <br>
-_myscore =&gt; &rsquo;100 + 1&rsquo;, <br>
-_yourscore =&gt; &rsquo;102 - 1&rsquo;, <br>
-}, <br>
-};</p>
-
-<p style="margin-top: 1em">timethese(1000000, { <br>
-&rsquo;direct&rsquo; =&gt; sub { <br>
-my $x = $ref-&gt;{ref}-&gt;{_myscore} .
-$ref-&gt;{ref}-&gt;{_yourscore} ; <br>
-}, <br>
-&rsquo;dereference&rsquo; =&gt; sub { <br>
-my $ref = $ref-&gt;{ref}; <br>
-my $myscore = $ref-&gt;{_myscore}; <br>
-my $yourscore = $ref-&gt;{_yourscore}; <br>
-my $x = $myscore . $yourscore; <br>
-}, <br>
-});</p>
-
-<p style="margin-top: 1em">It&rsquo;s essential to run any
-timing measurements a sufficient number of times so the
-numbers settle on a numerical average, otherwise each run
-will naturally fluctuate due to <br>
-variations in the environment, to reduce the effect of
-contention for &quot;CPU&quot; resources and network
-bandwidth for instance. Running the above code for one
-million iterations, we <br>
-can take a look at the report output by the
-&quot;Benchmark&quot; module, to see which approach is the
-most effective.</p>
-
-<p style="margin-top: 1em">$&gt; perl dereference</p>
-
-<p style="margin-top: 1em">Benchmark: timing 1000000
-iterations of dereference, direct... <br>
-dereference: 2 wallclock secs ( 1.59 usr + 0.00 sys = 1.59
-CPU) @ 628930.82/s (n=1000000) <br>
-direct: 1 wallclock secs ( 1.20 usr + 0.00 sys = 1.20 CPU) @
-833333.33/s (n=1000000)</p>
-
-<p style="margin-top: 1em">The difference is clear to see
-and the dereferencing approach is slower. While it managed
-to execute an average of 628,930 times a second during our
-test, the direct approach <br>
-managed to run an additional 204,403 times, unfortunately.
-Unfortunately, because there are many examples of code
-written using the multiple layer direct variable access, and
-<br>
-it&rsquo;s usually horrible. It is, however, minusculy
-faster. The question remains whether the minute gain is
-actually worth the eyestrain, or the loss of
-maintainability.</p>
-
-<p style="margin-top: 1em">Search and replace or tr <br>
-If we have a string which needs to be modified, while a
-regex will almost always be much more flexible,
-&quot;tr&quot;, an oft underused tool, can still be a
-useful. One scenario might be <br>
-replace all vowels with another character. The regex
-solution might look like this:</p>
-
-<p style="margin-top: 1em">$str =~ s/[aeiou]/x/g</p>
-
-<p style="margin-top: 1em">The &quot;tr&quot; alternative
-might look like this:</p>
-
-<p style="margin-top: 1em">$str =~ tr/aeiou/xxxxx/</p>
-
-<p style="margin-top: 1em">We can put that into a test file
-which we can run to check which approach is the fastest,
-using a global $STR variable to assign to the &quot;my
-$str&quot; variable so as to avoid perl <br>
-trying to optimize any of the work away by noticing
-it&rsquo;s assigned only the once.</p>
-
-<p style="margin-top: 1em"># regex-transliterate</p>
-
-<p style="margin-top: 1em">#!/usr/bin/perl</p>
-
-<p style="margin-top: 1em">use strict; <br>
-use warnings;</p>
-
-<p style="margin-top: 1em">use Benchmark;</p>
-
-<p style="margin-top: 1em">my $STR = &quot;$$-this and
-that&quot;;</p>
-
-<p style="margin-top: 1em">timethese( 1000000, { <br>
-&rsquo;sr&rsquo; =&gt; sub { my $str = $STR; $str =~
-s/[aeiou]/x/g; return $str; }, <br>
-&rsquo;tr&rsquo; =&gt; sub { my $str = $STR; $str =~
-tr/aeiou/xxxxx/; return $str; }, <br>
-});</p>
-
-<p style="margin-top: 1em">Running the code gives us our
-results:</p>
-
-<p style="margin-top: 1em">$&gt; perl
-regex-transliterate</p>
-
-<p style="margin-top: 1em">Benchmark: timing 1000000
-iterations of sr, tr... <br>
-sr: 2 wallclock secs ( 1.19 usr + 0.00 sys = 1.19 CPU) @
-840336.13/s (n=1000000) <br>
-tr: 0 wallclock secs ( 0.49 usr + 0.00 sys = 0.49 CPU) @
-2040816.33/s (n=1000000)</p>
-
-<p style="margin-top: 1em">The &quot;tr&quot; version is a
-clear winner. One solution is flexible, the other is fast -
-and it&rsquo;s appropriately the programmer&rsquo;s choice
-which to use.</p>
-
-<p style="margin-top: 1em">Check the &quot;Benchmark&quot;
-docs for further useful techniques.</p>
-
-<p style="margin-top: 1em">PROFILING TOOLS <br>
-A slightly larger piece of code will provide something on
-which a profiler can produce more extensive reporting
-statistics. This example uses the simplistic
-&quot;wordmatch&quot; program <br>
-which parses a given input file and spews out a short report
-on the contents.</p>
-
-<p style="margin-top: 1em"># wordmatch</p>
-
-<p style="margin-top: 1em">#!/usr/bin/perl</p>
-
-<p style="margin-top: 1em">use strict; <br>
-use warnings;</p>
-
-<p style="margin-top: 1em">=head1 NAME</p>
-
-<p style="margin-top: 1em">filewords - word analysis of
-input file</p>
-
-<p style="margin-top: 1em">=head1 SYNOPSIS</p>
-
-<p style="margin-top: 1em">filewords -f inputfilename
-[-d]</p>
-
-<p style="margin-top: 1em">=head1 DESCRIPTION</p>
-
-<p style="margin-top: 1em">This program parses the given
-filename, specified with C&lt;-f&gt;, and displays a <br>
-simple analysis of the words found therein. Use the
-C&lt;-d&gt; switch to enable <br>
-debugging messages.</p>
-
-<p style="margin-top: 1em">=cut</p>
-
-<p style="margin-top: 1em">use FileHandle; <br>
-use Getopt::Long;</p>
-
-<p style="margin-top: 1em">my $debug = 0; <br>
-my $file = &rsquo;&rsquo;;</p>
-
-<p style="margin-top: 1em">my $result = GetOptions ( <br>
-&rsquo;debug&rsquo; =&gt; ebug, <br>
-&rsquo;file=s&rsquo; =&gt; ile, <br>
-); <br>
-die(&quot;invalid args&quot;) unless $result;</p>
-
-<p style="margin-top: 1em">unless ( -f $file ) { <br>
-die(&quot;Usage: $0 -f filename [-d]&quot;); <br>
-} <br>
-my $FH = FileHandle-&gt;new(&quot;&lt; $file&quot;) or
-die(&quot;unable to open file($file): $!&quot;);</p>
-
-<p style="margin-top: 1em">my $i_LINES = 0; <br>
-my $i_WORDS = 0; <br>
-my %count = ();</p>
-
-<p style="margin-top: 1em">my @lines = &lt;$FH&gt;; <br>
-foreach my $line ( @lines ) { <br>
-$i_LINES++; <br>
-$line =~ s/0/; <br>
-my @words = split(/ +/, $line); <br>
-my $i_words = scalar(@words); <br>
-$i_WORDS = $i_WORDS + $i_words; <br>
-debug(&quot;line: $i_LINES supplying $i_words words:
-@words&quot;); <br>
-my $i_word = 0; <br>
-foreach my $word ( @words ) { <br>
-$i_word++; <br>
-$count{$i_LINES}{spec} += matches($i_word, $word,
-&rsquo;[^a-zA-Z0-9]&rsquo;); <br>
-$count{$i_LINES}{only} += matches($i_word, $word,
-&rsquo;^[^a-zA-Z0-9]+$&rsquo;); <br>
-$count{$i_LINES}{cons} += matches($i_word, $word,
-&rsquo;^[(?i:bcdfghjklmnpqrstvwxyz)]+$&rsquo;); <br>
-$count{$i_LINES}{vows} += matches($i_word, $word,
-&rsquo;^[(?i:aeiou)]+$&rsquo;); <br>
-$count{$i_LINES}{caps} += matches($i_word, $word,
-&rsquo;^[(A-Z)]+$&rsquo;); <br>
-} <br>
-}</p>
-
-<p style="margin-top: 1em">print report( %count );</p>
-
-<p style="margin-top: 1em">sub matches { <br>
-my $i_wd = shift; <br>
-my $word = shift; <br>
-my $regex = shift; <br>
-my $has = 0;</p>
-
-<p style="margin-top: 1em">if ( $word =~ /($regex)/ ) {
-<br>
-$has++ if $1; <br>
-}</p>
-
-<p style="margin-top: 1em">debug(&quot;word: $i_wd
-&quot;.($has ? &rsquo;matches&rsquo; : &rsquo;does not
-match&rsquo;).&quot; chars: /$regex/&quot;);</p>
-
-<p style="margin-top: 1em">return $has; <br>
-}</p>
-
-<p style="margin-top: 1em">sub report { <br>
-my %report = @_; <br>
-my %rep;</p>
-
-<p style="margin-top: 1em">foreach my $line ( keys %report
-) { <br>
-foreach my $key ( keys %{ $report{$line} } ) { <br>
-$rep{$key} += $report{$line}{$key}; <br>
-} <br>
-}</p>
-
-<p style="margin-top: 1em">my $report = qq| <br>
-$0 report for $file: <br>
-lines in file: $i_LINES <br>
-words in file: $i_WORDS <br>
-words with special (non-word) characters: $i_spec <br>
-words with only special (non-word) characters: $i_only <br>
-words with only consonants: $i_cons <br>
-words with only capital letters: $i_caps <br>
-words with only vowels: $i_vows <br>
-|;</p>
-
-<p style="margin-top: 1em">return $report; <br>
-}</p>
-
-<p style="margin-top: 1em">sub debug { <br>
-my $message = shift;</p>
-
-<p style="margin-top: 1em">if ( $debug ) { <br>
-print STDERR &quot;DBG: $message0; <br>
-} <br>
-}</p>
-
-<p style="margin-top: 1em">exit 0;</p>
-
-<p style="margin-top: 1em">Devel::DProf <br>
-This venerable module has been the de-facto standard for
-Perl code profiling for more than a decade, but has been
-replaced by a number of other modules which have brought us
-back <br>
-to the 21st century. Although you&rsquo;re recommended to
-evaluate your tool from the several mentioned here and from
-the CPAN list at the base of this document, (and currently
-<br>
-Devel::NYTProf seems to be the weapon of choice - see
-below), we&rsquo;ll take a quick look at the output from
-Devel::DProf first, to set a baseline for Perl profiling
-tools. Run the <br>
-above program under the control of &quot;Devel::DProf&quot;
-by using the &quot;-d&quot; switch on the command-line.</p>
-
-<p style="margin-top: 1em">$&gt; perl -d:DProf wordmatch -f
-perl5db.pl</p>
-
-<p style="margin-top: 1em">&lt;...multiple lines
-snipped...&gt;</p>
-
-<p style="margin-top: 1em">wordmatch report for perl5db.pl:
-<br>
-lines in file: 9428 <br>
-words in file: 50243 <br>
-words with special (non-word) characters: 20480 <br>
-words with only special (non-word) characters: 7790 <br>
-words with only consonants: 4801 <br>
-words with only capital letters: 1316 <br>
-words with only vowels: 1701</p>
-
-<p style="margin-top: 1em">&quot;Devel::DProf&quot;
-produces a special file, called tmon.out by default, and
-this file is read by the &quot;dprofpp&quot; program, which
-is already installed as part of the &quot;Devel::DProf&quot;
-<br>
-distribution. If you call &quot;dprofpp&quot; with no
-options, it will read the tmon.out file in the current
-directory and produce a human readable statistics report of
-the run of your <br>
-program. Note that this may take a little time.</p>
-
-<p style="margin-top: 1em">$&gt; dprofpp</p>
-
-<p style="margin-top: 1em">Total Elapsed Time = 2.951677
-Seconds <br>
-User+System Time = 2.871677 Seconds <br>
-Exclusive Times <br>
-%Time ExclSec CumulS #Calls sec/call Csec/c Name <br>
-102. 2.945 3.003 251215 0.0000 0.0000 main::matches <br>
-2.40 0.069 0.069 260643 0.0000 0.0000 main::debug <br>
-1.74 0.050 0.050 1 0.0500 0.0500 main::report <br>
-1.04 0.030 0.049 4 0.0075 0.0123 main::BEGIN <br>
-0.35 0.010 0.010 3 0.0033 0.0033 Exporter::as_heavy <br>
-0.35 0.010 0.010 7 0.0014 0.0014 IO::File::BEGIN <br>
-0.00 - -0.000 1 - - Getopt::Long::FindOption <br>
-0.00 - -0.000 1 - - Symbol::BEGIN <br>
-0.00 - -0.000 1 - - Fcntl::BEGIN <br>
-0.00 - -0.000 1 - - Fcntl::bootstrap <br>
-0.00 - -0.000 1 - - warnings::BEGIN <br>
-0.00 - -0.000 1 - - IO::bootstrap <br>
-0.00 - -0.000 1 - - Getopt::Long::ConfigDefaults <br>
-0.00 - -0.000 1 - - Getopt::Long::Configure <br>
-0.00 - -0.000 1 - - Symbol::gensym</p>
-
-<p style="margin-top: 1em">&quot;dprofpp&quot; will produce
-some quite detailed reporting on the activity of the
-&quot;wordmatch&quot; program. The wallclock, user and
-system, times are at the top of the analysis, and after <br>
-this are the main columns defining which define the report.
-Check the &quot;dprofpp&quot; docs for details of the many
-options it supports.</p>
-
-<p style="margin-top: 1em">See also
-&quot;Apache::DProf&quot; which hooks
-&quot;Devel::DProf&quot; into &quot;mod_perl&quot;.</p>
-
-<p style="margin-top: 1em">Devel::Profiler <br>
-Let&rsquo;s take a look at the same program using a
-different profiler: &quot;Devel::Profiler&quot;, a drop-in
-Perl-only replacement for &quot;Devel::DProf&quot;. The
-usage is very slightly different in <br>
-that instead of using the special &quot;-d:&quot; flag, you
-pull &quot;Devel::Profiler&quot; in directly as a module
-using &quot;-M&quot;.</p>
-
-<p style="margin-top: 1em">$&gt; perl -MDevel::Profiler
-wordmatch -f perl5db.pl</p>
-
-<p style="margin-top: 1em">&lt;...multiple lines
-snipped...&gt;</p>
-
-<p style="margin-top: 1em">wordmatch report for perl5db.pl:
-<br>
-lines in file: 9428 <br>
-words in file: 50243 <br>
-words with special (non-word) characters: 20480 <br>
-words with only special (non-word) characters: 7790 <br>
-words with only consonants: 4801 <br>
-words with only capital letters: 1316 <br>
-words with only vowels: 1701</p>
-
-<p style="margin-top: 1em">&quot;Devel::Profiler&quot;
-generates a tmon.out file which is compatible with the
-&quot;dprofpp&quot; program, thus saving the construction of
-a dedicated statistics reader program. &quot;dprofpp&quot;
-<br>
-usage is therefore identical to the above example.</p>
-
-<p style="margin-top: 1em">$&gt; dprofpp</p>
-
-<p style="margin-top: 1em">Total Elapsed Time = 20.984
-Seconds <br>
-User+System Time = 19.981 Seconds <br>
-Exclusive Times <br>
-%Time ExclSec CumulS #Calls sec/call Csec/c Name <br>
-49.0 9.792 14.509 251215 0.0000 0.0001 main::matches <br>
-24.4 4.887 4.887 260643 0.0000 0.0000 main::debug <br>
-0.25 0.049 0.049 1 0.0490 0.0490 main::report <br>
-0.00 0.000 0.000 1 0.0000 0.0000 Getopt::Long::GetOptions
-<br>
-0.00 0.000 0.000 2 0.0000 0.0000
-Getopt::Long::ParseOptionSpec <br>
-0.00 0.000 0.000 1 0.0000 0.0000 Getopt::Long::FindOption
-<br>
-0.00 0.000 0.000 1 0.0000 0.0000 IO::File::new <br>
-0.00 0.000 0.000 1 0.0000 0.0000 IO::Handle::new <br>
-0.00 0.000 0.000 1 0.0000 0.0000 Symbol::gensym <br>
-0.00 0.000 0.000 1 0.0000 0.0000 IO::File::open</p>
-
-<p style="margin-top: 1em">Interestingly we get slightly
-different results, which is mostly because the algorithm
-which generates the report is different, even though the
-output file format was allegedly <br>
-identical. The elapsed, user and system times are clearly
-showing the time it took for &quot;Devel::Profiler&quot; to
-execute its own run, but the column listings feel more
-accurate <br>
-somehow than the ones we had earlier from
-&quot;Devel::DProf&quot;. The 102% figure has disappeared,
-for example. This is where we have to use the tools at our
-disposal, and recognise <br>
-their pros and cons, before using them. Interestingly, the
-numbers of calls for each subroutine are identical in the
-two reports, it&rsquo;s the percentages which differ. As the
-<br>
-author of &quot;Devel::Proviler&quot; writes:</p>
-
-<p style="margin-top: 1em">...running
-HTML::Template&rsquo;s test suite under Devel::DProf shows
-output() <br>
-taking NO time but Devel::Profiler shows around 10% of the
-time is in output(). <br>
-I don&rsquo;t know which to trust but my gut tells me
-something is wrong with <br>
-Devel::DProf. HTML::Template::output() is a big routine
-that&rsquo;s called for <br>
-every test. Either way, something needs fixing.</p>
-
-<p style="margin-top: 1em">YMMV.</p>
-
-<p style="margin-top: 1em">See also
-&quot;Devel::Apache::Profiler&quot; which hooks
-&quot;Devel::Profiler&quot; into &quot;mod_perl&quot;.</p>
-
-<p style="margin-top: 1em">Devel::SmallProf <br>
-The &quot;Devel::SmallProf&quot; profiler examines the
-runtime of your Perl program and produces a line-by-line
-listing to show how many times each line was called, and how
-long each line <br>
-took to execute. It is called by supplying the familiar
-&quot;-d&quot; flag to Perl at runtime.</p>
-
-<p style="margin-top: 1em">$&gt; perl -d:SmallProf
-wordmatch -f perl5db.pl</p>
-
-<p style="margin-top: 1em">&lt;...multiple lines
-snipped...&gt;</p>
-
-<p style="margin-top: 1em">wordmatch report for perl5db.pl:
-<br>
-lines in file: 9428 <br>
-words in file: 50243 <br>
-words with special (non-word) characters: 20480 <br>
-words with only special (non-word) characters: 7790 <br>
-words with only consonants: 4801 <br>
-words with only capital letters: 1316 <br>
-words with only vowels: 1701</p>
-
-<p style="margin-top: 1em">&quot;Devel::SmallProf&quot;
-writes it&rsquo;s output into a file called smallprof.out,
-by default. The format of the file looks like this:</p>
-
-<p style="margin-top: 1em">&lt;num&gt; &lt;time&gt;
-&lt;ctime&gt; &lt;line&gt;:&lt;text&gt;</p>
-
-<p style="margin-top: 1em">When the program has terminated,
-the output may be examined and sorted using any standard
-text filtering utilities. Something like the following may
-be sufficient:</p>
-
-<p style="margin-top: 1em">$&gt; cat smallprof.out | grep
-*: | sort -k3 | tac | head -n20</p>
-
-<p style="margin-top: 1em">251215 1.65674 7.68000 75: if (
-$word =~ /($regex)/ ) { <br>
-251215 0.03264 4.40000 79: debug(&quot;word: $i_wd
-&quot;.($has ? &rsquo;matches&rsquo; : <br>
-251215 0.02693 4.10000 81: return $has; <br>
-260643 0.02841 4.07000 128: if ( $debug ) { <br>
-260643 0.02601 4.04000 126: my $message = shift; <br>
-251215 0.02641 3.91000 73: my $has = 0; <br>
-251215 0.03311 3.71000 70: my $i_wd = shift; <br>
-251215 0.02699 3.69000 72: my $regex = shift; <br>
-251215 0.02766 3.68000 71: my $word = shift; <br>
-50243 0.59726 1.00000 59: $count{$i_LINES}{cons} = <br>
-50243 0.48175 0.92000 61: $count{$i_LINES}{spec} = <br>
-50243 0.00644 0.89000 56: my $i_cons = matches($i_word,
-$word, <br>
-50243 0.48837 0.88000 63: $count{$i_LINES}{caps} = <br>
-50243 0.00516 0.88000 58: my $i_caps = matches($i_word,
-$word, &rsquo;^[(A- <br>
-50243 0.00631 0.81000 54: my $i_spec = matches($i_word,
-$word, &rsquo;[^a- <br>
-50243 0.00496 0.80000 57: my $i_vows = matches($i_word,
-$word, <br>
-50243 0.00688 0.80000 53: $i_word++; <br>
-50243 0.48469 0.79000 62: $count{$i_LINES}{only} = <br>
-50243 0.48928 0.77000 60: $count{$i_LINES}{vows} = <br>
-50243 0.00683 0.75000 55: my $i_only = matches($i_word,
-$word, &rsquo;^[^a-</p>
-
-<p style="margin-top: 1em">You can immediately see a
-slightly different focus to the subroutine profiling
-modules, and we start to see exactly which line of code is
-taking the most time. That regex line <br>
-is looking a bit suspicious, for example. Remember that
-these tools are supposed to be used together, there is no
-single best way to profile your code, you need to use the
-best <br>
-tools for the job.</p>
-
-<p style="margin-top: 1em">See also
-&quot;Apache::SmallProf&quot; which hooks
-&quot;Devel::SmallProf&quot; into &quot;mod_perl&quot;.</p>
-
-<p style="margin-top: 1em">Devel::FastProf <br>
-&quot;Devel::FastProf&quot; is another Perl line profiler.
-This was written with a view to getting a faster line
-profiler, than is possible with for example
-&quot;Devel::SmallProf&quot;, because <br>
-it&rsquo;s written in &quot;C&quot;. To use
-&quot;Devel::FastProf&quot;, supply the &quot;-d&quot;
-argument to Perl:</p>
-
-<p style="margin-top: 1em">$&gt; perl -d:FastProf wordmatch
--f perl5db.pl</p>
-
-<p style="margin-top: 1em">&lt;...multiple lines
-snipped...&gt;</p>
-
-<p style="margin-top: 1em">wordmatch report for perl5db.pl:
-<br>
-lines in file: 9428 <br>
-words in file: 50243 <br>
-words with special (non-word) characters: 20480 <br>
-words with only special (non-word) characters: 7790 <br>
-words with only consonants: 4801 <br>
-words with only capital letters: 1316 <br>
-words with only vowels: 1701</p>
-
-<p style="margin-top: 1em">&quot;Devel::FastProf&quot;
-writes statistics to the file fastprof.out in the current
-directory. The output file, which can be specified, can be
-interpreted by using the &quot;fprofpp&quot; <br>
-command-line program.</p>
-
-<p style="margin-top: 1em">$&gt; fprofpp | head -n20</p>
-
-<p style="margin-top: 1em"># fprofpp output format is: <br>
-# filename:line time count: source <br>
-wordmatch:75 3.93338 251215: if ( $word =~ /($regex)/ ) {
-<br>
-wordmatch:79 1.77774 251215: debug(&quot;word: $i_wd
-&quot;.($has ? &rsquo;matches&rsquo; : &rsquo;does not
-match&rsquo;).&quot; chars: /$regex/&quot;); <br>
-wordmatch:81 1.47604 251215: return $has; <br>
-wordmatch:126 1.43441 260643: my $message = shift; <br>
-wordmatch:128 1.42156 260643: if ( $debug ) { <br>
-wordmatch:70 1.36824 251215: my $i_wd = shift; <br>
-wordmatch:71 1.36739 251215: my $word = shift; <br>
-wordmatch:72 1.35939 251215: my $regex = shift;</p>
-
-<p style="margin-top: 1em">Straightaway we can see that the
-number of times each line has been called is identical to
-the &quot;Devel::SmallProf&quot; output, and the sequence is
-only very slightly different based <br>
-on the ordering of the amount of time each line took to
-execute, &quot;if ( $debug ) { &quot; and &quot;my $message
-= shift;&quot;, for example. The differences in the actual
-times recorded might <br>
-be in the algorithm used internally, or it could be due to
-system resource limitations or contention.</p>
-
-<p style="margin-top: 1em">See also the DBIx::Profile which
-will profile database queries running under the
-&quot;DBIx::*&quot; namespace.</p>
-
-<p style="margin-top: 1em">Devel::NYTProf <br>
-&quot;Devel::NYTProf&quot; is the next generation of Perl
-code profiler, fixing many shortcomings in other tools and
-implementing many cool features. First of all it can be used
-as either <br>
-a line profiler, a block or a subroutine profiler, all at
-once. It can also use sub-microsecond (100ns) resolution on
-systems which provide &quot;clock_gettime()&quot;. It can be
-started <br>
-and stopped even by the program being profiled. It&rsquo;s a
-one-line entry to profile &quot;mod_perl&quot; applications.
-It&rsquo;s written in &quot;c&quot; and is probably the
-fastest profiler available for <br>
-Perl. The list of coolness just goes on. Enough of that,
-let&rsquo;s see how to it works - just use the familiar
-&quot;-d&quot; switch to plug it in and run the code.</p>
-
-<p style="margin-top: 1em">$&gt; perl -d:NYTProf wordmatch
--f perl5db.pl</p>
-
-<p style="margin-top: 1em">wordmatch report for perl5db.pl:
-<br>
-lines in file: 9427 <br>
-words in file: 50243 <br>
-words with special (non-word) characters: 20480 <br>
-words with only special (non-word) characters: 7790 <br>
-words with only consonants: 4801 <br>
-words with only capital letters: 1316 <br>
-words with only vowels: 1701</p>
-
-<p style="margin-top: 1em">&quot;NYTProf&quot; will
-generate a report database into the file nytprof.out by
-default. Human readable reports can be generated from here
-by using the supplied &quot;nytprofhtml&quot; (HTML <br>
-output) and &quot;nytprofcsv&quot; (CSV output) programs.
-We&rsquo;ve used the Unix system &quot;html2text&quot;
-utility to convert the nytprof/index.html file for
-convenience here.</p>
-
-<p style="margin-top: 1em">$&gt; html2text
-nytprof/index.html</p>
-
-<p style="margin-top: 1em">Performance Profile Index <br>
-For wordmatch <br>
-Run on Fri Sep 26 13:46:39 2008 <br>
-Reported on Fri Sep 26 13:47:23 2008</p>
-
-<p style="margin-top: 1em">Top 15 Subroutines -- ordered by
-exclusive time <br>
-|Calls |P |F |Inclusive|Exclusive|Subroutine | <br>
-| | | |Time |Time | | <br>
-|251215|5 |1 |13.09263 |10.47692 |main:: |matches | <br>
-|260642|2 |1 |2.71199 |2.71199 |main:: |debug | <br>
-|1 |1 |1 |0.21404 |0.21404 |main:: |report | <br>
-|2 |2 |2 |0.00511 |0.00511 |XSLoader:: |load (xsub) | <br>
-|14 |14|7 |0.00304 |0.00298 |Exporter:: |import | <br>
-|3 |1 |1 |0.00265 |0.00254 |Exporter:: |as_heavy | <br>
-|10 |10|4 |0.00140 |0.00140 |vars:: |import | <br>
-|13 |13|1 |0.00129 |0.00109 |constant:: |import | <br>
-|1 |1 |1 |0.00360 |0.00096 |FileHandle:: |import | <br>
-|3 |3 |3 |0.00086 |0.00074 |warnings::register::|import |
-<br>
-|9 |3 |1 |0.00036 |0.00036 |strict:: |bits | <br>
-|13 |13|13|0.00032 |0.00029 |strict:: |import | <br>
-|2 |2 |2 |0.00020 |0.00020 |warnings:: |import | <br>
-|2 |1 |1 |0.00020 |0.00020 |Getopt::Long:: |ParseOptionSpec|
-<br>
-|7 |7 |6 |0.00043 |0.00020 |strict:: |unimport |</p>
-
-<p style="margin-top: 1em">For more information see the
-full list of 189 subroutines.</p>
-
-<p style="margin-top: 1em">The first part of the report
-already shows the critical information regarding which
-subroutines are using the most time. The next gives some
-statistics about the source files <br>
-profiled.</p>
-
-<p style="margin-top: 1em">Source Code Files -- ordered by
-exclusive time then name <br>
-|Stmts |Exclusive|Avg. |Reports |Source File | <br>
-| |Time | | | | <br>
-|2699761|15.66654 |6e-06 |line . block . sub|wordmatch |
-<br>
-|35 |0.02187 |0.00062|line . block . sub|IO/Handle.pm | <br>
-|274 |0.01525 |0.00006|line . block . sub|Getopt/Long.pm |
-<br>
-|20 |0.00585 |0.00029|line . block . sub|Fcntl.pm | <br>
-|128 |0.00340 |0.00003|line . block . sub|Exporter/Heavy.pm
-| <br>
-|42 |0.00332 |0.00008|line . block . sub|IO/File.pm | <br>
-|261 |0.00308 |0.00001|line . block . sub|Exporter.pm | <br>
-|323 |0.00248 |8e-06 |line . block . sub|constant.pm | <br>
-|12 |0.00246 |0.00021|line . block . sub|File/Spec/Unix.pm |
-<br>
-|191 |0.00240 |0.00001|line . block . sub|vars.pm | <br>
-|77 |0.00201 |0.00003|line . block . sub|FileHandle.pm |
-<br>
-|12 |0.00198 |0.00016|line . block . sub|Carp.pm | <br>
-|14 |0.00175 |0.00013|line . block . sub|Symbol.pm | <br>
-|15 |0.00130 |0.00009|line . block . sub|IO.pm | <br>
-|22 |0.00120 |0.00005|line . block . sub|IO/Seekable.pm |
-<br>
-|198 |0.00085 |4e-06 |line . block .
-sub|warnings/register.pm| <br>
-|114 |0.00080 |7e-06 |line . block . sub|strict.pm | <br>
-|47 |0.00068 |0.00001|line . block . sub|warnings.pm | <br>
-|27 |0.00054 |0.00002|line . block . sub|overload.pm | <br>
-|9 |0.00047 |0.00005|line . block . sub|SelectSaver.pm |
-<br>
-|13 |0.00045 |0.00003|line . block . sub|File/Spec.pm | <br>
-|2701595|15.73869 | |Total | <br>
-|128647 |0.74946 | |Average | <br>
-| |0.00201 |0.00003|Median | <br>
-| |0.00121 |0.00003|Deviation |</p>
-
-<p style="margin-top: 1em">Report produced by the NYTProf
-2.03 Perl profiler, developed by Tim Bunce and <br>
-Adam Kaplan.</p>
-
-<p style="margin-top: 1em">At this point, if you&rsquo;re
-using the html report, you can click through the various
-links to bore down into each subroutine and each line of
-code. Because we&rsquo;re using the text <br>
-reporting here, and there&rsquo;s a whole directory full of
-reports built for each source file, we&rsquo;ll just display
-a part of the corresponding wordmatch-line.html file,
-sufficient to <br>
-give an idea of the sort of output you can expect from this
-cool tool.</p>
-
-<p style="margin-top: 1em">$&gt; html2text
-nytprof/wordmatch-line.html</p>
-
-<p style="margin-top: 1em">Performance Profile -- -block
-view-.-line view-.-sub view- <br>
-For wordmatch <br>
-Run on Fri Sep 26 13:46:39 2008 <br>
-Reported on Fri Sep 26 13:47:22 2008</p>
-
-<p style="margin-top: 1em">File wordmatch</p>
-
-<p style="margin-top: 1em">Subroutines -- ordered by
-exclusive time <br>
-|Calls |P|F|Inclusive|Exclusive|Subroutine | <br>
-| | | |Time |Time | | <br>
-|251215|5|1|13.09263 |10.47692 |main::|matches| <br>
-|260642|2|1|2.71199 |2.71199 |main::|debug | <br>
-|1 |1|1|0.21404 |0.21404 |main::|report | <br>
-|0 |0|0|0 |0 |main::|BEGIN |</p>
-
-<p style="margin-top: 1em">|Line|Stmts.|Exclusive|Avg.
-|Code | <br>
-| | |Time | | | <br>
-|1 | | | |#!/usr/bin/perl | <br>
-|2 | | | | | <br>
-| | | | |use strict; | <br>
-|3 |3 |0.00086 |0.00029|# spent 0.00003s making 1 calls to
-strict:: | <br>
-| | | | |import | <br>
-| | | | |use warnings; | <br>
-|4 |3 |0.01563 |0.00521|# spent 0.00012s making 1 calls to
-warnings:: | <br>
-| | | | |import | <br>
-|5 | | | | | <br>
-|6 | | | |=head1 NAME | <br>
-|7 | | | | | <br>
-|8 | | | |filewords - word analysis of input file | <br>
-&lt;...snip...&gt; <br>
-|62 |1 |0.00445 |0.00445|print report( %count ); | <br>
-| | | | |# spent 0.21404s making 1 calls to main::report|
-<br>
-|63 | | | | | <br>
-| | | | |# spent 23.56955s (10.47692+2.61571) within | <br>
-| | | | |main::matches which was called 251215 times, | <br>
-| | | | |avg 0.00005s/call: # 50243 times | <br>
-| | | | |(2.12134+0.51939s) at line 57 of wordmatch, avg|
-<br>
-| | | | |0.00005s/call # 50243 times (2.17735+0.54550s) |
-<br>
-|64 | | | |at line 56 of wordmatch, avg 0.00005s/call # |
-<br>
-| | | | |50243 times (2.10992+0.51797s) at line 58 of | <br>
-| | | | |wordmatch, avg 0.00005s/call # 50243 times | <br>
-| | | | |(2.12696+0.51598s) at line 55 of wordmatch, avg|
-<br>
-| | | | |0.00005s/call # 50243 times (1.94134+0.51687s) |
-<br>
-| | | | |at line 54 of wordmatch, avg 0.00005s/call | <br>
-| | | | |sub matches { | <br>
-&lt;...snip...&gt; <br>
-|102 | | | | | <br>
-| | | | |# spent 2.71199s within main::debug which was |
-<br>
-| | | | |called 260642 times, avg 0.00001s/call: # | <br>
-| | | | |251215 times (2.61571+0s) by main::matches at |
-<br>
-|103 | | | |line 74 of wordmatch, avg 0.00001s/call # 9427 |
-<br>
-| | | | |times (0.09628+0s) at line 50 of wordmatch, avg|
-<br>
-| | | | |0.00001s/call | <br>
-| | | | |sub debug { | <br>
-|104 |260642|0.58496 |2e-06 |my $message = shift; | <br>
-|105 | | | | | <br>
-|106 |260642|1.09917 |4e-06 |if ( $debug ) { | <br>
-|107 | | | |print STDERR &quot;DBG: $message0; | <br>
-|108 | | | |} | <br>
-|109 | | | |} | <br>
-|110 | | | | | <br>
-|111 |1 |0.01501 |0.01501|exit 0; | <br>
-|112 | | | | |</p>
-
-<p style="margin-top: 1em">Oodles of very useful
-information in there - this seems to be the way forward.</p>
-
-<p style="margin-top: 1em">See also
-&quot;Devel::NYTProf::Apache&quot; which hooks
-&quot;Devel::NYTProf&quot; into &quot;mod_perl&quot;.</p>
-
-<p style="margin-top: 1em">SORTING <br>
-Perl modules are not the only tools a performance analyst
-has at their disposal, system tools like &quot;time&quot;
-should not be overlooked as the next example shows, where we
-take a <br>
-quick look at sorting. Many books, theses and articles, have
-been written about efficient sorting algorithms, and this is
-not the place to repeat such work, there&rsquo;s several
-good <br>
-sorting modules which deserve taking a look at too:
-&quot;Sort::Maker&quot;, &quot;Sort::Key&quot; spring to
-mind. However, it&rsquo;s still possible to make some
-observations on certain Perl specific <br>
-interpretations on issues relating to sorting data sets and
-give an example or two with regard to how sorting large data
-volumes can effect performance. Firstly, an often <br>
-overlooked point when sorting large amounts of data, one can
-attempt to reduce the data set to be dealt with and in many
-cases &quot;grep()&quot; can be quite useful as a simple
-filter:</p>
-
-<p style="margin-top: 1em">@data = sort grep { /$filter/ }
-@incoming</p>
-
-<p style="margin-top: 1em">A command such as this can
-vastly reduce the volume of material to actually sort
-through in the first place, and should not be too lightly
-disregarded purely on the basis of its <br>
-simplicity. The &quot;KISS&quot; principle is too often
-overlooked - the next example uses the simple system
-&quot;time&quot; utility to demonstrate. Let&rsquo;s take a
-look at an actual example of <br>
-sorting the contents of a large file, an apache logfile
-would do. This one has over a quarter of a million lines, is
-50M in size, and a snippet of it looks like this:</p>
-
-<p style="margin-top: 1em"># logfile</p>
-
-
-<p style="margin-top: 1em">188.209-65-87.adsl-dyn.isp.belgacom.be
-- - [08/Feb/2007:12:57:16 +0000] &quot;GET /favicon.ico
-HTTP/1.1&quot; 404 209 &quot;-&quot; &quot;Mozilla/4.0
-(compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot; <br>
-188.209-65-87.adsl-dyn.isp.belgacom.be - -
-[08/Feb/2007:12:57:16 +0000] &quot;GET /favicon.ico
-HTTP/1.1&quot; 404 209 &quot;-&quot; &quot;Mozilla/4.0
-(compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot; <br>
-151.56.71.198 - - [08/Feb/2007:12:57:41 +0000] &quot;GET
-/suse-on-vaio.html HTTP/1.1&quot; 200 2858
-&quot;http://www.linux-on-laptops.com/sony.html&quot;
-&quot;Mozilla/5.0 (Windows; U; Windows NT 5.2; en-US;
-rv:1.8.1.1) Gecko/20061204 Firefox/2.0.0.1&quot; <br>
-151.56.71.198 - - [08/Feb/2007:12:57:42 +0000] &quot;GET
-/data/css HTTP/1.1&quot; 404 206
-&quot;http://www.rfi.net/suse-on-vaio.html&quot;
-&quot;Mozilla/5.0 (Windows; U; Windows NT 5.2; en-US;
-rv:1.8.1.1) Gecko/20061204 Firefox/2.0.0.1&quot; <br>
-151.56.71.198 - - [08/Feb/2007:12:57:43 +0000] &quot;GET
-/favicon.ico HTTP/1.1&quot; 404 209 &quot;-&quot;
-&quot;Mozilla/5.0 (Windows; U; Windows NT 5.2; en-US;
-rv:1.8.1.1) Gecko/20061204 Firefox/2.0.0.1&quot; <br>
-217.113.68.60 - - [08/Feb/2007:13:02:15 +0000] &quot;GET /
-HTTP/1.1&quot; 304 - &quot;-&quot; &quot;Mozilla/4.0
-(compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot; <br>
-217.113.68.60 - - [08/Feb/2007:13:02:16 +0000] &quot;GET
-/data/css HTTP/1.1&quot; 404 206
-&quot;http://www.rfi.net/&quot; &quot;Mozilla/4.0
-(compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot; <br>
-debora.to.isac.cnr.it - - [08/Feb/2007:13:03:58 +0000]
-&quot;GET /suse-on-vaio.html HTTP/1.1&quot; 200 2858
-&quot;http://www.linux-on-laptops.com/sony.html&quot;
-&quot;Mozilla/5.0 (compatible; Konqueror/3.4; Linux)
-KHTML/3.4.0 (like Gecko)&quot; <br>
-debora.to.isac.cnr.it - - [08/Feb/2007:13:03:58 +0000]
-&quot;GET /data/css HTTP/1.1&quot; 404 206
-&quot;http://www.rfi.net/suse-on-vaio.html&quot;
-&quot;Mozilla/5.0 (compatible; Konqueror/3.4; Linux)
-KHTML/3.4.0 (like Gecko)&quot; <br>
-debora.to.isac.cnr.it - - [08/Feb/2007:13:03:58 +0000]
-&quot;GET /favicon.ico HTTP/1.1&quot; 404 209 &quot;-&quot;
-&quot;Mozilla/5.0 (compatible; Konqueror/3.4; Linux)
-KHTML/3.4.0 (like Gecko)&quot; <br>
-195.24.196.99 - - [08/Feb/2007:13:26:48 +0000] &quot;GET /
-HTTP/1.0&quot; 200 3309 &quot;-&quot; &quot;Mozilla/5.0
-(Windows; U; Windows NT 5.1; fr; rv:1.8.0.9) Gecko/20061206
-Firefox/1.5.0.9&quot; <br>
-195.24.196.99 - - [08/Feb/2007:13:26:58 +0000] &quot;GET
-/data/css HTTP/1.0&quot; 404 206
-&quot;http://www.rfi.net/&quot; &quot;Mozilla/5.0 (Windows;
-U; Windows NT 5.1; fr; rv:1.8.0.9) Gecko/20061206
-Firefox/1.5.0.9&quot; <br>
-195.24.196.99 - - [08/Feb/2007:13:26:59 +0000] &quot;GET
-/favicon.ico HTTP/1.0&quot; 404 209 &quot;-&quot;
-&quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; fr;
-rv:1.8.0.9) Gecko/20061206 Firefox/1.5.0.9&quot; <br>
-crawl1.cosmixcorp.com - - [08/Feb/2007:13:27:57 +0000]
-&quot;GET /robots.txt HTTP/1.0&quot; 200 179 &quot;-&quot;
-&quot;voyager/1.0&quot; <br>
-crawl1.cosmixcorp.com - - [08/Feb/2007:13:28:25 +0000]
-&quot;GET /links.html HTTP/1.0&quot; 200 3413 &quot;-&quot;
-&quot;voyager/1.0&quot; <br>
-fhm226.internetdsl.tpnet.pl - - [08/Feb/2007:13:37:32 +0000]
-&quot;GET /suse-on-vaio.html HTTP/1.1&quot; 200 2858
-&quot;http://www.linux-on-laptops.com/sony.html&quot;
-&quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1;
-SV1)&quot; <br>
-fhm226.internetdsl.tpnet.pl - - [08/Feb/2007:13:37:34 +0000]
-&quot;GET /data/css HTTP/1.1&quot; 404 206
-&quot;http://www.rfi.net/suse-on-vaio.html&quot;
-&quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1;
-SV1)&quot; <br>
-80.247.140.134 - - [08/Feb/2007:13:57:35 +0000] &quot;GET /
-HTTP/1.1&quot; 200 3309 &quot;-&quot; &quot;Mozilla/4.0
-(compatible; MSIE 6.0; Windows NT 5.1; .NET CLR
-1.1.4322)&quot; <br>
-80.247.140.134 - - [08/Feb/2007:13:57:37 +0000] &quot;GET
-/data/css HTTP/1.1&quot; 404 206
-&quot;http://www.rfi.net&quot; &quot;Mozilla/4.0
-(compatible; MSIE 6.0; Windows NT 5.1; .NET CLR
-1.1.4322)&quot; <br>
-pop.compuscan.co.za - - [08/Feb/2007:14:10:43 +0000]
-&quot;GET / HTTP/1.1&quot; 200 3309 &quot;-&quot;
-&quot;www.clamav.net&quot; <br>
-livebot-207-46-98-57.search.live.com - -
-[08/Feb/2007:14:12:04 +0000] &quot;GET /robots.txt
-HTTP/1.0&quot; 200 179 &quot;-&quot; &quot;msnbot/1.0
-(+http://search.msn.com/msnbot.htm)&quot; <br>
-livebot-207-46-98-57.search.live.com - -
-[08/Feb/2007:14:12:04 +0000] &quot;GET /html/oracle.html
-HTTP/1.0&quot; 404 214 &quot;-&quot; &quot;msnbot/1.0
-(+http://search.msn.com/msnbot.htm)&quot; <br>
-dslb-088-064-005-154.pools.arcor-ip.net - -
-[08/Feb/2007:14:12:15 +0000] &quot;GET / HTTP/1.1&quot; 200
-3309 &quot;-&quot; &quot;www.clamav.net&quot; <br>
-196.201.92.41 - - [08/Feb/2007:14:15:01 +0000] &quot;GET /
-HTTP/1.1&quot; 200 3309 &quot;-&quot; &quot;MOT-L7/08.B7.DCR
-MIB/2.2.1 Profile/MIDP-2.0 Configuration/CLDC-1.1&quot;</p>
-
-<p style="margin-top: 1em">The specific task here is to
-sort the 286,525 lines of this file by Response Code, Query,
-Browser, Referring Url, and lastly Date. One solution might
-be to use the following <br>
-code, which iterates over the files given on the
-command-line.</p>
-
-<p style="margin-top: 1em"># sort-apache-log</p>
-
-<p style="margin-top: 1em">#!/usr/bin/perl -n</p>
-
-<p style="margin-top: 1em">use strict; <br>
-use warnings;</p>
-
-<p style="margin-top: 1em">my @data;</p>
-
-<p style="margin-top: 1em">LINE: <br>
-while ( &lt;&gt; ) { <br>
-my $line = $_; <br>
-if ( <br>
-$line =~ m/^( <br>
-([600 <br>
--- <br>
-([^]]+) # date <br>
-]&quot;0 <br>
-() # query <br>
-[^&quot;]+&quot; <br>
-(+) # status <br>
-]*&quot; ([^&quot;]*) # browser <br>
-&quot; <br>
-.* <br>
-)$/x <br>
-) { <br>
-my @chunks = split(/ +/, $line); <br>
-my $ip = $1; <br>
-my $date = $2; <br>
-my $query = $3; <br>
-my $status = $4; <br>
-my $browser = $5;</p>
-
-<p style="margin-top: 1em">push(@data, [$ip, $date, $query,
-$status, $browser, $line]); <br>
-} <br>
-}</p>
-
-<p style="margin-top: 1em">my @sorted = sort { <br>
-$a-&gt;[3] cmp $b-&gt;[3] <br>
-|| <br>
-$a-&gt;[2] cmp $b-&gt;[2] <br>
-|| <br>
-$a-&gt;[0] cmp $b-&gt;[0] <br>
-|| <br>
-$a-&gt;[1] cmp $b-&gt;[1] <br>
-|| <br>
-$a-&gt;[4] cmp $b-&gt;[4] <br>
-} @data;</p>
-
-<p style="margin-top: 1em">foreach my $data ( @sorted ) {
-<br>
-print $data-&gt;[5]; <br>
-}</p>
-
-<p style="margin-top: 1em">exit 0;</p>
-
-<p style="margin-top: 1em">When running this program,
-redirect &quot;STDOUT&quot; so it is possible to check the
-output is correct from following test runs and use the
-system &quot;time&quot; utility to check the overall <br>
-runtime.</p>
-
-<p style="margin-top: 1em">$&gt; time ./sort-apache-log
-logfile &gt; out-sort</p>
-
-<p style="margin-top: 1em">real 0m17.371s <br>
-user 0m15.757s <br>
-sys 0m0.592s</p>
-
-<p style="margin-top: 1em">The program took just over 17
-wallclock seconds to run. Note the different values
-&quot;time&quot; outputs, it&rsquo;s important to always use
-the same one, and to not confuse what each one <br>
-means.</p>
-
-<p style="margin-top: 1em">Elapsed Real Time <br>
-The overall, or wallclock, time between when
-&quot;time&quot; was called, and when it terminates. The
-elapsed time includes both user and system times, and time
-spent waiting for <br>
-other users and processes on the system. Inevitably, this is
-the most approximate of the measurements given.</p>
-
-<p style="margin-top: 1em">User CPU Time <br>
-The user time is the amount of time the entire process spent
-on behalf of the user on this system executing this
-program.</p>
-
-<p style="margin-top: 1em">System CPU Time <br>
-The system time is the amount of time the kernel itself
-spent executing routines, or system calls, on behalf of this
-process user.</p>
-
-<p style="margin-top: 1em">Running this same process as a
-&quot;Schwarzian Transform&quot; it is possible to eliminate
-the input and output arrays for storing all the data, and
-work on the input directly as it <br>
-arrives too. Otherwise, the code looks fairly similar:</p>
-
-<p style="margin-top: 1em"># sort-apache-log-schwarzian</p>
-
-<p style="margin-top: 1em">#!/usr/bin/perl -n</p>
-
-<p style="margin-top: 1em">use strict; <br>
-use warnings;</p>
-
-<p style="margin-top: 1em">print</p>
-
-<p style="margin-top: 1em">map $_-&gt;[0] =&gt;</p>
-
-<p style="margin-top: 1em">sort { <br>
-$a-&gt;[4] cmp $b-&gt;[4] <br>
-|| <br>
-$a-&gt;[3] cmp $b-&gt;[3] <br>
-|| <br>
-$a-&gt;[1] cmp $b-&gt;[1] <br>
-|| <br>
-$a-&gt;[2] cmp $b-&gt;[2] <br>
-|| <br>
-$a-&gt;[5] cmp $b-&gt;[5] <br>
-} <br>
-map [ $_, m/^( <br>
-([600 <br>
--- <br>
-([^]]+) # date <br>
-]&quot;0 <br>
-() # query <br>
-[^&quot;]+&quot; <br>
-(+) # status <br>
-]*&quot; ([^&quot;]*) # browser <br>
-&quot; <br>
-.* <br>
-)$/xo ]</p>
-
-<p style="margin-top: 1em">=&gt; &lt;&gt;;</p>
-
-<p style="margin-top: 1em">exit 0;</p>
-
-<p style="margin-top: 1em">Run the new code against the
-same logfile, as above, to check the new time.</p>
-
-<p style="margin-top: 1em">$&gt; time
-./sort-apache-log-schwarzian logfile &gt; out-schwarz</p>
-
-<p style="margin-top: 1em">real 0m9.664s <br>
-user 0m8.873s <br>
-sys 0m0.704s</p>
-
-<p style="margin-top: 1em">The time has been cut in half,
-which is a respectable speed improvement by any standard.
-Naturally, it is important to check the output is consistent
-with the first program run, <br>
-this is where the Unix system &quot;cksum&quot; utility
-comes in.</p>
-
-<p style="margin-top: 1em">$&gt; cksum out-sort out-schwarz
-<br>
-3044173777 52029194 out-sort <br>
-3044173777 52029194 out-schwarz</p>
-
-<p style="margin-top: 1em">BTW. Beware too of pressure from
-managers who see you speed a program up by 50% of the
-runtime once, only to get a request one month later to do
-the same again (true story) - <br>
-you&rsquo;ll just have to point out your only human, even if
-you are a Perl programmer, and you&rsquo;ll see what you can
-do...</p>
-
-<p style="margin-top: 1em">LOGGING <br>
-An essential part of any good development process is
-appropriate error handling with appropriately informative
-messages, however there exists a school of thought which
-suggests <br>
-that log files should be chatty, as if the chain of unbroken
-output somehow ensures the survival of the program. If speed
-is in any way an issue, this approach is wrong.</p>
-
-<p style="margin-top: 1em">A common sight is code which
-looks something like this:</p>
-
-<p style="margin-top: 1em">logger-&gt;debug( &quot;A
-logging message via process-id: $$ INC: &quot; . Dumper(INC)
-)</p>
-
-<p style="margin-top: 1em">The problem is that this code
-will always be parsed and executed, even when the debug
-level set in the logging configuration file is zero. Once
-the debug() subroutine has been <br>
-entered, and the internal $debug variable confirmed to be
-zero, for example, the message which has been sent in will
-be discarded and the program will continue. In the example
-<br>
-given though, the INC hash will already have been dumped,
-and the message string constructed, all of which work could
-be bypassed by a debug variable at the statement level, <br>
-like this:</p>
-
-<p style="margin-top: 1em">logger-&gt;debug( &quot;A
-logging message via process-id: $$ INC: &quot; . Dumper(INC)
-) if $DEBUG;</p>
-
-<p style="margin-top: 1em">This effect can be demonstrated
-by setting up a test script with both forms, including a
-&quot;debug()&quot; subroutine to emulate typical
-&quot;logger()&quot; functionality.</p>
-
-<p style="margin-top: 1em"># ifdebug</p>
-
-<p style="margin-top: 1em">#!/usr/bin/perl</p>
-
-<p style="margin-top: 1em">use strict; <br>
-use warnings;</p>
-
-<p style="margin-top: 1em">use Benchmark; <br>
-use Data::Dumper; <br>
-my $DEBUG = 0;</p>
-
-<p style="margin-top: 1em">sub debug { <br>
-my $msg = shift;</p>
-
-<p style="margin-top: 1em">if ( $DEBUG ) { <br>
-print &quot;DEBUG: $msg0; <br>
-} <br>
-};</p>
-
-<p style="margin-top: 1em">timethese(100000, { <br>
-&rsquo;debug&rsquo; =&gt; sub { <br>
-debug( &quot;A $0 logging message via process-id: $$&quot; .
-Dumper(INC) ) <br>
-}, <br>
-&rsquo;ifdebug&rsquo; =&gt; sub { <br>
-debug( &quot;A $0 logging message via process-id: $$&quot; .
-Dumper(INC) ) if $DEBUG <br>
-}, <br>
-});</p>
-
-<p style="margin-top: 1em">Let&rsquo;s see what
-&quot;Benchmark&quot; makes of this:</p>
-
-<p style="margin-top: 1em">$&gt; perl ifdebug <br>
-Benchmark: timing 100000 iterations of constant, sub... <br>
-ifdebug: 0 wallclock secs ( 0.01 usr + 0.00 sys = 0.01 CPU)
-@ 10000000.00/s (n=100000) <br>
-(warning: too few iterations for a reliable count) <br>
-debug: 14 wallclock secs (13.18 usr + 0.04 sys = 13.22 CPU)
-@ 7564.30/s (n=100000)</p>
-
-<p style="margin-top: 1em">In the one case the code, which
-does exactly the same thing as far as outputting any
-debugging information is concerned, in other words nothing,
-takes 14 seconds, and in the <br>
-other case the code takes one hundredth of a second. Looks
-fairly definitive. Use a $DEBUG variable BEFORE you call the
-subroutine, rather than relying on the smart <br>
-functionality inside it.</p>
-
-<p style="margin-top: 1em">Logging if DEBUG (constant) <br>
-It&rsquo;s possible to take the previous idea a little
-further, by using a compile time &quot;DEBUG&quot;
-constant.</p>
-
-<p style="margin-top: 1em"># ifdebug-constant</p>
-
-<p style="margin-top: 1em">#!/usr/bin/perl</p>
-
-<p style="margin-top: 1em">use strict; <br>
-use warnings;</p>
-
-<p style="margin-top: 1em">use Benchmark; <br>
-use Data::Dumper; <br>
-use constant <br>
-DEBUG =&gt; 0 <br>
-;</p>
-
-<p style="margin-top: 1em">sub debug { <br>
-if ( DEBUG ) { <br>
-my $msg = shift; <br>
-print &quot;DEBUG: $msg0; <br>
-} <br>
-};</p>
-
-<p style="margin-top: 1em">timethese(100000, { <br>
-&rsquo;debug&rsquo; =&gt; sub { <br>
-debug( &quot;A $0 logging message via process-id: $$&quot; .
-Dumper(INC) ) <br>
-}, <br>
-&rsquo;constant&rsquo; =&gt; sub { <br>
-debug( &quot;A $0 logging message via process-id: $$&quot; .
-Dumper(INC) ) if DEBUG <br>
-}, <br>
-});</p>
-
-<p style="margin-top: 1em">Running this program produces
-the following output:</p>
-
-<p style="margin-top: 1em">$&gt; perl ifdebug-constant <br>
-Benchmark: timing 100000 iterations of constant, sub... <br>
-constant: 0 wallclock secs (-0.00 usr + 0.00 sys = -0.00
-CPU) @ -7205759403792793600000.00/s (n=100000) <br>
-(warning: too few iterations for a reliable count) <br>
-sub: 14 wallclock secs (13.09 usr + 0.00 sys = 13.09 CPU) @
-7639.42/s (n=100000)</p>
-
-<p style="margin-top: 1em">The &quot;DEBUG&quot; constant
-wipes the floor with even the $debug variable, clocking in
-at minus zero seconds, and generates a &quot;warning: too
-few iterations for a reliable count&quot; message <br>
-into the bargain. To see what is really going on, and why we
-had too few iterations when we thought we asked for 100000,
-we can use the very useful &quot;B::Deparse&quot; to inspect
-the <br>
-new code:</p>
-
-<p style="margin-top: 1em">$&gt; perl -MO=Deparse
-ifdebug-constant</p>
-
-<p style="margin-top: 1em">use Benchmark; <br>
-use Data::Dumper; <br>
-use constant (&rsquo;DEBUG&rsquo;, 0); <br>
-sub debug { <br>
-use warnings; <br>
-use strict &rsquo;refs&rsquo;; <br>
-0; <br>
-} <br>
-use warnings; <br>
-use strict &rsquo;refs&rsquo;; <br>
-timethese(100000, {&rsquo;sub&rsquo;, sub { <br>
-debug &quot;A $0 logging message via process-id: $$&quot; .
-Dumper(INC); <br>
-} <br>
-, &rsquo;constant&rsquo;, sub { <br>
-0; <br>
-} <br>
-}); <br>
-ifdebug-constant syntax OK</p>
-
-<p style="margin-top: 1em">The output shows the constant()
-subroutine we&rsquo;re testing being replaced with the value
-of the &quot;DEBUG&quot; constant: zero. The line to be
-tested has been completely optimized away, <br>
-and you can&rsquo;t get much more efficient than that.</p>
-
-<p style="margin-top: 1em">POSTSCRIPT <br>
-This document has provided several way to go about
-identifying hot-spots, and checking whether any
-modifications have improved the runtime of the code.</p>
-
-<p style="margin-top: 1em">As a final thought, remember
-that it&rsquo;s not (at the time of writing) possible to
-produce a useful program which will run in zero or negative
-time and this basic principle can be <br>
-written as: useful programs are slow by their very
-definition. It is of course possible to write a nearly
-instantaneous program, but it&rsquo;s not going to do very
-much, here&rsquo;s a <br>
-very efficient one:</p>
-
-<p style="margin-top: 1em">$&gt; perl -e 0</p>
-
-<p style="margin-top: 1em">Optimizing that any further is a
-job for &quot;p5p&quot;.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-Further reading can be found using the modules and links
-below.</p>
-
-<p style="margin-top: 1em">PERLDOCS <br>
-For example: &quot;perldoc -f sort&quot;.</p>
-
-<p style="margin-top: 1em">perlfaq4.</p>
-
-<p style="margin-top: 1em">perlfork, perlfunc, perlretut,
-perlthrtut.</p>
-
-<p style="margin-top: 1em">threads.</p>
-
-<p style="margin-top: 1em">MAN PAGES <br>
-&quot;time&quot;.</p>
-
-<p style="margin-top: 1em">MODULES <br>
-It&rsquo;s not possible to individually showcase all the
-performance related code for Perl here, naturally, but
-here&rsquo;s a short list of modules from the CPAN which
-deserve further <br>
-attention.</p>
-
-<p style="margin-top: 1em">Apache::DProf <br>
-Apache::SmallProf <br>
-Benchmark <br>
-DBIx::Profile <br>
-Devel::AutoProfiler <br>
-Devel::DProf <br>
-Devel::DProfLB <br>
-Devel::FastProf <br>
-Devel::GraphVizProf <br>
-Devel::NYTProf <br>
-Devel::NYTProf::Apache <br>
-Devel::Profiler <br>
-Devel::Profile <br>
-Devel::Profit <br>
-Devel::SmallProf <br>
-Devel::WxProf <br>
-POE::Devel::Profiler <br>
-Sort::Key <br>
-Sort::Maker</p>
-
-<p style="margin-top: 1em">URLS <br>
-Very useful online reference material:</p>
-
-
-<p style="margin-top: 1em">http://www.ccl4.org/~nick/P/Fast_Enough/</p>
-
-
-<p style="margin-top: 1em">http://www-128.ibm.com/developerworks/library/l-optperl.html</p>
-
-
-<p style="margin-top: 1em">http://perlbuzz.com/2007/11/bind-output-variables-in-dbi-for-speed-and-safety.html</p>
-
-
-<p style="margin-top: 1em">http://en.wikipedia.org/wiki/Performance_analysis</p>
-
-
-<p style="margin-top: 1em">http://apache.perl.org/docs/1.0/guide/performance.html</p>
-
-
-<p style="margin-top: 1em">http://perlgolf.sourceforge.net/</p>
-
-
-<p style="margin-top: 1em">http://www.sysarch.com/Perl/sort_paper.html</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Richard Foley &lt;richard.foley@rfi.net&gt; Copyright (c)
-2008</p>
-
-<p style="margin-top: 1em">perl v5.16.3 2013-03-04
-PERLPERF(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">PERLPERF(1)</td>
+    <td class="head-vol">Perl Programmers Reference Guide</td>
+    <td class="head-rtitle">PERLPERF(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+perlperf - Perl Performance and Optimization Techniques
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+This is an introduction to the use of performance and optimization techniques
+  which can be used with particular reference to perl programs. While many perl
+  developers have come from other languages, and can use their prior knowledge
+  where appropriate, there are many other people who might benefit from a few
+  perl specific pointers. If you want the condensed version, perhaps the best
+  advice comes from the renowned Japanese Samurai, Miyamoto Musashi, who said:
+<div class="Pp"></div>
+<pre>
+    &quot;Do Not Engage in Useless Activity&quot;
+</pre>
+<div class="Pp"></div>
+in 1645.
+<h1 class="Sh" title="Sh" id="OVERVIEW"><a class="selflink" href="#OVERVIEW">OVERVIEW</a></h1>
+Perhaps the most common mistake programmers make is to attempt to optimize their
+  code before a program actually does anything useful - this is a bad idea.
+  There's no point in having an extremely fast program that doesn't work. The
+  first job is to get a program to <i>correctly</i> do something <b>useful</b>,
+  (not to mention ensuring the test suite is fully functional), and only then to
+  consider optimizing it. Having decided to optimize existing working code,
+  there are several simple but essential steps to consider which are intrinsic
+  to any optimization process.
+<h2 class="Ss" title="Ss" id="ONE_STEP_SIDEWAYS"><a class="selflink" href="#ONE_STEP_SIDEWAYS">ONE
+  STEP SIDEWAYS</a></h2>
+Firstly, you need to establish a baseline time for the existing code, which
+  timing needs to be reliable and repeatable. You'll probably want to use the
+  &quot;Benchmark&quot; or &quot;Devel::NYTProf&quot; modules, or something
+  similar, for this step, or perhaps the Unix system &quot;time&quot; utility,
+  whichever is appropriate. See the base of this document for a longer list of
+  benchmarking and profiling modules, and recommended further reading.
+<h2 class="Ss" title="Ss" id="ONE_STEP_FORWARD"><a class="selflink" href="#ONE_STEP_FORWARD">ONE
+  STEP FORWARD</a></h2>
+Next, having examined the program for <i>hot spots</i>, (places where the code
+  seems to run slowly), change the code with the intention of making it run
+  faster. Using version control software, like &quot;subversion&quot;, will
+  ensure no changes are irreversible. It's too easy to fiddle here and fiddle
+  there - don't change too much at any one time or you might not discover which
+  piece of code <b>really</b> was the slow bit.
+<h2 class="Ss" title="Ss" id="ANOTHER_STEP_SIDEWAYS"><a class="selflink" href="#ANOTHER_STEP_SIDEWAYS">ANOTHER
+  STEP SIDEWAYS</a></h2>
+It's not enough to say: &quot;that will make it run faster&quot;, you have to
+  check it. Rerun the code under control of the benchmarking or profiling
+  modules, from the first step above, and check that the new code executed the
+  <b>same task</b> in <i>less time</i>. Save your work and repeat...
+<h1 class="Sh" title="Sh" id="GENERAL_GUIDELINES"><a class="selflink" href="#GENERAL_GUIDELINES">GENERAL
+  GUIDELINES</a></h1>
+The critical thing when considering performance is to remember there is no such
+  thing as a &quot;Golden Bullet&quot;, which is why there are no rules, only
+  guidelines.
+<div class="Pp"></div>
+It is clear that inline code is going to be faster than subroutine or method
+  calls, because there is less overhead, but this approach has the disadvantage
+  of being less maintainable and comes at the cost of greater memory usage -
+  there is no such thing as a free lunch. If you are searching for an element in
+  a list, it can be more efficient to store the data in a hash structure, and
+  then simply look to see whether the key is defined, rather than to loop
+  through the entire array using <i>grep()</i> for instance. <i>substr()</i> may
+  be (a lot) faster than <i>grep()</i> but not as flexible, so you have another
+  trade-off to access. Your code may contain a line which takes 0.01 of a second
+  to execute which if you call it 1,000 times, quite likely in a program parsing
+  even medium sized files for instance, you already have a 10 second delay, in
+  just one single code location, and if you call that line 100,000 times, your
+  entire program will slow down to an unbearable crawl.
+<div class="Pp"></div>
+Using a subroutine as part of your sort is a powerful way to get exactly what
+  you want, but will usually be slower than the built-in <i>alphabetic</i>
+  &quot;cmp&quot; and <i>numeric</i> &quot;&lt;=&gt;&quot; sort operators. It is
+  possible to make multiple passes over your data, building indices to make the
+  upcoming sort more efficient, and to use what is known as the &quot;OM&quot;
+  (Orcish Maneuver) to cache the sort keys in advance. The cache lookup, while a
+  good idea, can itself be a source of slowdown by enforcing a double pass over
+  the data - once to setup the cache, and once to sort the data. Using
+  &quot;pack()&quot; to extract the required sort key into a consistent string
+  can be an efficient way to build a single string to compare, instead of using
+  multiple sort keys, which makes it possible to use the standard, written in
+  &quot;c&quot; and fast, perl &quot;sort()&quot; function on the output, and is
+  the basis of the &quot;GRT&quot; (Guttman Rossler Transform). Some string
+  combinations can slow the &quot;GRT&quot; down, by just being too plain
+  complex for it's own good.
+<div class="Pp"></div>
+For applications using database backends, the standard &quot;DBIx&quot;
+  namespace has tries to help with keeping things nippy, not least because it
+  tries to <i>not</i> query the database until the latest possible moment, but
+  always read the docs which come with your choice of libraries. Among the many
+  issues facing developers dealing with databases should remain aware of is to
+  always use &quot;SQL&quot; placeholders and to consider pre-fetching data sets
+  when this might prove advantageous. Splitting up a large file by assigning
+  multiple processes to parsing a single file, using say &quot;POE&quot;,
+  &quot;threads&quot; or &quot;fork&quot; can also be a useful way of optimizing
+  your usage of the available &quot;CPU&quot; resources, though this technique
+  is fraught with concurrency issues and demands high attention to detail.
+<div class="Pp"></div>
+Every case has a specific application and one or more exceptions, and there is
+  no replacement for running a few tests and finding out which method works best
+  for your particular environment, this is why writing optimal code is not an
+  exact science, and why we love using Perl so much - TMTOWTDI.
+<h1 class="Sh" title="Sh" id="BENCHMARKS"><a class="selflink" href="#BENCHMARKS">BENCHMARKS</a></h1>
+Here are a few examples to demonstrate usage of Perl's benchmarking tools.
+<h2 class="Ss" title="Ss" id="Assigning_and_Dereferencing_Variables."><a class="selflink" href="#Assigning_and_Dereferencing_Variables.">Assigning
+  and Dereferencing Variables.</a></h2>
+I'm sure most of us have seen code which looks like, (or worse than), this:
+<div class="Pp"></div>
+<pre>
+    if ( $obj-&gt;{_ref}-&gt;{_myscore} &gt;= $obj-&gt;{_ref}-&gt;{_yourscore} ) {
+        ...
+</pre>
+<div class="Pp"></div>
+This sort of code can be a real eyesore to read, as well as being very sensitive
+  to typos, and it's much clearer to dereference the variable explicitly. We're
+  side-stepping the issue of working with object-oriented programming techniques
+  to encapsulate variable access via methods, only accessible through an object.
+  Here we're just discussing the technical implementation of choice, and whether
+  this has an effect on performance. We can see whether this dereferencing
+  operation, has any overhead by putting comparative code in a file and running
+  a &quot;Benchmark&quot; test.
+<div class="Pp"></div>
+# dereference
+<div class="Pp"></div>
+<pre>
+    #!/usr/bin/perl
+    use strict;
+    use warnings;
+    use Benchmark;
+    my $ref = {
+            'ref'   =&gt; {
+                _myscore    =&gt; '100 + 1',
+                _yourscore  =&gt; '102 - 1',
+            },
+    };
+    timethese(1000000, {
+            'direct'       =&gt; sub {
+                my $x = $ref-&gt;{ref}-&gt;{_myscore} . $ref-&gt;{ref}-&gt;{_yourscore} ;
+            },
+            'dereference'  =&gt; sub {
+                my $ref  = $ref-&gt;{ref};
+                my $myscore = $ref-&gt;{_myscore};
+                my $yourscore = $ref-&gt;{_yourscore};
+                my $x = $myscore . $yourscore;
+            },
+    });
+</pre>
+<div class="Pp"></div>
+It's essential to run any timing measurements a sufficient number of times so
+  the numbers settle on a numerical average, otherwise each run will naturally
+  fluctuate due to variations in the environment, to reduce the effect of
+  contention for &quot;CPU&quot; resources and network bandwidth for instance.
+  Running the above code for one million iterations, we can take a look at the
+  report output by the &quot;Benchmark&quot; module, to see which approach is
+  the most effective.
+<div class="Pp"></div>
+<pre>
+    $&gt; perl dereference
+    Benchmark: timing 1000000 iterations of dereference, direct...
+    dereference:  2 wallclock secs ( 1.59 usr +  0.00 sys =  1.59 CPU) @ 628930.82/s (n=1000000)
+        direct:  1 wallclock secs ( 1.20 usr +  0.00 sys =  1.20 CPU) @ 833333.33/s (n=1000000)
+</pre>
+<div class="Pp"></div>
+The difference is clear to see and the dereferencing approach is slower. While
+  it managed to execute an average of 628,930 times a second during our test,
+  the direct approach managed to run an additional 204,403 times, unfortunately.
+  Unfortunately, because there are many examples of code written using the
+  multiple layer direct variable access, and it's usually horrible. It is,
+  however, minusculy faster. The question remains whether the minute gain is
+  actually worth the eyestrain, or the loss of maintainability.
+<h2 class="Ss" title="Ss" id="Search_and_replace_or_tr"><a class="selflink" href="#Search_and_replace_or_tr">Search
+  and replace or tr</a></h2>
+If we have a string which needs to be modified, while a regex will almost always
+  be much more flexible, &quot;tr&quot;, an oft underused tool, can still be a
+  useful. One scenario might be replace all vowels with another character. The
+  regex solution might look like this:
+<div class="Pp"></div>
+<pre>
+    $str =~ s/[aeiou]/x/g
+</pre>
+<div class="Pp"></div>
+The &quot;tr&quot; alternative might look like this:
+<div class="Pp"></div>
+<pre>
+    $str =~ tr/aeiou/xxxxx/
+</pre>
+<div class="Pp"></div>
+We can put that into a test file which we can run to check which approach is the
+  fastest, using a global $STR variable to assign to the &quot;my $str&quot;
+  variable so as to avoid perl trying to optimize any of the work away by
+  noticing it's assigned only the once.
+<div class="Pp"></div>
+# regex-transliterate
+<div class="Pp"></div>
+<pre>
+    #!/usr/bin/perl
+    use strict;
+    use warnings;
+    use Benchmark;
+    my $STR = &quot;$$-this and that&quot;;
+    timethese( 1000000, {
+            'sr'  =&gt; sub { my $str = $STR; $str =~ s/[aeiou]/x/g; return $str; },
+            'tr'  =&gt; sub { my $str = $STR; $str =~ tr/aeiou/xxxxx/; return $str; },
+    });
+</pre>
+<div class="Pp"></div>
+Running the code gives us our results:
+<div class="Pp"></div>
+<pre>
+    $&gt; perl regex-transliterate
+    Benchmark: timing 1000000 iterations of sr, tr...
+            sr:  2 wallclock secs ( 1.19 usr +  0.00 sys =  1.19 CPU) @ 840336.13/s (n=1000000)
+            tr:  0 wallclock secs ( 0.49 usr +  0.00 sys =  0.49 CPU) @ 2040816.33/s (n=1000000)
+</pre>
+<div class="Pp"></div>
+The &quot;tr&quot; version is a clear winner. One solution is flexible, the
+  other is fast - and it's appropriately the programmer's choice which to use.
+<div class="Pp"></div>
+Check the &quot;Benchmark&quot; docs for further useful techniques.
+<h1 class="Sh" title="Sh" id="PROFILING_TOOLS"><a class="selflink" href="#PROFILING_TOOLS">PROFILING
+  TOOLS</a></h1>
+A slightly larger piece of code will provide something on which a profiler can
+  produce more extensive reporting statistics. This example uses the simplistic
+  &quot;wordmatch&quot; program which parses a given input file and spews out a
+  short report on the contents.
+<div class="Pp"></div>
+# wordmatch
+<div class="Pp"></div>
+<pre>
+    #!/usr/bin/perl
+    use strict;
+    use warnings;
+    =head1 NAME
+    filewords - word analysis of input file
+    =head1 SYNOPSIS
+        filewords -f inputfilename [-d]
+    =head1 DESCRIPTION
+    This program parses the given filename, specified with C&lt;-f&gt;, and displays a
+    simple analysis of the words found therein.  Use the C&lt;-d&gt; switch to enable
+    debugging messages.
+    =cut
+    use FileHandle;
+    use Getopt::Long;
+    my $debug   =  0;
+    my $file    = '';
+    my $result = GetOptions (
+        'debug'         =&gt; \$debug,
+        'file=s'        =&gt; \$file,
+    );
+    die(&quot;invalid args&quot;) unless $result;
+    unless ( -f $file ) {
+        die(&quot;Usage: $0 -f filename [-d]&quot;);
+    }
+    my $FH = FileHandle-&gt;new(&quot;&lt; $file&quot;) or die(&quot;unable to open file($file): $!&quot;);
+    my $i_LINES = 0;
+    my $i_WORDS = 0;
+    my %count   = ();
+    my @lines = &lt;$FH&gt;;
+    foreach my $line ( @lines ) {
+        $i_LINES++;
+        $line =~ s/\n//;
+        my @words = split(/ +/, $line);
+        my $i_words = scalar(@words);
+        $i_WORDS = $i_WORDS + $i_words;
+        debug(&quot;line: $i_LINES supplying $i_words words: @words&quot;);
+        my $i_word = 0;
+        foreach my $word ( @words ) {
+            $i_word++;
+            $count{$i_LINES}{spec} += matches($i_word, $word, '[^a-zA-Z0-9]');
+            $count{$i_LINES}{only} += matches($i_word, $word, '^[^a-zA-Z0-9]+$');
+            $count{$i_LINES}{cons} += matches($i_word, $word, '^[(?i:bcdfghjklmnpqrstvwxyz)]+$');
+            $count{$i_LINES}{vows} += matches($i_word, $word, '^[(?i:aeiou)]+$');
+            $count{$i_LINES}{caps} += matches($i_word, $word, '^[(A-Z)]+$');
+        }
+    }
+    print report( %count );
+    sub matches {
+        my $i_wd  = shift;
+        my $word  = shift;
+        my $regex = shift;
+        my $has = 0;
+        if ( $word =~ /($regex)/ ) {
+            $has++ if $1;
+        }
+        debug(&quot;word: $i_wd &quot;.($has ? 'matches' : 'does not match').&quot; chars: /$regex/&quot;);
+        return $has;
+    }
+    sub report {
+        my %report = @_;
+        my %rep;
+        foreach my $line ( keys %report ) {
+            foreach my $key ( keys %{ $report{$line} } ) {
+                $rep{$key} += $report{$line}{$key};
+            }
+        }
+        my $report = qq|
+    $0 report for $file:
+    lines in file: $i_LINES
+    words in file: $i_WORDS
+    words with special (non-word) characters: $i_spec
+    words with only special (non-word) characters: $i_only
+    words with only consonants: $i_cons
+    words with only capital letters: $i_caps
+    words with only vowels: $i_vows
+    |;
+        return $report;
+    }
+    sub debug {
+        my $message = shift;
+        if ( $debug ) {
+            print STDERR &quot;DBG: $message\n&quot;;
+        }
+    }
+    exit 0;
+</pre>
+<h2 class="Ss" title="Ss" id="Devel::DProf"><a class="selflink" href="#Devel::DProf">Devel::DProf</a></h2>
+This venerable module has been the de-facto standard for Perl code profiling for
+  more than a decade, but has been replaced by a number of other modules which
+  have brought us back to the 21st century. Although you're recommended to
+  evaluate your tool from the several mentioned here and from the CPAN list at
+  the base of this document, (and currently Devel::NYTProf seems to be the
+  weapon of choice - see below), we'll take a quick look at the output from
+  Devel::DProf first, to set a baseline for Perl profiling tools. Run the above
+  program under the control of &quot;Devel::DProf&quot; by using the
+  &quot;-d&quot; switch on the command-line.
+<div class="Pp"></div>
+<pre>
+    $&gt; perl -d:DProf wordmatch -f perl5db.pl
+    &lt;...multiple lines snipped...&gt;
+    wordmatch report for perl5db.pl:
+    lines in file: 9428
+    words in file: 50243
+    words with special (non-word) characters: 20480
+    words with only special (non-word) characters: 7790
+    words with only consonants: 4801
+    words with only capital letters: 1316
+    words with only vowels: 1701
+</pre>
+<div class="Pp"></div>
+&quot;Devel::DProf&quot; produces a special file, called <i>tmon.out</i> by
+  default, and this file is read by the &quot;dprofpp&quot; program, which is
+  already installed as part of the &quot;Devel::DProf&quot; distribution. If you
+  call &quot;dprofpp&quot; with no options, it will read the <i>tmon.out</i>
+  file in the current directory and produce a human readable statistics report
+  of the run of your program. Note that this may take a little time.
+<div class="Pp"></div>
+<pre>
+    $&gt; dprofpp
+    Total Elapsed Time = 2.951677 Seconds
+      User+System Time = 2.871677 Seconds
+    Exclusive Times
+    %Time ExclSec CumulS #Calls sec/call Csec/c  Name
+     102.   2.945  3.003 251215   0.0000 0.0000  main::matches
+     2.40   0.069  0.069 260643   0.0000 0.0000  main::debug
+     1.74   0.050  0.050      1   0.0500 0.0500  main::report
+     1.04   0.030  0.049      4   0.0075 0.0123  main::BEGIN
+     0.35   0.010  0.010      3   0.0033 0.0033  Exporter::as_heavy
+     0.35   0.010  0.010      7   0.0014 0.0014  IO::File::BEGIN
+     0.00       - -0.000      1        -      -  Getopt::Long::FindOption
+     0.00       - -0.000      1        -      -  Symbol::BEGIN
+     0.00       - -0.000      1        -      -  Fcntl::BEGIN
+     0.00       - -0.000      1        -      -  Fcntl::bootstrap
+     0.00       - -0.000      1        -      -  warnings::BEGIN
+     0.00       - -0.000      1        -      -  IO::bootstrap
+     0.00       - -0.000      1        -      -  Getopt::Long::ConfigDefaults
+     0.00       - -0.000      1        -      -  Getopt::Long::Configure
+     0.00       - -0.000      1        -      -  Symbol::gensym
+</pre>
+<div class="Pp"></div>
+&quot;dprofpp&quot; will produce some quite detailed reporting on the activity
+  of the &quot;wordmatch&quot; program. The wallclock, user and system, times
+  are at the top of the analysis, and after this are the main columns defining
+  which define the report. Check the &quot;dprofpp&quot; docs for details of the
+  many options it supports.
+<div class="Pp"></div>
+See also &quot;Apache::DProf&quot; which hooks &quot;Devel::DProf&quot; into
+  &quot;mod_perl&quot;.
+<h2 class="Ss" title="Ss" id="Devel::Profiler"><a class="selflink" href="#Devel::Profiler">Devel::Profiler</a></h2>
+Let's take a look at the same program using a different profiler:
+  &quot;Devel::Profiler&quot;, a drop-in Perl-only replacement for
+  &quot;Devel::DProf&quot;. The usage is very slightly different in that instead
+  of using the special &quot;-d:&quot; flag, you pull
+  &quot;Devel::Profiler&quot; in directly as a module using &quot;-M&quot;.
+<div class="Pp"></div>
+<pre>
+    $&gt; perl -MDevel::Profiler wordmatch -f perl5db.pl
+    &lt;...multiple lines snipped...&gt;
+    wordmatch report for perl5db.pl:
+    lines in file: 9428
+    words in file: 50243
+    words with special (non-word) characters: 20480
+    words with only special (non-word) characters: 7790
+    words with only consonants: 4801
+    words with only capital letters: 1316
+    words with only vowels: 1701
+</pre>
+<div class="Pp"></div>
+&quot;Devel::Profiler&quot; generates a tmon.out file which is compatible with
+  the &quot;dprofpp&quot; program, thus saving the construction of a dedicated
+  statistics reader program. &quot;dprofpp&quot; usage is therefore identical to
+  the above example.
+<div class="Pp"></div>
+<pre>
+    $&gt; dprofpp
+    Total Elapsed Time =   20.984 Seconds
+      User+System Time =   19.981 Seconds
+    Exclusive Times
+    %Time ExclSec CumulS #Calls sec/call Csec/c  Name
+     49.0   9.792 14.509 251215   0.0000 0.0001  main::matches
+     24.4   4.887  4.887 260643   0.0000 0.0000  main::debug
+     0.25   0.049  0.049      1   0.0490 0.0490  main::report
+     0.00   0.000  0.000      1   0.0000 0.0000  Getopt::Long::GetOptions
+     0.00   0.000  0.000      2   0.0000 0.0000  Getopt::Long::ParseOptionSpec
+     0.00   0.000  0.000      1   0.0000 0.0000  Getopt::Long::FindOption
+     0.00   0.000  0.000      1   0.0000 0.0000  IO::File::new
+     0.00   0.000  0.000      1   0.0000 0.0000  IO::Handle::new
+     0.00   0.000  0.000      1   0.0000 0.0000  Symbol::gensym
+     0.00   0.000  0.000      1   0.0000 0.0000  IO::File::open
+</pre>
+<div class="Pp"></div>
+Interestingly we get slightly different results, which is mostly because the
+  algorithm which generates the report is different, even though the output file
+  format was allegedly identical. The elapsed, user and system times are clearly
+  showing the time it took for &quot;Devel::Profiler&quot; to execute its own
+  run, but the column listings feel more accurate somehow than the ones we had
+  earlier from &quot;Devel::DProf&quot;. The 102% figure has disappeared, for
+  example. This is where we have to use the tools at our disposal, and recognise
+  their pros and cons, before using them. Interestingly, the numbers of calls
+  for each subroutine are identical in the two reports, it's the percentages
+  which differ. As the author of &quot;Devel::Proviler&quot; writes:
+<div class="Pp"></div>
+<pre>
+    ...running HTML::Template's test suite under Devel::DProf shows output()
+    taking NO time but Devel::Profiler shows around 10% of the time is in output().
+    I don't know which to trust but my gut tells me something is wrong with
+    Devel::DProf.  HTML::Template::output() is a big routine that's called for
+    every test. Either way, something needs fixing.
+</pre>
+<div class="Pp"></div>
+YMMV.
+<div class="Pp"></div>
+See also &quot;Devel::Apache::Profiler&quot; which hooks
+  &quot;Devel::Profiler&quot; into &quot;mod_perl&quot;.
+<h2 class="Ss" title="Ss" id="Devel::SmallProf"><a class="selflink" href="#Devel::SmallProf">Devel::SmallProf</a></h2>
+The &quot;Devel::SmallProf&quot; profiler examines the runtime of your Perl
+  program and produces a line-by-line listing to show how many times each line
+  was called, and how long each line took to execute. It is called by supplying
+  the familiar &quot;-d&quot; flag to Perl at runtime.
+<div class="Pp"></div>
+<pre>
+    $&gt; perl -d:SmallProf wordmatch -f perl5db.pl
+    &lt;...multiple lines snipped...&gt;
+    wordmatch report for perl5db.pl:
+    lines in file: 9428
+    words in file: 50243
+    words with special (non-word) characters: 20480
+    words with only special (non-word) characters: 7790
+    words with only consonants: 4801
+    words with only capital letters: 1316
+    words with only vowels: 1701
+</pre>
+<div class="Pp"></div>
+&quot;Devel::SmallProf&quot; writes it's output into a file called
+  <i>smallprof.out</i>, by default. The format of the file looks like this:
+<div class="Pp"></div>
+<pre>
+    &lt;num&gt; &lt;time&gt; &lt;ctime&gt; &lt;line&gt;:&lt;text&gt;
+</pre>
+<div class="Pp"></div>
+When the program has terminated, the output may be examined and sorted using any
+  standard text filtering utilities. Something like the following may be
+  sufficient:
+<div class="Pp"></div>
+<pre>
+    $&gt; cat smallprof.out | grep \d*: | sort -k3 | tac | head -n20
+    251215   1.65674   7.68000    75: if ( $word =~ /($regex)/ ) {
+    251215   0.03264   4.40000    79: debug(&quot;word: $i_wd &quot;.($has ? 'matches' :
+    251215   0.02693   4.10000    81: return $has;
+    260643   0.02841   4.07000   128: if ( $debug ) {
+    260643   0.02601   4.04000   126: my $message = shift;
+    251215   0.02641   3.91000    73: my $has = 0;
+    251215   0.03311   3.71000    70: my $i_wd  = shift;
+    251215   0.02699   3.69000    72: my $regex = shift;
+    251215   0.02766   3.68000    71: my $word  = shift;
+     50243   0.59726   1.00000    59:  $count{$i_LINES}{cons} =
+     50243   0.48175   0.92000    61:  $count{$i_LINES}{spec} =
+     50243   0.00644   0.89000    56:  my $i_cons = matches($i_word, $word,
+     50243   0.48837   0.88000    63:  $count{$i_LINES}{caps} =
+     50243   0.00516   0.88000    58:  my $i_caps = matches($i_word, $word, '^[(A-
+     50243   0.00631   0.81000    54:  my $i_spec = matches($i_word, $word, '[^a-
+     50243   0.00496   0.80000    57:  my $i_vows = matches($i_word, $word,
+     50243   0.00688   0.80000    53:  $i_word++;
+     50243   0.48469   0.79000    62:  $count{$i_LINES}{only} =
+     50243   0.48928   0.77000    60:  $count{$i_LINES}{vows} =
+     50243   0.00683   0.75000    55:  my $i_only = matches($i_word, $word, '^[^a-
+</pre>
+<div class="Pp"></div>
+You can immediately see a slightly different focus to the subroutine profiling
+  modules, and we start to see exactly which line of code is taking the most
+  time. That regex line is looking a bit suspicious, for example. Remember that
+  these tools are supposed to be used together, there is no single best way to
+  profile your code, you need to use the best tools for the job.
+<div class="Pp"></div>
+See also &quot;Apache::SmallProf&quot; which hooks &quot;Devel::SmallProf&quot;
+  into &quot;mod_perl&quot;.
+<h2 class="Ss" title="Ss" id="Devel::FastProf"><a class="selflink" href="#Devel::FastProf">Devel::FastProf</a></h2>
+&quot;Devel::FastProf&quot; is another Perl line profiler. This was written with
+  a view to getting a faster line profiler, than is possible with for example
+  &quot;Devel::SmallProf&quot;, because it's written in &quot;C&quot;. To use
+  &quot;Devel::FastProf&quot;, supply the &quot;-d&quot; argument to Perl:
+<div class="Pp"></div>
+<pre>
+    $&gt; perl -d:FastProf wordmatch -f perl5db.pl
+    &lt;...multiple lines snipped...&gt;
+    wordmatch report for perl5db.pl:
+    lines in file: 9428
+    words in file: 50243
+    words with special (non-word) characters: 20480
+    words with only special (non-word) characters: 7790
+    words with only consonants: 4801
+    words with only capital letters: 1316
+    words with only vowels: 1701
+</pre>
+<div class="Pp"></div>
+&quot;Devel::FastProf&quot; writes statistics to the file <i>fastprof.out</i> in
+  the current directory. The output file, which can be specified, can be
+  interpreted by using the &quot;fprofpp&quot; command-line program.
+<div class="Pp"></div>
+<pre>
+    $&gt; fprofpp | head -n20
+    # fprofpp output format is:
+    # filename:line time count: source
+    wordmatch:75 3.93338 251215: if ( $word =~ /($regex)/ ) {
+    wordmatch:79 1.77774 251215: debug(&quot;word: $i_wd &quot;.($has ? 'matches' : 'does not match').&quot; chars: /$regex/&quot;);
+    wordmatch:81 1.47604 251215: return $has;
+    wordmatch:126 1.43441 260643: my $message = shift;
+    wordmatch:128 1.42156 260643: if ( $debug ) {
+    wordmatch:70 1.36824 251215: my $i_wd  = shift;
+    wordmatch:71 1.36739 251215: my $word  = shift;
+    wordmatch:72 1.35939 251215: my $regex = shift;
+</pre>
+<div class="Pp"></div>
+Straightaway we can see that the number of times each line has been called is
+  identical to the &quot;Devel::SmallProf&quot; output, and the sequence is only
+  very slightly different based on the ordering of the amount of time each line
+  took to execute, &quot;if ( $debug ) { &quot; and &quot;my $message =
+  shift;&quot;, for example. The differences in the actual times recorded might
+  be in the algorithm used internally, or it could be due to system resource
+  limitations or contention.
+<div class="Pp"></div>
+See also the DBIx::Profile which will profile database queries running under the
+  &quot;DBIx::*&quot; namespace.
+<h2 class="Ss" title="Ss" id="Devel::NYTProf"><a class="selflink" href="#Devel::NYTProf">Devel::NYTProf</a></h2>
+&quot;Devel::NYTProf&quot; is the <b>next generation</b> of Perl code profiler,
+  fixing many shortcomings in other tools and implementing many cool features.
+  First of all it can be used as either a <i>line</i> profiler, a <i>block</i>
+  or a <i>subroutine</i> profiler, all at once. It can also use sub-microsecond
+  (100ns) resolution on systems which provide &quot;clock_gettime()&quot;. It
+  can be started and stopped even by the program being profiled. It's a one-line
+  entry to profile &quot;mod_perl&quot; applications. It's written in
+  &quot;c&quot; and is probably the fastest profiler available for Perl. The
+  list of coolness just goes on. Enough of that, let's see how to it works -
+  just use the familiar &quot;-d&quot; switch to plug it in and run the code.
+<div class="Pp"></div>
+<pre>
+    $&gt; perl -d:NYTProf wordmatch -f perl5db.pl
+    wordmatch report for perl5db.pl:
+    lines in file: 9427
+    words in file: 50243
+    words with special (non-word) characters: 20480
+    words with only special (non-word) characters: 7790
+    words with only consonants: 4801
+    words with only capital letters: 1316
+    words with only vowels: 1701
+</pre>
+<div class="Pp"></div>
+&quot;NYTProf&quot; will generate a report database into the file
+  <i>nytprof.out</i> by default. Human readable reports can be generated from
+  here by using the supplied &quot;nytprofhtml&quot; (HTML output) and
+  &quot;nytprofcsv&quot; (CSV output) programs. We've used the Unix system
+  &quot;html2text&quot; utility to convert the <i>nytprof/index.html</i> file
+  for convenience here.
+<div class="Pp"></div>
+<pre>
+    $&gt; html2text nytprof/index.html
+    Performance Profile Index
+    For wordmatch
+      Run on Fri Sep 26 13:46:39 2008
+    Reported on Fri Sep 26 13:47:23 2008
+             Top 15 Subroutines -- ordered by exclusive time
+    |Calls |P |F |Inclusive|Exclusive|Subroutine                          |
+    |      |  |  |Time     |Time     |                                    |
+    |251215|5 |1 |13.09263 |10.47692 |main::              |matches        |
+    |260642|2 |1 |2.71199  |2.71199  |main::              |debug          |
+    |1     |1 |1 |0.21404  |0.21404  |main::              |report         |
+    |2     |2 |2 |0.00511  |0.00511  |XSLoader::          |load (xsub)    |
+    |14    |14|7 |0.00304  |0.00298  |Exporter::          |import         |
+    |3     |1 |1 |0.00265  |0.00254  |Exporter::          |as_heavy       |
+    |10    |10|4 |0.00140  |0.00140  |vars::              |import         |
+    |13    |13|1 |0.00129  |0.00109  |constant::          |import         |
+    |1     |1 |1 |0.00360  |0.00096  |FileHandle::        |import         |
+    |3     |3 |3 |0.00086  |0.00074  |warnings::register::|import         |
+    |9     |3 |1 |0.00036  |0.00036  |strict::            |bits           |
+    |13    |13|13|0.00032  |0.00029  |strict::            |import         |
+    |2     |2 |2 |0.00020  |0.00020  |warnings::          |import         |
+    |2     |1 |1 |0.00020  |0.00020  |Getopt::Long::      |ParseOptionSpec|
+    |7     |7 |6 |0.00043  |0.00020  |strict::            |unimport       |
+    For more information see the full list of 189 subroutines.
+</pre>
+<div class="Pp"></div>
+The first part of the report already shows the critical information regarding
+  which subroutines are using the most time. The next gives some statistics
+  about the source files profiled.
+<div class="Pp"></div>
+<pre>
+            Source Code Files -- ordered by exclusive time then name
+    |Stmts  |Exclusive|Avg.   |Reports                     |Source File         |
+    |       |Time     |       |                            |                    |
+    |2699761|15.66654 |6e-06  |line   .    block   .    sub|wordmatch           |
+    |35     |0.02187  |0.00062|line   .    block   .    sub|IO/Handle.pm        |
+    |274    |0.01525  |0.00006|line   .    block   .    sub|Getopt/Long.pm      |
+    |20     |0.00585  |0.00029|line   .    block   .    sub|Fcntl.pm            |
+    |128    |0.00340  |0.00003|line   .    block   .    sub|Exporter/Heavy.pm   |
+    |42     |0.00332  |0.00008|line   .    block   .    sub|IO/File.pm          |
+    |261    |0.00308  |0.00001|line   .    block   .    sub|Exporter.pm         |
+    |323    |0.00248  |8e-06  |line   .    block   .    sub|constant.pm         |
+    |12     |0.00246  |0.00021|line   .    block   .    sub|File/Spec/Unix.pm   |
+    |191    |0.00240  |0.00001|line   .    block   .    sub|vars.pm             |
+    |77     |0.00201  |0.00003|line   .    block   .    sub|FileHandle.pm       |
+    |12     |0.00198  |0.00016|line   .    block   .    sub|Carp.pm             |
+    |14     |0.00175  |0.00013|line   .    block   .    sub|Symbol.pm           |
+    |15     |0.00130  |0.00009|line   .    block   .    sub|IO.pm               |
+    |22     |0.00120  |0.00005|line   .    block   .    sub|IO/Seekable.pm      |
+    |198    |0.00085  |4e-06  |line   .    block   .    sub|warnings/register.pm|
+    |114    |0.00080  |7e-06  |line   .    block   .    sub|strict.pm           |
+    |47     |0.00068  |0.00001|line   .    block   .    sub|warnings.pm         |
+    |27     |0.00054  |0.00002|line   .    block   .    sub|overload.pm         |
+    |9      |0.00047  |0.00005|line   .    block   .    sub|SelectSaver.pm      |
+    |13     |0.00045  |0.00003|line   .    block   .    sub|File/Spec.pm        |
+    |2701595|15.73869 |       |Total                       |
+    |128647 |0.74946  |       |Average                     |
+    |       |0.00201  |0.00003|Median                      |
+    |       |0.00121  |0.00003|Deviation                   |
+    Report produced by the NYTProf 2.03 Perl profiler, developed by Tim Bunce and
+    Adam Kaplan.
+</pre>
+<div class="Pp"></div>
+At this point, if you're using the <i>html</i> report, you can click through the
+  various links to bore down into each subroutine and each line of code. Because
+  we're using the text reporting here, and there's a whole directory full of
+  reports built for each source file, we'll just display a part of the
+  corresponding <i>wordmatch-line.html</i> file, sufficient to give an idea of
+  the sort of output you can expect from this cool tool.
+<div class="Pp"></div>
+<pre>
+    $&gt; html2text nytprof/wordmatch-line.html
+    Performance Profile -- -block view-.-line view-.-sub view-
+    For wordmatch
+    Run on Fri Sep 26 13:46:39 2008
+    Reported on Fri Sep 26 13:47:22 2008
+    File wordmatch
+     Subroutines -- ordered by exclusive time
+    |Calls |P|F|Inclusive|Exclusive|Subroutine    |
+    |      | | |Time     |Time     |              |
+    |251215|5|1|13.09263 |10.47692 |main::|matches|
+    |260642|2|1|2.71199  |2.71199  |main::|debug  |
+    |1     |1|1|0.21404  |0.21404  |main::|report |
+    |0     |0|0|0        |0        |main::|BEGIN  |
+    |Line|Stmts.|Exclusive|Avg.   |Code                                           |
+    |    |      |Time     |       |                                               |
+    |1   |      |         |       |#!/usr/bin/perl                                |
+    |2   |      |         |       |                                               |
+    |    |      |         |       |use strict;                                    |
+    |3   |3     |0.00086  |0.00029|# spent 0.00003s making 1 calls to strict::    |
+    |    |      |         |       |import                                         |
+    |    |      |         |       |use warnings;                                  |
+    |4   |3     |0.01563  |0.00521|# spent 0.00012s making 1 calls to warnings::  |
+    |    |      |         |       |import                                         |
+    |5   |      |         |       |                                               |
+    |6   |      |         |       |=head1 NAME                                    |
+    |7   |      |         |       |                                               |
+    |8   |      |         |       |filewords - word analysis of input file        |
+    &lt;...snip...&gt;
+    |62  |1     |0.00445  |0.00445|print report( %count );                        |
+    |    |      |         |       |# spent 0.21404s making 1 calls to main::report|
+    |63  |      |         |       |                                               |
+    |    |      |         |       |# spent 23.56955s (10.47692+2.61571) within    |
+    |    |      |         |       |main::matches which was called 251215 times,   |
+    |    |      |         |       |avg 0.00005s/call: # 50243 times               |
+    |    |      |         |       |(2.12134+0.51939s) at line 57 of wordmatch, avg|
+    |    |      |         |       |0.00005s/call # 50243 times (2.17735+0.54550s) |
+    |64  |      |         |       |at line 56 of wordmatch, avg 0.00005s/call #   |
+    |    |      |         |       |50243 times (2.10992+0.51797s) at line 58 of   |
+    |    |      |         |       |wordmatch, avg 0.00005s/call # 50243 times     |
+    |    |      |         |       |(2.12696+0.51598s) at line 55 of wordmatch, avg|
+    |    |      |         |       |0.00005s/call # 50243 times (1.94134+0.51687s) |
+    |    |      |         |       |at line 54 of wordmatch, avg 0.00005s/call     |
+    |    |      |         |       |sub matches {                                  |
+    &lt;...snip...&gt;
+    |102 |      |         |       |                                               |
+    |    |      |         |       |# spent 2.71199s within main::debug which was  |
+    |    |      |         |       |called 260642 times, avg 0.00001s/call: #      |
+    |    |      |         |       |251215 times (2.61571+0s) by main::matches at  |
+    |103 |      |         |       |line 74 of wordmatch, avg 0.00001s/call # 9427 |
+    |    |      |         |       |times (0.09628+0s) at line 50 of wordmatch, avg|
+    |    |      |         |       |0.00001s/call                                  |
+    |    |      |         |       |sub debug {                                    |
+    |104 |260642|0.58496  |2e-06  |my $message = shift;                           |
+    |105 |      |         |       |                                               |
+    |106 |260642|1.09917  |4e-06  |if ( $debug ) {                                |
+    |107 |      |         |       |print STDERR &quot;DBG: $message\n&quot;;                |
+    |108 |      |         |       |}                                              |
+    |109 |      |         |       |}                                              |
+    |110 |      |         |       |                                               |
+    |111 |1     |0.01501  |0.01501|exit 0;                                        |
+    |112 |      |         |       |                                               |
+</pre>
+<div class="Pp"></div>
+Oodles of very useful information in there - this seems to be the way forward.
+<div class="Pp"></div>
+See also &quot;Devel::NYTProf::Apache&quot; which hooks
+  &quot;Devel::NYTProf&quot; into &quot;mod_perl&quot;.
+<h1 class="Sh" title="Sh" id="SORTING"><a class="selflink" href="#SORTING">SORTING</a></h1>
+Perl modules are not the only tools a performance analyst has at their disposal,
+  system tools like &quot;time&quot; should not be overlooked as the next
+  example shows, where we take a quick look at sorting. Many books, theses and
+  articles, have been written about efficient sorting algorithms, and this is
+  not the place to repeat such work, there's several good sorting modules which
+  deserve taking a look at too: &quot;Sort::Maker&quot;, &quot;Sort::Key&quot;
+  spring to mind. However, it's still possible to make some observations on
+  certain Perl specific interpretations on issues relating to sorting data sets
+  and give an example or two with regard to how sorting large data volumes can
+  effect performance. Firstly, an often overlooked point when sorting large
+  amounts of data, one can attempt to reduce the data set to be dealt with and
+  in many cases &quot;grep()&quot; can be quite useful as a simple filter:
+<div class="Pp"></div>
+<pre>
+    @data = sort grep { /$filter/ } @incoming
+</pre>
+<div class="Pp"></div>
+A command such as this can vastly reduce the volume of material to actually sort
+  through in the first place, and should not be too lightly disregarded purely
+  on the basis of its simplicity. The &quot;KISS&quot; principle is too often
+  overlooked - the next example uses the simple system &quot;time&quot; utility
+  to demonstrate. Let's take a look at an actual example of sorting the contents
+  of a large file, an apache logfile would do. This one has over a quarter of a
+  million lines, is 50M in size, and a snippet of it looks like this:
+<div class="Pp"></div>
+# logfile
+<div class="Pp"></div>
+<pre>
+    188.209-65-87.adsl-dyn.isp.belgacom.be - - [08/Feb/2007:12:57:16 +0000] &quot;GET /favicon.ico HTTP/1.1&quot; 404 209 &quot;-&quot; &quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot;
+    188.209-65-87.adsl-dyn.isp.belgacom.be - - [08/Feb/2007:12:57:16 +0000] &quot;GET /favicon.ico HTTP/1.1&quot; 404 209 &quot;-&quot; &quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot;
+    151.56.71.198 - - [08/Feb/2007:12:57:41 +0000] &quot;GET /suse-on-vaio.html HTTP/1.1&quot; 200 2858 &quot;http://www.linux-on-laptops.com/sony.html&quot; &quot;Mozilla/5.0 (Windows; U; Windows NT 5.2; en-US; rv:1.8.1.1) Gecko/20061204 Firefox/2.0.0.1&quot;
+    151.56.71.198 - - [08/Feb/2007:12:57:42 +0000] &quot;GET /data/css HTTP/1.1&quot; 404 206 &quot;http://www.rfi.net/suse-on-vaio.html&quot; &quot;Mozilla/5.0 (Windows; U; Windows NT 5.2; en-US; rv:1.8.1.1) Gecko/20061204 Firefox/2.0.0.1&quot;
+    151.56.71.198 - - [08/Feb/2007:12:57:43 +0000] &quot;GET /favicon.ico HTTP/1.1&quot; 404 209 &quot;-&quot; &quot;Mozilla/5.0 (Windows; U; Windows NT 5.2; en-US; rv:1.8.1.1) Gecko/20061204 Firefox/2.0.0.1&quot;
+    217.113.68.60 - - [08/Feb/2007:13:02:15 +0000] &quot;GET / HTTP/1.1&quot; 304 - &quot;-&quot; &quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot;
+    217.113.68.60 - - [08/Feb/2007:13:02:16 +0000] &quot;GET /data/css HTTP/1.1&quot; 404 206 &quot;http://www.rfi.net/&quot; &quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot;
+    debora.to.isac.cnr.it - - [08/Feb/2007:13:03:58 +0000] &quot;GET /suse-on-vaio.html HTTP/1.1&quot; 200 2858 &quot;http://www.linux-on-laptops.com/sony.html&quot; &quot;Mozilla/5.0 (compatible; Konqueror/3.4; Linux) KHTML/3.4.0 (like Gecko)&quot;
+    debora.to.isac.cnr.it - - [08/Feb/2007:13:03:58 +0000] &quot;GET /data/css HTTP/1.1&quot; 404 206 &quot;http://www.rfi.net/suse-on-vaio.html&quot; &quot;Mozilla/5.0 (compatible; Konqueror/3.4; Linux) KHTML/3.4.0 (like Gecko)&quot;
+    debora.to.isac.cnr.it - - [08/Feb/2007:13:03:58 +0000] &quot;GET /favicon.ico HTTP/1.1&quot; 404 209 &quot;-&quot; &quot;Mozilla/5.0 (compatible; Konqueror/3.4; Linux) KHTML/3.4.0 (like Gecko)&quot;
+    195.24.196.99 - - [08/Feb/2007:13:26:48 +0000] &quot;GET / HTTP/1.0&quot; 200 3309 &quot;-&quot; &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; fr; rv:1.8.0.9) Gecko/20061206 Firefox/1.5.0.9&quot;
+    195.24.196.99 - - [08/Feb/2007:13:26:58 +0000] &quot;GET /data/css HTTP/1.0&quot; 404 206 &quot;http://www.rfi.net/&quot; &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; fr; rv:1.8.0.9) Gecko/20061206 Firefox/1.5.0.9&quot;
+    195.24.196.99 - - [08/Feb/2007:13:26:59 +0000] &quot;GET /favicon.ico HTTP/1.0&quot; 404 209 &quot;-&quot; &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; fr; rv:1.8.0.9) Gecko/20061206 Firefox/1.5.0.9&quot;
+    crawl1.cosmixcorp.com - - [08/Feb/2007:13:27:57 +0000] &quot;GET /robots.txt HTTP/1.0&quot; 200 179 &quot;-&quot; &quot;voyager/1.0&quot;
+    crawl1.cosmixcorp.com - - [08/Feb/2007:13:28:25 +0000] &quot;GET /links.html HTTP/1.0&quot; 200 3413 &quot;-&quot; &quot;voyager/1.0&quot;
+    fhm226.internetdsl.tpnet.pl - - [08/Feb/2007:13:37:32 +0000] &quot;GET /suse-on-vaio.html HTTP/1.1&quot; 200 2858 &quot;http://www.linux-on-laptops.com/sony.html&quot; &quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot;
+    fhm226.internetdsl.tpnet.pl - - [08/Feb/2007:13:37:34 +0000] &quot;GET /data/css HTTP/1.1&quot; 404 206 &quot;http://www.rfi.net/suse-on-vaio.html&quot; &quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1)&quot;
+    80.247.140.134 - - [08/Feb/2007:13:57:35 +0000] &quot;GET / HTTP/1.1&quot; 200 3309 &quot;-&quot; &quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)&quot;
+    80.247.140.134 - - [08/Feb/2007:13:57:37 +0000] &quot;GET /data/css HTTP/1.1&quot; 404 206 &quot;http://www.rfi.net&quot; &quot;Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.1.4322)&quot;
+    pop.compuscan.co.za - - [08/Feb/2007:14:10:43 +0000] &quot;GET / HTTP/1.1&quot; 200 3309 &quot;-&quot; &quot;www.clamav.net&quot;
+    livebot-207-46-98-57.search.live.com - - [08/Feb/2007:14:12:04 +0000] &quot;GET /robots.txt HTTP/1.0&quot; 200 179 &quot;-&quot; &quot;msnbot/1.0 (+http://search.msn.com/msnbot.htm)&quot;
+    livebot-207-46-98-57.search.live.com - - [08/Feb/2007:14:12:04 +0000] &quot;GET /html/oracle.html HTTP/1.0&quot; 404 214 &quot;-&quot; &quot;msnbot/1.0 (+http://search.msn.com/msnbot.htm)&quot;
+    dslb-088-064-005-154.pools.arcor-ip.net - - [08/Feb/2007:14:12:15 +0000] &quot;GET / HTTP/1.1&quot; 200 3309 &quot;-&quot; &quot;www.clamav.net&quot;
+    196.201.92.41 - - [08/Feb/2007:14:15:01 +0000] &quot;GET / HTTP/1.1&quot; 200 3309 &quot;-&quot; &quot;MOT-L7/08.B7.DCR MIB/2.2.1 Profile/MIDP-2.0 Configuration/CLDC-1.1&quot;
+</pre>
+<div class="Pp"></div>
+The specific task here is to sort the 286,525 lines of this file by Response
+  Code, Query, Browser, Referring Url, and lastly Date. One solution might be to
+  use the following code, which iterates over the files given on the
+  command-line.
+<div class="Pp"></div>
+# sort-apache-log
+<div class="Pp"></div>
+<pre>
+    #!/usr/bin/perl -n
+    use strict;
+    use warnings;
+    my @data;
+    LINE:
+    while ( &lt;&gt; ) {
+        my $line = $_;
+        if (
+            $line =~ m/^(
+                ([\w\.\-]+)             # client
+                \s*-\s*-\s*\[
+                ([^]]+)                 # date
+                \]\s*&quot;\w+\s*
+                (\S+)                   # query
+                [^&quot;]+&quot;\s*
+                (\d+)                   # status
+                \s+\S+\s+&quot;[^&quot;]*&quot;\s+&quot;
+                ([^&quot;]*)                 # browser
+                &quot;
+                .*
+            )$/x
+        ) {
+            my @chunks = split(/ +/, $line);
+            my $ip      = $1;
+            my $date    = $2;
+            my $query   = $3;
+            my $status  = $4;
+            my $browser = $5;
+            push(@data, [$ip, $date, $query, $status, $browser, $line]);
+        }
+    }
+    my @sorted = sort {
+        $a-&gt;[3] cmp $b-&gt;[3]
+                ||
+        $a-&gt;[2] cmp $b-&gt;[2]
+                ||
+        $a-&gt;[0] cmp $b-&gt;[0]
+                ||
+        $a-&gt;[1] cmp $b-&gt;[1]
+                ||
+        $a-&gt;[4] cmp $b-&gt;[4]
+    } @data;
+    foreach my $data ( @sorted ) {
+        print $data-&gt;[5];
+    }
+    exit 0;
+</pre>
+<div class="Pp"></div>
+When running this program, redirect &quot;STDOUT&quot; so it is possible to
+  check the output is correct from following test runs and use the system
+  &quot;time&quot; utility to check the overall runtime.
+<div class="Pp"></div>
+<pre>
+    $&gt; time ./sort-apache-log logfile &gt; out-sort
+    real    0m17.371s
+    user    0m15.757s
+    sys     0m0.592s
+</pre>
+<div class="Pp"></div>
+The program took just over 17 wallclock seconds to run. Note the different
+  values &quot;time&quot; outputs, it's important to always use the same one,
+  and to not confuse what each one means.
+<dl class="Bl-tag">
+  <dt class="It-tag">Elapsed Real Time</dt>
+  <dd class="It-tag">The overall, or wallclock, time between when
+      &quot;time&quot; was called, and when it terminates. The elapsed time
+      includes both user and system times, and time spent waiting for other
+      users and processes on the system. Inevitably, this is the most
+      approximate of the measurements given.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">User CPU Time</dt>
+  <dd class="It-tag">The user time is the amount of time the entire process
+      spent on behalf of the user on this system executing this program.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">System CPU Time</dt>
+  <dd class="It-tag">The system time is the amount of time the kernel itself
+      spent executing routines, or system calls, on behalf of this process
+    user.</dd>
+</dl>
+<div class="Pp"></div>
+Running this same process as a &quot;Schwarzian Transform&quot; it is possible
+  to eliminate the input and output arrays for storing all the data, and work on
+  the input directly as it arrives too. Otherwise, the code looks fairly
+  similar:
+<div class="Pp"></div>
+# sort-apache-log-schwarzian
+<div class="Pp"></div>
+<pre>
+    #!/usr/bin/perl -n
+    use strict;
+    use warnings;
+    print
+        map $_-&gt;[0] =&gt;
+        sort {
+            $a-&gt;[4] cmp $b-&gt;[4]
+                    ||
+            $a-&gt;[3] cmp $b-&gt;[3]
+                    ||
+            $a-&gt;[1] cmp $b-&gt;[1]
+                    ||
+            $a-&gt;[2] cmp $b-&gt;[2]
+                    ||
+            $a-&gt;[5] cmp $b-&gt;[5]
+        }
+        map  [ $_, m/^(
+            ([\w\.\-]+)             # client
+            \s*-\s*-\s*\[
+            ([^]]+)                 # date
+            \]\s*&quot;\w+\s*
+            (\S+)                   # query
+            [^&quot;]+&quot;\s*
+            (\d+)                   # status
+            \s+\S+\s+&quot;[^&quot;]*&quot;\s+&quot;
+            ([^&quot;]*)                 # browser
+            &quot;
+            .*
+        )$/xo ]
+        =&gt; &lt;&gt;;
+    exit 0;
+</pre>
+<div class="Pp"></div>
+Run the new code against the same logfile, as above, to check the new time.
+<div class="Pp"></div>
+<pre>
+    $&gt; time ./sort-apache-log-schwarzian logfile &gt; out-schwarz
+    real    0m9.664s
+    user    0m8.873s
+    sys     0m0.704s
+</pre>
+<div class="Pp"></div>
+The time has been cut in half, which is a respectable speed improvement by any
+  standard. Naturally, it is important to check the output is consistent with
+  the first program run, this is where the Unix system &quot;cksum&quot; utility
+  comes in.
+<div class="Pp"></div>
+<pre>
+    $&gt; cksum out-sort out-schwarz
+    3044173777 52029194 out-sort
+    3044173777 52029194 out-schwarz
+</pre>
+<div class="Pp"></div>
+BTW. Beware too of pressure from managers who see you speed a program up by 50%
+  of the runtime once, only to get a request one month later to do the same
+  again (true story) - you'll just have to point out your only human, even if
+  you are a Perl programmer, and you'll see what you can do...
+<h1 class="Sh" title="Sh" id="LOGGING"><a class="selflink" href="#LOGGING">LOGGING</a></h1>
+An essential part of any good development process is appropriate error handling
+  with appropriately informative messages, however there exists a school of
+  thought which suggests that log files should be <i>chatty</i>, as if the chain
+  of unbroken output somehow ensures the survival of the program. If speed is in
+  any way an issue, this approach is wrong.
+<div class="Pp"></div>
+A common sight is code which looks something like this:
+<div class="Pp"></div>
+<pre>
+    logger-&gt;debug( &quot;A logging message via process-id: $$ INC: &quot; . Dumper(\%INC) )
+</pre>
+<div class="Pp"></div>
+The problem is that this code will always be parsed and executed, even when the
+  debug level set in the logging configuration file is zero. Once the
+  <i>debug()</i> subroutine has been entered, and the internal $debug variable
+  confirmed to be zero, for example, the message which has been sent in will be
+  discarded and the program will continue. In the example given though, the
+  \%INC hash will already have been dumped, and the message string constructed,
+  all of which work could be bypassed by a debug variable at the statement
+  level, like this:
+<div class="Pp"></div>
+<pre>
+    logger-&gt;debug( &quot;A logging message via process-id: $$ INC: &quot; . Dumper(\%INC) ) if $DEBUG;
+</pre>
+<div class="Pp"></div>
+This effect can be demonstrated by setting up a test script with both forms,
+  including a &quot;debug()&quot; subroutine to emulate typical
+  &quot;logger()&quot; functionality.
+<div class="Pp"></div>
+# ifdebug
+<div class="Pp"></div>
+<pre>
+    #!/usr/bin/perl
+    use strict;
+    use warnings;
+    use Benchmark;
+    use Data::Dumper;
+    my $DEBUG = 0;
+    sub debug {
+        my $msg = shift;
+        if ( $DEBUG ) {
+            print &quot;DEBUG: $msg\n&quot;;
+        }
+    };
+    timethese(100000, {
+            'debug'       =&gt; sub {
+                debug( &quot;A $0 logging message via process-id: $$&quot; . Dumper(\%INC) )
+            },
+            'ifdebug'  =&gt; sub {
+                debug( &quot;A $0 logging message via process-id: $$&quot; . Dumper(\%INC) ) if $DEBUG
+            },
+    });
+</pre>
+<div class="Pp"></div>
+Let's see what &quot;Benchmark&quot; makes of this:
+<div class="Pp"></div>
+<pre>
+    $&gt; perl ifdebug
+    Benchmark: timing 100000 iterations of constant, sub...
+       ifdebug:  0 wallclock secs ( 0.01 usr +  0.00 sys =  0.01 CPU) @ 10000000.00/s (n=100000)
+                (warning: too few iterations for a reliable count)
+         debug: 14 wallclock secs (13.18 usr +  0.04 sys = 13.22 CPU) @ 7564.30/s (n=100000)
+</pre>
+<div class="Pp"></div>
+In the one case the code, which does exactly the same thing as far as outputting
+  any debugging information is concerned, in other words nothing, takes 14
+  seconds, and in the other case the code takes one hundredth of a second. Looks
+  fairly definitive. Use a $DEBUG variable BEFORE you call the subroutine,
+  rather than relying on the smart functionality inside it.
+<h2 class="Ss" title="Ss" id="Logging_if_DEBUG_(constant)"><a class="selflink" href="#Logging_if_DEBUG_(constant)">Logging
+  if DEBUG (constant)</a></h2>
+It's possible to take the previous idea a little further, by using a compile
+  time &quot;DEBUG&quot; constant.
+<div class="Pp"></div>
+# ifdebug-constant
+<div class="Pp"></div>
+<pre>
+    #!/usr/bin/perl
+    use strict;
+    use warnings;
+    use Benchmark;
+    use Data::Dumper;
+    use constant
+        DEBUG =&gt; 0
+    ;
+    sub debug {
+        if ( DEBUG ) {
+            my $msg = shift;
+            print &quot;DEBUG: $msg\n&quot;;
+        }
+    };
+    timethese(100000, {
+            'debug'       =&gt; sub {
+                debug( &quot;A $0 logging message via process-id: $$&quot; . Dumper(\%INC) )
+            },
+            'constant'  =&gt; sub {
+                debug( &quot;A $0 logging message via process-id: $$&quot; . Dumper(\%INC) ) if DEBUG
+            },
+    });
+</pre>
+<div class="Pp"></div>
+Running this program produces the following output:
+<div class="Pp"></div>
+<pre>
+    $&gt; perl ifdebug-constant
+    Benchmark: timing 100000 iterations of constant, sub...
+      constant:  0 wallclock secs (-0.00 usr +  0.00 sys = -0.00 CPU) @ -7205759403792793600000.00/s (n=100000)
+                (warning: too few iterations for a reliable count)
+           sub: 14 wallclock secs (13.09 usr +  0.00 sys = 13.09 CPU) @ 7639.42/s (n=100000)
+</pre>
+<div class="Pp"></div>
+The &quot;DEBUG&quot; constant wipes the floor with even the $debug variable,
+  clocking in at minus zero seconds, and generates a &quot;warning: too few
+  iterations for a reliable count&quot; message into the bargain. To see what is
+  really going on, and why we had too few iterations when we thought we asked
+  for 100000, we can use the very useful &quot;B::Deparse&quot; to inspect the
+  new code:
+<div class="Pp"></div>
+<pre>
+    $&gt; perl -MO=Deparse ifdebug-constant
+    use Benchmark;
+    use Data::Dumper;
+    use constant ('DEBUG', 0);
+    sub debug {
+        use warnings;
+        use strict 'refs';
+        0;
+    }
+    use warnings;
+    use strict 'refs';
+    timethese(100000, {'sub', sub {
+        debug &quot;A $0 logging message via process-id: $$&quot; . Dumper(\%INC);
+    }
+    , 'constant', sub {
+        0;
+    }
+    });
+    ifdebug-constant syntax OK
+</pre>
+<div class="Pp"></div>
+The output shows the <i>constant()</i> subroutine we're testing being replaced
+  with the value of the &quot;DEBUG&quot; constant: zero. The line to be tested
+  has been completely optimized away, and you can't get much more efficient than
+  that.
+<h1 class="Sh" title="Sh" id="POSTSCRIPT"><a class="selflink" href="#POSTSCRIPT">POSTSCRIPT</a></h1>
+This document has provided several way to go about identifying hot-spots, and
+  checking whether any modifications have improved the runtime of the code.
+<div class="Pp"></div>
+As a final thought, remember that it's not (at the time of writing) possible to
+  produce a useful program which will run in zero or negative time and this
+  basic principle can be written as: <i>useful programs are slow</i> by their
+  very definition. It is of course possible to write a nearly instantaneous
+  program, but it's not going to do very much, here's a very efficient one:
+<div class="Pp"></div>
+<pre>
+    $&gt; perl -e 0
+</pre>
+<div class="Pp"></div>
+Optimizing that any further is a job for &quot;p5p&quot;.
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+Further reading can be found using the modules and links below.
+<h2 class="Ss" title="Ss" id="PERLDOCS"><a class="selflink" href="#PERLDOCS">PERLDOCS</a></h2>
+For example: &quot;perldoc -f sort&quot;.
+<div class="Pp"></div>
+perlfaq4.
+<div class="Pp"></div>
+perlfork, perlfunc, perlretut, perlthrtut.
+<div class="Pp"></div>
+threads.
+<h2 class="Ss" title="Ss" id="MAN_PAGES"><a class="selflink" href="#MAN_PAGES">MAN
+  PAGES</a></h2>
+&quot;time&quot;.
+<h2 class="Ss" title="Ss" id="MODULES"><a class="selflink" href="#MODULES">MODULES</a></h2>
+It's not possible to individually showcase all the performance related code for
+  Perl here, naturally, but here's a short list of modules from the CPAN which
+  deserve further attention.
+<div class="Pp"></div>
+<pre>
+    Apache::DProf
+    Apache::SmallProf
+    Benchmark
+    DBIx::Profile
+    Devel::AutoProfiler
+    Devel::DProf
+    Devel::DProfLB
+    Devel::FastProf
+    Devel::GraphVizProf
+    Devel::NYTProf
+    Devel::NYTProf::Apache
+    Devel::Profiler
+    Devel::Profile
+    Devel::Profit
+    Devel::SmallProf
+    Devel::WxProf
+    POE::Devel::Profiler
+    Sort::Key
+    Sort::Maker
+</pre>
+<h2 class="Ss" title="Ss" id="URLS"><a class="selflink" href="#URLS">URLS</a></h2>
+Very useful online reference material:
+<div class="Pp"></div>
+<pre>
+    http://www.ccl4.org/~nick/P/Fast_Enough/
+    http://www-128.ibm.com/developerworks/library/l-optperl.html
+    http://perlbuzz.com/2007/11/bind-output-variables-in-dbi-for-speed-and-safety.html
+    http://en.wikipedia.org/wiki/Performance_analysis
+    http://apache.perl.org/docs/1.0/guide/performance.html
+    http://perlgolf.sourceforge.net/
+    http://www.sysarch.com/Perl/sort_paper.html
+</pre>
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Richard Foley &lt;richard.foley@rfi.net&gt; Copyright (c) 2008</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2013-03-04</td>
+    <td class="foot-os">perl v5.16.3</td>
+  </tr>
+</table>
 </body>
 </html>

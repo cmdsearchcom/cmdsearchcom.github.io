@@ -1,913 +1,796 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:44:55 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>ZPAQ(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>ZPAQ(1) User Contributed Perl Documentation ZPAQ(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-zpaq - Journaling archiver for incremental backups.</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-zpaq command archive[&quot;.zpaq&quot;] [files]...
-[-options]...</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-zpaq manages journaling archives for incremental user-level
-local or remote backups that conform to The ZPAQ Open
-Standard Format for Highly Compressed Data (see
-AVAILABILITY). <br>
-The format supports encrypted, deduplicated, and compressed
-single or multi-part archives with rollback capability. It
-supports archives as large as 1000 times available memory
-<br>
-or up to 250 TB and 4 billion files, interoperable between
-Windows and Unix/Linux/OS X.</p>
-
-<p style="margin-top: 1em">COMMANDS <br>
-command is one of &quot;add&quot;, &quot;extract&quot;, or
-&quot;list&quot; Commands may be abbreviated to
-&quot;a&quot;, &quot;x&quot;, or &quot;l&quot; respectively.
-archive is assumed to have a &quot;.zpaq&quot; extension if
-no extension is <br>
-specified.</p>
-
-<p style="margin-top: 1em">If archive contains wildcards
-&quot;*&quot; or &quot;?&quot;, then the archive is in
-multiple parts where &quot;*&quot; matches the part number
-and &quot;?&quot; matches single digits. zpaq will consider
-the <br>
-concatenation of the parts in numerical order starting with
-1 to be equivalent to a single archive. For example,
-&quot;arc??&quot; would match the concatenation of
-&quot;arc01.zpaq&quot;, <br>
-&quot;arc02.zpaq&quot;, etc. up to the last existing
-part.</p>
-
-<p style="margin-top: 1em">a <br>
-add Append changes in files to archive, or create archive if
-it does not exist. files is a list of file and directory
-names separated by spaces. If a name is a directory, then it
-<br>
-recursively includes all files and subdirectories within. In
-Windows, files may contain wildcards &quot;*&quot; and
-&quot;?&quot; in the last component of the path (after the
-last slash). &quot;*&quot; <br>
-matches any string and &quot;?&quot; matches any character.
-In Unix/Linux, wildcards are expanded by the shell, which
-has the same effect.</p>
-
-<p style="margin-top: 1em">A change is an addition, update,
-or deletion of any file or directory in files or any of its
-subdirectories to any depth. A file or directory is
-considered changed if its <br>
-size or last-modified date (with 1 second resolution), or
-Windows attributes or Unix/Linux permissions (if saved)
-differ between the internal and external versions. File <br>
-contents are not compared. If the attributes but not the
-date has changed, then the attributes are updated in the
-archive with the assumption that the file contents have not
-<br>
-changed.</p>
-
-<p style="margin-top: 1em">Files are added by splitting
-them into fragments along content-dependent boundaries,
-computing their SHA-1 hashes, and comparing with hashes
-already stored in the archive. If <br>
-the hash matches, it is assumed that the fragments are
-identical and only a pointer to the previous compressed
-fragment is saved. Unmatched fragments are packed into
-blocks, <br>
-compressed, and appended to the archive.</p>
-
-<p style="margin-top: 1em">For each added or updated file
-or directory, the following information is saved in the
-archive: the compressed contents, fragment hashes, the file
-or directory name as it <br>
-appears in files plus any trailing path, the last-modified
-date with 1 second resolution, and the Unix/Linux
-permissions or Windows attributes. Other metadata such as
-owner, <br>
-group, ACLs, last access time, etc. are not saved. Symbolic
-links are not saved or followed. Hard links are followed as
-if they were ordinary files. Special file types such <br>
-as devices, named pipes, and named sockets are not saved.
-The 64 bit Windows version will save alternate data
-streams.</p>
-
-<p style="margin-top: 1em">If any file cannot be read (e.g.
-permission denied), then it is skipped and a warning is
-reported. However, other files are still added and the
-update is still valid.</p>
-
-<p style="margin-top: 1em">If archive is &quot;&quot; (a
-quoted empty string), then zpaq compresses files as if
-creating a new archive, but discards the output without
-writing to disk.</p>
-
-<p style="margin-top: 1em">If archive is multi-part, the
-zpaq will create a new part using the next available part
-number. For example:</p>
-
-<p style="margin-top: 1em">zpaq add &quot;arc??&quot; files
-(creates arc01.zpaq) <br>
-zpaq add &quot;arc??&quot; files (creates arc02.zpaq) <br>
-zpaq add &quot;arc??&quot; files (creates arc03.zpaq) <br>
-zpaq extract &quot;arc??&quot; (extracts all parts)</p>
-
-<p style="margin-top: 1em">Updates are transacted. If zpaq
-is interrupted before completing the update, then the
-partially appended data is ignored and overwritten on the
-next update. This is <br>
-accomplished by first appending a temporary update header,
-appending the compressed data and index, then updating the
-header as the last step.</p>
-
-<p style="margin-top: 1em">As the archive is updated, the
-program will report the percent complete, estimated time
-remaining, the name and size of the file preceded by
-&quot;+&quot; if the file is being added, <br>
-&quot;#&quot; if updated, or &quot;-&quot; if deleted. If
-the file is deduplicated, then the new size after
-deduplication but before compression is shown.</p>
-
-<p style="margin-top: 1em">x <br>
-extract <br>
-Extract files (including the contents of directories), or
-extract the whole archive contents if files is omitted. The
-file names, last-modified date, and permissions or <br>
-attributes are restored as saved in the archive. If there
-are multiple versions of a file stored, then only the latest
-version is extracted. If a stored file has been marked <br>
-as deleted, then it is not extracted.</p>
-
-<p style="margin-top: 1em">Existing files are skipped
-without being overwritten. (Use &quot;-force&quot; to
-overwrite).</p>
-
-<p style="margin-top: 1em">As files are extracted, the
-fragment SHA-1 hashes are computed and compared with the
-stored hashes. The program reports an error in case of
-mismatches. Blocks are only <br>
-decompressed up to the last used fragment. If the archive is
-damaged, then zpaq will extract as much as possible from the
-undamaged blocks.</p>
-
-<p style="margin-top: 1em">As files are extracted, the
-program reports the percent completed, estimated time
-remaining, and the name of the file preceded by
-&quot;&gt;&quot; if the file is created or overwritten <br>
-(with &quot;-force&quot;), &quot;?&quot; if the file is
-skipped because it already exists, or &quot;=&quot; if
-decompression is skipped with &quot;-force&quot; because the
-contents were compared and found to be <br>
-identical. The date and attributes are still extracted in
-this case.</p>
-
-<p style="margin-top: 1em">l <br>
-list <br>
-List the archive contents. With files, list only the
-specified files and directories and compare them with the
-same files on disk. For each file or directory, show the
-<br>
-comparison result, last modified date, uncompressed size,
-Windows attributes or Unix/Linux permissions, and the saved
-name. If the internal and external versions of the file <br>
-differ, then show both.</p>
-
-<p style="margin-top: 1em">The comparison result is
-reported in the first column as &quot;=&quot; if the
-last-modified date, attributes (if saved), and size are
-identical, &quot;#&quot; if different, &quot;-&quot; if the
-external <br>
-file does not exist, or &quot;+&quot; if the internal file
-does not exist. With &quot;-force&quot;, the contents are
-compared, but not the dates or attributes. Contents are
-compared by reading <br>
-the files, computing SHA-1 hashes and comparing with the
-stored hashes. In either case, replacing &quot;list&quot;
-with &quot;add&quot; will show exactly what changes would be
-made to the <br>
-archive.</p>
-
-<p style="margin-top: 1em">In Unix/Linux, permissions are
-listed as a file type &quot;d&quot; for directory or blank
-for a regular file, followed by a 4 digit octal number as
-per chmod(1). In Windows, attributes <br>
-are listed from the set &quot;RHS DAdFTprCoIEivs&quot; where
-the character is present if the corresponding bit 0..17 is
-set as returned by GetFileAttributes(). The meanings are as
-<br>
-follows: &quot;R&quot;ead-only, &quot;H&quot;idden,
-&quot;S&quot;ystem, unused (blank), &quot;D&quot;irectory,
-&quot;A&quot;rchive, &quot;d&quot;evice, normal
-&quot;F&quot;ile, &quot;T&quot;emporary, s&quot;p&quot;arse
-file, &quot;r&quot;eparse point, &quot;C&quot;ompressed,
-<br>
-&quot;o&quot;ffline, not content &quot;I&quot;indexed,
-&quot;E&quot;ncrypted, &quot;i&quot;ntegrity stream,
-&quot;v&quot;irtual, no &quot;s&quot;crub data.</p>
-
-<p style="margin-top: 1em">archive may be &quot;&quot;,
-which is equivalent to comparing with an empty archive.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
--all [N] <br>
-With &quot;list&quot;, list all saved versions and not just
-the latest version, including versions where the file is
-marked as deleted. Each version is shown in a separate
-numbered <br>
-directory beginning with &quot;0001/&quot;. Absolute paths
-are first converted to relative paths. In Windows, the
-&quot;:&quot; on the drive letter is removed. For example,
-&quot;foo&quot; and &quot;/foo&quot; are <br>
-shown as &quot;0001/foo&quot;. &quot;C:/foo&quot; and
-&quot;C:foo&quot; are shown as &quot;0001/C/foo&quot;.</p>
-
-<p style="margin-top: 1em">The date shown on the root
-directory of each version is the date of the update. The
-root directory listing also shows the number of updates and
-deletions in that version and <br>
-the compressed size.</p>
-
-<p style="margin-top: 1em">When a file is deleted, it is
-shown with the dates and attributes blank with size 0.</p>
-
-<p style="margin-top: 1em">With &quot;extract&quot;,
-extract the files in each version as shown with &quot;list
--all&quot;.</p>
-
-<p style="margin-top: 1em">N selects the number of digits
-in the directory name. The default is 4. More digits will be
-used when necessary. For example:</p>
-
-<p style="margin-top: 1em">zpaq list archive -all 2 -not
-&quot;??/?*&quot;</p>
-
-<p style="margin-top: 1em">will show the dates when the
-archive was updated as &quot;01/&quot;, &quot;02/&quot;,
-etc. but not their contents.</p>
-
-<p style="margin-top: 1em">-f <br>
--force <br>
-With &quot;add&quot;, attempt to add files even if the
-last-modified date has not changed. Files are added only if
-they really are different, based on comparing the computed
-and stored <br>
-SHA-1 hashes</p>
-
-<p style="margin-top: 1em">With &quot;extract&quot;,
-overwrite existing output files. If the contents differ
-(tested by comparing SHA-1 hashes), then the file is
-decompressed and extracted. If the dates or <br>
-attributes/permissions differ, then they are set to match
-those stored in the archive.</p>
-
-<p style="margin-top: 1em">With &quot;list&quot; files,
-compare files by computing SHA-1 fragment hashes and
-comparing with stored hashes. Ignore differences in dates
-and attributes.</p>
-
-<p style="margin-top: 1em">-fragment N <br>
-Set the dedupe fragment size range from 64 2^N to 8128 2^N
-bytes with an average size of 1024 2^N bytes. The default is
-6 (range 4096..520192, average 65536). Smaller <br>
-fragment sizes can improve compression through deduplication
-of similar files, but require more memory and more overhead.
-Each fragment adds about 28 bytes to the archive and <br>
-requires about 40 bytes of memory. For the default, this is
-less than 0.1% of the archive size.</p>
-
-<p style="margin-top: 1em">Values other than 6 conform to
-the ZPAQ specification and will decompress correctly by all
-versions, but do not conform to the recommendation for best
-deduplication. Adding <br>
-identical files with different values of N will not
-deduplicate because the fragment boundaries will differ.
-&quot;list -summary&quot; will not identify these files as
-identical for <br>
-the same reason.</p>
-
-<p style="margin-top: 1em">-index indexfile <br>
-With &quot;add&quot;, create archive&quot;.zpaq&quot; as a
-suffix to append to a remote archive which is assumed to be
-identical to indexfile except that indexfile contains no
-compressed file <br>
-contents (D blocks). Then update indexfile by appending a
-copy of archive&quot;.zpaq&quot; without the D blocks. With
-&quot;extract&quot;, specify the index to create for
-archive&quot;.zpaq&quot; and do <br>
-not extract any files.</p>
-
-<p style="margin-top: 1em">The purpose is to maintain a
-backup offsite without using much local disk space. The
-normal usage is to append the suffix at the remote site and
-delete it locally, keeping <br>
-only the much smaller index. For example:</p>
-
-<p style="margin-top: 1em">zpaq add part files -index
-index.zpaq <br>
-cat part.zpaq &gt;&gt; remote.zpaq <br>
-rm part.zpaq</p>
-
-<p style="margin-top: 1em">indexfile has no default
-extension. However, with a &quot;.zpaq&quot; extension it
-can be listed to show the contents of the remote archive or
-compare with local files. It cannot be <br>
-extracted or updated as a regular archive. Thus, the
-following should produce identical output:</p>
-
-<p style="margin-top: 1em">zpaq list remote.zpaq <br>
-zpaq list index.zpaq</p>
-
-<p style="margin-top: 1em">If archive is multi-part
-(contains &quot;*&quot; or &quot;?&quot;), then zpaq will
-substitute a part number equal to 1 plus the number of
-previous updates. The parts may then be accessed as a <br>
-multi-part archive without appending or renaming.</p>
-
-<p style="margin-top: 1em">With &quot;add&quot;, it is an
-error if the archive to be created already exists, or if
-indexfile is a regular archive. &quot;-index&quot; cannot be
-used with &quot;-until&quot; or a streaming archive <br>
-&quot;-method s...&quot;. With &quot;extract&quot;, it is an
-error if indexfile exists and &quot;-force&quot; is not used
-to overwrite.</p>
-
-<p style="margin-top: 1em">-key password <br>
-This option is required for all commands operating on an
-encrypted archive. When creating a new archive with
-&quot;add&quot;, the new archive will be encrypted with
-password and all <br>
-subsequent operations will require the same password.</p>
-
-<p style="margin-top: 1em">An archive is encrypted with
-AES-256 in CTR mode. The password is strengthened using
-Scrypt(SHA-256(password), salt, N=16384, r=8, p=1), which
-would require 208M operations <br>
-and 16 MB memory per test in a brute force key search. When
-creating a new archive, a 32 byte salt is generated using
-CryptGenRandom() in Windows or from /dev/urandom in <br>
-Unix/Linux, such that the first byte is different from the
-normal header of an unencrypted archive (&quot;z&quot; or
-7). A multi-part archive is encrypted with a single
-keystream as if <br>
-the parts were concatenated. An index is encrypted with the
-same password, where the first byte of the salt is modified
-by XOR with (&rsquo;z&rsquo; XOR &rsquo;7&rsquo;).</p>
-
-<p style="margin-top: 1em">Encryption provides secrecy but
-not authentication. An attacker who knows or can guess any
-bits of the plaintext can set them without knowing the
-key.</p>
-
-
-<p style="margin-top: 1em">-mtype[Blocksize[.pre[.arg][comp[.arg]]...]]
-<br>
--method type[Blocksize[.pre[.arg][comp[.arg]]...]] <br>
-With &quot;add&quot;, select a compression method. type may
-be 0, 1, 2, 3, 4, 5, &quot;x&quot;, or &quot;s&quot;. The
-optional Blocksize may be 0..11, written with no space after
-the type, like &quot;-m10&quot; or <br>
-&quot;-method 511&quot;. The remaining arguments, separated
-by periods or commas without spaces, are only allowed for
-types &quot;x&quot; or &quot;s&quot;, for example
-&quot;-mx4.3ci1&quot;.</p>
-
-<p style="margin-top: 1em">If type is numeric, then higher
-numbers compress better but are slower. The default is
-&quot;-m1&quot;. It is recommended for backups.
-&quot;-m2&quot; compresses slower but decompresses just as
-<br>
-fast as 1. It is recommended for archives to be compressed
-once and decompressed many times, such as downloads.
-&quot;-m0&quot; stores with deduplication but no further
-compression.</p>
-
-<p style="margin-top: 1em">Blocksize says to pack fragments
-into blocks up to 2^Blocksize MiB. Using larger blocks can
-improve compression but require more memory and may be
-slower because each block <br>
-is compressed or decompressed by a separate thread. The
-memory requirement is up to 8 times Blocksize per thread for
-levels up to 4 and 16 times block size per thread for <br>
-level 5. The default Blocksize is 4 (16 MiB) for types 0 and
-1, and 6 (64 MiB) otherwise.</p>
-
-<p style="margin-top: 1em">Types &quot;x&quot; and
-&quot;s&quot; are for experimental use. Normally, zpaq
-selects different methods depending on the compression level
-and an analysis of the data (text, executable, or <br>
-other binary, and degree of compressibility). type selects
-journaling or streaming format. pre is 0..7 selecting a
-preprocessing step (LZ77, BWT, E8E9), comp is a series of
-<br>
-context modeling components from the set {c,i,a,w,m,s,t}
-selecting a CM or ICM, ISSE chain, MATCH, word model, MIX,
-SSE, or MIX2 respectively. pre and comp may be followed by
-<br>
-a list of numeric arguments (arg) separated by periods or
-commas. For example:</p>
-
-<p style="margin-top: 1em">-method x6.3ci1</p>
-
-<p style="margin-top: 1em">selects a journaling archive
-(x), block size 2^6 = 64 MiB, BWT transform (3), an order 0
-ICM (c), and order 1 ISSE (i1). (zpaq normally selects this
-method for level 3 text <br>
-compression). type is as follows.</p>
-
-<p style="margin-top: 1em">x Selects normal (journaling)
-mode. Files are split into fragments, deduplicated, packed
-into blocks, and compressed by the method described. The
-compressed blocks are <br>
-preceded by a transaction header giving the date of the
-update. The blocks are followed by a list of fragment hashes
-and sizes and a list of files added, updated, or <br>
-deleted. Each added or updated file lists the last-modifed
-date, attributes, and a list of fragment IDs.</p>
-
-<p style="margin-top: 1em">s Selectes streaming mode for
-single-pass extraction and compatibility with zpaq versions
-prior to 6.00 (2012). Streaming archives do not support
-deduplication or rollback. <br>
-Files are split into fragments of size 2^blocksize MiB - 4
-KiB. Each file or fragment is compressed in a separate block
-with no attempt at deduplication. The file name, <br>
-date, and attributes are stored in the header of the first
-fragment. The hashes are stored in the trailers of each
-block. There is no transaction block to allow rollback. <br>
-Files are added to the previously dated update. Streaming
-mode with &quot;-index&quot; is an error.</p>
-
-
-<p style="margin-top: 1em">pre[.min1.min2.depth.size[.lookahead]]
-<br>
-pre selects a pre/post processing step before context
-modeling as follows.</p>
-
-<p style="margin-top: 1em">0 = no preprocessing <br>
-1 = Packed LZ77 <br>
-2 = Byte aligned LZ77 <br>
-3 = BWT (Burrows-Wheeler Transform) <br>
-4 = E8E9 <br>
-5 = E8E9 + packed LZ77 <br>
-6 = E8E9 + byte aligned LZ77 <br>
-7 = E8E9 + BWT</p>
-
-<p style="margin-top: 1em">The E8E9 transform (4..7)
-improves the compression of x86 executable files (.exe or
-.dll). The transform scans backward for 5 byte patterns of
-the form (E8|E9 xx xx xx <br>
-00|FF) hex and adds the block offset to the three middle
-bytes. The E8 and E9 opcodes are CALL and JMP, respectively.
-The transform replaces relative addresses with <br>
-absolute addresses. The transform is applied prior to LZ77
-or BWT. Decompression reverses the transforms in the
-opposite order.</p>
-
-<p style="margin-top: 1em">LZ77 (1, 2, 5, 6) compresses by
-searching for matching strings using a hash table or suffix
-array and replacing them with pointers to the previous
-match. Types 1 and 2 <br>
-select variable bit length coding or byte aligned coding
-respectively. Variable bit length encoding compresses better
-by itself, but byte aligned coding allows for <br>
-further compression using a context model. Types 6 and 7 are
-the same as 1 and 2 respectively, except that the block is
-E8E9 transformed first.</p>
-
-<p style="margin-top: 1em">BWT (Burrows Wheeler Transform,
-3 or 7), sorts the input block by context, which brings
-bytes with similar contexts together. It does not compress
-by itself, but makes <br>
-the input suited to compression with a fast adapting low
-order context model.</p>
-
-<p style="margin-top: 1em">The remaining arguments apply
-only to LZ77. min1 selects the minimum match length, which
-must be at least 4 for packed LZ77 or 1 for byte aligned
-LZ77. min2 selects a <br>
-longer minimum match length to try first, or is 0 to skip
-this step. The block is encoded by testing 2^depth locations
-indexed by a hash table of 2^size elements indexed <br>
-by hashes of the next min2 and then min1 characters. If
-lookahead is specified and greater than 0, then, the search
-is repeated lookahead + 1 times to consider coding the <br>
-next 0 to lookahead bytes as literals to find a longer
-match.</p>
-
-<p style="margin-top: 1em">If size = blocksize + 21, then
-matches are found using a suffix array instead of a hash
-table, scanning forward and backward 2^depth elements to
-find the longest past <br>
-match. min2 has no effect. A suffix array requires 4.5 x
-2^blocksize MiB memory. A hash table requires 4 x 2^size
-bytes memory. For example:</p>
-
-<p style="margin-top: 1em">-method x6.1.4.0.5.27.1</p>
-
-<p style="margin-top: 1em">specifies 64 MiB blocks (6),
-variable length LZ77 without E8E9 (1), minimum match length
-4, no secondary search (0), search depth 2^5 = 32 in each
-direction in the suffix <br>
-array (27 = 6 + 21), and 1 byte lookahead.</p>
-
-<p style="margin-top: 1em">comp specifies a component of a
-context model. If this section is empty, then no further
-compression is performed. Otherwise the block is compressed
-by an array of <br>
-components. Each component takes a context and possibly the
-outputs of earlier components, and outputs a prediction, a
-probability that the next bit of input is a 1. The <br>
-final prediction is used to arithmetic code the bit.
-Components normally allocate memory equal to the block size,
-or less for smaller contexts as needed. Components are as
-<br>
-follows:</p>
-
-<p style="margin-top: 1em">c[.maxcount[.offset[.mask]...]]
-<br>
-Specifies a context model (CM), or indirect context model
-(ICM). A CM maps a context hash to a prediction by looking
-up the context in a table, and then adjusts the <br>
-prediction to reduce the coding error by 1/count, where
-count is bounded by maxcount x 4, and maxcount is in
-1..255.</p>
-
-<p style="margin-top: 1em">If maxcount is 0, then specify
-an ICM. An ICM maps a context to a state representing two
-bit counts and the most recent bit. That state is mapped to
-a prediction and <br>
-updated at a fixed rate. An ICM adapts faster to changing
-statistics. A CM with a high count compresses stationary
-data better. The default is 0 (ICM).</p>
-
-<p style="margin-top: 1em">If maxcount has the form 1000m +
-n, then the effect is the same as maxcount = n while
-reducing memory to 1/2^m of block size.</p>
-
-<p style="margin-top: 1em">The remaining arguments
-represent contexts, all of which are hashed together. If
-offset is 1..255, then the block offset mod offset is hashed
-in. If offset is 1000..1255, <br>
-then the distance to the last occurrance of offset - 1000 is
-hashed in. For example, &quot;c0.1010&quot; specifies an ICM
-taking the text column number (distance back to the last
-<br>
-linefeed = 10) as context. The default is 0 (no
-context).</p>
-
-<p style="margin-top: 1em">Each mask is ANDed with previous
-bytes. For example, &quot;c0.0.255.255.255&quot; is an ICM
-with order 3 context. A value in 256..511 specifies a
-context of mask - 256 hashed <br>
-together with the byte aligned LZ77 parse state (whether a
-literal or match code is expected). For example,
-&quot;-method x6.2.12.0.8.27c0.0.511.255&quot; specifes
-block size 2^6 <br>
-MiB, byte aligned LZ77 (2), minimum match length 12, search
-depth 2^8, suffix array search (27 = 6 + 21), an ICM (c0),
-no offset context (0), and order 2 context plus <br>
-LZ77 state (511.255).</p>
-
-<p style="margin-top: 1em">A mask greater than 1000 is
-shorthand for mask - 1000 zeros. For example, the sparse
-context &quot;c0.0.255.1003.255&quot; is equivalent to
-&quot;c0.0.255.0.0.0.255&quot;.</p>
-
-<p style="margin-top: 1em">m[size[.rate]] <br>
-Specifies a MIX (mixer). A MIX computes a weighted average
-of the predictions of all previous components. (The
-averaging is in the logistic domain: log(p / (1 - p))). The
-<br>
-weights are then adjusted in proportion to rate (0..255) to
-reduce the prediction error. A size bit context can be used
-to select a set of weights to be used. The first 8 <br>
-bits of context are the previously coded bits of the current
-byte. The default is &quot;m8.24&quot;. A MIX with n inputs
-requires 4n x 2^size bytes of memory.</p>
-
-<p style="margin-top: 1em">t[size[.rate]] <br>
-Specifies a MIX2. A MIX2 is like a MIX except that it takes
-only the last 2 components as input, and its weights are
-constrained to add to 1. A MIX2 requires 4 x 2^size <br>
-bytes of memory. The default is &quot;t8.24&quot;.</p>
-
-<p style="margin-top: 1em">s[size[.mincount[.maxcount]]]
-<br>
-Specifes a SSE (secondary symbol estimator). A SSE takes the
-last size bits of context and the quantized and interpolated
-prediction of the previous component as input to <br>
-output an adjusted prediction. The output is adjusted to
-reduce the prediction error by 1/count, where the count is
-constrained between mincount and 4 x maxcount. The <br>
-default is &quot;s8.32.255&quot;.</p>
-
-<p style="margin-top: 1em">iorder[.increment]... <br>
-Specifies an ISSE (indirect secondary symbol estimator)
-chain. An ISSE adjusts the predition of the previous
-component by mixing it with a constant 1. The pair of mixing
-<br>
-weights is selected by a bit history state (like an ICM).
-The bit history is selected by a hash of the last order
-bytes hashed together with the context of the previous <br>
-component. Each increment specifies an additional ISSE whose
-context order is increased by increment. For example,
-&quot;ci1.1.2&quot; specifies an order 0 ICM and order 1, 2,
-and <br>
-4 ISSEs.</p>
-
-
-<p style="margin-top: 1em">w[order[.A[.Z[.cap[.mul[.mem]]]]]]
-<br>
-Specifies an ICM-ISSE chain of length order taking as
-contexts the hashes of the last 1, 2, 3..., order whole
-words. A word is defined as a sequence of characters in the
-<br>
-range A to A + Z - 1, ANDed with cap before hashing. The
-hash H is updated by byte c as H := (H x mul + c) (mod
-2^(blocksize + 24 - mem)). Each component requires <br>
-2^(blocksize - mem) MiB. The default is
-&quot;w1.65.26.223.20.0&quot;, which defines a word as
-65..90 (A..Z). ANDing with 223 converts to upper case before
-hashing. mul = 20 has <br>
-the effect of shifting 2 bits left. For typical block sizes
-(28 or 30 bit H), the word hash depends on the last 14 or 15
-letters.</p>
-
-<p style="margin-top: 1em">a[mul[.bmem][.hmem]]] <br>
-Specifies a MATCH. A MATCH searches for a past matching
-context and predicts whatever bit came next. The search is
-done by updating a context hash H with byte c by H := H <br>
-x mul + c (mod 2^(blocksize + 18 - hmem)). A MATCH uses
-2^(blocksize - bmem) MiB history buffer and a 2^(blocksize -
-hmem) MiB hash table. The default is a24.0.0. If <br>
-blocksize is 6, then H is 24 bits. mul = 24 shifts 4 bits
-left, making the context hash effectively order 6.</p>
-
-<p style="margin-top: 1em">-noattributes <br>
-With &quot;add&quot;, do not save Windows attributes or
-Unix/Linux permissions to the archive. With
-&quot;extract&quot;, ignore the saved values and extract
-using default values. With &quot;list&quot;, do <br>
-not list or compare attributes.</p>
-
-<p style="margin-top: 1em">-not [file]... <br>
--not =[#+-?^]... <br>
-In the first form, do not add, extract, or list files that
-match any file by name. file may contain wildcards
-&quot;*&quot; and &quot;?&quot; that match any string or
-character respectively, <br>
-including &quot;/&quot;. A match to a directory also matches
-all of its contents. In Windows, matches are not case
-sensitive, and &quot; <br>
-wildcards must be quoted to protect them from the shell.</p>
-
-<p style="margin-top: 1em">When comparing with
-&quot;list&quot; files, &quot;-not =&quot; means do not list
-identical files. Additonally it is possible to suppress
-listing of differences with &quot;#&quot;, missing external
-files <br>
-with &quot;-&quot;, missing internal files with
-&quot;+&quot;, and duplicates (&quot;list -summary&quot;)
-with &quot;^&quot;.</p>
-
-<p style="margin-top: 1em">-only file... <br>
-Do not add, extract, or list any files unless they match at
-least one argument. The rules for matching wildcards are the
-same as &quot;-not&quot;. The default is &quot;*&quot; which
-matches <br>
-everything.</p>
-
-<p style="margin-top: 1em">If a file matches an argument to
-both &quot;-only&quot; and &quot;-not&quot;, then
-&quot;-not&quot; takes precedence.</p>
-
-<p style="margin-top: 1em">-repack new_archive
-[new_password] <br>
-With &quot;extract&quot;, store the extracted files in
-new_archive instead of writing them individually to disk. If
-new_password is specified, then the output is encrypted with
-this <br>
-password. Otherwise the output is not encrypted, even if the
-input is.</p>
-
-<p style="margin-top: 1em">It is an error if new_archive
-exists unless &quot;-force&quot; is used to allow it to be
-overwritten. new_archive does not automatically get a
-&quot;.zpaq&quot; extension.</p>
-
-<p style="margin-top: 1em">Repacking is implemented by
-copying those D blocks (compressed file contents) which are
-referenced by at least one selected file. This can result in
-a larger archive than a <br>
-new one because unreferenced fragments in the same block are
-also copied.</p>
-
-<p style="margin-top: 1em">The repacked archive block dates
-range from the first to last update of the input archive.
-Using &quot;add -until&quot; with a date between these two
-dates will result in the date <br>
-being adjust to 1 second after the last update.</p>
-
-<p style="margin-top: 1em">With &quot;-all&quot;, the input
-archive is simply copied without modification except to
-decrypt and encrypt. Thus, the input may be any file, not
-just an archive. files and the <br>
-options &quot;-to&quot;, &quot;-not&quot;,
-&quot;-only&quot;, &quot;-until&quot;,
-&quot;-noattributes&quot;, and &quot;-method&quot; are not
-valid with &quot;-repack -all&quot;.</p>
-
-<p style="margin-top: 1em">-sN <br>
--summary N <br>
-With &quot;list&quot;, sort by decreasing size and show only
-the N largest files and directories. Label duplicates of the
-previous file with &quot;^&quot;. A file is a duplicate if
-its contents <br>
-are identical (based on stored hashes) although the name,
-dates, and attributes may differ. If files is specified,
-then these are included in the listing but not compared <br>
-with internal files or each other. Internal and external
-files are labeled with &quot;-&quot; and &quot;+&quot;
-respectively.</p>
-
-<p style="margin-top: 1em">If N is negative as in
-&quot;-s-1&quot; then list normally but show fragment IDs
-after each file name. Files with identical fragment IDs have
-identical contents.</p>
-
-<p style="margin-top: 1em">With &quot;add&quot; and
-&quot;extract&quot;, when N &gt; 0, do not list files as
-they are added or extracted. Show only percent completed and
-estimated time remaining on a 1 line display.</p>
-
-<p style="margin-top: 1em">-test <br>
-With &quot;extract&quot;, do not write to disk, but perform
-all other operations normally. &quot;extract&quot; will
-decompress, compute the SHA-1 hashes of the output, report
-if it differs from <br>
-the stored value, but not compare, create or update any
-files. With &quot;-index&quot;, test for errors but do not
-create an index file.</p>
-
-<p style="margin-top: 1em">-tN <br>
--threads N <br>
-Add or extract at most N blocks in parallel. The default is
-0, which uses the number of processor cores, except not more
-than 2 when when zpaq is compiled to 32-bit code. <br>
-Selecting fewer threads will reduce memory usage but run
-slower. Selecting more threads than cores does not help.</p>
-
-<p style="margin-top: 1em">-to name... <br>
-With &quot;add&quot; and &quot;list&quot; rename external
-files to respective internal names. With
-&quot;extract&quot;, rename internal files to external
-names. When files is empty, prefix the extracted <br>
-files with the first name in names, inserting &quot;/&quot;
-if needed and removing &quot;:&quot; from drive letters. For
-example:</p>
-
-<p style="margin-top: 1em">zpaq extract archive file dir
--to newfile newdir</p>
-
-<p style="margin-top: 1em">extracts &quot;file&quot; as
-&quot;newfile&quot; and &quot;dir&quot; as
-&quot;newdir&quot;.</p>
-
-<p style="margin-top: 1em">zpaq extract archive -to tmp</p>
-
-<p style="margin-top: 1em">will extract &quot;foo&quot; or
-&quot;/foo&quot; as &quot;tmp/foo&quot; and extract
-&quot;C:/foo&quot; or &quot;C:foo&quot; as
-&quot;tmp/C/foo&quot;.</p>
-
-<p style="margin-top: 1em">zpaq add archive dir -to
-newdir</p>
-
-<p style="margin-top: 1em">will save &quot;dir/file&quot;
-as &quot;newdir/file&quot;, and so on.</p>
-
-<p style="margin-top: 1em">zpaq list archive dir -to
-newdir</p>
-
-<p style="margin-top: 1em">will compare external
-&quot;dir&quot; with internal &quot;newdir&quot;.</p>
-
-<p style="margin-top: 1em">The &quot;-only&quot; and
-&quot;-not&quot; options apply prior to renaming.</p>
-
-<p style="margin-top: 1em">-until date | [-]version <br>
-Ignore any part of the archive updated after date or after
-version updates or -versions from the end if negative.
-Additionally, &quot;add&quot; will truncate the archive at
-this point <br>
-before appending the next update. When a date is specified,
-the update will be timestamped with date rather than the
-current date.</p>
-
-<p style="margin-top: 1em">A date is specified as a 4 digit
-year (1900 to 2999), 2 digit month (01 to 12), 2 digit day
-(01 to 31), optional 2 digit hour (00 to 23, default 23),
-optional 2 digit minute <br>
-(00 to 59, default 59), and optional 2 digit seconds (00 to
-59, default 59). Dates and times are always universal time
-zone (UT), not local time. Numbers up to 9999999 are <br>
-interpreted as version numbers rather than dates. Dates may
-contain spaces and punctuation characters for readability
-but are ignored. For example:</p>
-
-<p style="margin-top: 1em">zpaq list backup -until 3</p>
-
-<p style="margin-top: 1em">shows the archive as it existed
-after the first 3 updates.</p>
-
-<p style="margin-top: 1em">zpaq add backup files -until
-2014/04/30 11:30</p>
-
-<p style="margin-top: 1em">truncates any data added after
-April 30, 2014 at 11:30:59 universal time, then appends the
-update as if this were the current time. (It does not matter
-if any files are dated <br>
-in the future).</p>
-
-<p style="margin-top: 1em">zpaq add backup files -until
-0</p>
-
-<p style="margin-top: 1em">deletes backup.zpaq and creates
-a new archive.</p>
-
-<p style="margin-top: 1em">&quot;add -until&quot; is an
-error on multi-part archives or with an index. A multi-part
-archive can be rolled back by deleting the highest numbered
-parts.</p>
-
-<p style="margin-top: 1em">Truncating and appending an
-encrypted archive with &quot;add -until&quot; (even
-&quot;-until 0&quot;) does not change the salt or keystream.
-Thus, it is possible for an attacker with the old and <br>
-new versions to obtain the XOR of the trailing plaintexts
-without a password.</p>
-
-<p style="margin-top: 1em">EXIT STATUS <br>
-Returns 0 if successful, 1 in case of warnings, or 2 in case
-of an error.</p>
-
-<p style="margin-top: 1em">ENVIRONMENT <br>
-In Windows, the default number of threads (set by
-&quot;-threads&quot;) is %NUMBER_OF_PROCESSORS%. In Linux,
-the number of lines of the form &quot;Processor : 0&quot;,
-&quot;Processor : 1&quot;,... in <br>
-/cpu/procinfo is used instead.</p>
-
-<p style="margin-top: 1em">STANDARDS <br>
-The archive format is described in The ZPAQ Open Standard
-Format for Highly Compressed Data (see AVAILABILITY).</p>
-
-<p style="margin-top: 1em">AVAILABILITY <br>
-http://mattmahoney.net/zpaq/</p>
-
-<p style="margin-top: 1em">BUGS <br>
-There is no GUI.</p>
-
-<p style="margin-top: 1em">The archive format does not save
-sufficient information for backing up and restoring the
-operating system.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-bzip2(1) gzip(1) lrzip(1) lzop(1) lzma(1) p7zip(1) rzip(1)
-unace(1) unrar(1) unzip(1) zip(1)</p>
-
-<p style="margin-top: 1em">AUTHORS <br>
-&quot;zpaq&quot; and &quot;libzpaq&quot; are written by Matt
-Mahoney and released to the public domain in 2015-2016.
-&quot;libzpaq&quot; contains libdivsufsort-lite v2.01,
-copyright (C) 2003-2008, Yuta Mori. <br>
-It is licensed under the MIT license. See the source code
-for license text. The AES code is modified from libtomcrypt
-by Tom St Denis (public domain). The salsa20/8 code in <br>
-Scrypt() is by D. J. Bernstein (public domain).</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2016-04-26
-ZPAQ(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">ZPAQ(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">ZPAQ(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+zpaq - Journaling archiver for incremental backups.
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+zpaq <i>command</i> <i>archive</i>[&quot;.zpaq&quot;] [<i>files</i>]...
+  [-<i>options</i>]...
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+<i>zpaq</i> manages journaling archives for incremental user-level local or
+  remote backups that conform to <i>The ZPAQ Open Standard Format for Highly
+  Compressed Data</i> (see <i>AVAILABILITY</i>). The format supports encrypted,
+  deduplicated, and compressed single or multi-part archives with rollback
+  capability. It supports archives as large as 1000 times available memory or up
+  to 250 TB and 4 billion files, interoperable between Windows and Unix/Linux/OS
+  X.
+<h1 class="Sh" title="Sh" id="COMMANDS"><a class="selflink" href="#COMMANDS">COMMANDS</a></h1>
+<i>command</i> is one of &quot;add&quot;, &quot;extract&quot;, or
+  &quot;list&quot; Commands may be abbreviated to &quot;a&quot;, &quot;x&quot;,
+  or &quot;l&quot; respectively. <i>archive</i> is assumed to have a
+  &quot;.zpaq&quot; extension if no extension is specified.
+<div class="Pp"></div>
+If <i>archive</i> contains wildcards &quot;*&quot; or &quot;?&quot;, then the
+  archive is in multiple parts where &quot;*&quot; matches the part number and
+  &quot;?&quot; matches single digits. zpaq will consider the concatenation of
+  the parts in numerical order starting with 1 to be equivalent to a single
+  archive. For example, &quot;arc??&quot; would match the concatenation of
+  &quot;arc01.zpaq&quot;, &quot;arc02.zpaq&quot;, etc. up to the last existing
+  part.
+<dl class="Bl-tag">
+  <dt class="It-tag">a</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">add</dt>
+  <dd class="It-tag">Append changes in <i>files</i> to <i>archive</i>, or create
+      <i>archive</i> if it does not exist. <i>files</i> is a list of file and
+      directory names separated by spaces. If a name is a directory, then it
+      recursively includes all files and subdirectories within. In Windows,
+      <i>files</i> may contain wildcards &quot;*&quot; and &quot;?&quot; in the
+      last component of the path (after the last slash). &quot;*&quot; matches
+      any string and &quot;?&quot; matches any character. In Unix/Linux,
+      wildcards are expanded by the shell, which has the same effect.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    A change is an addition, update, or deletion of any file or directory in
+      <i>files</i> or any of its subdirectories to any depth. A file or
+      directory is considered changed if its size or last-modified date (with 1
+      second resolution), or Windows attributes or Unix/Linux permissions (if
+      saved) differ between the internal and external versions. File contents
+      are not compared. If the attributes but not the date has changed, then the
+      attributes are updated in the archive with the assumption that the file
+      contents have not changed.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Files are added by splitting them into fragments along content-dependent
+      boundaries, computing their SHA-1 hashes, and comparing with hashes
+      already stored in the archive. If the hash matches, it is assumed that the
+      fragments are identical and only a pointer to the previous compressed
+      fragment is saved. Unmatched fragments are packed into blocks, compressed,
+      and appended to the archive.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    For each added or updated file or directory, the following information is
+      saved in the archive: the compressed contents, fragment hashes, the file
+      or directory name as it appears in <i>files</i> plus any trailing path,
+      the last-modified date with 1 second resolution, and the Unix/Linux
+      permissions or Windows attributes. Other metadata such as owner, group,
+      ACLs, last access time, etc. are not saved. Symbolic links are not saved
+      or followed. Hard links are followed as if they were ordinary files.
+      Special file types such as devices, named pipes, and named sockets are not
+      saved. The 64 bit Windows version will save alternate data streams.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If any file cannot be read (e.g. permission denied), then it is skipped and
+      a warning is reported. However, other files are still added and the update
+      is still valid.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If <i>archive</i> is &quot;&quot; (a quoted empty string), then zpaq
+      compresses <i>files</i> as if creating a new archive, but discards the
+      output without writing to disk.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If <i>archive</i> is multi-part, the zpaq will create a new part using the
+      next available part number. For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq add &quot;arc??&quot; files   (creates arc01.zpaq)
+    zpaq add &quot;arc??&quot; files   (creates arc02.zpaq)
+    zpaq add &quot;arc??&quot; files   (creates arc03.zpaq)
+    zpaq extract &quot;arc??&quot;     (extracts all parts)
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Updates are transacted. If zpaq is interrupted before completing the update,
+      then the partially appended data is ignored and overwritten on the next
+      update. This is accomplished by first appending a temporary update header,
+      appending the compressed data and index, then updating the header as the
+      last step.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    As the archive is updated, the program will report the percent complete,
+      estimated time remaining, the name and size of the file preceded by
+      &quot;+&quot; if the file is being added, &quot;#&quot; if updated, or
+      &quot;-&quot; if deleted. If the file is deduplicated, then the new size
+      after deduplication but before compression is shown.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">x</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">extract</dt>
+  <dd class="It-tag">Extract <i>files</i> (including the contents of
+      directories), or extract the whole archive contents if <i>files</i> is
+      omitted. The file names, last-modified date, and permissions or attributes
+      are restored as saved in the archive. If there are multiple versions of a
+      file stored, then only the latest version is extracted. If a stored file
+      has been marked as deleted, then it is not extracted.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Existing files are skipped without being overwritten. (Use
+      &quot;-force&quot; to overwrite).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    As files are extracted, the fragment SHA-1 hashes are computed and compared
+      with the stored hashes. The program reports an error in case of
+      mismatches. Blocks are only decompressed up to the last used fragment. If
+      the archive is damaged, then zpaq will extract as much as possible from
+      the undamaged blocks.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    As files are extracted, the program reports the percent completed, estimated
+      time remaining, and the name of the file preceded by &quot;&gt;&quot; if
+      the file is created or overwritten (with &quot;-force&quot;),
+      &quot;?&quot; if the file is skipped because it already exists, or
+      &quot;=&quot; if decompression is skipped with &quot;-force&quot; because
+      the contents were compared and found to be identical. The date and
+      attributes are still extracted in this case.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">l</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">list</dt>
+  <dd class="It-tag">List the archive contents. With <i>files</i>, list only the
+      specified files and directories and compare them with the same files on
+      disk. For each file or directory, show the comparison result, last
+      modified date, uncompressed size, Windows attributes or Unix/Linux
+      permissions, and the saved name. If the internal and external versions of
+      the file differ, then show both.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The comparison result is reported in the first column as &quot;=&quot; if
+      the last-modified date, attributes (if saved), and size are identical,
+      &quot;#&quot; if different, &quot;-&quot; if the external file does not
+      exist, or &quot;+&quot; if the internal file does not exist. With
+      &quot;-force&quot;, the contents are compared, but not the dates or
+      attributes. Contents are compared by reading the files, computing SHA-1
+      hashes and comparing with the stored hashes. In either case, replacing
+      &quot;list&quot; with &quot;add&quot; will show exactly what changes would
+      be made to the archive.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    In Unix/Linux, permissions are listed as a file type &quot;d&quot; for
+      directory or blank for a regular file, followed by a 4 digit octal number
+      as per chmod(1). In Windows, attributes are listed from the set &quot;RHS
+      DAdFTprCoIEivs&quot; where the character is present if the corresponding
+      bit 0..17 is set as returned by <i>GetFileAttributes()</i>. The meanings
+      are as follows: &quot;R&quot;ead-only, &quot;H&quot;idden,
+      &quot;S&quot;ystem, unused (blank), &quot;D&quot;irectory,
+      &quot;A&quot;rchive, &quot;d&quot;evice, normal &quot;F&quot;ile,
+      &quot;T&quot;emporary, s&quot;p&quot;arse file, &quot;r&quot;eparse point,
+      &quot;C&quot;ompressed, &quot;o&quot;ffline, not content
+      &quot;I&quot;indexed, &quot;E&quot;ncrypted, &quot;i&quot;ntegrity stream,
+      &quot;v&quot;irtual, no &quot;s&quot;crub data.
+    <div style="height: 1.00em;">&#x00A0;</div>
+     <i>archive</i> may be &quot;&quot;, which is equivalent to comparing with
+      an empty archive.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag">-all [<i>N</i>]</dt>
+  <dd class="It-tag">With &quot;list&quot;, list all saved versions and not just
+      the latest version, including versions where the file is marked as
+      deleted. Each version is shown in a separate numbered directory beginning
+      with &quot;0001/&quot;. Absolute paths are first converted to relative
+      paths. In Windows, the &quot;:&quot; on the drive letter is removed. For
+      example, &quot;foo&quot; and &quot;/foo&quot; are shown as
+      &quot;0001/foo&quot;. &quot;C:/foo&quot; and &quot;C:foo&quot; are shown
+      as &quot;0001/C/foo&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The date shown on the root directory of each version is the date of the
+      update. The root directory listing also shows the number of updates and
+      deletions in that version and the compressed size.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    When a file is deleted, it is shown with the dates and attributes blank with
+      size 0.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    With &quot;extract&quot;, extract the files in each version as shown with
+      &quot;list -all&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+     <i>N</i> selects the number of digits in the directory name. The default is
+      4. More digits will be used when necessary. For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq list archive -all 2 -not &quot;??/?*&quot;
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    will show the dates when the archive was updated as &quot;01/&quot;,
+      &quot;02/&quot;, etc. but not their contents.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-f</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-force</dt>
+  <dd class="It-tag">With &quot;add&quot;, attempt to add files even if the
+      last-modified date has not changed. Files are added only if they really
+      are different, based on comparing the computed and stored SHA-1 hashes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    With &quot;extract&quot;, overwrite existing output files. If the contents
+      differ (tested by comparing SHA-1 hashes), then the file is decompressed
+      and extracted. If the dates or attributes/permissions differ, then they
+      are set to match those stored in the archive.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    With &quot;list&quot; <i>files</i>, compare files by computing SHA-1
+      fragment hashes and comparing with stored hashes. Ignore differences in
+      dates and attributes.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-fragment <i>N</i></dt>
+  <dd class="It-tag">Set the dedupe fragment size range from 64 2^<i>N</i> to
+      8128 2^ <i>N</i> bytes with an average size of 1024 2^ <i>N</i> bytes. The
+      default is 6 (range 4096..520192, average 65536). Smaller fragment sizes
+      can improve compression through deduplication of similar files, but
+      require more memory and more overhead. Each fragment adds about 28 bytes
+      to the archive and requires about 40 bytes of memory. For the default,
+      this is less than 0.1% of the archive size.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Values other than 6 conform to the ZPAQ specification and will decompress
+      correctly by all versions, but do not conform to the recommendation for
+      best deduplication. Adding identical files with different values of
+      <i>N</i> will not deduplicate because the fragment boundaries will differ.
+      &quot;list -summary&quot; will not identify these files as identical for
+      the same reason.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-index <i>indexfile</i></dt>
+  <dd class="It-tag">With &quot;add&quot;, create
+      <i>archive</i>&quot;.zpaq&quot; as a suffix to append to a remote archive
+      which is assumed to be identical to <i>indexfile</i> except that
+      <i>indexfile</i> contains no compressed file contents (D blocks). Then
+      update <i>indexfile</i> by appending a copy of
+      <i>archive</i>&quot;.zpaq&quot; without the D blocks. With
+      &quot;extract&quot;, specify the index to create for
+      <i>archive</i>&quot;.zpaq&quot; and do not extract any files.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The purpose is to maintain a backup offsite without using much local disk
+      space. The normal usage is to append the suffix at the remote site and
+      delete it locally, keeping only the much smaller index. For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq add part files -index index.zpaq
+    cat part.zpaq &gt;&gt; remote.zpaq
+    rm part.zpaq
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+     <i>indexfile</i> has no default extension. However, with a
+      &quot;.zpaq&quot; extension it can be listed to show the contents of the
+      remote archive or compare with local files. It cannot be extracted or
+      updated as a regular archive. Thus, the following should produce identical
+      output:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq list remote.zpaq
+    zpaq list index.zpaq
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If <i>archive</i> is multi-part (contains &quot;*&quot; or &quot;?&quot;),
+      then zpaq will substitute a part number equal to 1 plus the number of
+      previous updates. The parts may then be accessed as a multi-part archive
+      without appending or renaming.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    With &quot;add&quot;, it is an error if the <i>archive</i> to be created
+      already exists, or if <i>indexfile</i> is a regular archive.
+      &quot;-index&quot; cannot be used with &quot;-until&quot; or a streaming
+      archive &quot;-method s...&quot;. With &quot;extract&quot;, it is an error
+      if <i>indexfile</i> exists and &quot;-force&quot; is not used to
+      overwrite.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-key <i>password</i></dt>
+  <dd class="It-tag">This option is required for all commands operating on an
+      encrypted archive. When creating a new archive with &quot;add&quot;, the
+      new archive will be encrypted with <i>password</i> and all subsequent
+      operations will require the same password.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    An archive is encrypted with AES-256 in CTR mode. The password is
+      strengthened using Scrypt(SHA-256(password), salt, N=16384, r=8, p=1),
+      which would require 208M operations and 16 MB memory per test in a brute
+      force key search. When creating a new archive, a 32 byte salt is generated
+      using <i>CryptGenRandom()</i> in Windows or from /dev/urandom in
+      Unix/Linux, such that the first byte is different from the normal header
+      of an unencrypted archive (&quot;z&quot; or 7). A multi-part archive is
+      encrypted with a single keystream as if the parts were concatenated. An
+      index is encrypted with the same password, where the first byte of the
+      salt is modified by XOR with ('z' XOR '7').
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Encryption provides secrecy but not authentication. An attacker who knows or
+      can guess any bits of the plaintext can set them without knowing the
+    key.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-m<i>type</i>[<i>Blocksize</i>[.<i>pre</i>[.<i>arg</i>][<i>comp</i>[.<i>arg</i>]]...]]</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-method
+    <i>type</i>[<i>Blocksize</i>[.<i>pre</i>[.<i>arg</i>][
+    <i>comp</i>[.<i>arg</i>]]...]]</dt>
+  <dd class="It-tag">With &quot;add&quot;, select a compression method.
+      <i>type</i> may be 0, 1, 2, 3, 4, 5, &quot;x&quot;, or &quot;s&quot;. The
+      optional <i>Blocksize</i> may be 0..11, written with no space after the
+      type, like &quot;-m10&quot; or &quot;-method 511&quot;. The remaining
+      arguments, separated by periods or commas without spaces, are only allowed
+      for types &quot;x&quot; or &quot;s&quot;, for example
+      &quot;-mx4.3ci1&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If <i>type</i> is numeric, then higher numbers compress better but are
+      slower. The default is &quot;-m1&quot;. It is recommended for backups.
+      &quot;-m2&quot; compresses slower but decompresses just as fast as 1. It
+      is recommended for archives to be compressed once and decompressed many
+      times, such as downloads. &quot;-m0&quot; stores with deduplication but no
+      further compression.
+    <div style="height: 1.00em;">&#x00A0;</div>
+     <i>Blocksize</i> says to pack fragments into blocks up to 2^
+      <i>Blocksize</i> MiB. Using larger blocks can improve compression but
+      require more memory and may be slower because each block is compressed or
+      decompressed by a separate thread. The memory requirement is up to 8 times
+      <i>Blocksize</i> per thread for levels up to 4 and 16 times block size per
+      thread for level 5. The default <i>Blocksize</i> is 4 (16 MiB) for types 0
+      and 1, and 6 (64 MiB) otherwise.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Types &quot;x&quot; and &quot;s&quot; are for experimental use. Normally,
+      zpaq selects different methods depending on the compression level and an
+      analysis of the data (text, executable, or other binary, and degree of
+      compressibility). <i>type</i> selects journaling or streaming format.
+      <i>pre</i> is 0..7 selecting a preprocessing step (LZ77, BWT, E8E9),
+      <i>comp</i> is a series of context modeling components from the set
+      {c,i,a,w,m,s,t} selecting a CM or ICM, ISSE chain, MATCH, word model, MIX,
+      SSE, or MIX2 respectively. <i>pre</i> and <i>comp</i> may be followed by a
+      list of numeric arguments ( <i>arg</i>) separated by periods or commas.
+      For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    -method x6.3ci1
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    selects a journaling archive (x), block size 2^6 = 64 MiB, BWT transform
+      (3), an order 0 ICM (c), and order 1 ISSE (i1). (zpaq normally selects
+      this method for level 3 text compression). <i>type</i> is as follows.</dd>
+</dl>
+<div style="margin-left: 4.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">x</dt>
+  <dd class="It-tag">Selects normal (journaling) mode. Files are split into
+      fragments, deduplicated, packed into blocks, and compressed by the method
+      described. The compressed blocks are preceded by a transaction header
+      giving the date of the update. The blocks are followed by a list of
+      fragment hashes and sizes and a list of files added, updated, or deleted.
+      Each added or updated file lists the last-modifed date, attributes, and a
+      list of fragment IDs.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">s</dt>
+  <dd class="It-tag">Selectes streaming mode for single-pass extraction and
+      compatibility with zpaq versions prior to 6.00 (2012). Streaming archives
+      do not support deduplication or rollback. Files are split into fragments
+      of size 2^ <i>blocksize</i> MiB - 4 KiB. Each file or fragment is
+      compressed in a separate block with no attempt at deduplication. The file
+      name, date, and attributes are stored in the header of the first fragment.
+      The hashes are stored in the trailers of each block. There is no
+      transaction block to allow rollback. Files are added to the previously
+      dated update. Streaming mode with &quot;-index&quot; is an error.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>pre</i>[.<i>min1</i>.<i>min2</i>.<i>depth</i>.<i>size</i>[.<i>lookahead</i>]]</dt>
+  <dd class="It-tag"><i>pre</i> selects a pre/post processing step before
+      context modeling as follows.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    0 = no preprocessing
+    1 = Packed LZ77
+    2 = Byte aligned LZ77
+    3 = BWT (Burrows-Wheeler Transform)
+    4 = E8E9
+    5 = E8E9 + packed LZ77 
+    6 = E8E9 + byte aligned LZ77
+    7 = E8E9 + BWT
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The E8E9 transform (4..7) improves the compression of x86 executable files
+      (.exe or .dll). The transform scans backward for 5 byte patterns of the
+      form (E8|E9 xx xx xx 00|FF) hex and adds the block offset to the three
+      middle bytes. The E8 and E9 opcodes are CALL and JMP, respectively. The
+      transform replaces relative addresses with absolute addresses. The
+      transform is applied prior to LZ77 or BWT. Decompression reverses the
+      transforms in the opposite order.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    LZ77 (1, 2, 5, 6) compresses by searching for matching strings using a hash
+      table or suffix array and replacing them with pointers to the previous
+      match. Types 1 and 2 select variable bit length coding or byte aligned
+      coding respectively. Variable bit length encoding compresses better by
+      itself, but byte aligned coding allows for further compression using a
+      context model. Types 6 and 7 are the same as 1 and 2 respectively, except
+      that the block is E8E9 transformed first.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    BWT (Burrows Wheeler Transform, 3 or 7), sorts the input block by context,
+      which brings bytes with similar contexts together. It does not compress by
+      itself, but makes the input suited to compression with a fast adapting low
+      order context model.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The remaining arguments apply only to LZ77. <i>min1</i> selects the minimum
+      match length, which must be at least 4 for packed LZ77 or 1 for byte
+      aligned LZ77. <i>min2</i> selects a longer minimum match length to try
+      first, or is 0 to skip this step. The block is encoded by testing 2^
+      <i>depth</i> locations indexed by a hash table of 2^ <i>size</i> elements
+      indexed by hashes of the next <i>min2</i> and then <i>min1</i> characters.
+      If <i>lookahead</i> is specified and greater than 0, then, the search is
+      repeated <i>lookahead</i> + 1 times to consider coding the next 0 to
+      <i>lookahead</i> bytes as literals to find a longer match.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If <i>size</i> = <i>blocksize</i> + 21, then matches are found using a
+      suffix array instead of a hash table, scanning forward and backward 2^
+      <i>depth</i> elements to find the longest past match. <i>min2</i> has no
+      effect. A suffix array requires 4.5 x 2^ <i>blocksize</i> MiB memory. A
+      hash table requires 4 x 2^ <i>size</i> bytes memory. For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    -method x6.1.4.0.5.27.1
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    specifies 64 MiB blocks (6), variable length LZ77 without E8E9 (1), minimum
+      match length 4, no secondary search (0), search depth 2^5 = 32 in each
+      direction in the suffix array (27 = 6 + 21), and 1 byte lookahead.</dd>
+</dl>
+</div>
+<div style="margin-left: 4.00ex;">
+<div style="height: 1.00em;">&#x00A0;</div>
+<i>comp</i> specifies a component of a context model. If this section is empty,
+  then no further compression is performed. Otherwise the block is compressed by
+  an array of components. Each component takes a context and possibly the
+  outputs of earlier components, and outputs a prediction, a probability that
+  the next bit of input is a 1. The final prediction is used to arithmetic code
+  the bit. Components normally allocate memory equal to the block size, or less
+  for smaller contexts as needed. Components are as follows:
+<dl class="Bl-tag">
+  <dt class="It-tag">c[.<i>maxcount</i>[.<i>offset</i>[.<i>mask</i>]...]]</dt>
+  <dd class="It-tag">Specifies a context model (CM), or indirect context model
+      (ICM). A CM maps a context hash to a prediction by looking up the context
+      in a table, and then adjusts the prediction to reduce the coding error by
+      1/count, where count is bounded by <i>maxcount</i> x 4, and
+      <i>maxcount</i> is in 1..255.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If <i>maxcount</i> is 0, then specify an ICM. An ICM maps a context to a
+      state representing two bit counts and the most recent bit. That state is
+      mapped to a prediction and updated at a fixed rate. An ICM adapts faster
+      to changing statistics. A CM with a high count compresses stationary data
+      better. The default is 0 (ICM).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If <i>maxcount</i> has the form 1000<i>m</i> + n, then the effect is the
+      same as <i>maxcount</i> = n while reducing memory to 1/2^m of block size.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The remaining arguments represent contexts, all of which are hashed
+      together. If <i>offset</i> is 1..255, then the block offset mod
+      <i>offset</i> is hashed in. If <i>offset</i> is 1000..1255, then the
+      distance to the last occurrance of <i>offset</i> - 1000 is hashed in. For
+      example, &quot;c0.1010&quot; specifies an ICM taking the text column
+      number (distance back to the last linefeed = 10) as context. The default
+      is 0 (no context).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Each <i>mask</i> is ANDed with previous bytes. For example,
+      &quot;c0.0.255.255.255&quot; is an ICM with order 3 context. A value in
+      256..511 specifies a context of <i>mask</i> - 256 hashed together with the
+      byte aligned LZ77 parse state (whether a literal or match code is
+      expected). For example, &quot;-method x6.2.12.0.8.27c0.0.511.255&quot;
+      specifes block size 2^6 MiB, byte aligned LZ77 (2), minimum match length
+      12, search depth 2^8, suffix array search (27 = 6 + 21), an ICM (c0), no
+      offset context (0), and order 2 context plus LZ77 state (511.255).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    A mask greater than 1000 is shorthand for <i>mask</i> - 1000 zeros. For
+      example, the sparse context &quot;c0.0.255.1003.255&quot; is equivalent to
+      &quot;c0.0.255.0.0.0.255&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">m[<i>size</i>[.<i>rate</i>]]</dt>
+  <dd class="It-tag">Specifies a MIX (mixer). A MIX computes a weighted average
+      of the predictions of all previous components. (The averaging is in the
+      logistic domain: log(p / (1 - p))). The weights are then adjusted in
+      proportion to <i>rate</i> (0..255) to reduce the prediction error. A
+      <i>size</i> bit context can be used to select a set of weights to be used.
+      The first 8 bits of context are the previously coded bits of the current
+      byte. The default is &quot;m8.24&quot;. A MIX with n inputs requires 4n x
+      2^ <i>size</i> bytes of memory.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">t[<i>size</i>[.<i>rate</i>]]</dt>
+  <dd class="It-tag">Specifies a MIX2. A MIX2 is like a MIX except that it takes
+      only the last 2 components as input, and its weights are constrained to
+      add to 1. A MIX2 requires 4 x 2^ <i>size</i> bytes of memory. The default
+      is &quot;t8.24&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">s[<i>size</i>[.<i>mincount</i>[.<i>maxcount</i>]]]</dt>
+  <dd class="It-tag">Specifes a SSE (secondary symbol estimator). A SSE takes
+      the last <i>size</i> bits of context and the quantized and interpolated
+      prediction of the previous component as input to output an adjusted
+      prediction. The output is adjusted to reduce the prediction error by
+      1/count, where the count is constrained between <i>mincount</i> and 4 x
+      <i>maxcount</i>. The default is &quot;s8.32.255&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">i<i>order</i>[.<i>increment</i>]...</dt>
+  <dd class="It-tag">Specifies an ISSE (indirect secondary symbol estimator)
+      chain. An ISSE adjusts the predition of the previous component by mixing
+      it with a constant 1. The pair of mixing weights is selected by a bit
+      history state (like an ICM). The bit history is selected by a hash of the
+      last <i>order</i> bytes hashed together with the context of the previous
+      component. Each <i>increment</i> specifies an additional ISSE whose
+      context order is increased by <i>increment</i>. For example,
+      &quot;ci1.1.2&quot; specifies an order 0 ICM and order 1, 2, and 4
+    ISSEs.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">w[<i>order</i>[.<i>A</i>[.<i>Z</i>[.<i>cap</i>[.<i>mul</i>[.<i>mem</i>]]]]]]</dt>
+  <dd class="It-tag">Specifies an ICM-ISSE chain of length <i>order</i> taking
+      as contexts the hashes of the last 1, 2, 3..., <i>order</i> whole words. A
+      word is defined as a sequence of characters in the range <i>A</i> to
+      <i>A</i> + <i>Z</i> - 1, ANDed with <i>cap</i> before hashing. The hash H
+      is updated by byte c as H := (H x <i>mul</i> + c) (mod 2^(<i>blocksize</i>
+      + 24 - <i>mem</i>)). Each component requires 2^( <i>blocksize</i> -
+      <i>mem</i>) MiB. The default is &quot;w1.65.26.223.20.0&quot;, which
+      defines a word as 65..90 (A..Z). ANDing with 223 converts to upper case
+      before hashing. <i>mul</i> = 20 has the effect of shifting 2 bits left.
+      For typical block sizes (28 or 30 bit H), the word hash depends on the
+      last 14 or 15 letters.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">a[<i>mul</i>[.<i>bmem</i>][.<i>hmem</i>]]]</dt>
+  <dd class="It-tag">Specifies a MATCH. A MATCH searches for a past matching
+      context and predicts whatever bit came next. The search is done by
+      updating a context hash H with byte c by H := H x <i>mul</i> + c (mod
+      2^(<i>blocksize</i> + 18 - <i>hmem</i>)). A MATCH uses 2^(
+      <i>blocksize</i> - <i>bmem</i>) MiB history buffer and a 2^(
+      <i>blocksize</i> - <i>hmem</i>) MiB hash table. The default is
+      <i>a24.0.0</i>. If <i>blocksize</i> is 6, then H is 24 bits. <i>mul</i> =
+      24 shifts 4 bits left, making the context hash effectively order 6.</dd>
+</dl>
+</div>
+<div style="margin-left: 4.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag">-noattributes</dt>
+  <dd class="It-tag">With &quot;add&quot;, do not save Windows attributes or
+      Unix/Linux permissions to the archive. With &quot;extract&quot;, ignore
+      the saved values and extract using default values. With &quot;list&quot;,
+      do not list or compare attributes.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-not [<i>file</i>]...</dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-not =[#+-?^]...</dt>
+  <dd class="It-tag">In the first form, do not add, extract, or list files that
+      match any <i>file</i> by name. <i>file</i> may contain wildcards
+      &quot;*&quot; and &quot;?&quot; that match any string or character
+      respectively, including &quot;/&quot;. A match to a directory also matches
+      all of its contents. In Windows, matches are not case sensitive, and
+      &quot;\&quot; matches &quot;/&quot;. In Unix/Linux, arguments with
+      wildcards must be quoted to protect them from the shell.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    When comparing with &quot;list&quot; <i>files</i>, &quot;-not =&quot; means
+      do not list identical files. Additonally it is possible to suppress
+      listing of differences with &quot;#&quot;, missing external files with
+      &quot;-&quot;, missing internal files with &quot;+&quot;, and duplicates
+      (&quot;list -summary&quot;) with &quot;^&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-only <i>file</i>...</dt>
+  <dd class="It-tag">Do not add, extract, or list any files unless they match at
+      least one argument. The rules for matching wildcards are the same as
+      &quot;-not&quot;. The default is &quot;*&quot; which matches everything.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If a file matches an argument to both &quot;-only&quot; and
+      &quot;-not&quot;, then &quot;-not&quot; takes precedence.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-repack <i>new_archive</i> [<i>new_password</i>]</dt>
+  <dd class="It-tag">With &quot;extract&quot;, store the extracted files in
+      <i>new_archive</i> instead of writing them individually to disk. If
+      <i>new_password</i> is specified, then the output is encrypted with this
+      password. Otherwise the output is not encrypted, even if the input is.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    It is an error if <i>new_archive</i> exists unless &quot;-force&quot; is
+      used to allow it to be overwritten. <i>new_archive</i> does not
+      automatically get a &quot;.zpaq&quot; extension.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Repacking is implemented by copying those D blocks (compressed file
+      contents) which are referenced by at least one selected file. This can
+      result in a larger archive than a new one because unreferenced fragments
+      in the same block are also copied.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The repacked archive block dates range from the first to last update of the
+      input archive. Using &quot;add -until&quot; with a date between these two
+      dates will result in the date being adjust to 1 second after the last
+      update.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    With &quot;-all&quot;, the input archive is simply copied without
+      modification except to decrypt and encrypt. Thus, the input may be any
+      file, not just an archive. <i>files</i> and the options &quot;-to&quot;,
+      &quot;-not&quot;, &quot;-only&quot;, &quot;-until&quot;,
+      &quot;-noattributes&quot;, and &quot;-method&quot; are not valid with
+      &quot;-repack -all&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-s<i>N</i></dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-summary <i>N</i></dt>
+  <dd class="It-tag">With &quot;list&quot;, sort by decreasing size and show
+      only the <i>N</i> largest files and directories. Label duplicates of the
+      previous file with &quot;^&quot;. A file is a duplicate if its contents
+      are identical (based on stored hashes) although the name, dates, and
+      attributes may differ. If <i>files</i> is specified, then these are
+      included in the listing but not compared with internal files or each
+      other. Internal and external files are labeled with &quot;-&quot; and
+      &quot;+&quot; respectively.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If <i>N</i> is negative as in &quot;-s-1&quot; then list normally but show
+      fragment IDs after each file name. Files with identical fragment IDs have
+      identical contents.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    With &quot;add&quot; and &quot;extract&quot;, when <i>N</i> &gt; 0, do not
+      list files as they are added or extracted. Show only percent completed and
+      estimated time remaining on a 1 line display.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-test</dt>
+  <dd class="It-tag">With &quot;extract&quot;, do not write to disk, but perform
+      all other operations normally. &quot;extract&quot; will decompress,
+      compute the SHA-1 hashes of the output, report if it differs from the
+      stored value, but not compare, create or update any files. With
+      &quot;-index&quot;, test for errors but do not create an index file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-t<i>N</i></dt>
+  <dd class="It-tag"></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-threads <i>N</i></dt>
+  <dd class="It-tag">Add or extract at most <i>N</i> blocks in parallel. The
+      default is 0, which uses the number of processor cores, except not more
+      than 2 when when zpaq is compiled to 32-bit code. Selecting fewer threads
+      will reduce memory usage but run slower. Selecting more threads than cores
+      does not help.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-to <i>name</i>...</dt>
+  <dd class="It-tag">With &quot;add&quot; and &quot;list&quot; rename external
+      <i>files</i> to respective internal <i>names</i>. With
+      &quot;extract&quot;, rename internal <i>files</i> to external
+      <i>names</i>. When <i>files</i> is empty, prefix the extracted files with
+      the first name in <i>names</i>, inserting &quot;/&quot; if needed and
+      removing &quot;:&quot; from drive letters. For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq extract archive file dir -to newfile newdir
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    extracts &quot;file&quot; as &quot;newfile&quot; and &quot;dir&quot; as
+      &quot;newdir&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq extract archive -to tmp
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    will extract &quot;foo&quot; or &quot;/foo&quot; as &quot;tmp/foo&quot; and
+      extract &quot;C:/foo&quot; or &quot;C:foo&quot; as &quot;tmp/C/foo&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq add archive dir -to newdir
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    will save &quot;dir/file&quot; as &quot;newdir/file&quot;, and so on.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq list archive dir -to newdir
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    will compare external &quot;dir&quot; with internal &quot;newdir&quot;.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The &quot;-only&quot; and &quot;-not&quot; options apply prior to
+    renaming.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-until <i>date</i> | [-]<i>version</i></dt>
+  <dd class="It-tag">Ignore any part of the archive updated after <i>date</i> or
+      after <i>version</i> updates or - <i>version</i>s from the end if
+      negative. Additionally, &quot;add&quot; will truncate the archive at this
+      point before appending the next update. When a date is specified, the
+      update will be timestamped with <i>date</i> rather than the current date.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    A date is specified as a 4 digit year (1900 to 2999), 2 digit month (01 to
+      12), 2 digit day (01 to 31), optional 2 digit hour (00 to 23, default 23),
+      optional 2 digit minute (00 to 59, default 59), and optional 2 digit
+      seconds (00 to 59, default 59). Dates and times are always universal time
+      zone (UT), not local time. Numbers up to 9999999 are interpreted as
+      version numbers rather than dates. Dates may contain spaces and
+      punctuation characters for readability but are ignored. For example:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq list backup -until 3
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    shows the archive as it existed after the first 3 updates.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq add backup files -until 2014/04/30 11:30
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    truncates any data added after April 30, 2014 at 11:30:59 universal time,
+      then appends the update as if this were the current time. (It does not
+      matter if any files are dated in the future).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+    zpaq add backup files -until 0
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    deletes backup.zpaq and creates a new archive.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    &quot;add -until&quot; is an error on multi-part archives or with an index.
+      A multi-part archive can be rolled back by deleting the highest numbered
+      parts.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Truncating and appending an encrypted archive with &quot;add -until&quot;
+      (even &quot;-until 0&quot;) does not change the salt or keystream. Thus,
+      it is possible for an attacker with the old and new versions to obtain the
+      XOR of the trailing plaintexts without a password.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="EXIT_STATUS"><a class="selflink" href="#EXIT_STATUS">EXIT
+  STATUS</a></h1>
+Returns 0 if successful, 1 in case of warnings, or 2 in case of an error.
+<h1 class="Sh" title="Sh" id="ENVIRONMENT"><a class="selflink" href="#ENVIRONMENT">ENVIRONMENT</a></h1>
+In Windows, the default number of threads (set by &quot;-threads&quot;) is
+  %NUMBER_OF_PROCESSORS%. In Linux, the number of lines of the form
+  &quot;Processor : 0&quot;, &quot;Processor : 1&quot;,... in
+  <i>/cpu/procinfo</i> is used instead.
+<h1 class="Sh" title="Sh" id="STANDARDS"><a class="selflink" href="#STANDARDS">STANDARDS</a></h1>
+The archive format is described in <i>The ZPAQ Open Standard Format for Highly
+  Compressed Data</i> (see <i>AVAILABILITY</i>).
+<h1 class="Sh" title="Sh" id="AVAILABILITY"><a class="selflink" href="#AVAILABILITY">AVAILABILITY</a></h1>
+http://mattmahoney.net/zpaq/
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+There is no GUI.
+<div class="Pp"></div>
+The archive format does not save sufficient information for backing up and
+  restoring the operating system.
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+bzip2(1) gzip(1) lrzip(1) lzop(1) lzma(1) p7zip(1) rzip(1) unace(1) unrar(1)
+  unzip(1) zip(1)
+<h1 class="Sh" title="Sh" id="AUTHORS"><a class="selflink" href="#AUTHORS">AUTHORS</a></h1>
+&quot;zpaq&quot; and &quot;libzpaq&quot; are written by Matt Mahoney and
+  released to the public domain in 2015-2016. &quot;libzpaq&quot; contains
+  <i>libdivsufsort-lite</i> v2.01, copyright (C) 2003-2008, Yuta Mori. It is
+  licensed under the MIT license. See the source code for license text. The AES
+  code is modified from libtomcrypt by Tom St Denis (public domain). The
+  salsa20/8 code in <i>Scrypt()</i> is by D. J. Bernstein (public domain).</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2016-04-26</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

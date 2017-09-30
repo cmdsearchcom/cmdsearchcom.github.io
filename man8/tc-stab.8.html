@@ -1,220 +1,224 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:16:51 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>STAB(8)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>STAB(8) Linux STAB(8)</p>
-
-<p style="margin-top: 1em">NAME <br>
-tc-stab - Generic size table manipulations</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-tc qdisc add ... stab <br>
-[ mtu BYTES ] [ tsize SLOTS ] <br>
-[ mpu BYTES ] [ overhead BYTES ] <br>
-[ linklayer { adsl | atm | ethernet } ] ...</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-For the description of BYTES - please refer to the UNITS
-section of tc(8).</p>
-
-<p style="margin-top: 1em">mtu <br>
-maximum packet size we create size table for, assumed 2048
-if not specified explicitly</p>
-
-<p style="margin-top: 1em">tsize <br>
-required table size, assumed 512 if not specified
-explicitly</p>
-
-<p style="margin-top: 1em">mpu <br>
-minimum packet size used in computations</p>
-
-<p style="margin-top: 1em">overhead <br>
-per-packet size overhead (can be negative) used in
-computations</p>
-
-<p style="margin-top: 1em">linklayer <br>
-required linklayer specification.</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-Size tables allow manipulation of packet sizes, as seen by
-the whole scheduler framework (of course, the actual packet
-size remains the same). Adjusted packet size is calculated
-<br>
-only once - when a qdisc enqueues the packet. Initial root
-enqueue initializes it to the real packet&rsquo;s size.</p>
-
-<p style="margin-top: 1em">Each qdisc can use a different
-size table, but the adjusted size is stored in an area
-shared by whole qdisc hierarchy attached to the interface.
-The effect is that if you have <br>
-such a setup, the last qdisc with a stab in a chain
-&quot;wins&quot;. For example, consider HFSC with simple
-pfifo attached to one of its leaf classes. If that pfifo
-qdisc has stab <br>
-defined, it will override lengths calculated during
-HFSC&rsquo;s enqueue; and in turn, whenever HFSC tries to
-dequeue a packet, it will use a potentially invalid size in
-its calcula&acirc; <br>
-tions. Normal setups will usually include stab defined only
-on root qdisc, but further overriding gives extra
-flexibility for less usual setups.</p>
-
-<p style="margin-top: 1em">The initial size table is
-calculated by tc tool using mtu and tsize parameters. The
-algorithm sets each slot&rsquo;s size to the smallest power
-of 2 value, so the whole mtu is covered <br>
-by the size table. Neither tsize, nor mtu have to be power
-of 2 value, so the size table will usually support more than
-is required by mtu.</p>
-
-<p style="margin-top: 1em">For example, with mtu = 1500 and
-tsize = 128, a table with 128 slots will be created, where
-slot 0 will correspond to sizes 0-16, slot 1 to 17 - 32,
-..., slot 127 to 2033 - 2048. <br>
-Sizes assigned to each slot depend on linklayer
-parameter.</p>
-
-<p style="margin-top: 1em">Stab calculation is also safe
-for an unusual case, when a size assigned to a slot would be
-larger than 2^16-1 (you will lose the accuracy though).</p>
-
-<p style="margin-top: 1em">During the kernel part of packet
-size adjustment, overhead will be added to original size,
-and then slot will be calculated. If the size would cause
-overflow, more than 1 slot <br>
-will be used to get the final size. This of course will
-affect accuracy, but it&rsquo;s only a guard against unusual
-situations.</p>
-
-<p style="margin-top: 1em">Currently there are two methods
-of creating values stored in the size table - ethernet and
-atm (adsl):</p>
-
-<p style="margin-top: 1em">ethernet <br>
-This is basically 1-1 mapping, so following our example from
-above (disregarding mpu for a moment) slot 0 would have 8,
-slot 1 would have 16 and so on, up to slot 127 with <br>
-2048. Note, that mpu &gt; 0 must be specified, and slots
-that would get less than specified by mpu will get mpu
-instead. If you don&rsquo;t specify mpu, the size table will
-not be <br>
-created at all (it wouldn&rsquo;t make any difference),
-although any overhead value will be respected during
-calculations.</p>
-
-<p style="margin-top: 1em">atm, adsl <br>
-ATM linklayer consists of 53 byte cells, where each of them
-provides 48 bytes for payload. Also all the cells must be
-fully utilized, thus the last one is padded if/as
-neces&acirc; <br>
-sary.</p>
-
-<p style="margin-top: 1em">When the size table is
-calculated, adjusted size that fits properly into lowest
-amount of cells is assigned to a slot. For example, a 100
-byte long packet requires three <br>
-48-byte payloads, so the final size would require 3 ATM
-cells - 159 bytes.</p>
-
-<p style="margin-top: 1em">For ATM size tables, 16 bytes
-sized slots are perfectly enough. The default values of mtu
-and tsize create 4 bytes sized slots.</p>
-
-<p style="margin-top: 1em">TYPICAL OVERHEADS <br>
-The following values are typical for different adsl
-scenarios (based on [1] and [2]):</p>
-
-<p style="margin-top: 1em">LLC based: <br>
-PPPoA - 14 (PPP - 2, ATM - 12) <br>
-PPPoE - 40+ (PPPoE - 8, ATM - 18, ethernet 14, possibly FCS
-- 4+padding) <br>
-Bridged - 32 (ATM - 18, ethernet 14, possibly FCS -
-4+padding) <br>
-IPoA - 16 (ATM - 16)</p>
-
-<p style="margin-top: 1em">VC Mux based: <br>
-PPPoA - 10 (PPP - 2, ATM - 8) <br>
-PPPoE - 32+ (PPPoE - 8, ATM - 10, ethernet 14, possibly FCS
-- 4+padding) <br>
-Bridged - 24+ (ATM - 10, ethernet 14, possibly FCS -
-4+padding) <br>
-IPoA - 8 (ATM - 8) <br>
-There are a few important things regarding the above
-overheads:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; IPoA in LLC case
-requires SNAP, instead of LLC-NLPID (see rfc2684) - this is
-the reason why it actually takes more space than PPPoA.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; In rare cases,
-FCS might be preserved on protocols that include Ethernet
-frames (Bridged and PPPoE). In such situation, any Ethernet
-specific padding guaranteeing 64 bytes <br>
-long frame size has to be included as well (see RFC2684). In
-the other words, it also guarantees that any packet you send
-will take minimum 2 atm cells. You should set mpu <br>
-accordingly for that.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; When the size
-table is consulted, and you&rsquo;re shaping traffic for the
-sake of another modem/router, an Ethernet header (without
-padding) will already be added to initial <br>
-packet&rsquo;s length. You should compensate for that by
-subtracting 14 from the above overheads in this case. If
-you&rsquo;re shaping directly on the router (for example,
-with speed&acirc; <br>
-touch usb modem) using ppp daemon, you&rsquo;re using raw ip
-interface without underlying layer2, so nothing will be
-added.</p>
-
-<p style="margin-top: 1em">For more thorough explanations,
-please see [1] and [2].</p>
-
-<p style="margin-top: 1em">ETHERNET CARDS CONSIDERATIONS
-<br>
-It&rsquo;s often forgotten that modern network cards (even
-cheap ones on desktop motherboards) and/or their drivers
-often support different offloading mechanisms. In the
-context of <br>
-traffic shaping, &rsquo;tso&rsquo; and &rsquo;gso&rsquo;
-might cause undesirable effects, due to massive TCP segments
-being considered during traffic shaping (including stab
-calculations). For slow <br>
-uplink interfaces, it&rsquo;s good to use ethtool to turn
-off offloading features.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-tc(8), tc-hfsc(7), tc-hfsc(8), <br>
-[1] http://ace-host.stuart.id.au/russell/files/tc/tc-atm/
-<br>
-[2] http://www.faqs.org/rfcs/rfc2684.html</p>
-
-<p style="margin-top: 1em">Please direct bugreports and
-patches to: &lt;net...@vger.kernel.org&gt;</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Manpage created by Michal Soltys (sol...@ziu.info)</p>
-
-<p style="margin-top: 1em">iproute2 31 October 2011
-STAB(8)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">STAB(8)</td>
+    <td class="head-vol">Linux</td>
+    <td class="head-rtitle">STAB(8)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+tc-stab - Generic size table manipulations
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<pre>
+tc qdisc add ... stab
+</pre>
+<div style="margin-left: 4.00ex;">
+<pre>
+[  <b>mtu</b> BYTES ] [ <b>tsize</b> SLOTS ]
+[  <b>mpu</b> BYTES ] [ <b>overhead</b> BYTES ]
+[  <b>linklayer</b> { adsl | atm | ethernet } ] ...
+</pre>
+</div>
+<br/>
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+For the description of BYTES - please refer to the <b>UNITS</b> section of
+  <b>tc</b>(8).
+<div style="height: 1.00em;">&#x00A0;</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>mtu</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+    maximum packet size we create size table for, assumed 2048 if not specified
+      explicitly</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>tsize</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+    required table size, assumed 512 if not specified explicitly</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>mpu</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+    minimum packet size used in computations</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>overhead</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+    per-packet size overhead (can be negative) used in computations</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>linklayer</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+    required linklayer specification.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+Size tables allow manipulation of packet sizes, as seen by the whole scheduler
+  framework (of course, the actual packet size remains the same). Adjusted
+  packet size is calculated only once - when a qdisc enqueues the packet.
+  Initial root enqueue initializes it to the real packet's size.
+<div style="height: 1.00em;">&#x00A0;</div>
+Each qdisc can use a different size table, but the adjusted size is stored in an
+  area shared by whole qdisc hierarchy attached to the interface. The effect is
+  that if you have such a setup, the last qdisc with a stab in a chain
+  &quot;wins&quot;. For example, consider HFSC with simple pfifo attached to one
+  of its leaf classes. If that pfifo qdisc has stab defined, it will override
+  lengths calculated during HFSC's enqueue; and in turn, whenever HFSC tries to
+  dequeue a packet, it will use a potentially invalid size in its calculations.
+  Normal setups will usually include stab defined only on root qdisc, but
+  further overriding gives extra flexibility for less usual setups.
+<div style="height: 1.00em;">&#x00A0;</div>
+The initial size table is calculated by <b>tc</b> tool using <b>mtu</b> and
+  <b>tsize</b> parameters. The algorithm sets each slot's size to the smallest
+  power of 2 value, so the whole <b>mtu</b> is covered by the size table.
+  Neither <b>tsize</b>, nor <b>mtu</b> have to be power of 2 value, so the size
+  table will usually support more than is required by <b>mtu</b>.
+<div style="height: 1.00em;">&#x00A0;</div>
+For example, with <b>mtu</b>&#x00A0;=&#x00A0;1500 and
+  <b>tsize</b>&#x00A0;=&#x00A0;128, a table with 128 slots will be created,
+  where slot 0 will correspond to sizes 0-16, slot 1 to 17&#x00A0;-&#x00A0;32,
+  ..., slot 127 to 2033&#x00A0;-&#x00A0;2048. Sizes assigned to each slot depend
+  on <b>linklayer</b> parameter.
+<div style="height: 1.00em;">&#x00A0;</div>
+Stab calculation is also safe for an unusual case, when a size assigned to a
+  slot would be larger than 2^16-1 (you will lose the accuracy though).
+<div style="height: 1.00em;">&#x00A0;</div>
+During the kernel part of packet size adjustment, <b>overhead</b> will be added
+  to original size, and then slot will be calculated. If the size would cause
+  overflow, more than 1 slot will be used to get the final size. This of course
+  will affect accuracy, but it's only a guard against unusual situations.
+<div style="height: 1.00em;">&#x00A0;</div>
+Currently there are two methods of creating values stored in the size table -
+  ethernet and atm (adsl):
+<div style="height: 1.00em;">&#x00A0;</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">ethernet</dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+    This is basically 1-1 mapping, so following our example from above
+      (disregarding <b>mpu</b> for a moment) slot 0 would have 8, slot 1 would
+      have 16 and so on, up to slot 127 with 2048. Note, that
+      <b>mpu</b>&#x00A0;&gt;&#x00A0;0 must be specified, and slots that would
+      get less than specified by <b>mpu</b> will get <b>mpu</b> instead. If you
+      don't specify <b>mpu</b>, the size table will not be created at all (it
+      wouldn't make any difference), although any <b>overhead</b> value will be
+      respected during calculations.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">atm, adsl</dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+    ATM linklayer consists of 53 byte cells, where each of them provides 48
+      bytes for payload. Also all the cells must be fully utilized, thus the
+      last one is padded if/as necessary.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    When the size table is calculated, adjusted size that fits properly into
+      lowest amount of cells is assigned to a slot. For example, a 100 byte long
+      packet requires three 48-byte payloads, so the final size would require 3
+      ATM cells - 159 bytes.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    For ATM size tables, 16&#x00A0;bytes sized slots are perfectly enough. The
+      default values of <b>mtu</b> and <b>tsize</b> create 4&#x00A0;bytes sized
+      slots.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="TYPICAL_OVERHEADS"><a class="selflink" href="#TYPICAL_OVERHEADS">TYPICAL
+  OVERHEADS</a></h1>
+The following values are typical for different adsl scenarios (based on
+  <b>[1]</b> and <b>[2]</b>):
+<div style="height: 1.00em;">&#x00A0;</div>
+<pre>
+LLC based:
+</pre>
+<div style="margin-left: 4.00ex;">
+<pre>
+PPPoA - 14 (PPP - 2, ATM - 12)
+PPPoE - 40+ (PPPoE - 8, ATM - 18, ethernet 14, possibly FCS - 4+padding)
+Bridged - 32 (ATM - 18, ethernet 14, possibly FCS - 4+padding)
+IPoA - 16 (ATM - 16)
+</pre>
+</div>
+<pre>
+<div class="Pp"></div>
+VC Mux based:
+</pre>
+<div style="margin-left: 4.00ex;">
+<pre>
+PPPoA - 10 (PPP - 2, ATM - 8)
+PPPoE - 32+ (PPPoE - 8, ATM - 10, ethernet 14, possibly FCS - 4+padding)
+Bridged - 24+ (ATM - 10, ethernet 14, possibly FCS - 4+padding)
+IPoA - 8 (ATM - 8)
+</pre>
+</div>
+<br/>
+There are a few important things regarding the above overheads:
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">IPoA in LLC case requires SNAP, instead of LLC-NLPID (see
+      rfc2684) - this is the reason why it actually takes more space than
+    PPPoA.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">In rare cases, FCS might be preserved on protocols that
+      include Ethernet frames (Bridged and PPPoE). In such situation, any
+      Ethernet specific padding guaranteeing 64 bytes long frame size has to be
+      included as well (see RFC2684). In the other words, it also guarantees
+      that any packet you send will take minimum 2 atm cells. You should set
+      <b>mpu</b> accordingly for that.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">When the size table is consulted, and you're shaping
+      traffic for the sake of another modem/router, an Ethernet header (without
+      padding) will already be added to initial packet's length. You should
+      compensate for that by subtracting 14 from the above overheads in this
+      case. If you're shaping directly on the router (for example, with
+      speedtouch usb modem) using ppp daemon, you're using raw ip interface
+      without underlying layer2, so nothing will be added.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    For more thorough explanations, please see <b>[1]</b> and <b>[2]</b>.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="ETHERNET_CARDS_CONSIDERATIONS"><a class="selflink" href="#ETHERNET_CARDS_CONSIDERATIONS">ETHERNET
+  CARDS CONSIDERATIONS</a></h1>
+It's often forgotten that modern network cards (even cheap ones on desktop
+  motherboards) and/or their drivers often support different offloading
+  mechanisms. In the context of traffic shaping, 'tso' and 'gso' might cause
+  undesirable effects, due to massive TCP segments being considered during
+  traffic shaping (including stab calculations). For slow uplink interfaces,
+  it's good to use <b>ethtool</b> to turn off offloading features.
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<b>tc</b>(8), <b>tc-hfsc</b>(7), <b>tc-hfsc</b>(8),
+<div>&#x00A0;</div>
+<b>[1]</b> http://ace-host.stuart.id.au/russell/files/tc/tc-atm/
+<div>&#x00A0;</div>
+<b>[2]</b> http://www.faqs.org/rfcs/rfc2684.html
+<div style="height: 1.00em;">&#x00A0;</div>
+Please direct bugreports and patches to: &lt;net...@vger.kernel.org&gt;
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Manpage created by Michal Soltys (sol...@ziu.info)</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">31 October 2011</td>
+    <td class="foot-os">iproute2</td>
+  </tr>
+</table>
 </body>
 </html>

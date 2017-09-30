@@ -1,570 +1,540 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:31:24 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>PGBENCH(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>PGBENCH(1) PostgreSQL 9.2.18 Documentation
-PGBENCH(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-pgbench - run a benchmark test on PostgreSQL</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-pgbench -i [option...] [dbname]</p>
-
-<p style="margin-top: 1em">pgbench [option...] [dbname]</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-pgbench is a simple program for running benchmark tests on
-PostgreSQL. It runs the same sequence of SQL commands over
-and over, possibly in multiple concurrent database sessions,
-<br>
-and then calculates the average transaction rate
-(transactions per second). By default, pgbench tests a
-scenario that is loosely based on TPC-B, involving five
-SELECT, UPDATE, <br>
-and INSERT commands per transaction. However, it is easy to
-test other cases by writing your own transaction script
-files.</p>
-
-<p style="margin-top: 1em">Typical output from pgbench
-looks like:</p>
-
-<p style="margin-top: 1em">transaction type: TPC-B (sort
-of) <br>
-scaling factor: 10 <br>
-query mode: simple <br>
-number of clients: 10 <br>
-number of threads: 1 <br>
-number of transactions per client: 1000 <br>
-number of transactions actually processed: 10000/10000 <br>
-tps = 85.184871 (including connections establishing) <br>
-tps = 85.296346 (excluding connections establishing)</p>
-
-<p style="margin-top: 1em">The first six lines report some
-of the most important parameter settings. The next line
-reports the number of transactions completed and intended
-(the latter being just the <br>
-product of number of clients and number of transactions per
-client); these will be equal unless the run failed before
-completion. (In -T mode, only the actual number of <br>
-transactions is printed.) The last two lines report the
-number of transactions per second, figured with and without
-counting the time to start database sessions.</p>
-
-<p style="margin-top: 1em">The default TPC-B-like
-transaction test requires specific tables to be set up
-beforehand. pgbench should be invoked with the -i
-(initialize) option to create and populate these <br>
-tables. (When you are testing a custom script, you
-don&rsquo;t need this step, but will instead need to do
-whatever setup your test needs.) Initialization looks
-like:</p>
-
-<p style="margin-top: 1em">pgbench -i [ other-options ]
-dbname</p>
-
-<p style="margin-top: 1em">where dbname is the name of the
-already-created database to test in. (You may also need -h,
--p, and/or -U options to specify how to connect to the
-database server.)</p>
-
-<p style="margin-top: 1em">Caution <br>
-pgbench -i creates four tables pgbench_accounts,
-pgbench_branches, pgbench_history, and pgbench_tellers,
-destroying any existing tables of these names. Be very
-careful to use <br>
-another database if you have tables having these names!</p>
-
-<p style="margin-top: 1em">At the default &acirc;scale
-factor&acirc; of 1, the tables initially contain this many
-rows:</p>
-
-<p style="margin-top: 1em">table # of rows <br>
---------------------------------- <br>
-pgbench_branches 1 <br>
-pgbench_tellers 10 <br>
-pgbench_accounts 100000 <br>
-pgbench_history 0</p>
-
-<p style="margin-top: 1em">You can (and, for most purposes,
-probably should) increase the number of rows by using the -s
-(scale factor) option. The -F (fillfactor) option might also
-be used at this point.</p>
-
-<p style="margin-top: 1em">Once you have done the necessary
-setup, you can run your benchmark with a command that
-doesn&rsquo;t include -i, that is</p>
-
-<p style="margin-top: 1em">pgbench [ options ] dbname</p>
-
-<p style="margin-top: 1em">In nearly all cases,
-you&rsquo;ll need some options to make a useful test. The
-most important options are -c (number of clients), -t
-(number of transactions), -T (time limit), and -f <br>
-(specify a custom script file). See below for a full
-list.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-The following is divided into three subsections: Different
-options are used during database initialization and while
-running benchmarks, some options are useful in both
-cases.</p>
-
-<p style="margin-top: 1em">Initialization Options <br>
-pgbench accepts the following command-line initialization
-arguments:</p>
-
-<p style="margin-top: 1em">-i <br>
-Required to invoke initialization mode.</p>
-
-<p style="margin-top: 1em">-F fillfactor <br>
-Create the pgbench_accounts, pgbench_tellers and
-pgbench_branches tables with the given fillfactor. Default
-is 100.</p>
-
-<p style="margin-top: 1em">-s scale_factor <br>
-Multiply the number of rows generated by the scale factor.
-For example, -s 100 will create 10,000,000 rows in the
-pgbench_accounts table. Default is 1.</p>
-
-
-<p style="margin-top: 1em">--index-tablespace=index_tablespace
-<br>
-Create indexes in the specified tablespace, rather than the
-default tablespace.</p>
-
-<p style="margin-top: 1em">--tablespace=tablespace <br>
-Create tables in the specified tablespace, rather than the
-default tablespace.</p>
-
-<p style="margin-top: 1em">--unlogged-tables <br>
-Create all tables as unlogged tables, rather than permanent
-tables.</p>
-
-<p style="margin-top: 1em">Benchmarking Options <br>
-pgbench accepts the following command-line benchmarking
-arguments:</p>
-
-<p style="margin-top: 1em">-c clients <br>
-Number of clients simulated, that is, number of concurrent
-database sessions. Default is 1.</p>
-
-<p style="margin-top: 1em">-C <br>
-Establish a new connection for each transaction, rather than
-doing it just once per client session. This is useful to
-measure the connection overhead.</p>
-
-<p style="margin-top: 1em">-d <br>
-Print debugging output.</p>
-
-<p style="margin-top: 1em">-D varname=value <br>
-Define a variable for use by a custom script (see below).
-Multiple -D options are allowed.</p>
-
-<p style="margin-top: 1em">-f filename <br>
-Read transaction script from filename. See below for
-details. -N, -S, and -f are mutually exclusive.</p>
-
-<p style="margin-top: 1em">-j threads <br>
-Number of worker threads within pgbench. Using more than one
-thread can be helpful on multi-CPU machines. The number of
-clients must be a multiple of the number of threads, <br>
-since each thread is given the same number of client
-sessions to manage. Default is 1.</p>
-
-<p style="margin-top: 1em">-l <br>
-Write the time taken by each transaction to a log file. See
-below for details.</p>
-
-<p style="margin-top: 1em">-M querymode <br>
-Protocol to use for submitting queries to the server:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; simple: use
-simple query protocol.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; extended: use
-extended query protocol.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; prepared: use
-extended query protocol with prepared statements.</p>
-
-<p style="margin-top: 1em">The default is simple query
-protocol. (See Chapter 46, Frontend/Backend Protocol, in the
-documentation for more information.)</p>
-
-<p style="margin-top: 1em">-n <br>
-Perform no vacuuming before running the test. This option is
-necessary if you are running a custom test scenario that
-does not include the standard tables pgbench_accounts, <br>
-pgbench_branches, pgbench_history, and pgbench_tellers.</p>
-
-<p style="margin-top: 1em">-N <br>
-Do not update pgbench_tellers and pgbench_branches. This
-will avoid update contention on these tables, but it makes
-the test case even less like TPC-B.</p>
-
-<p style="margin-top: 1em">-r <br>
-Report the average per-statement latency (execution time
-from the perspective of the client) of each command after
-the benchmark finishes. See below for details.</p>
-
-<p style="margin-top: 1em">-s scale_factor <br>
-Report the specified scale factor in pgbench&rsquo;s output.
-With the built-in tests, this is not necessary; the correct
-scale factor will be detected by counting the number of <br>
-rows in the pgbench_branches table. However, when testing
-custom benchmarks (-f option), the scale factor will be
-reported as 1 unless this option is used.</p>
-
-<p style="margin-top: 1em">-S <br>
-Perform select-only transactions instead of TPC-B-like
-test.</p>
-
-<p style="margin-top: 1em">-t transactions <br>
-Number of transactions each client runs. Default is 10.</p>
-
-<p style="margin-top: 1em">-T seconds <br>
-Run the test for this many seconds, rather than a fixed
-number of transactions per client. -t and -T are mutually
-exclusive.</p>
-
-<p style="margin-top: 1em">-v <br>
-Vacuum all four standard tables before running the test.
-With neither -n nor -v, pgbench will vacuum the
-pgbench_tellers and pgbench_branches tables, and will
-truncate <br>
-pgbench_history.</p>
-
-<p style="margin-top: 1em">Common Options <br>
-pgbench accepts the following command-line common
-arguments:</p>
-
-<p style="margin-top: 1em">-h hostname <br>
-The database server&rsquo;s host name</p>
-
-<p style="margin-top: 1em">-p port <br>
-The database server&rsquo;s port number</p>
-
-<p style="margin-top: 1em">-U login <br>
-The user name to connect as</p>
-
-<p style="margin-top: 1em">-V, --version <br>
-Print the pgbench version and exit.</p>
-
-<p style="margin-top: 1em">-?, --help <br>
-Show help about pgbench command line arguments, and
-exit.</p>
-
-<p style="margin-top: 1em">NOTES <br>
-What is the &acirc;Transaction&acirc; Actually Performed in
-pgbench? <br>
-The default transaction script issues seven commands per
-transaction:</p>
-
-<p style="margin-top: 1em">1. BEGIN;</p>
-
-<p style="margin-top: 1em">2. UPDATE pgbench_accounts SET
-abalance = abalance + :delta WHERE aid = :aid;</p>
-
-<p style="margin-top: 1em">3. SELECT abalance FROM
-pgbench_accounts WHERE aid = :aid;</p>
-
-<p style="margin-top: 1em">4. UPDATE pgbench_tellers SET
-tbalance = tbalance + :delta WHERE tid = :tid;</p>
-
-<p style="margin-top: 1em">5. UPDATE pgbench_branches SET
-bbalance = bbalance + :delta WHERE bid = :bid;</p>
-
-<p style="margin-top: 1em">6. INSERT INTO pgbench_history
-(tid, bid, aid, delta, mtime) VALUES (:tid, :bid, :aid,
-:delta, CURRENT_TIMESTAMP);</p>
-
-<p style="margin-top: 1em">7. END;</p>
-
-<p style="margin-top: 1em">If you specify -N, steps 4 and 5
-aren&rsquo;t included in the transaction. If you specify -S,
-only the SELECT is issued.</p>
-
-<p style="margin-top: 1em">Custom Scripts <br>
-pgbench has support for running custom benchmark scenarios
-by replacing the default transaction script (described
-above) with a transaction script read from a file (-f
-option). <br>
-In this case a &acirc;transaction&acirc; counts as one
-execution of a script file. You can even specify multiple
-scripts (multiple -f options), in which case a random one of
-the scripts is <br>
-chosen each time a client session starts a new
-transaction.</p>
-
-<p style="margin-top: 1em">The format of a script file is
-one SQL command per line; multiline SQL commands are not
-supported. Empty lines and lines beginning with -- are
-ignored. Script file lines can also <br>
-be &acirc;meta commands&acirc;, which are interpreted by
-pgbench itself, as described below.</p>
-
-<p style="margin-top: 1em">There is a simple
-variable-substitution facility for script files. Variables
-can be set by the command-line -D option, explained above,
-or by the meta commands explained below. <br>
-In addition to any variables preset by -D command-line
-options, the variable scale is preset to the current scale
-factor. Once set, a variable&rsquo;s value can be inserted
-into a SQL <br>
-command by writing :variablename. When running more than one
-client session, each session has its own set of
-variables.</p>
-
-<p style="margin-top: 1em">Script file meta commands begin
-with a backslash (. Arguments to a meta command are
-separated by white space. These meta commands are
-supported:</p>
-
-<p style="margin-top: 1em">varname operand1 [ operator
-operand2 ] <br>
-Sets variable varname to a calculated integer value. Each
-operand is either an integer constant or a :variablename
-reference to a variable having an integer value. The <br>
-operator can be +, -, *, or /.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em">ntellers 10 * :scale</p>
-
-<p style="margin-top: 1em">random varname min max <br>
-Sets variable varname to a random integer value between the
-limits min and max inclusive. Each limit can be either an
-integer constant or a :variablename reference to a <br>
-variable having an integer value.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em">random aid 1 :naccounts</p>
-
-<p style="margin-top: 1em">ep number [ us | ms | s ] <br>
-Causes script execution to sleep for the specified duration
-in microseconds (us), milliseconds (ms) or seconds (s). If
-the unit is omitted then seconds are the default. <br>
-number can be either an integer constant or a :variablename
-reference to a variable having an integer value.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em">ep 10 ms</p>
-
-<p style="margin-top: 1em">shell varname command [ argument
-... ] <br>
-Sets variable varname to the result of the shell command
-command. The command must return an integer value through
-its standard output.</p>
-
-<p style="margin-top: 1em">argument can be either a text
-constant or a :variablename reference to a variable of any
-types. If you want to use argument starting with colons, you
-need to add an <br>
-additional colon at the beginning of argument.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em">shell variable_to_be_assigned
-command literal_argument :variable
-::literal_starting_with_colon</p>
-
-<p style="margin-top: 1em">ll command [ argument ... ] <br>
-Same as shell, but the result is ignored.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em">ll command literal_argument
-:variable ::literal_starting_with_colon</p>
-
-<p style="margin-top: 1em">As an example, the full
-definition of the built-in TPC-B-like transaction is:</p>
-
-<p style="margin-top: 1em">nbranches :scale <br>
-ntellers 10 * :scale <br>
-naccounts 100000 * :scale <br>
-random aid 1 :naccounts <br>
-random bid 1 :nbranches <br>
-random tid 1 :ntellers <br>
-random delta -5000 5000 <br>
-BEGIN; <br>
-UPDATE pgbench_accounts SET abalance = abalance + :delta
-WHERE aid = :aid; <br>
-SELECT abalance FROM pgbench_accounts WHERE aid = :aid; <br>
-UPDATE pgbench_tellers SET tbalance = tbalance + :delta
-WHERE tid = :tid; <br>
-UPDATE pgbench_branches SET bbalance = bbalance + :delta
-WHERE bid = :bid; <br>
-INSERT INTO pgbench_history (tid, bid, aid, delta, mtime)
-VALUES (:tid, :bid, :aid, :delta, CURRENT_TIMESTAMP); <br>
-END;</p>
-
-<p style="margin-top: 1em">This script allows each
-iteration of the transaction to reference different,
-randomly-chosen rows. (This example also shows why
-it&rsquo;s important for each client session to have its
-<br>
-own variables &acirc; otherwise they&rsquo;d not be
-independently touching different rows.)</p>
-
-<p style="margin-top: 1em">Per-Transaction Logging <br>
-With the -l option, pgbench writes the time taken by each
-transaction to a log file. The log file will be named
-pgbench_log.nnn, where nnn is the PID of the pgbench
-process. If <br>
-the -j option is 2 or higher, creating multiple worker
-threads, each will have its own log file. The first worker
-will use the same name for its log file as in the standard
-<br>
-single worker case. The additional log files for the other
-workers will be named pgbench_log.nnn.mmm, where mmm is a
-sequential number for each worker starting with 1.</p>
-
-<p style="margin-top: 1em">The format of the log is:</p>
-
-<p style="margin-top: 1em">client_id transaction_no time
-file_no time_epoch time_us</p>
-
-<p style="margin-top: 1em">where time is the total elapsed
-transaction time in microseconds, file_no identifies which
-script file was used (useful when multiple scripts were
-specified with -f), and <br>
-time_epoch/time_us are a UNIX epoch format timestamp and an
-offset in microseconds (suitable for creating an ISO 8601
-timestamp with fractional seconds) showing when the <br>
-transaction completed.</p>
-
-<p style="margin-top: 1em">Here are example outputs:</p>
-
-<p style="margin-top: 1em">0 199 2241 0 1175850568 995598
-<br>
-0 200 2465 0 1175850568 998079 <br>
-0 201 2513 0 1175850569 608 <br>
-0 202 2038 0 1175850569 2663</p>
-
-<p style="margin-top: 1em">Per-Statement Latencies <br>
-With the -r option, pgbench collects the elapsed transaction
-time of each statement executed by every client. It then
-reports an average of those values, referred to as the <br>
-latency for each statement, after the benchmark has
-finished.</p>
-
-<p style="margin-top: 1em">For the default script, the
-output will look similar to this:</p>
-
-<p style="margin-top: 1em">starting vacuum...end. <br>
-transaction type: TPC-B (sort of) <br>
-scaling factor: 1 <br>
-query mode: simple <br>
-number of clients: 10 <br>
-number of threads: 1 <br>
-number of transactions per client: 1000 <br>
-number of transactions actually processed: 10000/10000 <br>
-tps = 618.764555 (including connections establishing) <br>
-tps = 622.977698 (excluding connections establishing) <br>
-statement latencies in milliseconds: <br>
-0.004386 nbranches 1 * :scale <br>
-0.001343 ntellers 10 * :scale <br>
-0.001212 naccounts 100000 * :scale <br>
-0.001310 random aid 1 :naccounts <br>
-0.001073 random bid 1 :nbranches <br>
-0.001005 random tid 1 :ntellers <br>
-0.001078 random delta -5000 5000 <br>
-0.326152 BEGIN; <br>
-0.603376 UPDATE pgbench_accounts SET abalance = abalance +
-:delta WHERE aid = :aid; <br>
-0.454643 SELECT abalance FROM pgbench_accounts WHERE aid =
-:aid; <br>
-5.528491 UPDATE pgbench_tellers SET tbalance = tbalance +
-:delta WHERE tid = :tid; <br>
-7.335435 UPDATE pgbench_branches SET bbalance = bbalance +
-:delta WHERE bid = :bid; <br>
-0.371851 INSERT INTO pgbench_history (tid, bid, aid, delta,
-mtime) VALUES (:tid, :bid, :aid, :delta, CURRENT_TIMESTAMP);
-<br>
-1.212976 END;</p>
-
-<p style="margin-top: 1em">If multiple script files are
-specified, the averages are reported separately for each
-script file.</p>
-
-<p style="margin-top: 1em">Note that collecting the
-additional timing information needed for per-statement
-latency computation adds some overhead. This will slow
-average execution speed and lower the <br>
-computed TPS. The amount of slowdown varies significantly
-depending on platform and hardware. Comparing average TPS
-values with and without latency reporting enabled is a good
-<br>
-way to measure if the timing overhead is significant.</p>
-
-<p style="margin-top: 1em">Good Practices <br>
-It is very easy to use pgbench to produce completely
-meaningless numbers. Here are some guidelines to help you
-get useful results.</p>
-
-<p style="margin-top: 1em">In the first place, never
-believe any test that runs for only a few seconds. Use the
--t or -T option to make the run last at least a few minutes,
-so as to average out noise. In <br>
-some cases you could need hours to get numbers that are
-reproducible. It&rsquo;s a good idea to try the test run a
-few times, to find out if your numbers are reproducible or
-not.</p>
-
-<p style="margin-top: 1em">For the default TPC-B-like test
-scenario, the initialization scale factor (-s) should be at
-least as large as the largest number of clients you intend
-to test (-c); else you&rsquo;ll <br>
-mostly be measuring update contention. There are only -s
-rows in the pgbench_branches table, and every transaction
-wants to update one of them, so -c values in excess of -s
-will <br>
-undoubtedly result in lots of transactions blocked waiting
-for other transactions.</p>
-
-<p style="margin-top: 1em">The default test scenario is
-also quite sensitive to how long it&rsquo;s been since the
-tables were initialized: accumulation of dead rows and dead
-space in the tables changes the <br>
-results. To understand the results you must keep track of
-the total number of updates and when vacuuming happens. If
-autovacuum is enabled it can result in unpredictable changes
-<br>
-in measured performance.</p>
-
-<p style="margin-top: 1em">A limitation of pgbench is that
-it can itself become the bottleneck when trying to test a
-large number of client sessions. This can be alleviated by
-running pgbench on a <br>
-different machine from the database server, although low
-network latency will be essential. It might even be useful
-to run several pgbench instances concurrently, on several
-<br>
-client machines, against the same database server.</p>
-
-<p style="margin-top: 1em">PostgreSQL 9.2.18 2016-08-08
-PGBENCH(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">PGBENCH(1)</td>
+    <td class="head-vol">PostgreSQL 9.2.18 Documentation</td>
+    <td class="head-rtitle">PGBENCH(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+pgbench - run a benchmark test on PostgreSQL
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<div class="Pp" style="margin-left: 8.00ex; text-indent: -8.00ex;"><b>pgbench</b>
+  <b>-i</b> [<i>option</i>...] [<i>dbname</i>]</div>
+<div class="Pp"></div>
+<div class="Pp" style="margin-left: 8.00ex; text-indent: -8.00ex;"><b>pgbench</b>
+  [ <i>option</i>...] [<i>dbname</i>]</div>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+pgbench is a simple program for running benchmark tests on PostgreSQL. It runs
+  the same sequence of SQL commands over and over, possibly in multiple
+  concurrent database sessions, and then calculates the average transaction rate
+  (transactions per second). By default, pgbench tests a scenario that is
+  loosely based on TPC-B, involving five <b>SELECT</b>, <b>UPDATE</b>, and
+  <b>INSERT</b> commands per transaction. However, it is easy to test other
+  cases by writing your own transaction script files.
+<div class="Pp"></div>
+Typical output from pgbench looks like:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+transaction type: TPC-B (sort of)
+scaling factor: 10
+query mode: simple
+number of clients: 10
+number of threads: 1
+number of transactions per client: 1000
+number of transactions actually processed: 10000/10000
+tps = 85.184871 (including connections establishing)
+tps = 85.296346 (excluding connections establishing)
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+The first six lines report some of the most important parameter settings. The
+  next line reports the number of transactions completed and intended (the
+  latter being just the product of number of clients and number of transactions
+  per client); these will be equal unless the run failed before completion. (In
+  <b>-T</b> mode, only the actual number of transactions is printed.) The last
+  two lines report the number of transactions per second, figured with and
+  without counting the time to start database sessions.
+<div class="Pp"></div>
+The default TPC-B-like transaction test requires specific tables to be set up
+  beforehand. pgbench should be invoked with the <b>-i</b> (initialize) option
+  to create and populate these tables. (When you are testing a custom script,
+  you don't need this step, but will instead need to do whatever setup your test
+  needs.) Initialization looks like:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+pgbench -i [  <i>other-options</i> ] <i>dbname</i>
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+where <i>dbname</i> is the name of the already-created database to test in. (You
+  may also need <b>-h</b>, <b>-p</b>, and/or <b>-U</b> options to specify how to
+  connect to the database server.)
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Caution</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+<div class="Pp"></div>
+pgbench -i creates four tables pgbench_accounts, pgbench_branches,
+  pgbench_history, and pgbench_tellers, destroying any existing tables of these
+  names. Be very careful to use another database if you have tables having these
+  names!
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+<div class="Pp"></div>
+At the default &#x201C;scale factor&#x201D; of 1, the tables initially contain
+  this many rows:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+table                   # of rows
+---------------------------------
+pgbench_branches        1
+pgbench_tellers         10
+pgbench_accounts        100000
+pgbench_history         0
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+You can (and, for most purposes, probably should) increase the number of rows by
+  using the <b>-s</b> (scale factor) option. The <b>-F</b> (fillfactor) option
+  might also be used at this point.
+<div class="Pp"></div>
+Once you have done the necessary setup, you can run your benchmark with a
+  command that doesn't include <b>-i</b>, that is
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+pgbench [  <i>options</i> ] <i>dbname</i>
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+In nearly all cases, you'll need some options to make a useful test. The most
+  important options are <b>-c</b> (number of clients), <b>-t</b> (number of
+  transactions), <b>-T</b> (time limit), and <b>-f</b> (specify a custom script
+  file). See below for a full list.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+The following is divided into three subsections: Different options are used
+  during database initialization and while running benchmarks, some options are
+  useful in both cases.
+<h2 class="Ss" title="Ss" id="Initialization_Options"><a class="selflink" href="#Initialization_Options">Initialization
+  Options</a></h2>
+pgbench accepts the following command-line initialization arguments:
+<div class="Pp"></div>
+<b>-i</b>
+<div style="margin-left: 4.00ex;">Required to invoke initialization mode.</div>
+<div class="Pp"></div>
+<b>-F</b> <i>fillfactor</i>
+<div style="margin-left: 4.00ex;">Create the pgbench_accounts, pgbench_tellers
+  and pgbench_branches tables with the given fillfactor. Default is 100.</div>
+<div class="Pp"></div>
+<b>-s</b> <i>scale_factor</i>
+<div style="margin-left: 4.00ex;">Multiply the number of rows generated by the
+  scale factor. For example, -s 100 will create 10,000,000 rows in the
+  pgbench_accounts table. Default is 1.</div>
+<div class="Pp"></div>
+<b>--index-tablespace=</b><b></b><i>index_tablespace</i>
+<div style="margin-left: 4.00ex;">Create indexes in the specified tablespace,
+  rather than the default tablespace.</div>
+<div class="Pp"></div>
+<b>--tablespace=</b><b></b><i>tablespace</i>
+<div style="margin-left: 4.00ex;">Create tables in the specified tablespace,
+  rather than the default tablespace.</div>
+<div class="Pp"></div>
+<b>--unlogged-tables</b>
+<div style="margin-left: 4.00ex;">Create all tables as unlogged tables, rather
+  than permanent tables.</div>
+<h2 class="Ss" title="Ss" id="Benchmarking_Options"><a class="selflink" href="#Benchmarking_Options">Benchmarking
+  Options</a></h2>
+pgbench accepts the following command-line benchmarking arguments:
+<div class="Pp"></div>
+<b>-c</b> <i>clients</i>
+<div style="margin-left: 4.00ex;">Number of clients simulated, that is, number
+  of concurrent database sessions. Default is 1.</div>
+<div class="Pp"></div>
+<b>-C</b>
+<div style="margin-left: 4.00ex;">Establish a new connection for each
+  transaction, rather than doing it just once per client session. This is useful
+  to measure the connection overhead.</div>
+<div class="Pp"></div>
+<b>-d</b>
+<div style="margin-left: 4.00ex;">Print debugging output.</div>
+<div class="Pp"></div>
+<b>-D</b> <i>varname</i>=<i>value</i>
+<div style="margin-left: 4.00ex;">Define a variable for use by a custom script
+  (see below). Multiple <b>-D</b> options are allowed.</div>
+<div class="Pp"></div>
+<b>-f</b> <i>filename</i>
+<div style="margin-left: 4.00ex;">Read transaction script from <i>filename</i>.
+  See below for details. <b>-N</b>, <b>-S</b>, and <b>-f</b> are mutually
+  exclusive.</div>
+<div class="Pp"></div>
+<b>-j</b> <i>threads</i>
+<div style="margin-left: 4.00ex;">Number of worker threads within pgbench. Using
+  more than one thread can be helpful on multi-CPU machines. The number of
+  clients must be a multiple of the number of threads, since each thread is
+  given the same number of client sessions to manage. Default is 1.</div>
+<div class="Pp"></div>
+<b>-l</b>
+<div style="margin-left: 4.00ex;">Write the time taken by each transaction to a
+  log file. See below for details.</div>
+<div class="Pp"></div>
+<b>-M</b> <i>querymode</i>
+<div style="margin-left: 4.00ex;">Protocol to use for submitting queries to the
+  server:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;simple: use simple query
+  protocol.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;extended: use extended query
+  protocol.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;prepared: use extended query protocol
+  with prepared statements.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+The default is simple query protocol. (See Chapter 46, Frontend/Backend
+  Protocol, in the documentation for more information.)</div>
+<div class="Pp"></div>
+<b>-n</b>
+<div style="margin-left: 4.00ex;">Perform no vacuuming before running the test.
+  This option is <i>necessary</i> if you are running a custom test scenario that
+  does not include the standard tables pgbench_accounts, pgbench_branches,
+  pgbench_history, and pgbench_tellers.</div>
+<div class="Pp"></div>
+<b>-N</b>
+<div style="margin-left: 4.00ex;">Do not update pgbench_tellers and
+  pgbench_branches. This will avoid update contention on these tables, but it
+  makes the test case even less like TPC-B.</div>
+<div class="Pp"></div>
+<b>-r</b>
+<div style="margin-left: 4.00ex;">Report the average per-statement latency
+  (execution time from the perspective of the client) of each command after the
+  benchmark finishes. See below for details.</div>
+<div class="Pp"></div>
+<b>-s</b> <i>scale_factor</i>
+<div style="margin-left: 4.00ex;">Report the specified scale factor in pgbench's
+  output. With the built-in tests, this is not necessary; the correct scale
+  factor will be detected by counting the number of rows in the pgbench_branches
+  table. However, when testing custom benchmarks ( <b>-f</b> option), the scale
+  factor will be reported as 1 unless this option is used.</div>
+<div class="Pp"></div>
+<b>-S</b>
+<div style="margin-left: 4.00ex;">Perform select-only transactions instead of
+  TPC-B-like test.</div>
+<div class="Pp"></div>
+<b>-t</b> <i>transactions</i>
+<div style="margin-left: 4.00ex;">Number of transactions each client runs.
+  Default is 10.</div>
+<div class="Pp"></div>
+<b>-T</b> <i>seconds</i>
+<div style="margin-left: 4.00ex;">Run the test for this many seconds, rather
+  than a fixed number of transactions per client. <b>-t</b> and <b>-T</b> are
+  mutually exclusive.</div>
+<div class="Pp"></div>
+<b>-v</b>
+<div style="margin-left: 4.00ex;">Vacuum all four standard tables before running
+  the test. With neither <b>-n</b> nor <b>-v</b>, pgbench will vacuum the
+  pgbench_tellers and pgbench_branches tables, and will truncate
+  pgbench_history.</div>
+<h2 class="Ss" title="Ss" id="Common_Options"><a class="selflink" href="#Common_Options">Common
+  Options</a></h2>
+pgbench accepts the following command-line common arguments:
+<div class="Pp"></div>
+<b>-h</b> <i>hostname</i>
+<div style="margin-left: 4.00ex;">The database server's host name</div>
+<div class="Pp"></div>
+<b>-p</b> <i>port</i>
+<div style="margin-left: 4.00ex;">The database server's port number</div>
+<div class="Pp"></div>
+<b>-U</b> <i>login</i>
+<div style="margin-left: 4.00ex;">The user name to connect as</div>
+<div class="Pp"></div>
+<b>-V</b>, <b>--version</b>
+<div style="margin-left: 4.00ex;">Print the pgbench version and exit.</div>
+<div class="Pp"></div>
+<b>-?</b>, <b>--help</b>
+<div style="margin-left: 4.00ex;">Show help about pgbench command line
+  arguments, and exit.</div>
+<h1 class="Sh" title="Sh" id="NOTES"><a class="selflink" href="#NOTES">NOTES</a></h1>
+<h2 class="Ss" title="Ss" id="What_is_the_&#x201C;Transaction&#x201D;_Actually_Performed_in_pgbench?"><a class="selflink" href="#What_is_the_&#x201C;Transaction&#x201D;_Actually_Performed_in_pgbench?">What
+  is the &#x201C;Transaction&#x201D; Actually Performed in pgbench?</a></h2>
+The default transaction script issues seven commands per transaction:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 1.BEGIN;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 2.UPDATE pgbench_accounts SET abalance =
+  abalance + :delta WHERE aid = :aid;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 3.SELECT abalance FROM pgbench_accounts WHERE
+  aid = :aid;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 4.UPDATE pgbench_tellers SET tbalance =
+  tbalance + :delta WHERE tid = :tid;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 5.UPDATE pgbench_branches SET bbalance =
+  bbalance + :delta WHERE bid = :bid;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 6.INSERT INTO pgbench_history (tid, bid, aid,
+  delta, mtime) VALUES (:tid, :bid, :aid, :delta, CURRENT_TIMESTAMP);</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 7.END;</div>
+<div class="Pp"></div>
+If you specify <b>-N</b>, steps 4 and 5 aren't included in the transaction. If
+  you specify <b>-S</b>, only the <b>SELECT</b> is issued.
+<h2 class="Ss" title="Ss" id="Custom_Scripts"><a class="selflink" href="#Custom_Scripts">Custom
+  Scripts</a></h2>
+pgbench has support for running custom benchmark scenarios by replacing the
+  default transaction script (described above) with a transaction script read
+  from a file ( <b>-f</b> option). In this case a &#x201C;transaction&#x201D;
+  counts as one execution of a script file. You can even specify multiple
+  scripts (multiple <b>-f</b> options), in which case a random one of the
+  scripts is chosen each time a client session starts a new transaction.
+<div class="Pp"></div>
+The format of a script file is one SQL command per line; multiline SQL commands
+  are not supported. Empty lines and lines beginning with -- are ignored. Script
+  file lines can also be &#x201C;meta commands&#x201D;, which are interpreted by
+  pgbench itself, as described below.
+<div class="Pp"></div>
+There is a simple variable-substitution facility for script files. Variables can
+  be set by the command-line <b>-D</b> option, explained above, or by the meta
+  commands explained below. In addition to any variables preset by <b>-D</b>
+  command-line options, the variable scale is preset to the current scale
+  factor. Once set, a variable's value can be inserted into a SQL command by
+  writing : <i>variablename</i>. When running more than one client session, each
+  session has its own set of variables.
+<div class="Pp"></div>
+Script file meta commands begin with a backslash (\). Arguments to a meta
+  command are separated by white space. These meta commands are supported:
+<div class="Pp"></div>
+\set <i>varname</i> <i>operand1</i> [ <i>operator</i> <i>operand2</i> ]
+<div style="margin-left: 4.00ex;">Sets variable <i>varname</i> to a calculated
+  integer value. Each <i>operand</i> is either an integer constant or a :
+  <i>variablename</i> reference to a variable having an integer value. The
+  <i>operator</i> can be +, -, *, or /.
+<div style="height: 1.00em;">&#x00A0;</div>
+Example:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+\set ntellers 10 * :scale
+</pre>
+</div>
+</div>
+<div class="Pp"></div>
+\setrandom <i>varname</i> <i>min</i> <i>max</i>
+<div style="margin-left: 4.00ex;">Sets variable <i>varname</i> to a random
+  integer value between the limits <i>min</i> and <i>max</i> inclusive. Each
+  limit can be either an integer constant or a : <i>variablename</i> reference
+  to a variable having an integer value.
+<div style="height: 1.00em;">&#x00A0;</div>
+Example:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+\setrandom aid 1 :naccounts
+</pre>
+</div>
+</div>
+<div class="Pp"></div>
+\sleep <i>number</i> [ us | ms | s ]
+<div style="margin-left: 4.00ex;">Causes script execution to sleep for the
+  specified duration in microseconds (us), milliseconds (ms) or seconds (s). If
+  the unit is omitted then seconds are the default. <i>number</i> can be either
+  an integer constant or a : <i>variablename</i> reference to a variable having
+  an integer value.
+<div style="height: 1.00em;">&#x00A0;</div>
+Example:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+\sleep 10 ms
+</pre>
+</div>
+</div>
+<div class="Pp"></div>
+\setshell <i>varname</i> <i>command</i> [ <i>argument</i> ... ]
+<div style="margin-left: 4.00ex;">Sets variable <i>varname</i> to the result of
+  the shell command <i>command</i>. The command must return an integer value
+  through its standard output.
+<div style="height: 1.00em;">&#x00A0;</div>
+<i>argument</i> can be either a text constant or a : <i>variablename</i>
+  reference to a variable of any types. If you want to use <i>argument</i>
+  starting with colons, you need to add an additional colon at the beginning of
+  <i>argument</i>.
+<div style="height: 1.00em;">&#x00A0;</div>
+Example:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+\setshell variable_to_be_assigned command literal_argument :variable ::literal_starting_with_colon
+</pre>
+</div>
+</div>
+<div class="Pp"></div>
+\shell <i>command</i> [ <i>argument</i> ... ]
+<div style="margin-left: 4.00ex;">Same as \setshell, but the result is ignored.
+<div style="height: 1.00em;">&#x00A0;</div>
+Example:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+\shell command literal_argument :variable ::literal_starting_with_colon
+</pre>
+</div>
+</div>
+<div class="Pp"></div>
+As an example, the full definition of the built-in TPC-B-like transaction is:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+\set nbranches :scale
+\set ntellers 10 * :scale
+\set naccounts 100000 * :scale
+\setrandom aid 1 :naccounts
+\setrandom bid 1 :nbranches
+\setrandom tid 1 :ntellers
+\setrandom delta -5000 5000
+BEGIN;
+UPDATE pgbench_accounts SET abalance = abalance + :delta WHERE aid = :aid;
+SELECT abalance FROM pgbench_accounts WHERE aid = :aid;
+UPDATE pgbench_tellers SET tbalance = tbalance + :delta WHERE tid = :tid;
+UPDATE pgbench_branches SET bbalance = bbalance + :delta WHERE bid = :bid;
+INSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (:tid, :bid, :aid, :delta, CURRENT_TIMESTAMP);
+END;
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+This script allows each iteration of the transaction to reference different,
+  randomly-chosen rows. (This example also shows why it's important for each
+  client session to have its own variables &#x2014; otherwise they'd not be
+  independently touching different rows.)
+<h2 class="Ss" title="Ss" id="Per-Transaction_Logging"><a class="selflink" href="#Per-Transaction_Logging">Per-Transaction
+  Logging</a></h2>
+With the <b>-l</b> option, pgbench writes the time taken by each transaction to
+  a log file. The log file will be named pgbench_log. <i>nnn</i>, where
+  <i>nnn</i> is the PID of the pgbench process. If the <b>-j</b> option is 2 or
+  higher, creating multiple worker threads, each will have its own log file. The
+  first worker will use the same name for its log file as in the standard single
+  worker case. The additional log files for the other workers will be named
+  pgbench_log. <i>nnn</i>.<i>mmm</i>, where <i>mmm</i> is a sequential number
+  for each worker starting with 1.
+<div class="Pp"></div>
+The format of the log is:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+<i>client_id</i> <i>transaction_no</i> <i>time</i> <i>file_no</i> <i>time_epoch</i> <i>time_us</i>
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+where <i>time</i> is the total elapsed transaction time in microseconds,
+  <i>file_no</i> identifies which script file was used (useful when multiple
+  scripts were specified with <b>-f</b>), and <i>time_epoch</i>/<i>time_us</i>
+  are a UNIX epoch format timestamp and an offset in microseconds (suitable for
+  creating an ISO 8601 timestamp with fractional seconds) showing when the
+  transaction completed.
+<div class="Pp"></div>
+Here are example outputs:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+ 0 199 2241 0 1175850568 995598
+ 0 200 2465 0 1175850568 998079
+ 0 201 2513 0 1175850569 608
+ 0 202 2038 0 1175850569 2663
+</pre>
+</div>
+<h2 class="Ss" title="Ss" id="Per-Statement_Latencies"><a class="selflink" href="#Per-Statement_Latencies">Per-Statement
+  Latencies</a></h2>
+With the <b>-r</b> option, pgbench collects the elapsed transaction time of each
+  statement executed by every client. It then reports an average of those
+  values, referred to as the latency for each statement, after the benchmark has
+  finished.
+<div class="Pp"></div>
+For the default script, the output will look similar to this:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+starting vacuum...end.
+transaction type: TPC-B (sort of)
+scaling factor: 1
+query mode: simple
+number of clients: 10
+number of threads: 1
+number of transactions per client: 1000
+number of transactions actually processed: 10000/10000
+tps = 618.764555 (including connections establishing)
+tps = 622.977698 (excluding connections establishing)
+statement latencies in milliseconds:
+        0.004386        \set nbranches 1 * :scale
+        0.001343        \set ntellers 10 * :scale
+        0.001212        \set naccounts 100000 * :scale
+        0.001310        \setrandom aid 1 :naccounts
+        0.001073        \setrandom bid 1 :nbranches
+        0.001005        \setrandom tid 1 :ntellers
+        0.001078        \setrandom delta -5000 5000
+        0.326152        BEGIN;
+        0.603376        UPDATE pgbench_accounts SET abalance = abalance + :delta WHERE aid = :aid;
+        0.454643        SELECT abalance FROM pgbench_accounts WHERE aid = :aid;
+        5.528491        UPDATE pgbench_tellers SET tbalance = tbalance + :delta WHERE tid = :tid;
+        7.335435        UPDATE pgbench_branches SET bbalance = bbalance + :delta WHERE bid = :bid;
+        0.371851        INSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (:tid, :bid, :aid, :delta, CURRENT_TIMESTAMP);
+        1.212976        END;
+</pre>
+</div>
+<div class="Pp"></div>
+If multiple script files are specified, the averages are reported separately for
+  each script file.
+<div class="Pp"></div>
+Note that collecting the additional timing information needed for per-statement
+  latency computation adds some overhead. This will slow average execution speed
+  and lower the computed TPS. The amount of slowdown varies significantly
+  depending on platform and hardware. Comparing average TPS values with and
+  without latency reporting enabled is a good way to measure if the timing
+  overhead is significant.
+<h2 class="Ss" title="Ss" id="Good_Practices"><a class="selflink" href="#Good_Practices">Good
+  Practices</a></h2>
+It is very easy to use pgbench to produce completely meaningless numbers. Here
+  are some guidelines to help you get useful results.
+<div class="Pp"></div>
+In the first place, <i>never</i> believe any test that runs for only a few
+  seconds. Use the <b>-t</b> or <b>-T</b> option to make the run last at least a
+  few minutes, so as to average out noise. In some cases you could need hours to
+  get numbers that are reproducible. It's a good idea to try the test run a few
+  times, to find out if your numbers are reproducible or not.
+<div class="Pp"></div>
+For the default TPC-B-like test scenario, the initialization scale factor (
+  <b>-s</b>) should be at least as large as the largest number of clients you
+  intend to test ( <b>-c</b>); else you'll mostly be measuring update
+  contention. There are only <b>-s</b> rows in the pgbench_branches table, and
+  every transaction wants to update one of them, so <b>-c</b> values in excess
+  of <b>-s</b> will undoubtedly result in lots of transactions blocked waiting
+  for other transactions.
+<div class="Pp"></div>
+The default test scenario is also quite sensitive to how long it's been since
+  the tables were initialized: accumulation of dead rows and dead space in the
+  tables changes the results. To understand the results you must keep track of
+  the total number of updates and when vacuuming happens. If autovacuum is
+  enabled it can result in unpredictable changes in measured performance.
+<div class="Pp"></div>
+A limitation of pgbench is that it can itself become the bottleneck when trying
+  to test a large number of client sessions. This can be alleviated by running
+  pgbench on a different machine from the database server, although low network
+  latency will be essential. It might even be useful to run several pgbench
+  instances concurrently, on several client machines, against the same database
+  server.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2016-08-08</td>
+    <td class="foot-os">PostgreSQL 9.2.18</td>
+  </tr>
+</table>
 </body>
 </html>

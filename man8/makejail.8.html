@@ -1,641 +1,957 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:13:14 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MAKEJAIL(8)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MAKEJAIL(8) System Manager&rsquo;s Manual
-MAKEJAIL(8)</p>
-
-<p style="margin-top: 1em">NAME <br>
-makejail &acirc; Helps creating and maintaining a chroot
-jail</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-makejail [configuration_file]</p>
-
-<p style="margin-top: 1em">Overview <br>
-The objective of makejail is to help an administrator
-creating and updating a chroot jail with short configuration
-files.</p>
-
-<p style="margin-top: 1em">Makejails attempts to guess and
-install into the jail all files required by the daemon.</p>
-
-<p style="margin-top: 1em">You have to understand how it
-works to configure it efficiently.</p>
-
-<p style="margin-top: 1em">Detailed mechanism <br>
-The list of these files is built from several sources:</p>
-
-<p style="margin-top: 1em">- the main method is to trace
-what files the daemon attempts to access, add them into the
-jail and restart again until no further file is found.</p>
-
-<p style="margin-top: 1em">- a list of files manually given
-in the configuration file.</p>
-
-<p style="margin-top: 1em">- the files which belongs to a
-package and eventually the packages it requires.</p>
-
-<p style="margin-top: 1em">When a file is added into the
-jail:</p>
-
-<p style="margin-top: 1em">- the shared libraries it needs
-(given by ldd) are added too.</p>
-
-<p style="margin-top: 1em">- upper directories are created
-if needed.</p>
-
-<p style="margin-top: 1em">- if the file is a symbolic
-link, the target is added too.</p>
-
-<p style="margin-top: 1em">- all the checks to determine
-what files a file needs are recursive.</p>
-
-<p style="margin-top: 1em">- all files are copied
-maintaining the originals&rsquo; ownerships and
-permissions.</p>
-
-<p style="margin-top: 1em">Some files are handled with a
-special method:</p>
-
-<p style="margin-top: 1em">- when the file is below /proc,
-the procfs filesystem is mounted inside the jail.</p>
-
-<p style="margin-top: 1em">- when the file is a socket,
-it&rsquo;s not copied.</p>
-
-<p style="margin-top: 1em">- when the file is the shared
-library cache, it&rsquo;s not copied, ldconfig is run at the
-end.</p>
-
-<p style="margin-top: 1em">The steps of makejail are:</p>
-
-<p style="margin-top: 1em">- eventually remove the files in
-the jail first.</p>
-
-<p style="margin-top: 1em">- if you specified some
-packages, add all the files which belongs to them.</p>
-
-<p style="margin-top: 1em">- if you specified some paths to
-include, add the files matching these patterns.</p>
-
-<p style="margin-top: 1em">- start the daemon inside the
-jail, and trace it with strace, add the files it attempts to
-open which exist outside the jail, kill it and start again
-until no more file is found.</p>
-
-<p style="margin-top: 1em">- start the daemon inside the
-jail, and trace it while running some test processes outside
-the jail, see with strace what files the daemon attempts to
-open.</p>
-
-<p style="margin-top: 1em">Configuration files <br>
-The file must be written in a correct python syntax. The
-good news is that the syntax is simple, and you can
-eventually write some python code to define the syntax.</p>
-
-<p style="margin-top: 1em">Some default directives may be
-defined in /etc/makejail/makejail.conf, the configuration
-file given on the command line has predecence.</p>
-
-<p style="margin-top: 1em">All paths you use in the
-configuration file must be absolute.</p>
-
-<p style="margin-top: 1em">Configuration directives -
-Basics <br>
-Defaults won&rsquo;t work, you must define specific values
-for these directives.</p>
-
-<p style="margin-top: 1em">chroot The path to the chroot.
-The directory must exist and have correct permissions and
-ownerships.</p>
-
-<p style="margin-top: 1em">Format:
-&quot;/path/to/jail&quot;</p>
-
-<p style="margin-top: 1em">Default: None</p>
-
-<p style="margin-top: 1em">testCommandsInsideJail <br>
-The commands used to start the daemon, a good starting point
-may be the command used in the startup script in
-/etc/init.d</p>
-
-<p style="margin-top: 1em">Format: [&quot;command1&quot;,
-&quot;command2&quot;]</p>
-
-<p style="margin-top: 1em">Default: []</p>
-
-<p style="margin-top: 1em">processNames <br>
-The name of the runnning processes after the daemon has been
-started.</p>
-
-<p style="margin-top: 1em">Format: [&quot;process1&quot;,
-&quot;process2&quot;]</p>
-
-<p style="margin-top: 1em">Default: []</p>
-
-<p style="margin-top: 1em">Configuration directives - Tests
-<br>
-After the daemon itself has been chrooted successfully, some
-commands can be executed from outside the jail to test the
-daemon.</p>
-
-<p style="margin-top: 1em">testCommandsOutsideJail <br>
-The test commands which should be executed.</p>
-
-<p style="margin-top: 1em">Format: [&quot;command1&quot;,
-&quot;command2&quot;]</p>
-
-<p style="margin-top: 1em">Default: []</p>
-
-<p style="margin-top: 1em">promptForInteractiveTests <br>
-Whether makejail should pause so you can stress the daemon
-yourself.</p>
-
-<p style="margin-top: 1em">Use only if makejail is run
-interactively, and don&rsquo;t redirect its outputs.</p>
-
-<p style="margin-top: 1em">Format: 1 (prompt) or 0
-(don&rsquo;t prompt)</p>
-
-<p style="margin-top: 1em">Default: 0</p>
-
-<p style="margin-top: 1em">promptForSomeMoreTests=0 <br>
-Whether makejail should loop while running tests until you
-tell it it&rsquo;s over.</p>
-
-<p style="margin-top: 1em">Use only if makejail is run
-interactively, and don&rsquo;t redirect its outputs.</p>
-
-<p style="margin-top: 1em">Format: 1 (prompt) or 0
-(don&rsquo;t prompt)</p>
-
-<p style="margin-top: 1em">Default: 0</p>
-
-<p style="margin-top: 1em">maxExecutions <br>
-Maximum number of times a command is executed before
-aborting.</p>
-
-<p style="margin-top: 1em">Format: integer</p>
-
-<p style="margin-top: 1em">Default: 100</p>
-
-<p style="margin-top: 1em">Configuration directives -
-Copying files <br>
-doNotCopy Do not copy the files matching these patterns
-according to the rules used by the Unix shell.</p>
-
-<p style="margin-top: 1em">No tilde expansion is done, but
-*, ?, and character ranges expressed with [] will be
-correctly matched.</p>
-
-<p style="margin-top: 1em">Format: [&quot;path1&quot;,
-&quot;path2&quot;]</p>
-
-<p style="margin-top: 1em">Default:
-[&quot;/usr/share/doc&quot;, &quot;/usr/share/info&quot;,
-&quot;/usr/share/man&quot;, &quot;/etc/fstab&quot;,
-&quot;/etc/mtab&quot;, &quot;/proc&quot;]</p>
-
-<p style="margin-top: 1em">forceCopy When initializing the
-jail, copy the files matching these patterns according to
-the rules used by the Unix shell.</p>
-
-<p style="margin-top: 1em">No tilde expansion is done, but
-*, ?, and character ranges expressed with [] will be
-correctly matched.</p>
-
-<p style="margin-top: 1em">Format: [&quot;path1&quot;,
-&quot;path2&quot;]</p>
-
-<p style="margin-top: 1em">Default: []</p>
-
-<p style="margin-top: 1em">cleanJailFirst <br>
-Whether makejail should remove files in jail first.</p>
-
-<p style="margin-top: 1em">Format: 0 to do nothing or 1 to
-remove files from the jail.</p>
-
-<p style="margin-top: 1em">Default: 0</p>
-
-<p style="margin-top: 1em">preserve Useful only if
-cleanJailFirst=1, makejail won&rsquo;t remove files or
-directories if their path begins with one of the strings in
-this list.</p>
-
-<p style="margin-top: 1em">When updating a jail, you should
-for example put the locations of log files here.</p>
-
-<p style="margin-top: 1em">Format: [&quot;path1&quot;,
-&quot;path2&quot;]</p>
-
-<p style="margin-top: 1em">Default: []</p>
-
-<p style="margin-top: 1em">maxRemove Useful only if
-cleanJailFirst=1, makejail aborts if it&rsquo;s about to
-remove more than this number of files from the jail.</p>
-
-<p style="margin-top: 1em">This may prevent makejail from
-erasing unwanted files if you wrote chroot=&quot;/usr&quot;
-or if you have mounted a partition in the jail.</p>
-
-<p style="margin-top: 1em">Format: integer</p>
-
-<p style="margin-top: 1em">Default: 500</p>
-
-<p style="margin-top: 1em">users Makejail will filter the
-files listed in the directive userFiles and copy only lines
-matching these users, which means lines starting with
-&quot;user:&quot;</p>
-
-<p style="margin-top: 1em">You can use [&quot;*&quot;] to
-disable filtering and copy the whole file.</p>
-
-<p style="margin-top: 1em">Format: [&quot;user1&quot;,
-&quot;user2&quot;]</p>
-
-<p style="margin-top: 1em">Default: []</p>
-
-<p style="margin-top: 1em">groups Makejail will filter the
-files listed in the directive groupFiles and copy only lines
-matching these groups, which means lines starting with
-&quot;group:&quot;</p>
-
-<p style="margin-top: 1em">You can use [&quot;*&quot;] to
-disable filtering and copy the whole file.</p>
-
-<p style="margin-top: 1em">Format: [&quot;group1&quot;,
-&quot;group2&quot;]</p>
-
-<p style="margin-top: 1em">Default: []</p>
-
-<p style="margin-top: 1em">Configuration directives -
-Timing <br>
-These times are in seconds, the values are the duration of
-sleeps at various stages of makejail.</p>
-
-<p style="margin-top: 1em">sleepAfterStartCommand <br>
-Duration of sleep after starting the daemon, after this
-delay makejail considers it&rsquo;s in a correctly running
-state.</p>
-
-<p style="margin-top: 1em">Format: floating number</p>
-
-<p style="margin-top: 1em">Default: 2</p>
-
-<p style="margin-top: 1em">sleepAfterTest <br>
-Duration of sleep after a test command has been run, after
-this delay makejail considers the daemon has finished its
-tasks related to this command.</p>
-
-<p style="margin-top: 1em">Format: floating number</p>
-
-<p style="margin-top: 1em">Default: 2</p>
-
-<p style="margin-top: 1em">sleepAfterKillall <br>
-Duration of sleep after killing the daemon processes.</p>
-
-<p style="margin-top: 1em">Format: floating number</p>
-
-<p style="margin-top: 1em">Default: 1</p>
-
-<p style="margin-top: 1em">sleepAfterStraceAttachPid <br>
-Duration of sleep after attaching strace to a running
-process id.</p>
-
-<p style="margin-top: 1em">Format: floating number</p>
-
-<p style="margin-top: 1em">Default: 0.2</p>
-
-<p style="margin-top: 1em">Configuration directives -
-Debian specific <br>
-I initially thought with starting with the package
-description, but this method usually installs a bunch of
-files you won&rsquo;t need.</p>
-
-<p style="margin-top: 1em">packages The name of the
-packages. It will copy the files which belongs to the
-package according to the file
-/var/lib/dpkg/info/$package.list.</p>
-
-<p style="margin-top: 1em">Format: [&quot;package1&quot;,
-&quot;package2&quot;]</p>
-
-<p style="margin-top: 1em">Default: []</p>
-
-<p style="margin-top: 1em">useDepends <br>
-If you want to also install other packages required by the
-the initial list you specified.</p>
-
-<p style="margin-top: 1em">It looks at the line
-&quot;Depends:&quot; in the output of &lsquo;dpkg -p
-$package&lsquo;.</p>
-
-<p style="margin-top: 1em">Format: 1 (use depends) or 0
-(don&rsquo;t use depends)</p>
-
-<p style="margin-top: 1em">Default: 0</p>
-
-<p style="margin-top: 1em">blockDepends <br>
-Useful only if useDepends=1, it prevents the installation of
-these packages even if dpkg says they are required.</p>
-
-<p style="margin-top: 1em">Format: [&quot;package1&quot;,
-&quot;package2&quot;]</p>
-
-<p style="margin-top: 1em">Default: []</p>
-
-<p style="margin-top: 1em">debianDpkgInfoDir <br>
-Path to the dpkg $package.list files, &quot;%s&quot; will be
-replaced by the name of the package.</p>
-
-<p style="margin-top: 1em">Format:
-&quot;/path/to/info/files/%s.list&quot;</p>
-
-<p style="margin-top: 1em">Default:
-&quot;/var/lib/dpkg/info/%s.list&quot;</p>
-
-<p style="margin-top: 1em">Configuration directives - Paths
-so specific files and commands <br>
-pathToLdConfig <br>
-Path to the executable ldconfig, used to generate the shared
-libraries cache. ldconfig is executed in the jail to
-regenerate this cache.</p>
-
-<p style="margin-top: 1em">Format:
-&quot;/path/to/ldconfig&quot;</p>
-
-<p style="margin-top: 1em">Default:
-&quot;/sbin/ldconfig&quot; (Debian),
-&quot;/sbin/ldconfig.real&quot; (Ubuntu)</p>
-
-<p style="margin-top: 1em">pathToLdSoConf <br>
-The path to the configuration files used by ldconfig, which
-says which directories should be scanned searching for
-shared libraries.</p>
-
-<p style="margin-top: 1em">Set this to None if your system
-doesn&rsquo;t use such a file.</p>
-
-<p style="margin-top: 1em">Format:
-&quot;/path/to/ld.so.conf&quot;</p>
-
-<p style="margin-top: 1em">Default:
-&quot;/etc/ld.so.conf&quot;</p>
-
-<p style="margin-top: 1em">pathToLdSoCache <br>
-The path to the shared libraries cache generated by
-ldconfig.</p>
-
-<p style="margin-top: 1em">Format:
-&quot;/path/to/ld.so.cache&quot;</p>
-
-<p style="margin-top: 1em">Default:
-&quot;/etc/ld.so.cache&quot;</p>
-
-<p style="margin-top: 1em">procPath The path to the procfs
-filesystem.</p>
-
-<p style="margin-top: 1em">Format:
-&quot;/path/to/proc&quot;</p>
-
-<p style="margin-top: 1em">Default: &quot;/proc&quot;</p>
-
-<p style="margin-top: 1em">userFiles List of the files
-whose contents should be filtered, to keep only the users
-listed in the directive &quot;users&quot;.</p>
-
-<p style="margin-top: 1em">Format: [&quot;file1&quot;,
-&quot;file2]</p>
-
-<p style="margin-top: 1em">Default:
-[&quot;/etc/passwd&quot;, &quot;/etc/shadow&quot;]</p>
-
-<p style="margin-top: 1em">groupFiles <br>
-List of the files whose contents should be filtered, to keep
-only the groups listed in the directive
-&quot;groups&quot;.</p>
-
-<p style="margin-top: 1em">Format: [&quot;file1&quot;,
-&quot;file2]</p>
-
-
-<p style="margin-top: 1em">Default:[&quot;/etc/group&quot;,
-&quot;/etc/gshadow&quot;]</p>
-
-<p style="margin-top: 1em">tempDir The temporary directory
-where makejail can write temporary files.</p>
-
-<p style="margin-top: 1em">There may be a lot of files
-generated here if keepStraceOutputs=1.</p>
-
-<p style="margin-top: 1em">Format:
-&quot;/temp/directory&quot;</p>
-
-<p style="margin-top: 1em">Default:
-&quot;/tmp/makejail_logs&quot;</p>
-
-<p style="margin-top: 1em">psCommand The command line used
-to list running processes.</p>
-
-<p style="margin-top: 1em">The output must include the pid
-and the name of the process.</p>
-
-<p style="margin-top: 1em">Format: &quot;ps
-[options]&quot;</p>
-
-<p style="margin-top: 1em">Default: &quot;ps -e&quot;</p>
-
-<p style="margin-top: 1em">psColumns In which columns of
-the output of psCommand are the ids and the name of the
-processes.</p>
-
-<p style="margin-top: 1em">Spaces separate the columns, the
-first column is numbered 1.</p>
-
-<p style="margin-top: 1em">Format:
-(columnPid,columnProcessName)</p>
-
-<p style="margin-top: 1em">Default: [1,4]</p>
-
-<p style="margin-top: 1em">Configuration directives -
-Commands to run to trace processes <br>
-Here you can configure the commands which must be run to
-trace processes. These are called strace though you can use
-another program, like ktrace on OpenBSD.</p>
-
-<p style="margin-top: 1em">The defaults should be suitable
-for systems using strace. &quot;-f&quot; means strace should
-trace process children too. Though it&rsquo;s interested
-only in file accesses, it doesn&rsquo;t use &quot;-e <br>
-trace=file&quot; because with this option it doesn&rsquo;t
-catch calls for &quot;bind&quot; and &quot;connect&quot; to
-sockets.</p>
-
-<p style="margin-top: 1em">straceCommand <br>
-String describing the strace command when executing a
-command line. &quot;%command&quot; will be replaced by the
-command to execute, and &quot;%file&quot; by the path to the
-temporary <br>
-trace file.</p>
-
-<p style="margin-top: 1em">Format: &quot;strace_command
-[options] %command &gt; %file&quot;</p>
-
-<p style="margin-top: 1em">Default: &quot;strace -e
-trace=file,connect -e signal=none -f -ff -o %file %command
-&gt;/dev/null 2&gt;&amp;1&quot;</p>
-
-<p style="margin-top: 1em">straceCommandPid <br>
-String describing the strace command when attaching itself
-to a running process. &quot;%pid&quot; will be replaced by
-the id of the process to trace, and &quot;%file&quot; by the
-path to <br>
-the temporary trace file.</p>
-
-<p style="margin-top: 1em">Format: &quot;strace -e
-trace=file,connect -e signal=none -f -ff -o %file -p %pid
-&gt;/dev/null 2&gt;&amp;1&quot;</p>
-
-<p style="margin-top: 1em">Default: &quot;strace -f -p %pid
-&gt;/dev/null 2&gt;&gt;%file&quot;</p>
-
-<p style="margin-top: 1em">straceCommandStop <br>
-Command to execute to stop the tracing.</p>
-
-<p style="margin-top: 1em">Format:
-&quot;strace_stop_command&quot;</p>
-
-<p style="margin-top: 1em">Default: &quot;killall -9
-strace&quot;</p>
-
-<p style="margin-top: 1em">straceCommandView <br>
-Set this to None if the trace output files can be read
-directly, or the command line to execute which prints the
-trace on stdout. &quot;%file&quot; will be replaced by the
-name <br>
-of this file.</p>
-
-<p style="margin-top: 1em">Format:
-&quot;strace_command_viewer [options] %file&quot;</p>
-
-<p style="margin-top: 1em">Default: None</p>
-
-<p style="margin-top: 1em">keepStraceOutputs <br>
-Whether makejail should remove the outputs of strace from
-the directory tempDir.</p>
-
-<p style="margin-top: 1em">Format: 0 (to remove the files)
-or 1 (to keep them)</p>
-
-<p style="margin-top: 1em">Default: 0</p>
-
-<p style="margin-top: 1em">Configuration directives -
-Patterns in the trace outputs <br>
-These are three patterns which should match failed attempts
-to access a file in the traces.</p>
-
-<p style="margin-top: 1em">You must define a group (between
-parenthesis) which will be matched by the path of the
-file.</p>
-
-<p style="margin-top: 1em">The syntax of the regular
-expressions in python is detailed here:
-http://py-howto.sourceforge.net/regex/regex.html</p>
-
-<p style="margin-top: 1em">If the match on a line means it
-is a failed attempt only if the next line matches another
-expression (typically a return code, no group needed), you
-can use an array of two <br>
-strings instead of one string, the first string is the main
-expression, and the second one is the expression which must
-match the next line. See global.OpenBSD in the examples <br>
-directory.</p>
-
-<p style="margin-top: 1em">stracePatterns <br>
-Regular expressions to detect a failed attempt at accessing
-a file.</p>
-
-<p style="margin-top: 1em">If the file exists outside the
-jail makejail will copy it into the jail.</p>
-
-<p style="margin-top: 1em">Format: [&quot;regexp1&quot;,
-&quot;regexp2&quot;, [&quot;regexp3&quot;, &quot;regexp3 for
-the next line&quot;]]</p>
-
-<p style="margin-top: 1em">Default: [&rsquo;.*(&quot;([
-&quot;]*)&quot;,.*) .* ENOENT .*&rsquo;]</p>
-
-<p style="margin-top: 1em">straceCreatePatterns <br>
-Regular expressions to detect a failed attempt at creating a
-file.</p>
-
-<p style="margin-top: 1em">If the directory where the file
-should be created exists outside the jail, it will create it
-inside the jail.</p>
-
-<p style="margin-top: 1em">Format: [&quot;regexp1&quot;,
-&quot;regexp2&quot;, [&quot;regexp3&quot;, &quot;regexp3 for
-the next line&quot;]]</p>
-
-<p style="margin-top: 1em">Default: [&rsquo;.*(&quot;([
-&quot;]*)&quot;,.*O_CREAT.*) .* ENOENT
-.*&rsquo;,&rsquo;bind(.* path=&quot;([ &quot;]*)&quot;.*
-ENOENT .*&rsquo;]</p>
-
-<p style="margin-top: 1em">straceSocketPatterns <br>
-Regular expressions to detect a failed attempt at accessing
-a socket.</p>
-
-<p style="margin-top: 1em">makejail can&rsquo;t create the
-socket, it will just print a warning.</p>
-
-<p style="margin-top: 1em">Format: [&quot;regexp1&quot;,
-&quot;regexp2&quot;, [&quot;regexp3&quot;, &quot;regexp3 for
-the next line&quot;]]</p>
-
-<p style="margin-top: 1em">Default: [&rsquo;connect(.*
-path=&quot;([ &quot;]*)&quot;.* ENOENT .*&rsquo;]</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-This manual page was written by Alain Tesio,
-alain@onesite.org</p>
-
-<p style="margin-top: 1em">This software comes with no
-warranty.</p>
-
-<p style="margin-top: 1em">REPORTING BUGS <br>
-Makejail is heavily patched for Debian systems. If you are
-using this program as part of the Debian distribution you
-should report bugs to the Debian Bug Tracking System using
-<br>
-submit@bugs.debian.org. For this you can use the reportbug
-or bug program. Please, read
-/usr/share/doc/debian/bug-reporting.txt (or
-www.debian.org/Bugs) before doing so.</p>
-
-<p style="margin-top: 1em">If you want to report bugs to
-the upstream maintainer use makejail@floc.net</p>
- 
-<p style="margin-top: 1em">MAKEJAIL(8)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MAKEJAIL(8)</td>
+    <td class="head-vol">System Manager's Manual</td>
+    <td class="head-rtitle">MAKEJAIL(8)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+makejail &#x2014; Helps creating and maintaining a chroot jail
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<b>makejail</b> [<i>configuration_file</i>]
+<h1 class="Sh" title="Sh" id="Overview"><a class="selflink" href="#Overview">Overview</a></h1>
+The objective of makejail is to help an administrator creating and updating a
+  chroot jail with short configuration files.
+<div class="Pp"></div>
+Makejails attempts to guess and install into the jail all files required by the
+  daemon.
+<div class="Pp"></div>
+You have to understand how it works to configure it efficiently.
+<h1 class="Sh" title="Sh" id="Detailed_mechanism"><a class="selflink" href="#Detailed_mechanism">Detailed
+  mechanism</a></h1>
+The list of these files is built from several sources:
+<div class="Pp"></div>
+- the main method is to trace what files the daemon attempts to access, add them
+  into the jail and restart again until no further file is found.
+<div class="Pp"></div>
+- a list of files manually given in the configuration file.
+<div class="Pp"></div>
+- the files which belongs to a package and eventually the packages it requires.
+<div class="Pp"></div>
+When a file is added into the jail:
+<div class="Pp"></div>
+- the shared libraries it needs (given by ldd) are added too.
+<div class="Pp"></div>
+- upper directories are created if needed.
+<div class="Pp"></div>
+- if the file is a symbolic link, the target is added too.
+<div class="Pp"></div>
+- all the checks to determine what files a file needs are recursive.
+<div class="Pp"></div>
+- all files are copied maintaining the originals' ownerships and permissions.
+<div class="Pp"></div>
+Some files are handled with a special method:
+<div class="Pp"></div>
+- when the file is below /proc, the procfs filesystem is mounted inside the
+  jail.
+<div class="Pp"></div>
+- when the file is a socket, it's not copied.
+<div class="Pp"></div>
+- when the file is the shared library cache, it's not copied, ldconfig is run at
+  the end.
+<div class="Pp"></div>
+The steps of makejail are:
+<div class="Pp"></div>
+- eventually remove the files in the jail first.
+<div class="Pp"></div>
+- if you specified some packages, add all the files which belongs to them.
+<div class="Pp"></div>
+- if you specified some paths to include, add the files matching these patterns.
+<div class="Pp"></div>
+- start the daemon inside the jail, and trace it with strace, add the files it
+  attempts to open which exist outside the jail, kill it and start again until
+  no more file is found.
+<div class="Pp"></div>
+- start the daemon inside the jail, and trace it while running some test
+  processes outside the jail, see with strace what files the daemon attempts to
+  open.
+<h1 class="Sh" title="Sh" id="Configuration_files"><a class="selflink" href="#Configuration_files">Configuration
+  files</a></h1>
+The file must be written in a correct python syntax. The good news is that the
+  syntax is simple, and you can eventually write some python code to define the
+  syntax.
+<div class="Pp"></div>
+Some default directives may be defined in /etc/makejail/makejail.conf, the
+  configuration file given on the command line has predecence.
+<div class="Pp"></div>
+All paths you use in the configuration file must be absolute.
+<h1 class="Sh" title="Sh" id="Configuration_directives_-_Basics"><a class="selflink" href="#Configuration_directives_-_Basics">Configuration
+  directives - Basics</a></h1>
+Defaults won't work, you must define specific values for these directives.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>chroot</b></dt>
+  <dd class="It-tag">The path to the chroot. The directory must exist and have
+      correct permissions and ownerships.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;/path/to/jail&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: None</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>testCommandsInsideJail</b></dt>
+  <dd class="It-tag">The commands used to start the daemon, a good starting
+      point may be the command used in the startup script in /etc/init.d</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;command1&quot;, &quot;command2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: []</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>processNames</b></dt>
+  <dd class="It-tag">The name of the runnning processes after the daemon has
+      been started.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;process1&quot;, &quot;process2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: []</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="Configuration_directives_-_Tests"><a class="selflink" href="#Configuration_directives_-_Tests">Configuration
+  directives - Tests</a></h1>
+After the daemon itself has been chrooted successfully, some commands can be
+  executed from outside the jail to test the daemon.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>testCommandsOutsideJail</b></dt>
+  <dd class="It-tag">The test commands which should be executed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;command1&quot;, &quot;command2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: []</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>promptForInteractiveTests</b></dt>
+  <dd class="It-tag">Whether makejail should pause so you can stress the daemon
+      yourself.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Use only if makejail is run interactively, and don't
+      redirect its outputs.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: 1 (prompt) or 0 (don't prompt)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 0</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>promptForSomeMoreTests=0</b></dt>
+  <dd class="It-tag">Whether makejail should loop while running tests until you
+      tell it it's over.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Use only if makejail is run interactively, and don't
+      redirect its outputs.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: 1 (prompt) or 0 (don't prompt)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 0</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>maxExecutions</b></dt>
+  <dd class="It-tag">Maximum number of times a command is executed before
+      aborting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: integer</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 100</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="Configuration_directives_-_Copying_files"><a class="selflink" href="#Configuration_directives_-_Copying_files">Configuration
+  directives - Copying files</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>doNotCopy</b></dt>
+  <dd class="It-tag">Do not copy the files matching these patterns according to
+      the rules used by the Unix shell.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">No tilde expansion is done, but *, ?, and character ranges
+      expressed with [] will be correctly matched.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;path1&quot;, &quot;path2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: [&quot;/usr/share/doc&quot;,
+      &quot;/usr/share/info&quot;, &quot;/usr/share/man&quot;,
+      &quot;/etc/fstab&quot;, &quot;/etc/mtab&quot;, &quot;/proc&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>forceCopy</b></dt>
+  <dd class="It-tag">When initializing the jail, copy the files matching these
+      patterns according to the rules used by the Unix shell.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">No tilde expansion is done, but *, ?, and character ranges
+      expressed with [] will be correctly matched.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;path1&quot;, &quot;path2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: []</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>cleanJailFirst</b></dt>
+  <dd class="It-tag">Whether makejail should remove files in jail first.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: 0 to do nothing or 1 to remove files from the
+    jail.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 0</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>preserve</b></dt>
+  <dd class="It-tag">Useful only if cleanJailFirst=1, makejail won't remove
+      files or directories if their path begins with one of the strings in this
+      list.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">When updating a jail, you should for example put the
+      locations of log files here.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;path1&quot;, &quot;path2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: []</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>maxRemove</b></dt>
+  <dd class="It-tag">Useful only if cleanJailFirst=1, makejail aborts if it's
+      about to remove more than this number of files from the jail.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">This may prevent makejail from erasing unwanted files if
+      you wrote chroot=&quot;/usr&quot; or if you have mounted a partition in
+      the jail.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: integer</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 500</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>users</b></dt>
+  <dd class="It-tag">Makejail will filter the files listed in the directive
+      userFiles and copy only lines matching these users, which means lines
+      starting with &quot;user:&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">You can use [&quot;*&quot;] to disable filtering and copy
+      the whole file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;user1&quot;, &quot;user2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: []</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>groups</b></dt>
+  <dd class="It-tag">Makejail will filter the files listed in the directive
+      groupFiles and copy only lines matching these groups, which means lines
+      starting with &quot;group:&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">You can use [&quot;*&quot;] to disable filtering and copy
+      the whole file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;group1&quot;, &quot;group2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: []</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="Configuration_directives_-_Timing"><a class="selflink" href="#Configuration_directives_-_Timing">Configuration
+  directives - Timing</a></h1>
+These times are in seconds, the values are the duration of sleeps at various
+  stages of makejail.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>sleepAfterStartCommand</b></dt>
+  <dd class="It-tag">Duration of sleep after starting the daemon, after this
+      delay makejail considers it's in a correctly running state.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: floating number</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 2</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>sleepAfterTest</b></dt>
+  <dd class="It-tag">Duration of sleep after a test command has been run, after
+      this delay makejail considers the daemon has finished its tasks related to
+      this command.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: floating number</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 2</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>sleepAfterKillall</b></dt>
+  <dd class="It-tag">Duration of sleep after killing the daemon processes.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: floating number</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 1</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>sleepAfterStraceAttachPid</b></dt>
+  <dd class="It-tag">Duration of sleep after attaching strace to a running
+      process id.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: floating number</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 0.2</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="Configuration_directives_-_Debian_specific"><a class="selflink" href="#Configuration_directives_-_Debian_specific">Configuration
+  directives - Debian specific</a></h1>
+I initially thought with starting with the package description, but this method
+  usually installs a bunch of files you won't need.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>packages</b></dt>
+  <dd class="It-tag">The name of the packages. It will copy the files which
+      belongs to the package according to the file
+      /var/lib/dpkg/info/$package.list.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;package1&quot;, &quot;package2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: []</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>useDepends</b></dt>
+  <dd class="It-tag">If you want to also install other packages required by the
+      the initial list you specified.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">It looks at the line &quot;Depends:&quot; in the output of
+      `dpkg -p $package`.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: 1 (use depends) or 0 (don't use depends)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 0</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>blockDepends</b></dt>
+  <dd class="It-tag">Useful only if useDepends=1, it prevents the installation
+      of these packages even if dpkg says they are required.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;package1&quot;, &quot;package2&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: []</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>debianDpkgInfoDir</b></dt>
+  <dd class="It-tag">Path to the dpkg $package.list files, &quot;%s&quot; will
+      be replaced by the name of the package.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;/path/to/info/files/%s.list&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;/var/lib/dpkg/info/%s.list&quot;</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="Configuration_directives_-_Paths_so_specific_files_and_commands"><a class="selflink" href="#Configuration_directives_-_Paths_so_specific_files_and_commands">Configuration
+  directives - Paths so specific files and commands</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>pathToLdConfig</b></dt>
+  <dd class="It-tag">Path to the executable ldconfig, used to generate the
+      shared libraries cache. ldconfig is executed in the jail to regenerate
+      this cache.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;/path/to/ldconfig&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;/sbin/ldconfig&quot; (Debian),
+      &quot;/sbin/ldconfig.real&quot; (Ubuntu)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>pathToLdSoConf</b></dt>
+  <dd class="It-tag">The path to the configuration files used by ldconfig, which
+      says which directories should be scanned searching for shared
+    libraries.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Set this to None if your system doesn't use such a
+    file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;/path/to/ld.so.conf&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;/etc/ld.so.conf&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>pathToLdSoCache</b></dt>
+  <dd class="It-tag">The path to the shared libraries cache generated by
+      ldconfig.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;/path/to/ld.so.cache&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;/etc/ld.so.cache&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>procPath</b></dt>
+  <dd class="It-tag">The path to the procfs filesystem.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;/path/to/proc&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;/proc&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>userFiles</b></dt>
+  <dd class="It-tag">List of the files whose contents should be filtered, to
+      keep only the users listed in the directive &quot;users&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;file1&quot;, &quot;file2]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: [&quot;/etc/passwd&quot;,
+    &quot;/etc/shadow&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>groupFiles</b></dt>
+  <dd class="It-tag">List of the files whose contents should be filtered, to
+      keep only the groups listed in the directive &quot;groups&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;file1&quot;, &quot;file2]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default:[&quot;/etc/group&quot;,
+    &quot;/etc/gshadow&quot;]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>tempDir</b></dt>
+  <dd class="It-tag">The temporary directory where makejail can write temporary
+      files.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">There may be a lot of files generated here if
+      keepStraceOutputs=1.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;/temp/directory&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;/tmp/makejail_logs&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>psCommand</b></dt>
+  <dd class="It-tag">The command line used to list running processes.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">The output must include the pid and the name of the
+      process.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;ps [options]&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;ps -e&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>psColumns</b></dt>
+  <dd class="It-tag">In which columns of the output of psCommand are the ids and
+      the name of the processes.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Spaces separate the columns, the first column is numbered
+      1.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: (columnPid,columnProcessName)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: [1,4]</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="Configuration_directives_-_Commands_to_run_to_trace_processes"><a class="selflink" href="#Configuration_directives_-_Commands_to_run_to_trace_processes">Configuration
+  directives - Commands to run to trace processes</a></h1>
+Here you can configure the commands which must be run to trace processes. These
+  are called strace though you can use another program, like ktrace on OpenBSD.
+<div class="Pp"></div>
+The defaults should be suitable for systems using strace. &quot;-f&quot; means
+  strace should trace process children too. Though it's interested only in file
+  accesses, it doesn't use &quot;-e trace=file&quot; because with this option it
+  doesn't catch calls for &quot;bind&quot; and &quot;connect&quot; to sockets.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>straceCommand</b></dt>
+  <dd class="It-tag">String describing the strace command when executing a
+      command line. &quot;%command&quot; will be replaced by the command to
+      execute, and &quot;%file&quot; by the path to the temporary trace
+    file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;strace_command [options] %command &gt;
+      %file&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;strace -e trace=file,connect -e signal=none
+      -f -ff -o %file %command &gt;/dev/null 2&gt;&amp;1&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>straceCommandPid</b></dt>
+  <dd class="It-tag">String describing the strace command when attaching itself
+      to a running process. &quot;%pid&quot; will be replaced by the id of the
+      process to trace, and &quot;%file&quot; by the path to the temporary trace
+      file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;strace -e trace=file,connect -e signal=none
+      -f -ff -o %file -p %pid &gt;/dev/null 2&gt;&amp;1&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;strace -f -p %pid &gt;/dev/null
+      2&gt;&gt;%file&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b> straceCommandStop</b></dt>
+  <dd class="It-tag">Command to execute to stop the tracing.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;strace_stop_command&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: &quot;killall -9 strace&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>straceCommandView</b></dt>
+  <dd class="It-tag">Set this to None if the trace output files can be read
+      directly, or the command line to execute which prints the trace on stdout.
+      &quot;%file&quot; will be replaced by the name of this file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: &quot;strace_command_viewer [options]
+    %file&quot;</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: None</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>keepStraceOutputs</b></dt>
+  <dd class="It-tag">Whether makejail should remove the outputs of strace from
+      the directory tempDir.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: 0 (to remove the files) or 1 (to keep them)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: 0</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="Configuration_directives_-_Patterns_in_the_trace_outputs"><a class="selflink" href="#Configuration_directives_-_Patterns_in_the_trace_outputs">Configuration
+  directives - Patterns in the trace outputs</a></h1>
+These are three patterns which should match failed attempts to access a file in
+  the traces.
+<div class="Pp"></div>
+You must define a group (between parenthesis) which will be matched by the path
+  of the file.
+<div class="Pp"></div>
+The syntax of the regular expressions in python is detailed here:
+  http://py-howto.sourceforge.net/regex/regex.html
+<div class="Pp"></div>
+If the match on a line means it is a failed attempt only if the next line
+  matches another expression (typically a return code, no group needed), you can
+  use an array of two strings instead of one string, the first string is the
+  main expression, and the second one is the expression which must match the
+  next line. See global.OpenBSD in the examples directory.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>stracePatterns</b></dt>
+  <dd class="It-tag">Regular expressions to detect a failed attempt at accessing
+      a file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">If the file exists outside the jail makejail will copy it
+      into the jail.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;regexp1&quot;, &quot;regexp2&quot;,
+      [&quot;regexp3&quot;, &quot;regexp3 for the next line&quot;]]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: ['.*(&quot;([ &quot;]*)&quot;,.*) .* ENOENT
+    .*']</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>straceCreatePatterns</b></dt>
+  <dd class="It-tag">Regular expressions to detect a failed attempt at creating
+      a file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">If the directory where the file should be created exists
+      outside the jail, it will create it inside the jail.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;regexp1&quot;, &quot;regexp2&quot;,
+      [&quot;regexp3&quot;, &quot;regexp3 for the next line&quot;]]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: ['.*(&quot;([ &quot;]*)&quot;,.*O_CREAT.*) .*
+      ENOENT .*','bind(.* path=&quot;([ &quot;]*)&quot;.* ENOENT .*']</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>straceSocketPatterns</b></dt>
+  <dd class="It-tag">Regular expressions to detect a failed attempt at accessing
+      a socket.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">makejail can't create the socket, it will just print a
+      warning.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Format: [&quot;regexp1&quot;, &quot;regexp2&quot;,
+      [&quot;regexp3&quot;, &quot;regexp3 for the next line&quot;]]</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">Default: ['connect(.* path=&quot;([ &quot;]*)&quot;.*
+      ENOENT .*']</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+This manual page was written by Alain Tesio, alain@onesite.org
+<div class="Pp"></div>
+This software comes with no warranty.
+<h1 class="Sh" title="Sh" id="REPORTING_BUGS"><a class="selflink" href="#REPORTING_BUGS">REPORTING
+  BUGS</a></h1>
+Makejail is heavily patched for Debian systems. If you are using this program as
+  part of the Debian distribution you should report bugs to the Debian Bug
+  Tracking System using submit@bugs.debian.org. For this you can use the
+  <b>reportbug</b> or <b>bug</b> program. Please, read
+  /usr/share/doc/debian/bug-reporting.txt (or www.debian.org/Bugs) before doing
+  so.
+<div class="Pp"></div>
+If you want to report bugs to the upstream maintainer use
+  makejail@floc.net</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date"></td>
+    <td class="foot-os"></td>
+  </tr>
+</table>
 </body>
 </html>

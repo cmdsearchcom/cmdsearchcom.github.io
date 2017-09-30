@@ -1,209 +1,228 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:16:44 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>TANG(8)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>TANG(8) TANG(8)</p>
-
-<p style="margin-top: 1em">NAME <br>
-tang - Network-Based Cryptographic Binding Server</p>
-
-<p style="margin-top: 1em">OVERVIEW <br>
-Tang is a service for binding cryptographic keys to network
-presence. It offers a secure, stateless, anonymous
-alternative to key escrow services.</p>
-
-<p style="margin-top: 1em">The Tang project arose as a tool
-to help the automation of decryption. Existing mechanisms
-predominantly use key escrow systems where a client encrypts
-some data with a symmetric <br>
-key and stores the symmetric key in a remote server for
-later retrieval. The desired goal of this setup is that the
-client can automatically decrypt the data when it is able to
-<br>
-contact the escrow server and fetch the key.</p>
-
-<p style="margin-top: 1em">However, escrow servers have
-many additional requirements, including authentication (so
-that clients can&Acirc;&acute;t get keys they
-aren&Acirc;&acute;t suppossed to have) and transport
-encryption (so <br>
-that attackers listening on the network can&Acirc;&acute;t
-eavesdrop on the keys in transit).</p>
-
-<p style="margin-top: 1em">Tang avoids this complexity.
-Instead of storing a symmetric key remotely, the client
-performs an asymmetric key exchange with the Tang server.
-Since the Tang server doesn&Acirc;&acute;t store <br>
-or transport symmetric keys, neither authentication nor
-encryption are required. Thus, Tang is completely stateless
-and zero-configuration. Further, clients can be completely
-<br>
-anonymous.</p>
-
-<p style="margin-top: 1em">Tang does not provide a client.
-But it does export a simple REST API and it transfers only
-standards compliant JSON Object Signing and Encryption
-(JOSE) objects, allowing you to <br>
-create your own clients using off the shelf components. For
-an off-the-shelf automated encryption framework with support
-for Tang, see the Clevis project. For the full technical
-<br>
-details of the Tang protocol, see the Tang
-project&Acirc;&acute;s homepage.</p>
-
-<p style="margin-top: 1em">GETTING STARTED <br>
-Getting a Tang server up and running is simple:</p>
-
-<p style="margin-top: 1em">$ sudo systemctl enable
-tangd.socket --now</p>
-
-<p style="margin-top: 1em">That&Acirc;&acute;s it. The
-server is now running with a fresh set of cryptographic keys
-and will automatically start on the next reboot.</p>
-
-<p style="margin-top: 1em">CONFIGURATION <br>
-Tang intends to be a minimal network service and therefore
-does not have any configuration. To adjust the network
-settings, you can override the tangd.socket unit file using
-the <br>
-standard systemd mechanisms. See systemd.unit(5) and
-systemd.socket(5) for more information.</p>
-
-<p style="margin-top: 1em">KEY ROTATION <br>
-In order to preserve the security of the system over the
-long run, you need to periodically rotate your keys. The
-precise interval at which you should rotate depends upon
-your <br>
-application, key sizes and institutional policy. For some
-common recommendations, see: https://www.keylength.com.</p>
-
-<p style="margin-top: 1em">To rotate keys, first we need to
-generate new keys in the key database directory. This is
-typically /var/db/tang. For example, you can create new
-signature and exchange keys with <br>
-the following commands:</p>
-
-<p style="margin-top: 1em"># DB=/var/db/tang <br>
-# jose jwk gen -i
-&Acirc;&acute;{&quot;alg&quot;:&quot;ES512&quot;}&Acirc;&acute;
--o $DB/new_sig.jwk <br>
-# jose jwk gen -i
-&Acirc;&acute;{&quot;alg&quot;:&quot;ECMR&quot;}&Acirc;&acute;
--o $DB/new_exc.jwk</p>
-
-<p style="margin-top: 1em">Next, rename the old keys to
-have a leading . in order to hide them from
-advertisement:</p>
-
-<p style="margin-top: 1em"># mv $DB/old_sig.jwk
-$DB/.old_sig.jwk <br>
-# mv $DB/old_exc.jwk $DB/.old_exc.jwk</p>
-
-<p style="margin-top: 1em">Tang will immediately pick up
-all changes. No restart is required.</p>
-
-<p style="margin-top: 1em">At this point, new client
-bindings will pick up the new keys and old clients can
-continue to utilize the old keys. Once you are sure that all
-the old clients have been migrated <br>
-to use the new keys, you can remove the old keys. Be aware
-that removing the old keys while clients are still using
-them can result in data loss. You have been warned.</p>
-
-<p style="margin-top: 1em">HIGH PERFORMANCE <br>
-The Tang protocol is extremely fast. However, in the default
-setup we use systemd socket activiation to start one process
-per connection. This imposes a performance overhead. For
-<br>
-most deployments, this is still probably quick enough, given
-that Tang is extremely lightweight. But for larger
-deployments, greater performance can be achieved.</p>
-
-<p style="margin-top: 1em">Our recommendation for achieving
-higher throughput is to proxy traffic to Tang through your
-existing web services using a connection pool. Since there
-is one process per connec&acirc; <br>
-tion, keeping a number of connections open in this setup
-will enable effective parallelism since there are no
-internal locks in Tang.</p>
-
-<p style="margin-top: 1em">For Apache, this is possible
-using the ProxyPass directive of the mod_proxy module.</p>
-
-<p style="margin-top: 1em">HIGH AVAILABILITY <br>
-Tang provides two methods for building a high availability
-deployment.</p>
-
-<p style="margin-top: 1em">1. Client redundency
-(recommended)</p>
-
-<p style="margin-top: 1em">2. Key sharing with DNS
-round-robin</p>
-
-<p style="margin-top: 1em">While it may be tempting to
-share keys between Tang servers, this method should be
-avoided. Sharing keys increases the risk of key compromise
-and requires additional automation <br>
-infrastructure.</p>
-
-<p style="margin-top: 1em">Instead, clients should be coded
-with the ability to bind to multiple Tang servers. In this
-setup, each Tang server will have its own keys and clients
-will be able to decrypt by <br>
-contacting a subset of these servers.</p>
-
-<p style="margin-top: 1em">Clevis already supports this
-workflow through its sss plugin.</p>
-
-<p style="margin-top: 1em">However, if you still feel that
-key sharing is the right deployment strategy, Tang will do
-nothing to stop you. Just (securely!) transfer all the
-contents of the database direc&acirc; <br>
-tory to all your servers. Make sure you don&Acirc;&acute;t
-forget the unadvertised keys! Then set up DNS round-robin so
-that clients will be load balanced across your servers.</p>
-
-<p style="margin-top: 1em">COMMANDS <br>
-The Tang server provides no public commands.</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Nathaniel McCallum &lt;npmccallum@redhat.com&gt;</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-systemd.unit(5), systemd.socket(5), jose-jwk-gen(1)</p>
-
-<p style="margin-top: 1em">FURTHER READING <br>
-&Acirc;&middot; Clevis :
-https://github.com/latchset/clevis</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Tang :
-https://github.com/latchset/tang</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; JOSE :
-https://datatracker.ietf.org/wg/jose/charter/</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; mod_proxy :
-https://httpd.apache.org/docs/2.4/mod/mod_proxy.html</p>
-
-<p style="margin-top: 1em">June 2017 TANG(8)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">TANG(8)</td>
+    <td class="head-vol"></td>
+    <td class="head-rtitle">TANG(8)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+<b>tang</b> - Network-Based Cryptographic Binding Server
+<h1 class="Sh" title="Sh" id="OVERVIEW"><a class="selflink" href="#OVERVIEW">OVERVIEW</a></h1>
+Tang is a service for binding cryptographic keys to network presence. It offers
+  a secure, stateless, anonymous alternative to key escrow services.
+<div class="Pp"></div>
+The Tang project arose as a tool to help the automation of decryption. Existing
+  mechanisms predominantly use key escrow systems where a client encrypts some
+  data with a symmetric key and stores the symmetric key in a remote server for
+  later retrieval. The desired goal of this setup is that the client can
+  automatically decrypt the data when it is able to contact the escrow server
+  and fetch the key.
+<div class="Pp"></div>
+However, escrow servers have many additional requirements, including
+  authentication (so that clients can&#x00B4;t get keys they aren&#x00B4;t
+  suppossed to have) and transport encryption (so that attackers listening on
+  the network can&#x00B4;t eavesdrop on the keys in transit).
+<div class="Pp"></div>
+Tang avoids this complexity. Instead of storing a symmetric key remotely, the
+  client performs an asymmetric key exchange with the Tang server. Since the
+  Tang server doesn&#x00B4;t store or transport symmetric keys, neither
+  authentication nor encryption are required. Thus, Tang is completely stateless
+  and zero-configuration. Further, clients can be completely anonymous.
+<div class="Pp"></div>
+Tang does not provide a client. But it does export a simple REST API and it
+  transfers only standards compliant JSON Object Signing and Encryption (JOSE)
+  objects, allowing you to create your own clients using off the shelf
+  components. For an off-the-shelf automated encryption framework with support
+  for Tang, see the Clevis project. For the full technical details of the Tang
+  protocol, see the Tang project&#x00B4;s homepage.
+<h1 class="Sh" title="Sh" id="GETTING_STARTED"><a class="selflink" href="#GETTING_STARTED">GETTING
+  STARTED</a></h1>
+Getting a Tang server up and running is simple:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+$ sudo systemctl enable tangd.socket --now
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+That&#x00B4;s it. The server is now running with a fresh set of cryptographic
+  keys and will automatically start on the next reboot.
+<h1 class="Sh" title="Sh" id="CONFIGURATION"><a class="selflink" href="#CONFIGURATION">CONFIGURATION</a></h1>
+Tang intends to be a minimal network service and therefore does not have any
+  configuration. To adjust the network settings, you can override the
+  <b>tangd.socket</b> unit file using the standard systemd mechanisms. See
+  <b>systemd.unit</b>(5) and <b>systemd.socket</b>(5) for more information.
+<h1 class="Sh" title="Sh" id="KEY_ROTATION"><a class="selflink" href="#KEY_ROTATION">KEY
+  ROTATION</a></h1>
+In order to preserve the security of the system over the long run, you need to
+  periodically rotate your keys. The precise interval at which you should rotate
+  depends upon your application, key sizes and institutional policy. For some
+  common recommendations, see: https://www.keylength.com.
+<div class="Pp"></div>
+To rotate keys, first we need to generate new keys in the key database
+  directory. This is typically <b>/var/db/tang</b>. For example, you can create
+  new signature and exchange keys with the following commands:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+# DB=/var/db/tang
+# jose jwk gen -i &#x00B4;{&quot;alg&quot;:&quot;ES512&quot;}&#x00B4; -o $DB/new_sig.jwk
+# jose jwk gen -i &#x00B4;{&quot;alg&quot;:&quot;ECMR&quot;}&#x00B4; -o $DB/new_exc.jwk
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+Next, rename the old keys to have a leading <b>.</b> in order to hide them from
+  advertisement:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+# mv $DB/old_sig.jwk $DB/.old_sig.jwk
+# mv $DB/old_exc.jwk $DB/.old_exc.jwk
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+Tang will immediately pick up all changes. No restart is required.
+<div class="Pp"></div>
+At this point, new client bindings will pick up the new keys and old clients can
+  continue to utilize the old keys. Once you are sure that all the old clients
+  have been migrated to use the new keys, you can remove the old keys. Be aware
+  that removing the old keys while clients are still using them can result in
+  data loss. You have been warned.
+<h1 class="Sh" title="Sh" id="HIGH_PERFORMANCE"><a class="selflink" href="#HIGH_PERFORMANCE">HIGH
+  PERFORMANCE</a></h1>
+The Tang protocol is extremely fast. However, in the default setup we use
+  systemd socket activiation to start one process per connection. This imposes a
+  performance overhead. For most deployments, this is still probably quick
+  enough, given that Tang is extremely lightweight. But for larger deployments,
+  greater performance can be achieved.
+<div class="Pp"></div>
+Our recommendation for achieving higher throughput is to proxy traffic to Tang
+  through your existing web services using a connection pool. Since there is one
+  process per connection, keeping a number of connections open in this setup
+  will enable effective parallelism since there are no internal locks in Tang.
+<div class="Pp"></div>
+For Apache, this is possible using the <b>ProxyPass</b> directive of the
+  <b>mod_proxy</b> module.
+<h1 class="Sh" title="Sh" id="HIGH_AVAILABILITY"><a class="selflink" href="#HIGH_AVAILABILITY">HIGH
+  AVAILABILITY</a></h1>
+Tang provides two methods for building a high availability deployment.
+<dl class="Bl-tag">
+  <dt class="It-tag">1.</dt>
+  <dd class="It-tag">Client redundency (recommended)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">2.</dt>
+  <dd class="It-tag">Key sharing with DNS round-robin</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+While it may be tempting to share keys between Tang servers, this method should
+  be avoided. Sharing keys increases the risk of key compromise and requires
+  additional automation infrastructure.
+<div class="Pp"></div>
+Instead, clients should be coded with the ability to bind to multiple Tang
+  servers. In this setup, each Tang server will have its own keys and clients
+  will be able to decrypt by contacting a subset of these servers.
+<div class="Pp"></div>
+Clevis already supports this workflow through its <b>sss</b> plugin.
+<div class="Pp"></div>
+However, if you still feel that key sharing is the right deployment strategy,
+  Tang will do nothing to stop you. Just (securely!) transfer all the contents
+  of the database directory to all your servers. Make sure you don&#x00B4;t
+  forget the unadvertised keys! Then set up DNS round-robin so that clients will
+  be load balanced across your servers.
+<h1 class="Sh" title="Sh" id="COMMANDS"><a class="selflink" href="#COMMANDS">COMMANDS</a></h1>
+The Tang server provides no public commands.
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Nathaniel McCallum &lt;npmccallum@redhat.com&gt;
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<b>systemd.unit</b>(5), <b>systemd.socket</b>(5), <b>jose-jwk-gen</b>(1)
+<h1 class="Sh" title="Sh" id="FURTHER_READING"><a class="selflink" href="#FURTHER_READING">FURTHER
+  READING</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Clevis : https://github.com/latchset/clevis</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Tang : https://github.com/latchset/tang</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">JOSE : https://datatracker.ietf.org/wg/jose/charter/</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">mod_proxy :
+      https://httpd.apache.org/docs/2.4/mod/mod_proxy.html</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">June 2017</td>
+    <td class="foot-os"></td>
+  </tr>
+</table>
 </body>
 </html>

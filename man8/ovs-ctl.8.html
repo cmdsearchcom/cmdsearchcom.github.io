@@ -1,517 +1,586 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:14:15 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>ovs-ctl(8)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>ovs-ctl(8) Open vSwitch Manual ovs-ctl(8)</p>
-
-<p style="margin-top: 1em">NAME <br>
-ovs-ctl - OVS startup helper script</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-ovs-ctl --system-id=random|uuid [options] start <br>
-ovs-ctl stop <br>
-ovs-ctl --system-id=random|uuid [options] restart <br>
-ovs-ctl status <br>
-ovs-ctl version <br>
-ovs-ctl [options] load-kmod <br>
-ovs-ctl --system-id=random|uuid [options] force-reload-kmod
-<br>
-ovs-ctl [--protocol=protocol] [--sport=sport]
-[--dport=dport] enable-protocol <br>
-ovs-ctl help | -h | --help <br>
-ovs-ctl --version</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-The ovs-ctl program starts, stops, and checks the status of
-Open vSwitch daemons. It is not meant to be invoked directly
-by system administrators but to be called internally by <br>
-system startup scripts.</p>
-
-<p style="margin-top: 1em">Each of ovs-ctl&rsquo;s commands
-is described separately below.</p>
-
-<p style="margin-top: 1em">The
-&lsquo;&lsquo;start&rsquo;&rsquo; command <br>
-The start command starts Open vSwitch. It performs the
-following tasks:</p>
-
-<p style="margin-top: 1em">1. Loads the Open vSwitch kernel
-module. If this fails, and the Linux bridge module is loaded
-but no bridges exist, it tries to unload the bridge module
-and tries loading <br>
-the Open vSwitch kernel module again. (This is because the
-Open vSwitch kernel module cannot coexist with the Linux
-bridge module before 2.6.37.)</p>
-
-<p style="margin-top: 1em">The start command skips the
-following steps if ovsdb-server is already running:</p>
-
-<p style="margin-top: 1em">2. If the Open vSwitch database
-file does not exist, it creates it. If the database does
-exist, but it has an obsolete version, it upgrades it to the
-latest schema.</p>
-
-<p style="margin-top: 1em">3. Starts ovsdb-server, unless
-the --no-ovsdb-server command option is given.</p>
-
-<p style="margin-top: 1em">4. Initializes a few values
-inside the database.</p>
-
-<p style="margin-top: 1em">5. If the --delete-bridges
-option was used, deletes all of the bridges from the
-database.</p>
-
-<p style="margin-top: 1em">6. If the
---delete-transient-ports option was used, deletes all ports
-that have other_config:transient set to true.</p>
-
-<p style="margin-top: 1em">The start command skips the
-following step if ovs-vswitchd is already running, or if the
---no-ovs-vswitchd command option is given:</p>
-
-<p style="margin-top: 1em">7. Starts ovs-vswitchd.</p>
-
-<p style="margin-top: 1em">Options <br>
-Several command-line options influence the start
-command&rsquo;s behavior. Some form of the following option
-should ordinarily be specified:</p>
-
-<p style="margin-top: 1em">--system-id=uuid <br>
---system-id=random <br>
-This specifies a unique system identifier to store into
-external-ids:system-id in the database&rsquo;s Open_vSwitch
-table. Remote managers that talk to the Open vSwitch
-data&acirc; <br>
-base server over network protocols use this value to
-identify and distinguish Open vSwitch instances, so it
-should be unique (at least) within OVS instances that will
-con&acirc; <br>
-nect to a single controller.</p>
-
-<p style="margin-top: 1em">When random is specified,
-ovs-ctl will generate a random ID that persists from one run
-to another (stored in a file). When another string is
-specified ovs-ctl uses it <br>
-literally.</p>
-
-<p style="margin-top: 1em">The following options should be
-specified if the defaults are not suitable:</p>
-
-<p style="margin-top: 1em">--system-type=type <br>
---system-version=version <br>
-Sets the value to store in the system-type and
-system-version columns, respectively, in the
-database&rsquo;s Open_vSwitch table. Remote managers may use
-these values to deter&acirc; <br>
-mine the kind of system to which they are connected
-(primarily for display to human administrators).</p>
-
-<p style="margin-top: 1em">When not specified, ovs-ctl uses
-values from the optional system-type.conf and
-system-version.conf files(see section FILES) or it uses the
-lsb_release program, if present, <br>
-to provide reasonable defaults.</p>
-
-<p style="margin-top: 1em">The following options are also
-likely to be useful:</p>
-
-
-<p style="margin-top: 1em">--external-id=&quot;name=value&quot;
-<br>
-Sets external-ids:name to value in the database&rsquo;s
-Open_vSwitch table. Specifying this option multiple times
-adds multiple key-value pairs.</p>
-
-<p style="margin-top: 1em">--delete-bridges <br>
-Ordinarily Open vSwitch bridges persist from one system boot
-to the next, as long as the database is preserved. Some
-environments instead expect to re-create all of the <br>
-bridges and other configuration state on every boot. This
-option supports that, by deleting all Open vSwitch bridges
-after starting ovsdb-server but before starting <br>
-ovs-vswitchd.</p>
-
-<p style="margin-top: 1em">--delete-transient-ports <br>
-Deletes all ports that have the other_config:transient value
-set to true. This is important on certain environments where
-some ports are going to be recreated after <br>
-reboot, but other ports need to be persisted in the
-database.</p>
-
-<p style="margin-top: 1em">The following options are less
-important:</p>
-
-<p style="margin-top: 1em">--no-monitor <br>
-By default ovs-ctl passes --monitor to ovs-vswitchd and
-ovsdb-server, requesting that it spawn a process monitor
-which will restart the daemon if it crashes. This option
-<br>
-suppresses that behavior.</p>
-
-<p style="margin-top: 1em">--daemon-cwd=directory <br>
-Specifies the current working directory that the OVS daemons
-should run from. The default is / (the root directory) if
-this option is not specified. (This option is use&acirc;
-<br>
-ful because most systems create core files in a
-process&rsquo;s current working directory and because a file
-system that is in use as a process&rsquo;s current working
-directory can&acirc; <br>
-not be unmounted.)</p>
-
-<p style="margin-top: 1em">--no-force-corefiles <br>
-By default, ovs-ctl enables core dumps for the OVS daemons.
-This option disables that behavior.</p>
-
-<p style="margin-top: 1em">--no-mlockall <br>
-By default ovs-ctl passes --mlockall to ovs-vswitchd,
-requesting that it lock all of its virtual memory,
-preventing it from being paged to disk. This option
-suppresses <br>
-that behavior.</p>
-
-<p style="margin-top: 1em">--no-self-confinement <br>
-Disable self-confinement for ovs-vswitchd and ovsdb-server
-daemons. This flag may be used when, for example, OpenFlow
-controller creates its Unix Domain Socket outside <br>
-OVS run directory and OVS needs to connect to it. It is
-better to stick with the default behavior and not to use
-this flag, unless:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; You have Open
-vSwitch running under SELinux or AppArmor Mandatory Access
-Control that would prevent OVS from messing with sockets
-outside ordinary OVS directories.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; You believe that
-relying on protocol handshakes (e.g. OpenFlow) is enough to
-prevent OVS to adversely interact with other daemons running
-on your system.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; You don&rsquo;t
-have much worries of remote OVSDB exploits in the first
-place, because, perhaps, OVSDB manager is running on the
-same host as OVS and share similar attack <br>
-vectors.</p>
-
-
-<p style="margin-top: 1em">--ovsdb-server-priority=niceness
-<br>
---ovs-vswitchd-priority=niceness <br>
-Sets the nice(1) level used for each daemon. All of them
-default to -10.</p>
-
-<p style="margin-top: 1em">--ovsdb-server-wrapper=wrapper
-<br>
---ovs-vswitchd-wrapper=wrapper <br>
-Configures the specified daemon to run under wrapper, which
-is one of the following:</p>
-
-<p style="margin-top: 1em">valgrind <br>
-Run the daemon under valgrind(1), if it is installed,
-logging to daemon.valgrind.log.pid in the log directory.</p>
-
-<p style="margin-top: 1em">strace Run the daemon under
-strace(1), if it is installed, logging to
-daemon.strace.log.pid in the log directory.</p>
-
-<p style="margin-top: 1em">glibc Enable GNU C library
-features designed to find memory errors.</p>
-
-<p style="margin-top: 1em">By default, no wrapper is
-used.</p>
-
-<p style="margin-top: 1em">Each of the wrappers can expose
-bugs in Open vSwitch that lead to incorrect operation,
-including crashes. The valgrind and strace wrappers greatly
-slow daemon operations <br>
-so they should not be used in production. They also produce
-voluminous logs that can quickly fill small disk partitions.
-The glibc wrapper is less resource-intensive but <br>
-still somewhat slows the daemons.</p>
-
-<p style="margin-top: 1em">The following options control
-file locations. They should only be used if the default
-locations cannot be used. See FILES, below, for more
-information.</p>
-
-<p style="margin-top: 1em">--db-file=file <br>
-Overrides the file name for the OVS database.</p>
-
-<p style="margin-top: 1em">--db-sock=socket <br>
-Overrides the file name for the Unix domain socket used to
-connect to ovsdb-server.</p>
-
-<p style="margin-top: 1em">--db-schema=schema <br>
-Overrides the file name for the OVS database schema.</p>
-
-<p style="margin-top: 1em">--extra-dbs=file <br>
-Adds file as an extra database for ovsdb-server to serve
-out. Multiple space-separated file names may also be
-specified. file should begin with /; if it does not, then
-<br>
-it will be taken as relative to dbdir.</p>
-
-<p style="margin-top: 1em">The
-&lsquo;&lsquo;stop&rsquo;&rsquo; command <br>
-The stop command does not unload the Open vSwitch kernel
-modules. It can take the same --no-ovsdb-server and
---no-ovs-vswitchd options as that of the start command.</p>
-
-<p style="margin-top: 1em">This command does nothing and
-finishes successfully if the OVS daemons aren&rsquo;t
-running.</p>
-
-<p style="margin-top: 1em">The
-&lsquo;&lsquo;restart&rsquo;&rsquo; command <br>
-The restart command performs a stop followed by a start
-command. The command can take the same options as that of
-the start command. In addition, it saves and restores
-OpenFlow <br>
-flows for each individual bridge.</p>
-
-<p style="margin-top: 1em">The
-&lsquo;&lsquo;status&rsquo;&rsquo; command <br>
-The status command checks whether the OVS daemons
-ovs-vswitchd and ovsdb-server are running and prints
-messages with that information. It exits with status 0 if
-the daemons are <br>
-running, 1 otherwise.</p>
-
-<p style="margin-top: 1em">The
-&lsquo;&lsquo;version&rsquo;&rsquo; command <br>
-The version command runs ovsdb-server --version and
-ovs-vswitchd --version.</p>
-
-<p style="margin-top: 1em">The
-&lsquo;&lsquo;force-reload-kmod&rsquo;&rsquo; command <br>
-The force-reload-kmod command allows upgrading the Open
-vSwitch kernel module without rebooting. It performs the
-following tasks:</p>
-
-<p style="margin-top: 1em">1. Gets a list of OVS
-&lsquo;&lsquo;internal&rsquo;&rsquo; interfaces, that is,
-network devices implemented by Open vSwitch. The most common
-examples of these are bridge &lsquo;&lsquo;local
-ports&rsquo;&rsquo;.</p>
-
-<p style="margin-top: 1em">2. Saves the OpenFlow flows of
-each bridge.</p>
-
-<p style="margin-top: 1em">3. Stops the Open vSwitch
-daemons, as if by a call to ovs-ctl stop.</p>
-
-<p style="margin-top: 1em">4. Saves the kernel
-configuration state of the OVS internal interfaces listed in
-step 1, including IP and IPv6 addresses and routing table
-entries.</p>
-
-<p style="margin-top: 1em">5. Unloads the Open vSwitch
-kernel module (including the bridge compatibility module if
-it is loaded).</p>
-
-<p style="margin-top: 1em">6. Starts OVS back up, as if by
-a call to ovs-ctl start. This reloads the kernel module,
-restarts the OVS daemons and finally restores the saved
-OpenFlow flows.</p>
-
-<p style="margin-top: 1em">7. Restores the kernel
-configuration state that was saved in step 4.</p>
-
-<p style="margin-top: 1em">8. Checks for daemons that may
-need to be restarted because they have packet sockets that
-are listening on old instances of Open vSwitch kernel
-interfaces and, if it finds <br>
-any, prints a warning on stdout. DHCP is a common example:
-if the ISC DHCP client is running on an OVS internal
-interface, then it will have to be restarted after
-com&acirc; <br>
-pleting the above procedure. (It would be nice if ovs-ctl
-could restart daemons automatically, but the details are far
-too specific to a particular distribution and <br>
-installation.)</p>
-
-<p style="margin-top: 1em">force-kmod-reload internally
-stops and starts OVS, so it accepts all of the options
-accepted by the start command except for the
---no-ovs-vswitchd option.</p>
-
-<p style="margin-top: 1em">The
-&lsquo;&lsquo;load-kmod&rsquo;&rsquo; command <br>
-The load-kmod command loads the openvswitch kernel modules
-if they are not already loaded. This operation also occurs
-as part of the start command. The motivation for providing
-<br>
-the load-kmod command is to allow errors when loading
-modules to be handled separatetly from other errors that may
-occur when running the start command.</p>
-
-<p style="margin-top: 1em">By default the load-kmod command
-attempts to load the openvswitch kernel module.</p>
-
-<p style="margin-top: 1em">The
-&lsquo;&lsquo;enable-protocol&rsquo;&rsquo; command <br>
-The enable-protocol command checks for rules related to a
-specified protocol in the system&rsquo;s iptables(8)
-configuration. If there are no rules specifically related to
-that proto&acirc; <br>
-col, then it inserts a rule to accept the specified
-protocol.</p>
-
-<p style="margin-top: 1em">More specifically:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; If iptables is
-not installed or not enabled, this command does nothing,
-assuming that lack of filtering means that the protocol is
-enabled.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; If the INPUT
-chain has a rule that matches the specified protocol, then
-this command does nothing, assuming that whatever rule is
-installed reflects the system administra&acirc; <br>
-tor&rsquo;s decisions.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Otherwise, this
-command installs a rule that accepts traffic of the
-specified protocol.</p>
-
-<p style="margin-top: 1em">This command normally completes
-successfully, even if it does nothing. Only the failure of
-an attempt to insert a rule normally causes it to return an
-exit code other than 0. <br>
-The following options control the protocol to be
-enabled:</p>
-
-<p style="margin-top: 1em">--protocol=protocol <br>
-The name of the IP protocol to be enabled, such as gre or
-tcp. The default is gre.</p>
-
-<p style="margin-top: 1em">--sport=sport <br>
---dport=dport <br>
-TCP or UDP source or destination port to match. These are
-optional and allowed only with --protocol=tcp or
---protocol=udp.</p>
-
-<p style="margin-top: 1em">The
-&lsquo;&lsquo;help&rsquo;&rsquo; command <br>
-Prints a usage message and exits successfully.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-In addition to the options listed for each command above,
-these options control the behavior of several of
-ovs-ctl&rsquo;s commands.</p>
-
-<p style="margin-top: 1em">By default, ovs-ctl will control
-the ovsdb-server, and the ovs-vswitchd daemons. The
-following options restrict that control to exclude one or
-the other:</p>
-
-<p style="margin-top: 1em">--no-ovsdb-server <br>
-Specifies that the ovs-ctl commands start, stop, and restart
-should not modify the running status of ovsdb-server.</p>
-
-<p style="margin-top: 1em">--no-ovs-vswitchd <br>
-Specifies that the ovs-ctl commands start, stop, and restart
-should not modify the running status of ovs-vswitchd. It is
-an error to include this option with the <br>
-force-reload-kmod command.</p>
-
-<p style="margin-top: 1em">EXIT STATUS <br>
-ovs-ctl exits with status 0 on success and nonzero on
-failure. The start command is considered to succeed if OVS
-is already started; the stop command is considered to
-succeed if <br>
-OVS is already stopped.</p>
-
-<p style="margin-top: 1em">ENVIRONMENT <br>
-The following environment variables affect ovs-ctl:</p>
-
-<p style="margin-top: 1em">PATH ovs-ctl does not hardcode
-the location of any of the programs that it runs. ovs-ctl
-will add the sbindir and bindir that were specified at
-configure time to PATH, if they <br>
-are not already present.</p>
-
-<p style="margin-top: 1em">OVS_LOGDIR <br>
-OVS_RUNDIR <br>
-OVS_DBDIR <br>
-OVS_SYSCONFDIR <br>
-OVS_PKGDATADIR <br>
-OVS_BINDIR <br>
-OVS_SBINDIR <br>
-Setting one of these variables in the environment overrides
-the respective configure option, both for ovs-ctl itself and
-for the other Open vSwitch programs that it runs.</p>
-
-<p style="margin-top: 1em">FILES <br>
-ovs-ctl uses the following files:</p>
-
-<p style="margin-top: 1em">ovs-lib <br>
-Shell function library used internally by ovs-ctl. It must
-be installed in the same directory as ovs-ctl.</p>
-
-<p style="margin-top: 1em">logdir/daemon.log <br>
-Per-daemon logfiles.</p>
-
-<p style="margin-top: 1em">rundir/daemon.pid <br>
-Per-daemon pidfiles to track whether a daemon is running and
-with what process ID.</p>
-
-<p style="margin-top: 1em">pkgdatadir/vswitch.ovsschema
-<br>
-The OVS database schema used to initialize the database (use
---db-schema to override this location).</p>
-
-<p style="margin-top: 1em">dbdir/conf.db <br>
-The OVS database (use --db-file to override this
-location).</p>
-
-<p style="margin-top: 1em">rundir/openvswitch/db.sock <br>
-The Unix domain socket used for local communication with
-ovsdb-server (use --db-sock to override this location).</p>
-
-
-<p style="margin-top: 1em">sysconfdir/openvswitch/system-id.conf
-<br>
-The persistent system UUID created and read by
---system-id=random.</p>
-
-
-<p style="margin-top: 1em">sysconfdir/openvswitch/system-type.conf
-<br>
-sysconfdir/openvswitch/system-version.conf <br>
-The system-type and system-version values stored in the
-database&rsquo;s Open_vSwitch table when not specified as a
-command-line option.</p>
-
-<p style="margin-top: 1em">EXAMPLE <br>
-The files debian/openvswitch-switch.init and
-xenserver/etc_init.d_openvswitch in the Open vSwitch source
-distribution are good examples of how to use ovs-ctl.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-README.rst, ovsdb-server(8), ovs-vswitchd(8).</p>
-
-<p style="margin-top: 1em">Open vSwitch June 2011
-ovs-ctl(8)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">ovs-ctl(8)</td>
+    <td class="head-vol">Open vSwitch Manual</td>
+    <td class="head-rtitle">ovs-ctl(8)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+ovs-ctl - OVS startup helper script
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<b>ovs-ctl</b> <b>--system-id=random</b>|<i>uuid</i> [ <i>options</i>]
+  <b>start</b>
+<div>&#x00A0;</div>
+<b>ovs-ctl stop</b>
+<div>&#x00A0;</div>
+<b>ovs-ctl</b> <b>--system-id=random</b>|<i>uuid</i> [ <i>options</i>]
+  <b>restart</b>
+<div>&#x00A0;</div>
+<b>ovs-ctl status</b>
+<div>&#x00A0;</div>
+<b>ovs-ctl version</b>
+<div>&#x00A0;</div>
+<b>ovs-ctl</b> <b>[</b><i>options</i>] <b>load-kmod</b>
+<div>&#x00A0;</div>
+<b>ovs-ctl</b> <b></b><b>--system-id=random</b>|<i>uuid</i> [ <i>options</i>]
+  <b>force-reload-kmod</b>
+<div>&#x00A0;</div>
+<b>ovs-ctl</b> <b></b>[<b>--protocol=</b><i>protocol</i>] [
+  <b>--sport=</b><i>sport</i>] [ <b>--dport=</b><i>dport</i>]
+  <b>enable-protocol</b>
+<div>&#x00A0;</div>
+<b>ovs-ctl help </b>| <b>-h </b>| <b>--help</b>
+<div>&#x00A0;</div>
+<b>ovs-ctl --version</b>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+The <b>ovs-ctl</b> program starts, stops, and checks the status of Open vSwitch
+  daemons. It is not meant to be invoked directly by system administrators but
+  to be called internally by system startup scripts.
+<div class="Pp"></div>
+Each of <b>ovs-ctl</b>'s commands is described separately below.
+<h1 class="Sh" title="Sh" id="The_``start''_command"><a class="selflink" href="#The_``start''_command">The
+  ``start'' command</a></h1>
+The <b>start</b> command starts Open vSwitch. It performs the following tasks:
+<dl class="Bl-tag">
+  <dt class="It-tag">1.</dt>
+  <dd class="It-tag">Loads the Open vSwitch kernel module. If this fails, and
+      the Linux bridge module is loaded but no bridges exist, it tries to unload
+      the bridge module and tries loading the Open vSwitch kernel module again.
+      (This is because the Open vSwitch kernel module cannot coexist with the
+      Linux bridge module before 2.6.37.)</dd>
+</dl>
+<div class="Pp"></div>
+The <b>start</b> command skips the following steps if <b>ovsdb-server</b> is
+  already running:
+<dl class="Bl-tag">
+  <dt class="It-tag">2.</dt>
+  <dd class="It-tag">If the Open vSwitch database file does not exist, it
+      creates it. If the database does exist, but it has an obsolete version, it
+      upgrades it to the latest schema.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">3.</dt>
+  <dd class="It-tag">Starts <b>ovsdb-server</b>, unless the
+      <b>--no-ovsdb-server</b> command option is given.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">4.</dt>
+  <dd class="It-tag">Initializes a few values inside the database.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">5.</dt>
+  <dd class="It-tag">If the <b>--delete-bridges</b> option was used, deletes all
+      of the bridges from the database.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">6.</dt>
+  <dd class="It-tag">If the <b>--delete-transient-ports</b> option was used,
+      deletes all ports that have <b>other_config:transient</b> set to
+    true.</dd>
+</dl>
+<div class="Pp"></div>
+The <b>start</b> command skips the following step if <b>ovs-vswitchd</b> is
+  already running, or if the <b>--no-ovs-vswitchd</b> command option is given:
+<dl class="Bl-tag">
+  <dt class="It-tag">7.</dt>
+  <dd class="It-tag">Starts <b>ovs-vswitchd</b>.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Options"><a class="selflink" href="#Options">Options</a></h2>
+Several command-line options influence the <b>start</b> command's behavior. Some
+  form of the following option should ordinarily be specified:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--system-id=</b><i>uuid</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--system-id=random</b></dt>
+  <dd class="It-tag">This specifies a unique system identifier to store into
+      <b>external-ids:system-id</b> in the database's <b>Open_vSwitch</b> table.
+      Remote managers that talk to the Open vSwitch database server over network
+      protocols use this value to identify and distinguish Open vSwitch
+      instances, so it should be unique (at least) within OVS instances that
+      will connect to a single controller.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">When <b>random</b> is specified, <b>ovs-ctl</b> will
+      generate a random ID that persists from one run to another (stored in a
+      file). When another string is specified <b>ovs-ctl</b> uses it
+    literally.</dd>
+</dl>
+<div class="Pp"></div>
+The following options should be specified if the defaults are not suitable:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--system-type=</b><i>type</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--system-version=</b><i>version</i></dt>
+  <dd class="It-tag">Sets the value to store in the <b>system-type</b> and
+      <b>system-version</b> columns, respectively, in the database's
+      <b>Open_vSwitch</b> table. Remote managers may use these values to
+      determine the kind of system to which they are connected (primarily for
+      display to human administrators).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">When not specified, <b>ovs-ctl</b> uses values from the
+      optional <b>system-type.conf</b> and <b>system-version.conf</b> files(see
+      section <b>FILES</b>) or it uses the <b>lsb_release</b> program, if
+      present, to provide reasonable defaults.</dd>
+</dl>
+<div class="Pp"></div>
+The following options are also likely to be useful:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--external-id=&quot;</b><i>name</i><b>=</b><i>value</i><b>&quot;</b></dt>
+  <dd class="It-tag">Sets <b>external-ids:</b><i>name</i> to <i>value</i> in the
+      database's <b>Open_vSwitch</b> table. Specifying this option multiple
+      times adds multiple key-value pairs.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--delete-bridges</b></dt>
+  <dd class="It-tag">Ordinarily Open vSwitch bridges persist from one system
+      boot to the next, as long as the database is preserved. Some environments
+      instead expect to re-create all of the bridges and other configuration
+      state on every boot. This option supports that, by deleting all Open
+      vSwitch bridges after starting <b>ovsdb-server</b> but before starting
+      <b>ovs-vswitchd</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--delete-transient-ports</b></dt>
+  <dd class="It-tag">Deletes all ports that have the other_config:transient
+      value set to true. This is important on certain environments where some
+      ports are going to be recreated after reboot, but other ports need to be
+      persisted in the database.</dd>
+</dl>
+<div class="Pp"></div>
+The following options are less important:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-monitor</b></dt>
+  <dd class="It-tag">By default <b>ovs-ctl</b> passes <b>--monitor</b> to
+      <b>ovs-vswitchd</b> and <b>ovsdb-server</b>, requesting that it spawn a
+      process monitor which will restart the daemon if it crashes. This option
+      suppresses that behavior.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--daemon-cwd=</b><i>directory</i></dt>
+  <dd class="It-tag">Specifies the current working directory that the OVS
+      daemons should run from. The default is <b>/</b> (the root directory) if
+      this option is not specified. (This option is useful because most systems
+      create core files in a process's current working directory and because a
+      file system that is in use as a process's current working directory cannot
+      be unmounted.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-force-corefiles</b></dt>
+  <dd class="It-tag">By default, <b>ovs-ctl</b> enables core dumps for the OVS
+      daemons. This option disables that behavior.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-mlockall</b></dt>
+  <dd class="It-tag">By default <b>ovs-ctl</b> passes <b>--mlockall</b> to
+      <b>ovs-vswitchd</b>, requesting that it lock all of its virtual memory,
+      preventing it from being paged to disk. This option suppresses that
+      behavior.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-self-confinement</b></dt>
+  <dd class="It-tag">Disable self-confinement for <b>ovs-vswitchd</b> and
+      <b>ovsdb-server</b> daemons. This flag may be used when, for example,
+      OpenFlow controller creates its Unix Domain Socket outside OVS run
+      directory and OVS needs to connect to it. It is better to stick with the
+      default behavior and not to use this flag, unless:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">You have Open vSwitch running under SELinux or AppArmor
+      Mandatory Access Control that would prevent OVS from messing with sockets
+      outside ordinary OVS directories.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">You believe that relying on protocol handshakes (e.g.
+      OpenFlow) is enough to prevent OVS to adversely interact with other
+      daemons running on your system.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">You don't have much worries of remote OVSDB exploits in the
+      first place, because, perhaps, OVSDB manager is running on the same host
+      as OVS and share similar attack vectors.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--ovsdb-server-priority=</b><i>niceness</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--ovs-vswitchd-priority=</b><i>niceness</i></dt>
+  <dd class="It-tag">Sets the <b>nice</b>(1) level used for each daemon. All of
+      them default to <b>-10</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--ovsdb-server-wrapper=</b><i>wrapper</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--ovs-vswitchd-wrapper=</b><i>wrapper</i></dt>
+  <dd class="It-tag">Configures the specified daemon to run under
+      <i>wrapper</i>, which is one of the following:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>valgrind</b></dt>
+  <dd class="It-tag">Run the daemon under <b>valgrind</b>(1), if it is
+      installed, logging to <i>daemon</i><b>.valgrind.log.</b><i>pid</i> in the
+      log directory.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>strace</b></dt>
+  <dd class="It-tag">Run the daemon under <b>strace</b>(1), if it is installed,
+      logging to <i>daemon</i><b>.strace.log.</b><i>pid</i> in the log
+      directory.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>glibc</b></dt>
+  <dd class="It-tag">Enable GNU C library features designed to find memory
+      errors.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">By default, no wrapper is used.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Each of the wrappers can expose bugs in Open vSwitch that
+      lead to incorrect operation, including crashes. The <b>valgrind</b> and
+      <b>strace</b> wrappers greatly slow daemon operations so they should not
+      be used in production. They also produce voluminous logs that can quickly
+      fill small disk partitions. The <b>glibc</b> wrapper is less
+      resource-intensive but still somewhat slows the daemons.</dd>
+</dl>
+<div class="Pp"></div>
+The following options control file locations. They should only be used if the
+  default locations cannot be used. See <b>FILES</b>, below, for more
+  information.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--db-file=</b><i>file</i></dt>
+  <dd class="It-tag">Overrides the file name for the OVS database.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--db-sock=</b><i>socket</i></dt>
+  <dd class="It-tag">Overrides the file name for the Unix domain socket used to
+      connect to <b>ovsdb-server</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--db-schema=</b><i>schema</i></dt>
+  <dd class="It-tag">Overrides the file name for the OVS database schema.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--extra-dbs=</b><i>file</i></dt>
+  <dd class="It-tag">Adds <i>file</i> as an extra database for
+      <b>ovsdb-server</b> to serve out. Multiple space-separated file names may
+      also be specified. <i>file</i> should begin with <b>/</b>; if it does not,
+      then it will be taken as relative to <i>dbdir</i>.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="The_``stop''_command"><a class="selflink" href="#The_``stop''_command">The
+  ``stop'' command</a></h1>
+The <b>stop</b> command does not unload the Open vSwitch kernel modules. It can
+  take the same <b>--no-ovsdb-server</b> and <b>--no-ovs-vswitchd</b> options as
+  that of the <b>start</b> command.
+<div class="Pp"></div>
+This command does nothing and finishes successfully if the OVS daemons aren't
+  running.
+<h1 class="Sh" title="Sh" id="The_``restart''_command"><a class="selflink" href="#The_``restart''_command">The
+  ``restart'' command</a></h1>
+The <b>restart</b> command performs a <b>stop</b> followed by a <b>start</b>
+  command. The command can take the same options as that of the <b>start</b>
+  command. In addition, it saves and restores OpenFlow flows for each individual
+  bridge.
+<h1 class="Sh" title="Sh" id="The_``status''_command"><a class="selflink" href="#The_``status''_command">The
+  ``status'' command</a></h1>
+The <b>status</b> command checks whether the OVS daemons <b>ovs-vswitchd</b> and
+  <b>ovsdb-server</b> are running and prints messages with that information. It
+  exits with status 0 if the daemons are running, 1 otherwise.
+<h1 class="Sh" title="Sh" id="The_``version''_command"><a class="selflink" href="#The_``version''_command">The
+  ``version'' command</a></h1>
+The <b>version</b> command runs <b>ovsdb-server --version</b> and
+  <b>ovs-vswitchd --version</b>.
+<h1 class="Sh" title="Sh" id="The_``force-reload-kmod''_command"><a class="selflink" href="#The_``force-reload-kmod''_command">The
+  ``force-reload-kmod'' command</a></h1>
+The <b>force-reload-kmod</b> command allows upgrading the Open vSwitch kernel
+  module without rebooting. It performs the following tasks:
+<dl class="Bl-tag">
+  <dt class="It-tag">1.</dt>
+  <dd class="It-tag">Gets a list of OVS ``internal'' interfaces, that is,
+      network devices implemented by Open vSwitch. The most common examples of
+      these are bridge ``local ports''.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">2.</dt>
+  <dd class="It-tag">Saves the OpenFlow flows of each bridge.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">3.</dt>
+  <dd class="It-tag">Stops the Open vSwitch daemons, as if by a call to
+      <b>ovs-ctl</b> <b>stop</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">4.</dt>
+  <dd class="It-tag">Saves the kernel configuration state of the OVS internal
+      interfaces listed in step 1, including IP and IPv6 addresses and routing
+      table entries.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">5.</dt>
+  <dd class="It-tag">Unloads the Open vSwitch kernel module (including the
+      bridge compatibility module if it is loaded).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">6.</dt>
+  <dd class="It-tag">Starts OVS back up, as if by a call to <b>ovs-ctl
+      start</b>. This reloads the kernel module, restarts the OVS daemons and
+      finally restores the saved OpenFlow flows.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">7.</dt>
+  <dd class="It-tag">Restores the kernel configuration state that was saved in
+      step 4.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">8.</dt>
+  <dd class="It-tag">Checks for daemons that may need to be restarted because
+      they have packet sockets that are listening on old instances of Open
+      vSwitch kernel interfaces and, if it finds any, prints a warning on
+      stdout. DHCP is a common example: if the ISC DHCP client is running on an
+      OVS internal interface, then it will have to be restarted after completing
+      the above procedure. (It would be nice if <b>ovs-ctl</b> could restart
+      daemons automatically, but the details are far too specific to a
+      particular distribution and installation.)</dd>
+</dl>
+<div class="Pp"></div>
+<b>force-kmod-reload</b> internally stops and starts OVS, so it accepts all of
+  the options accepted by the <b>start</b> command except for the
+  <b>--no-ovs-vswitchd</b> option.
+<h1 class="Sh" title="Sh" id="The_``load-kmod''_command"><a class="selflink" href="#The_``load-kmod''_command">The
+  ``load-kmod'' command</a></h1>
+The <b>load-kmod</b> command loads the openvswitch kernel modules if they are
+  not already loaded. This operation also occurs as part of the <b>start</b>
+  command. The motivation for providing the <b>load-kmod</b> command is to allow
+  errors when loading modules to be handled separatetly from other errors that
+  may occur when running the <b>start</b> command.
+<div class="Pp"></div>
+By default the <b>load-kmod</b> command attempts to load the openvswitch kernel
+  module.
+<h1 class="Sh" title="Sh" id="The_``enable-protocol''_command"><a class="selflink" href="#The_``enable-protocol''_command">The
+  ``enable-protocol'' command</a></h1>
+The <b>enable-protocol</b> command checks for rules related to a specified
+  protocol in the system's <b>iptables</b>(8) configuration. If there are no
+  rules specifically related to that protocol, then it inserts a rule to accept
+  the specified protocol.
+<div class="Pp"></div>
+More specifically:
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">If <b>iptables</b> is not installed or not enabled, this
+      command does nothing, assuming that lack of filtering means that the
+      protocol is enabled.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">If the <b>INPUT</b> chain has a rule that matches the
+      specified protocol, then this command does nothing, assuming that whatever
+      rule is installed reflects the system administrator's decisions.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Otherwise, this command installs a rule that accepts
+      traffic of the specified protocol.</dd>
+</dl>
+<div class="Pp"></div>
+This command normally completes successfully, even if it does nothing. Only the
+  failure of an attempt to insert a rule normally causes it to return an exit
+  code other than 0. The following options control the protocol to be enabled:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--protocol=</b><i>protocol</i></dt>
+  <dd class="It-tag">The name of the IP protocol to be enabled, such as
+      <b>gre</b> or <b>tcp</b>. The default is <b>gre</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--sport=</b><i>sport</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--dport=</b><i>dport</i></dt>
+  <dd class="It-tag">TCP or UDP source or destination port to match. These are
+      optional and allowed only with <b>--protocol=tcp</b> or
+      <b>--protocol=udp</b>.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="The_``help''_command"><a class="selflink" href="#The_``help''_command">The
+  ``help'' command</a></h1>
+Prints a usage message and exits successfully.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+In addition to the options listed for each command above, these options control
+  the behavior of several of <b>ovs-ctl</b>'s commands.
+<div class="Pp"></div>
+By default, <b>ovs-ctl</b> will control the <b>ovsdb-server</b>, and the
+  <b>ovs-vswitchd</b> daemons. The following options restrict that control to
+  exclude one or the other:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-ovsdb-server</b></dt>
+  <dd class="It-tag">Specifies that the <b>ovs-ctl</b> commands <b>start</b>,
+      <b>stop</b>, and <b>restart</b> should not modify the running status of
+      <b>ovsdb-server</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-ovs-vswitchd</b></dt>
+  <dd class="It-tag">Specifies that the <b>ovs-ctl</b> commands <b>start</b>,
+      <b>stop</b>, and <b>restart</b> should not modify the running status of
+      <b>ovs-vswitchd</b>. It is an error to include this option with the
+      <b>force-reload-kmod</b> command.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="EXIT_STATUS"><a class="selflink" href="#EXIT_STATUS">EXIT
+  STATUS</a></h1>
+<b>ovs-ctl</b> exits with status 0 on success and nonzero on failure. The
+  <b>start</b> command is considered to succeed if OVS is already started; the
+  <b>stop</b> command is considered to succeed if OVS is already stopped.
+<h1 class="Sh" title="Sh" id="ENVIRONMENT"><a class="selflink" href="#ENVIRONMENT">ENVIRONMENT</a></h1>
+The following environment variables affect <b>ovs-ctl</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>PATH</b></dt>
+  <dd class="It-tag"><b>ovs-ctl</b> does not hardcode the location of any of the
+      programs that it runs. <b>ovs-ctl</b> will add the <i>sbindir</i> and
+      <i>bindir</i> that were specified at <b>configure</b> time to <b>PATH</b>,
+      if they are not already present.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>OVS_LOGDIR</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>OVS_RUNDIR</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>OVS_DBDIR</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>OVS_SYSCONFDIR</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>OVS_PKGDATADIR</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>OVS_BINDIR</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>OVS_SBINDIR</b></dt>
+  <dd class="It-tag">Setting one of these variables in the environment overrides
+      the respective <b>configure</b> option, both for <b>ovs-ctl</b> itself and
+      for the other Open vSwitch programs that it runs.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="FILES"><a class="selflink" href="#FILES">FILES</a></h1>
+<b>ovs-ctl</b> uses the following files:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ovs-lib</b></dt>
+  <dd class="It-tag">Shell function library used internally by <b>ovs-ctl</b>.
+      It must be installed in the same directory as <b>ovs-ctl</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>logdir</i><b>/</b><i>daemon</i><b>.log</b></dt>
+  <dd class="It-tag">Per-daemon logfiles.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>rundir</i><b>/</b><i>daemon</i><b>.pid</b></dt>
+  <dd class="It-tag">Per-daemon pidfiles to track whether a daemon is running
+      and with what process ID.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>pkgdatadir</i><b>/vswitch.ovsschema</b></dt>
+  <dd class="It-tag">The OVS database schema used to initialize the database
+      (use <b>--db-schema to override this location).</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>dbdir</i><b>/conf.db</b></dt>
+  <dd class="It-tag">The OVS database (use <b>--db-file</b> to override this
+      location).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>rundir</i><b>/openvswitch/db.sock</b></dt>
+  <dd class="It-tag">The Unix domain socket used for local communication with
+      <b>ovsdb-server</b> (use <b>--db-sock</b> to override this location).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>sysconfdir</i><b>/openvswitch/system-id.conf</b></dt>
+  <dd class="It-tag">The persistent system UUID created and read by
+      <b>--system-id=random</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>sysconfdir</i><b>/openvswitch/system-type.conf</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>sysconfdir</i><b>/openvswitch/system-version.conf</b></dt>
+  <dd class="It-tag">The <b>system-type</b> and <b>system-version</b> values
+      stored in the database's <b>Open_vSwitch</b> table when not specified as a
+      command-line option.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="EXAMPLE"><a class="selflink" href="#EXAMPLE">EXAMPLE</a></h1>
+The files <b>debian/openvswitch-switch.init</b> and
+  <b>xenserver/etc_init.d_openvswitch</b> in the Open vSwitch source
+  distribution are good examples of how to use <b>ovs-ctl</b>.
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<b>README.rst</b>, <b>ovsdb-server</b>(8), <b>ovs-vswitchd</b>(8).</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">June 2011</td>
+    <td class="foot-os">Open vSwitch</td>
+  </tr>
+</table>
 </body>
 </html>

@@ -1,211 +1,181 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:23:43 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MAKEPP_BUILD_ALGORITHM(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MAKEPP_BUILD_ALGORITHM(1) Makepp
-MAKEPP_BUILD_ALGORITHM(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-makepp_build_algorithm -- How makepp executes a makefile</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-Makepp&rsquo;s internals differ from the standard Unix make
-in fundamental ways. This page describes the different
-philosophy in detail.</p>
-
-<p style="margin-top: 1em">Reverse vs. forward inference
-<br>
-Makepp works in the opposite direction from the standard
-Unix make. Traditional Unix make is given a target to build,
-and then it finds a rule which matches the characters in
-<br>
-the target filename. If the target is older than any of its
-dependencies of the rule, then it is rebuilt.</p>
-
-<p style="margin-top: 1em">For example, consider this
-pattern rule:</p>
-
-<p style="margin-top: 1em">%.o: %.cxx <br>
-$(CXX) $(CXXFLAGS) -c $(input) -o $(output)</p>
-
-<p style="margin-top: 1em">When make realizes it needs to
-make a file called &quot;xyz.o&quot;, it searches through
-its list of pattern rules until it sees that
-&quot;xyz.o&quot; matches the pattern &quot;%.o&quot;, and
-then it applies <br>
-this rule.</p>
-
-<p style="margin-top: 1em">Makepp works in the opposite
-direction. It first computes all files that it can possibly
-build by applying rules that match the characters in the
-dependency filenames. Then <br>
-when it needs to build a file, it simply looks to see if
-it&rsquo;s one of the files that it knows how to build. The
-list of known files is stored based on the absolute
-filename.</p>
-
-<p style="margin-top: 1em">When makepp encounters the above
-pattern rule, it searches for all files in the directory
-matching the pattern &quot;%.cxx&quot; (i.e.,
-&quot;*.cxx&quot;). For each of these files, it then <br>
-remembers that it can produce the corresponding
-&quot;.o&quot; file. If subsequently makepp discovers that
-it can make another &quot;.cxx&quot; file that doesn&rsquo;t
-currently exist, this rule will <br>
-also be applied and the corresponding &quot;.o&quot; file
-will be marked.</p>
-
-<p style="margin-top: 1em">This might seem somewhat
-inefficient, but it turns out not to be that slow in most
-cases, and it is often true that virtually all the files
-that can be built are in fact built. <br>
-And knowing the complete list of files that can be built has
-several advantages:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Wildcards can
-match files which don&rsquo;t exist yet but can be
-built.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Header files
-which have been detected by the automatic dependency scanner
-don&rsquo;t have to exist; makepp knows where they will be.
-(Most other solutions to this problem assume <br>
-that any headers which don&rsquo;t exist yet are in the
-current directory.)</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Repositories are
-much simpler to implement since makepp knows beforehand what
-files it can make. (See makepp_repositories for
-details.)</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; It is possible
-to determine easily which files can be built (see the
-&quot;$(only_targets )&quot; function.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Makepp&rsquo;s
-&quot;$(infer_objects)&quot; function is greatly simplified
-by knowing what objects are available.</p>
-
-<p style="margin-top: 1em">Files vs. textual patterns <br>
-Makepp associates build commands with a target file, not to
-a textual pattern for a filename. It is therefore not
-confused by different names for the same file. Thus, for
-<br>
-example, makepp will know that &quot;./xyz&quot; and and
-&quot;xyz&quot; are the same file, whereas other make
-utilities may not.</p>
-
-<p style="margin-top: 1em">This is particularly important
-because (unlike the standard make) makepp loads makefiles
-from different directories. In order for the makefiles to be
-relatively independent, <br>
-with no special position given to a top-level makefile, each
-makefile refers to all files relative to its own directory.
-Thus if you load a makefile from the subdirectory <br>
-&quot;other_stuff&quot;, and that makefile refers to
-&quot;../xyz&quot;, makepp will again realize that
-it&rsquo;s the same file referred to above. (It also
-won&rsquo;t be confused by soft-linked directory <br>
-names.)</p>
-
-<p style="margin-top: 1em">Stored build information <br>
-Makepp stores much more information about each file that it
-builds beyond just the date stamp (which is all that the
-standard make cares about). This information includes:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; The signature of
-this file on the last build, so we know if the file itself
-has changed.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; The names of
-each dependency file, including include files and other
-files inferred automatically. If this list changes, then
-makepp assumes it needs to rebuild.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; The signature of
-each dependency. This way, makepp knows to rebuild not only
-when the dependencies are newer than the target, but when
-they change at all. This also makes <br>
-it possible to use other kinds of signatures, such as
-cryptographic checksums, rather than the file date.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; The entire build
-command (and its cwd). This way if you change the build
-command (e.g., change the compiler options), makepp knows to
-rebuild even if the files themselves <br>
-haven&rsquo;t changed.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; The
-architecture. If you have compiled your program on Linux and
-then switch to Solaris, makepp automatically knows to
-recompile everything.</p>
-
-<p style="margin-top: 1em">Makepp makes a subdirectory in
-every directory that it touches called &quot;.makepp&quot;.
-The build information for a file filename in a directory is
-stored in .makepp/filename. If you <br>
-delete this subdirectory or alter the files, makepp will
-rebuild all affected files.</p>
-
-<p style="margin-top: 1em">Implicit loading <br>
-If makepp is trying to build a target in a directory and
-doesn&rsquo;t have a rule for it yet, or if it is looking
-for files matching a wildcard in a directory, it will look
-in that <br>
-directory to see if a makefile is present. If so, the
-makefile will be loaded automatically.</p>
-
-<p style="margin-top: 1em">This means that you usually
-don&rsquo;t have to tell makepp explicitly where to find
-makefiles--all you have to do is to reference a file in
-another directory, and makepp will <br>
-automatically figure out how to build it.</p>
-
-<p style="margin-top: 1em">Implicit loading will occur only
-if the directory is writable to you. Thus if you want to
-prevent makepp from trying to build a bunch of things that
-never change, simply make <br>
-the directory read-only.</p>
-
-<p style="margin-top: 1em">Implicit loading will not occur
-if you are in a tree under a RootMakeppfile(.mk) and the
-other makefile is outside that tree. If you do want this
-once, you can give a <br>
-&quot;--do-build=/&quot; option to makepp, to make
-everything outside the tree buildable. If you always want
-this, you can put a &quot;load_makefile&quot; statement
-somewhere within the tree to <br>
-explicitly connect it to the tree.</p>
-
-<p style="margin-top: 1em">If implicit loading gets in your
-way (i.e., makepp loads too many makefiles and it wastes
-time, or else you really don&rsquo;t want it to try to
-rebuild all the stuff described in the <br>
-makefiles), you can turn it off for all directories using
-the &quot;--noimplicit_load&quot; command line option, or
-you can turn it off for selected directories using the <br>
-&quot;no_implicit_load&quot; statement in your makefile.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2016-11-28
-MAKEPP_BUILD_ALGORITHM(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MAKEPP_BUILD_ALGORITHM(1)</td>
+    <td class="head-vol">Makepp</td>
+    <td class="head-rtitle">MAKEPP_BUILD_ALGORITHM(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+makepp_build_algorithm -- How makepp executes a makefile
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+Makepp's internals differ from the standard Unix make in fundamental ways. This
+  page describes the different philosophy in detail.
+<h2 class="Ss" title="Ss" id="Reverse_vs._forward_inference"><a class="selflink" href="#Reverse_vs._forward_inference">Reverse
+  vs. forward inference</a></h2>
+Makepp works in the opposite direction from the standard Unix make. Traditional
+  Unix make is given a target to build, and then it finds a rule which matches
+  the characters in the target filename. If the target is older than any of its
+  dependencies of the rule, then it is rebuilt.
+<div class="Pp"></div>
+For example, consider this pattern rule:
+<div class="Pp"></div>
+<pre>
+    %.o: %.cxx
+        $(CXX) $(CXXFLAGS) -c $(input) -o $(output)
+</pre>
+<div class="Pp"></div>
+When make realizes it needs to make a file called &quot;xyz.o&quot;, it searches
+  through its list of pattern rules until it sees that &quot;xyz.o&quot; matches
+  the pattern &quot;%.o&quot;, and then it applies this rule.
+<div class="Pp"></div>
+Makepp works in the opposite direction. It first computes all files that it can
+  possibly build by applying rules that match the characters in the dependency
+  filenames. Then when it needs to build a file, it simply looks to see if it's
+  one of the files that it knows how to build. The list of known files is stored
+  based on the absolute filename.
+<div class="Pp"></div>
+When makepp encounters the above pattern rule, it searches for all files in the
+  directory matching the pattern &quot;%.cxx&quot; (i.e., &quot;*.cxx&quot;).
+  For each of these files, it then remembers that it can produce the
+  corresponding &quot;.o&quot; file. If subsequently makepp discovers that it
+  can make another &quot;.cxx&quot; file that doesn't currently exist, this rule
+  will also be applied and the corresponding &quot;.o&quot; file will be marked.
+<div class="Pp"></div>
+This might seem somewhat inefficient, but it turns out not to be that slow in
+  most cases, and it is often true that virtually all the files that can be
+  built are in fact built. And knowing the complete list of files that can be
+  built has several advantages:
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Wildcards can match files which don't exist yet but can be
+      built.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Header files which have been detected by the automatic
+      dependency scanner don't have to exist; makepp knows where they will be.
+      (Most other solutions to this problem assume that any headers which don't
+      exist yet are in the current directory.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Repositories are much simpler to implement since makepp
+      knows beforehand what files it can make. (See makepp_repositories for
+      details.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">It is possible to determine easily which files can be built
+      (see the &quot;$(only_targets&#x00A0;)&quot; function.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Makepp's &quot;$(infer_objects)&quot; function is greatly
+      simplified by knowing what objects are available.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Files_vs._textual_patterns"><a class="selflink" href="#Files_vs._textual_patterns">Files
+  vs. textual patterns</a></h2>
+Makepp associates build commands with a target file, not to a textual pattern
+  for a filename. It is therefore not confused by different names for the same
+  file. Thus, for example, makepp will know that &quot;./xyz&quot; and and
+  &quot;xyz&quot; are the same file, whereas other make utilities may not.
+<div class="Pp"></div>
+This is particularly important because (unlike the standard make) makepp loads
+  makefiles from different directories. In order for the makefiles to be
+  relatively independent, with no special position given to a top-level
+  makefile, each makefile refers to all files relative to its own directory.
+  Thus if you load a makefile from the subdirectory &quot;other_stuff&quot;, and
+  that makefile refers to &quot;../xyz&quot;, makepp will again realize that
+  it's the same file referred to above. (It also won't be confused by
+  soft-linked directory names.)
+<h2 class="Ss" title="Ss" id="Stored_build_information"><a class="selflink" href="#Stored_build_information">Stored
+  build information</a></h2>
+Makepp stores much more information about each file that it builds beyond just
+  the date stamp (which is all that the standard make cares about). This
+  information includes:
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">The signature of this file on the last build, so we know if
+      the file itself has changed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">The names of each dependency file, including include files
+      and other files inferred automatically. If this list changes, then makepp
+      assumes it needs to rebuild.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">The signature of each dependency. This way, makepp knows to
+      rebuild not only when the dependencies are newer than the target, but when
+      they change at all. This also makes it possible to use other kinds of
+      signatures, such as cryptographic checksums, rather than the file
+    date.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">The entire build command (and its cwd). This way if you
+      change the build command (e.g., change the compiler options), makepp knows
+      to rebuild even if the files themselves haven't changed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">The architecture. If you have compiled your program on
+      Linux and then switch to Solaris, makepp automatically knows to recompile
+      everything.</dd>
+</dl>
+<div class="Pp"></div>
+Makepp makes a subdirectory in every directory that it touches called
+  &quot;.makepp&quot;. The build information for a file <i>filename</i> in a
+  directory is stored in <i>.makepp/filename</i>. If you delete this
+  subdirectory or alter the files, makepp will rebuild all affected files.
+<h2 class="Ss" title="Ss" id="Implicit_loading"><a class="selflink" href="#Implicit_loading">Implicit
+  loading</a></h2>
+If makepp is trying to build a target in a directory and doesn't have a rule for
+  it yet, or if it is looking for files matching a wildcard in a directory, it
+  will look in that directory to see if a makefile is present. If so, the
+  makefile will be loaded automatically.
+<div class="Pp"></div>
+This means that you usually don't have to tell makepp explicitly where to find
+  makefiles--all you have to do is to reference a file in another directory, and
+  makepp will automatically figure out how to build it.
+<div class="Pp"></div>
+Implicit loading will occur only if the directory is writable to you. Thus if
+  you want to prevent makepp from trying to build a bunch of things that never
+  change, simply make the directory read-only.
+<div class="Pp"></div>
+Implicit loading will not occur if you are in a tree under a
+  <i>RootMakeppfile(.mk)</i> and the other makefile is outside that tree. If you
+  do want this once, you can give a &quot;--do-build=/&quot; option to makepp,
+  to make everything outside the tree buildable. If you always want this, you
+  can put a &quot;load_makefile&quot; statement somewhere within the tree to
+  explicitly connect it to the tree.
+<div class="Pp"></div>
+If implicit loading gets in your way (i.e., makepp loads too many makefiles and
+  it wastes time, or else you really don't want it to try to rebuild all the
+  stuff described in the makefiles), you can turn it off for all directories
+  using the &quot;--noimplicit_load&quot; command line option, or you can turn
+  it off for selected directories using the &quot;no_implicit_load&quot;
+  statement in your makefile.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2016-11-28</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

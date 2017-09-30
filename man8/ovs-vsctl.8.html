@@ -1,1832 +1,2116 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:14:17 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>ovs-vsctl(8)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>ovs-vsctl(8) Open vSwitch Manual ovs-vsctl(8)</p>
-
-<p style="margin-top: 1em">NAME <br>
-ovs-vsctl - utility for querying and configuring
-ovs-vswitchd</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-ovs-vsctl [options] -- [options] command [args] [--
-[options] command [args]]...</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-The ovs-vsctl program configures ovs-vswitchd(8) by
-providing a high-level interface to its configuration
-database. See ovs-vswitchd.conf.db(5) for comprehensive
-documentation <br>
-of the database schema.</p>
-
-<p style="margin-top: 1em">ovs-vsctl connects to an
-ovsdb-server process that maintains an Open vSwitch
-configuration database. Using this connection, it queries
-and possibly applies changes to the data&acirc; <br>
-base, depending on the supplied commands. Then, if it
-applied any changes, by default it waits until ovs-vswitchd
-has finished reconfiguring itself before it exits. (If you
-use <br>
-ovs-vsctl when ovs-vswitchd is not running, use
---no-wait.)</p>
-
-<p style="margin-top: 1em">ovs-vsctl can perform any number
-of commands in a single run, implemented as a single atomic
-transaction against the database.</p>
-
-<p style="margin-top: 1em">The ovs-vsctl command line
-begins with global options (see OPTIONS below for details).
-The global options are followed by one or more commands.
-Each command should begin with <br>
--- by itself as a command-line argument, to separate it from
-the following commands. (The -- before the first command is
-optional.) The command itself starts with command-spe&acirc;
-<br>
-cific options, if any, followed by the command name and any
-arguments. See EXAMPLES below for syntax examples.</p>
-
-<p style="margin-top: 1em">Linux VLAN Bridging
-Compatibility <br>
-The ovs-vsctl program supports the model of a bridge
-implemented by Open vSwitch, in which a single bridge
-supports ports on multiple VLANs. In this model, each port
-on a bridge <br>
-is either a trunk port that potentially passes packets
-tagged with 802.1Q headers that designate VLANs or it is
-assigned a single implicit VLAN that is never tagged with an
-<br>
-802.1Q header.</p>
-
-<p style="margin-top: 1em">For compatibility with software
-designed for the Linux bridge, ovs-vsctl also supports a
-model in which traffic associated with a given 802.1Q VLAN
-is segregated into a separate <br>
-bridge. A special form of the add-br command (see below)
-creates a &lsquo;&lsquo;fake bridge&rsquo;&rsquo; within an
-Open vSwitch bridge to simulate this behavior. When such a
-&lsquo;&lsquo;fake bridge&rsquo;&rsquo; is <br>
-active, ovs-vsctl will treat it much like a bridge separate
-from its &lsquo;&lsquo;parent bridge,&rsquo;&rsquo; but the
-actual implementation in Open vSwitch uses only a single
-bridge, with ports on the <br>
-fake bridge assigned the implicit VLAN of the fake bridge of
-which they are members. (A fake bridge for VLAN 0 receives
-packets that have no 802.1Q tag or a tag with VLAN 0.)</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-The following options affect the behavior ovs-vsctl as a
-whole. Some individual commands also accept their own
-options, which are given just before the command name. If
-the <br>
-first command on the command line has options, then those
-options must be separated from the global options by --.</p>
-
-<p style="margin-top: 1em">--db=server <br>
-Sets server as the database server that ovs-vsctl contacts
-to query or modify configuration. The default is
-unix:/var/run/openvswitch/db.sock. server must take one of
-<br>
-the following forms:</p>
-
-<p style="margin-top: 1em">ssl:ip:port <br>
-The specified SSL port on the host at the given ip, which
-must be expressed as an IP address (not a DNS name) in IPv4
-or IPv6 address format. If ip is an IPv6 <br>
-address, then wrap ip with square brackets, e.g.:
-ssl:[::1]:6640. The --private-key, --certificate, and
---ca-cert options are mandatory when this form is used.</p>
-
-<p style="margin-top: 1em">tcp:ip:port <br>
-Connect to the given TCP port on ip, where ip can be IPv4 or
-IPv6 address. If ip is an IPv6 address, then wrap ip with
-square brackets, e.g.: tcp:[::1]:6640.</p>
-
-<p style="margin-top: 1em">unix:file <br>
-On POSIX, connect to the Unix domain server socket named
-file.</p>
-
-<p style="margin-top: 1em">On Windows, connect to a local
-named pipe that is represented by a file created in the path
-file to mimic the behavior of a Unix domain socket.</p>
-
-<p style="margin-top: 1em">pssl:port[:ip] <br>
-Listen on the given SSL port for a connection. By default,
-connections are not bound to a particular local IP address
-and it listens only on IPv4 (but not IPv6) <br>
-addresses, but specifying ip limits connections to those
-from the given ip, either IPv4 or IPv6 address. If ip is an
-IPv6 address, then wrap ip with square brack&acirc; <br>
-ets, e.g.: pssl:6640:[::1]. The --private-key,
---certificate, and --ca-cert options are mandatory when this
-form is used.</p>
-
-<p style="margin-top: 1em">ptcp:port[:ip] <br>
-Listen on the given TCP port for a connection. By default,
-connections are not bound to a particular local IP address
-and it listens only on IPv4 (but not IPv6) <br>
-addresses, but ip may be specified to listen only for
-connections to the given ip, either IPv4 or IPv6 address. If
-ip is an IPv6 address, then wrap ip with square <br>
-brackets, e.g.: ptcp:6640:[::1].</p>
-
-<p style="margin-top: 1em">punix:file <br>
-On POSIX, listen on the Unix domain server socket named file
-for a connection.</p>
-
-<p style="margin-top: 1em">On Windows, listen on a local
-named pipe. A file is created in the path file to mimic the
-behavior of a Unix domain socket.</p>
-
-<p style="margin-top: 1em">--no-wait <br>
-Prevents ovs-vsctl from waiting for ovs-vswitchd to
-reconfigure itself according to the modified database. This
-option should be used if ovs-vswitchd is not running;
-oth&acirc; <br>
-erwise, ovs-vsctl will not exit until ovs-vswitchd
-starts.</p>
-
-<p style="margin-top: 1em">This option has no effect if the
-commands specified do not change the database.</p>
-
-<p style="margin-top: 1em">--no-syslog <br>
-By default, ovs-vsctl logs its arguments and the details of
-any changes that it makes to the system log. This option
-disables this logging.</p>
-
-<p style="margin-top: 1em">This option is equivalent to
---verbose=vsctl:syslog:warn.</p>
-
-<p style="margin-top: 1em">--oneline <br>
-Modifies the output format so that the output for each
-command is printed on a single line. New-line characters
-that would otherwise separate lines are printed as 0 and
-<br>
-any instances of &nbsp;that would otherwise appear in the
-output are doubled. Prints a blank line for each command
-that has no output. This option does not affect the
-for&acirc; <br>
-matting of output from the list or find commands; see Table
-Formatting Options below.</p>
-
-<p style="margin-top: 1em">--dry-run <br>
-Prevents ovs-vsctl from actually modifying the database.</p>
-
-<p style="margin-top: 1em">-t secs <br>
---timeout=secs <br>
-By default, or with a secs of 0, ovs-vsctl waits forever for
-a response from the database. This option limits runtime to
-approximately secs seconds. If the timeout <br>
-expires, ovs-vsctl will exit with a SIGALRM signal. (A
-timeout would normally happen only if the database cannot be
-contacted, or if the system is overloaded.)</p>
-
-<p style="margin-top: 1em">--retry <br>
-Without this option, if ovs-vsctl connects outward to the
-database server (the default) then ovs-vsctl will try to
-connect once and exit with an error if the connection <br>
-fails (which usually means that ovsdb-server is not
-running).</p>
-
-<p style="margin-top: 1em">With this option, or if --db
-specifies that ovs-vsctl should listen for an incoming
-connection from the database server, then ovs-vsctl will
-wait for a connection to the <br>
-database forever.</p>
-
-<p style="margin-top: 1em">Regardless of this setting,
---timeout always limits how long ovs-vsctl will wait.</p>
-
-<p style="margin-top: 1em">Table Formatting Options <br>
-These options control the format of output from the list and
-find commands.</p>
-
-<p style="margin-top: 1em">-f format <br>
---format=format <br>
-Sets the type of table formatting. The following types of
-format are available:</p>
-
-<p style="margin-top: 1em">table 2-D text tables with
-aligned columns.</p>
-
-<p style="margin-top: 1em">list (default) <br>
-A list with one column per line and rows separated by a
-blank line.</p>
-
-<p style="margin-top: 1em">html HTML tables.</p>
-
-<p style="margin-top: 1em">csv Comma-separated values as
-defined in RFC 4180.</p>
-
-<p style="margin-top: 1em">json JSON format as defined in
-RFC 4627. The output is a sequence of JSON objects, each of
-which corresponds to one table. Each JSON object has the
-following members <br>
-with the noted values:</p>
-
-<p style="margin-top: 1em">caption <br>
-The table&rsquo;s caption. This member is omitted if the
-table has no caption.</p>
-
-<p style="margin-top: 1em">headings <br>
-An array with one element per table column. Each array
-element is a string giving the corresponding column&rsquo;s
-heading.</p>
-
-<p style="margin-top: 1em">data An array with one element
-per table row. Each element is also an array with one
-element per table column. The elements of this second-level
-array are the <br>
-cells that constitute the table. Cells that represent OVSDB
-data or data types are expressed in the format described in
-the OVSDB specification; other cells <br>
-are simply expressed as text strings.</p>
-
-<p style="margin-top: 1em">-d format <br>
---data=format <br>
-Sets the formatting for cells within output tables. The
-following types of format are available:</p>
-
-<p style="margin-top: 1em">string (default) <br>
-The simple format described in the Database Values section
-below.</p>
-
-<p style="margin-top: 1em">bare The simple format with
-punctuation stripped off: [] and {} are omitted around sets,
-maps, and empty columns, items within sets and maps are
-space-separated, and <br>
-strings are never quoted. This format may be easier for
-scripts to parse.</p>
-
-<p style="margin-top: 1em">json JSON.</p>
-
-<p style="margin-top: 1em">The json output format always
-outputs cells in JSON format, ignoring this option.</p>
-
-<p style="margin-top: 1em">--no-heading <br>
-This option suppresses the heading row that otherwise
-appears in the first row of table output.</p>
-
-<p style="margin-top: 1em">--pretty <br>
-By default, JSON in output is printed as compactly as
-possible. This option causes JSON in output to be printed in
-a more readable fashion. Members of objects and ele&acirc;
-<br>
-ments of arrays are printed one per line, with
-indentation.</p>
-
-<p style="margin-top: 1em">This option does not affect JSON
-in tables, which is always printed compactly.</p>
-
-<p style="margin-top: 1em">--bare Equivalent to
---format=list --data=bare --no-headings.</p>
-
-<p style="margin-top: 1em">Public Key Infrastructure
-Options <br>
--p privkey.pem <br>
---private-key=privkey.pem <br>
-Specifies a PEM file containing the private key used as
-ovs-vsctl&rsquo;s identity for outgoing SSL connections.</p>
-
-<p style="margin-top: 1em">-c cert.pem <br>
---certificate=cert.pem <br>
-Specifies a PEM file containing a certificate that certifies
-the private key specified on -p or --private-key to be
-trustworthy. The certificate must be signed by the <br>
-certificate authority (CA) that the peer in SSL connections
-will use to verify it.</p>
-
-<p style="margin-top: 1em">-C cacert.pem <br>
---ca-cert=cacert.pem <br>
-Specifies a PEM file containing the CA certificate that
-ovs-vsctl should use to verify certificates presented to it
-by SSL peers. (This may be the same certificate that <br>
-SSL peers use to verify the certificate specified on -c or
---certificate, or it may be a different one, depending on
-the PKI design in use.)</p>
-
-<p style="margin-top: 1em">-C none <br>
---ca-cert=none <br>
-Disables verification of certificates presented by SSL
-peers. This introduces a security risk, because it means
-that certificates cannot be verified to be those of known
-<br>
-trusted hosts.</p>
-
-<p style="margin-top: 1em">--bootstrap-ca-cert=cacert.pem
-<br>
-When cacert.pem exists, this option has the same effect as
--C or --ca-cert. If it does not exist, then ovs-vsctl will
-attempt to obtain the CA certificate from the SSL <br>
-peer on its first SSL connection and save it to the named
-PEM file. If it is successful, it will immediately drop the
-connection and reconnect, and from then on all SSL <br>
-connections must be authenticated by a certificate signed by
-the CA certificate thus obtained.</p>
-
-<p style="margin-top: 1em">This option exposes the SSL
-connection to a man-in-the-middle attack obtaining the
-initial CA certificate, but it may be useful for
-bootstrapping.</p>
-
-<p style="margin-top: 1em">This option is only useful if
-the SSL peer sends its CA certificate as part of the SSL
-certificate chain. The SSL protocol does not require the
-server to send the CA cer&acirc; <br>
-tificate.</p>
-
-<p style="margin-top: 1em">This option is mutually
-exclusive with -C and --ca-cert.</p>
-
-<p style="margin-top: 1em">--peer-ca-cert=peer-cacert.pem
-<br>
-Specifies a PEM file that contains one or more additional
-certificates to send to SSL peers. peer-cacert.pem should be
-the CA certificate used to sign ovs-vsctl&rsquo;s own <br>
-certificate, that is, the certificate specified on -c or
---certificate. If ovs-vsctl&rsquo;s certificate is
-self-signed, then --certificate and --peer-ca-cert should
-specify <br>
-the same file.</p>
-
-<p style="margin-top: 1em">This option is not useful in
-normal operation, because the SSL peer must already have the
-CA certificate for the peer to have any confidence in
-ovs-vsctl&rsquo;s identity. How&acirc; <br>
-ever, this offers a way for a new installation to bootstrap
-the CA certificate on its first SSL connection.</p>
-
-<p style="margin-top: 1em">-v[spec] <br>
---verbose=[spec] <br>
-Sets logging levels. Without any spec, sets the log level
-for every module and destination to dbg. Otherwise, spec is
-a list of words separated by spaces or commas or <br>
-colons, up to one from each category below:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A valid module
-name, as displayed by the vlog/list command on
-ovs-appctl(8), limits the log level change to the specified
-module.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; syslog, console,
-or file, to limit the log level change to only to the system
-log, to the console, or to a file, respectively. (If
---detach is specified, ovs-vsctl <br>
-closes its standard file descriptors, so logging to the
-console will have no effect.)</p>
-
-<p style="margin-top: 1em">On Windows platform, syslog is
-accepted as a word and is only useful along with the
---syslog-target option (the word has no effect
-otherwise).</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; off, emer, err,
-warn, info, or dbg, to control the log level. Messages of
-the given severity or higher will be logged, and messages of
-lower severity will be fil&acirc; <br>
-tered out. off filters out all messages. See ovs-appctl(8)
-for a definition of each log level.</p>
-
-<p style="margin-top: 1em">Case is not significant within
-spec.</p>
-
-<p style="margin-top: 1em">Regardless of the log levels set
-for file, logging to a file will not take place unless
---log-file is also specified (see below).</p>
-
-<p style="margin-top: 1em">For compatibility with older
-versions of OVS, any is accepted as a word but has no
-effect.</p>
-
-<p style="margin-top: 1em">-v <br>
---verbose <br>
-Sets the maximum logging verbosity level, equivalent to
---verbose=dbg.</p>
-
-<p style="margin-top: 1em">-vPATTERN:destination:pattern
-<br>
---verbose=PATTERN:destination:pattern <br>
-Sets the log pattern for destination to pattern. Refer to
-ovs-appctl(8) for a description of the valid syntax for
-pattern.</p>
-
-<p style="margin-top: 1em">-vFACILITY:facility <br>
---verbose=FACILITY:facility <br>
-Sets the RFC5424 facility of the log message. facility can
-be one of kern, user, mail, daemon, auth, syslog, lpr, news,
-uucp, clock, ftp, ntp, audit, alert, clock2, <br>
-local0, local1, local2, local3, local4, local5, local6 or
-local7. If this option is not specified, daemon is used as
-the default for the local system syslog and local0 is <br>
-used while sending a message to the target provided via the
---syslog-target option.</p>
-
-<p style="margin-top: 1em">--log-file[=file] <br>
-Enables logging to a file. If file is specified, then it is
-used as the exact name for the log file. The default log
-file name used if file is omitted is /var/log/open&acirc;
-<br>
-vswitch/ovs-vsctl.log.</p>
-
-<p style="margin-top: 1em">--syslog-target=host:port <br>
-Send syslog messages to UDP port on host, in addition to the
-system syslog. The host must be a numerical IP address, not
-a hostname.</p>
-
-<p style="margin-top: 1em">--syslog-method=method <br>
-Specify method how syslog messages should be sent to syslog
-daemon. Following forms are supported:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; libc, use libc
-syslog() function. This is the default behavior. Downside of
-using this options is that libc adds fixed prefix to every
-message before it is actu&acirc; <br>
-ally sent to the syslog daemon over /dev/log UNIX domain
-socket.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; unix:file, use
-UNIX domain socket directly. It is possible to specify
-arbitrary message format with this option. However, rsyslogd
-8.9 and older versions use hard <br>
-coded parser function anyway that limits UNIX domain socket
-use. If you want to use arbitrary message format with older
-rsyslogd versions, then use UDP socket to <br>
-localhost IP address instead.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; udp:ip:port, use
-UDP socket. With this method it is possible to use arbitrary
-message format also with older rsyslogd. When sending syslog
-messages over UDP <br>
-socket extra precaution needs to be taken into account, for
-example, syslog daemon needs to be configured to listen on
-the specified UDP port, accidental iptables <br>
-rules could be interfering with local syslog traffic and
-there are some security considerations that apply to UDP
-sockets, but do not apply to UNIX domain sockets.</p>
-
-<p style="margin-top: 1em">-h <br>
---help Prints a brief help message to the console.</p>
-
-<p style="margin-top: 1em">-V <br>
---version <br>
-Prints version information to the console.</p>
-
-<p style="margin-top: 1em">COMMANDS <br>
-The commands implemented by ovs-vsctl are described in the
-sections below.</p>
-
-<p style="margin-top: 1em">Open vSwitch Commands <br>
-These commands work with an Open vSwitch as a whole.</p>
-
-<p style="margin-top: 1em">init Initializes the Open
-vSwitch database, if it is empty. If the database has
-already been initialized, this command has no effect.</p>
-
-<p style="margin-top: 1em">Any successful ovs-vsctl command
-automatically initializes the Open vSwitch database if it is
-empty. This command is provided to initialize the database
-without executing <br>
-any other command.</p>
-
-<p style="margin-top: 1em">show Prints a brief overview of
-the database contents.</p>
-
-<p style="margin-top: 1em">emer-reset <br>
-Reset the configuration into a clean state. It deconfigures
-OpenFlow controllers, OVSDB servers, and SSL, and deletes
-port mirroring, fail_mode, NetFlow, sFlow, and IPFIX <br>
-configuration. This command also removes all other-config
-keys from all database records, except that
-other-config:hwaddr is preserved if it is present in a
-Bridge <br>
-record. Other networking configuration is left as-is.</p>
-
-<p style="margin-top: 1em">Bridge Commands <br>
-These commands examine and manipulate Open vSwitch
-bridges.</p>
-
-<p style="margin-top: 1em">[--may-exist] add-br bridge <br>
-Creates a new bridge named bridge. Initially the bridge will
-have no ports (other than bridge itself).</p>
-
-<p style="margin-top: 1em">Without --may-exist, attempting
-to create a bridge that exists is an error. With
---may-exist, this command does nothing if bridge already
-exists as a real bridge.</p>
-
-<p style="margin-top: 1em">[--may-exist] add-br bridge
-parent vlan <br>
-Creates a &lsquo;&lsquo;fake bridge&rsquo;&rsquo; named
-bridge within the existing Open vSwitch bridge parent, which
-must already exist and must not itself be a fake bridge. The
-new fake bridge <br>
-will be on 802.1Q VLAN vlan, which must be an integer
-between 0 and 4095. The parent bridge must not already have
-a fake bridge for vlan. Initially bridge will have no <br>
-ports (other than bridge itself).</p>
-
-<p style="margin-top: 1em">Without --may-exist, attempting
-to create a bridge that exists is an error. With
---may-exist, this command does nothing if bridge already
-exists as a VLAN bridge under <br>
-parent for vlan.</p>
-
-<p style="margin-top: 1em">[--if-exists] del-br bridge <br>
-Deletes bridge and all of its ports. If bridge is a real
-bridge, this command also deletes any fake bridges that were
-created with bridge as parent, including all of <br>
-their ports.</p>
-
-<p style="margin-top: 1em">Without --if-exists, attempting
-to delete a bridge that does not exist is an error. With
---if-exists, attempting to delete a bridge that does not
-exist has no effect.</p>
-
-<p style="margin-top: 1em">[--real|--fake] list-br <br>
-Lists all existing real and fake bridges on standard output,
-one per line. With --real or --fake, only bridges of that
-type are returned.</p>
-
-<p style="margin-top: 1em">br-exists bridge <br>
-Tests whether bridge exists as a real or fake bridge. If so,
-ovs-vsctl exits successfully with exit code 0. If not,
-ovs-vsctl exits unsuccessfully with exit code 2.</p>
-
-<p style="margin-top: 1em">br-to-vlan bridge <br>
-If bridge is a fake bridge, prints the bridge&rsquo;s 802.1Q
-VLAN as a decimal integer. If bridge is a real bridge,
-prints 0.</p>
-
-<p style="margin-top: 1em">br-to-parent bridge <br>
-If bridge is a fake bridge, prints the name of its parent
-bridge. If bridge is a real bridge, print bridge.</p>
-
-<p style="margin-top: 1em">br-set-external-id bridge key
-[value] <br>
-Sets or clears an &lsquo;&lsquo;external ID&rsquo;&rsquo;
-value on bridge. These values are intended to identify
-entities external to Open vSwitch with which bridge is
-associated, e.g. the <br>
-bridge&rsquo;s identifier in a virtualization management
-platform. The Open vSwitch database schema specifies
-well-known key values, but key and value are otherwise
-arbitrary <br>
-strings.</p>
-
-<p style="margin-top: 1em">If value is specified, then key
-is set to value for bridge, overwriting any previous value.
-If value is omitted, then key is removed from bridge&rsquo;s
-set of external IDs (if <br>
-it was present).</p>
-
-<p style="margin-top: 1em">For real bridges, the effect of
-this command is similar to that of a set or remove command
-in the external-ids column of the Bridge table. For fake
-bridges, it actually <br>
-modifies keys with names prefixed by fake-bridge- in the
-Port table.</p>
-
-<p style="margin-top: 1em">br-get-external-id bridge [key]
-<br>
-Queries the external IDs on bridge. If key is specified, the
-output is the value for that key or the empty string if key
-is unset. If key is omitted, the output is <br>
-key=value, one per line, for each key-value pair.</p>
-
-<p style="margin-top: 1em">For real bridges, the effect of
-this command is similar to that of a get command in the
-external-ids column of the Bridge table. For fake bridges,
-it queries keys with <br>
-names prefixed by fake-bridge- in the Port table.</p>
-
-<p style="margin-top: 1em">Port Commands <br>
-These commands examine and manipulate Open vSwitch ports.
-These commands treat a bonded port as a single entity.</p>
-
-<p style="margin-top: 1em">list-ports bridge <br>
-Lists all of the ports within bridge on standard output, one
-per line. The local port bridge is not included in the
-list.</p>
-
-<p style="margin-top: 1em">[--may-exist] add-port bridge
-port [column[:key]=value]... <br>
-Creates on bridge a new port named port from the network
-device of the same name.</p>
-
-<p style="margin-top: 1em">Optional arguments set values of
-column in the Port record created by the command. For
-example, tag=9 would make the port an access port for VLAN
-9. The syntax is the <br>
-same as that for the set command (see Database Commands
-below).</p>
-
-<p style="margin-top: 1em">Without --may-exist, attempting
-to create a port that exists is an error. With --may-exist,
-this command does nothing if port already exists on bridge
-and is not a bonded <br>
-port.</p>
-
-<p style="margin-top: 1em">[--fake-iface] add-bond bridge
-port iface... [column[:key]=value]... <br>
-Creates on bridge a new port named port that bonds together
-the network devices given as each iface. At least two
-interfaces must be named. If the interfaces are DPDK <br>
-enabled then the transaction will need to include operations
-to explicitly set the interface type to
-&rsquo;dpdk&rsquo;.</p>
-
-<p style="margin-top: 1em">Optional arguments set values of
-column in the Port record created by the command. The syntax
-is the same as that for the set command (see Database
-Commands below).</p>
-
-<p style="margin-top: 1em">With --fake-iface, a fake
-interface with the name port is created. This should only be
-used for compatibility with legacy software that requires
-it.</p>
-
-<p style="margin-top: 1em">Without --may-exist, attempting
-to create a port that exists is an error. With --may-exist,
-this command does nothing if port already exists on bridge
-and bonds together <br>
-exactly the specified interfaces.</p>
-
-<p style="margin-top: 1em">[--if-exists] del-port [bridge]
-port <br>
-Deletes port. If bridge is omitted, port is removed from
-whatever bridge contains it; if bridge is specified, it must
-be the real or fake bridge that contains port.</p>
-
-<p style="margin-top: 1em">Without --if-exists, attempting
-to delete a port that does not exist is an error. With
---if-exists, attempting to delete a port that does not exist
-has no effect.</p>
-
-<p style="margin-top: 1em">[--if-exists] --with-iface
-del-port [bridge] iface <br>
-Deletes the port named iface or that has an interface named
-iface. If bridge is omitted, the port is removed from
-whatever bridge contains it; if bridge is specified, it <br>
-must be the real or fake bridge that contains the port.</p>
-
-<p style="margin-top: 1em">Without --if-exists, attempting
-to delete the port for an interface that does not exist is
-an error. With --if-exists, attempting to delete the port
-for an interface that <br>
-does not exist has no effect.</p>
-
-<p style="margin-top: 1em">port-to-br port <br>
-Prints the name of the bridge that contains port on standard
-output.</p>
-
-<p style="margin-top: 1em">Interface Commands <br>
-These commands examine the interfaces attached to an Open
-vSwitch bridge. These commands treat a bonded port as a
-collection of two or more interfaces, rather than as a
-single <br>
-port.</p>
-
-<p style="margin-top: 1em">list-ifaces bridge <br>
-Lists all of the interfaces within bridge on standard
-output, one per line. The local port bridge is not included
-in the list.</p>
-
-<p style="margin-top: 1em">iface-to-br iface <br>
-Prints the name of the bridge that contains iface on
-standard output.</p>
-
-<p style="margin-top: 1em">OpenFlow Controller Connectivity
-<br>
-ovs-vswitchd can perform all configured bridging and
-switching locally, or it can be configured to communicate
-with one or more external OpenFlow controllers. The switch
-is typ&acirc; <br>
-ically configured to connect to a primary controller that
-takes charge of the bridge&rsquo;s flow table to implement a
-network policy. In addition, the switch can be configured to
-<br>
-listen to connections from service controllers. Service
-controllers are typically used for occasional support and
-maintenance, e.g. with ovs-ofctl.</p>
-
-<p style="margin-top: 1em">get-controller bridge <br>
-Prints the configured controller target.</p>
-
-<p style="margin-top: 1em">del-controller bridge <br>
-Deletes the configured controller target.</p>
-
-<p style="margin-top: 1em">set-controller bridge target...
-<br>
-Sets the configured controller target or targets. Each
-target may use any of the following forms:</p>
-
-<p style="margin-top: 1em">ssl:ip[:port] <br>
-tcp:ip[:port] <br>
-The specified port on the host at the given ip, which must
-be expressed as an IP address (not a DNS name) in IPv4 or
-IPv6 address format. Wrap IPv6 addresses in <br>
-square brackets, e.g. tcp:[::1]:6653. For ssl, the
---private-key, --certificate, and --ca-cert options are
-mandatory.</p>
-
-<p style="margin-top: 1em">If port is not specified, it
-defaults to 6653.</p>
-
-<p style="margin-top: 1em">unix:file <br>
-On POSIX, a Unix domain server socket named file.</p>
-
-<p style="margin-top: 1em">On Windows, connect to a local
-named pipe that is represented by a file created in the path
-file to mimic the behavior of a Unix domain socket.</p>
-
-<p style="margin-top: 1em">pssl:[port][:ip] <br>
-ptcp:[port][:ip] <br>
-Listens for OpenFlow connections on port. The default port
-is 6653. By default, connections are allowed from any IPv4
-address. Specify ip as an IPv4 address or a <br>
-bracketed IPv6 address (e.g. ptcp:6653:[::1]). DNS names may
-not be used. For pssl, the --private-key,--certificate, and
---ca-cert options are mandatory.</p>
-
-<p style="margin-top: 1em">punix:file <br>
-Listens for OpenFlow connections on the Unix domain server
-socket named file.</p>
-
-<p style="margin-top: 1em">Controller Failure Settings</p>
-
-<p style="margin-top: 1em">When a controller is configured,
-it is, ordinarily, responsible for setting up all flows on
-the switch. Thus, if the connection to the controller fails,
-no new network connec&acirc; <br>
-tions can be set up. If the connection to the controller
-stays down long enough, no packets can pass through the
-switch at all.</p>
-
-<p style="margin-top: 1em">If the value is standalone, or
-if neither of these settings is set, ovs-vswitchd will take
-over responsibility for setting up flows when no message has
-been received from the <br>
-controller for three times the inactivity probe interval. In
-this mode, ovs-vswitchd causes the datapath to act like an
-ordinary MAC-learning switch. ovs-vswitchd will continue
-<br>
-to retry connecting to the controller in the background and,
-when the connection succeeds, it discontinues its standalone
-behavior.</p>
-
-<p style="margin-top: 1em">If this option is set to secure,
-ovs-vswitchd will not set up flows on its own when the
-controller connection fails.</p>
-
-<p style="margin-top: 1em">get-fail-mode bridge <br>
-Prints the configured failure mode.</p>
-
-<p style="margin-top: 1em">del-fail-mode bridge <br>
-Deletes the configured failure mode.</p>
-
-<p style="margin-top: 1em">set-fail-mode bridge
-standalone|secure <br>
-Sets the configured failure mode.</p>
-
-<p style="margin-top: 1em">Manager Connectivity <br>
-These commands manipulate the manager_options column in the
-Open_vSwitch table and rows in the Managers table. When
-ovsdb-server is configured to use the manager_options column
-<br>
-for OVSDB connections (as described in the startup scripts
-provided with Open vSwitch), this allows the administrator
-to use ovs-vsctl to configure database connections.</p>
-
-<p style="margin-top: 1em">get-manager <br>
-Prints the configured manager(s).</p>
-
-<p style="margin-top: 1em">del-manager <br>
-Deletes the configured manager(s).</p>
-
-<p style="margin-top: 1em">set-manager target... <br>
-Sets the configured manager target or targets. Each target
-may use any of the following forms:</p>
-
-<p style="margin-top: 1em">ssl:ip:port <br>
-The specified SSL port on the host at the given ip, which
-must be expressed as an IP address (not a DNS name) in IPv4
-or IPv6 address format. If ip is an IPv6 <br>
-address, then wrap ip with square brackets, e.g.:
-ssl:[::1]:6640. The --private-key, --certificate, and
---ca-cert options are mandatory when this form is used.</p>
-
-<p style="margin-top: 1em">tcp:ip:port <br>
-Connect to the given TCP port on ip, where ip can be IPv4 or
-IPv6 address. If ip is an IPv6 address, then wrap ip with
-square brackets, e.g.: tcp:[::1]:6640.</p>
-
-<p style="margin-top: 1em">unix:file <br>
-On POSIX, connect to the Unix domain server socket named
-file.</p>
-
-<p style="margin-top: 1em">On Windows, connect to a local
-named pipe that is represented by a file created in the path
-file to mimic the behavior of a Unix domain socket.</p>
-
-<p style="margin-top: 1em">pssl:port[:ip] <br>
-Listen on the given SSL port for a connection. By default,
-connections are not bound to a particular local IP address
-and it listens only on IPv4 (but not IPv6) <br>
-addresses, but specifying ip limits connections to those
-from the given ip, either IPv4 or IPv6 address. If ip is an
-IPv6 address, then wrap ip with square brack&acirc; <br>
-ets, e.g.: pssl:6640:[::1]. The --private-key,
---certificate, and --ca-cert options are mandatory when this
-form is used.</p>
-
-<p style="margin-top: 1em">ptcp:port[:ip] <br>
-Listen on the given TCP port for a connection. By default,
-connections are not bound to a particular local IP address
-and it listens only on IPv4 (but not IPv6) <br>
-addresses, but ip may be specified to listen only for
-connections to the given ip, either IPv4 or IPv6 address. If
-ip is an IPv6 address, then wrap ip with square <br>
-brackets, e.g.: ptcp:6640:[::1].</p>
-
-<p style="margin-top: 1em">punix:file <br>
-On POSIX, listen on the Unix domain server socket named file
-for a connection.</p>
-
-<p style="margin-top: 1em">On Windows, listen on a local
-named pipe. A file is created in the path file to mimic the
-behavior of a Unix domain socket.</p>
-
-<p style="margin-top: 1em">SSL Configuration <br>
-When ovs-vswitchd is configured to connect over SSL for
-management or controller connectivity, the following
-parameters are required:</p>
-
-<p style="margin-top: 1em">private-key <br>
-Specifies a PEM file containing the private key used as the
-virtual switch&rsquo;s identity for SSL connections to the
-controller.</p>
-
-<p style="margin-top: 1em">certificate <br>
-Specifies a PEM file containing a certificate, signed by the
-certificate authority (CA) used by the controller and
-manager, that certifies the virtual switch&rsquo;s private
-<br>
-key, identifying a trustworthy switch.</p>
-
-<p style="margin-top: 1em">ca-cert <br>
-Specifies a PEM file containing the CA certificate used to
-verify that the virtual switch is connected to a trustworthy
-controller.</p>
-
-<p style="margin-top: 1em">These files are read only once,
-at ovs-vswitchd startup time. If their contents change,
-ovs-vswitchd must be killed and restarted.</p>
-
-<p style="margin-top: 1em">These SSL settings apply to all
-SSL connections made by the virtual switch.</p>
-
-<p style="margin-top: 1em">get-ssl <br>
-Prints the SSL configuration.</p>
-
-<p style="margin-top: 1em">del-ssl <br>
-Deletes the current SSL configuration.</p>
-
-<p style="margin-top: 1em">[--bootstrap] set-ssl
-private-key certificate ca-cert <br>
-Sets the SSL configuration. The --bootstrap option is
-described below.</p>
-
-<p style="margin-top: 1em">CA Certificate Bootstrap</p>
-
-<p style="margin-top: 1em">Ordinarily, all of the files
-named in the SSL configuration must exist when ovs-vswitchd
-starts. However, if the ca-cert file does not exist and the
---bootstrap option is given, <br>
-then ovs-vswitchd will attempt to obtain the CA certificate
-from the controller on its first SSL connection and save it
-to the named PEM file. If it is successful, it will
-imme&acirc; <br>
-diately drop the connection and reconnect, and from then on
-all SSL connections must be authenticated by a certificate
-signed by the CA certificate thus obtained.</p>
-
-<p style="margin-top: 1em">This option exposes the SSL
-connection to a man-in-the-middle attack obtaining the
-initial CA certificate, but it may be useful for
-bootstrapping.</p>
-
-<p style="margin-top: 1em">This option is only useful if
-the controller sends its CA certificate as part of the SSL
-certificate chain. The SSL protocol does not require the
-controller to send the CA cer&acirc; <br>
-tificate.</p>
-
-<p style="margin-top: 1em">Auto-Attach Commands <br>
-The IETF Auto-Attach SPBM draft standard describes a compact
-method of using IEEE 802.1AB Link Layer Discovery Protocol
-(LLDP) together with a IEEE 802.1aq Shortest Path Bridging
-<br>
-(SPB) network to automatically attach network devices to
-individual services in a SPB network. The intent here is to
-allow network applications and devices using OVS to be able
-<br>
-to easily take advantage of features offered by industry
-standard SPB networks. A fundamental element of the
-Auto-Attach feature is to map traditional VLANs onto SPB
-I_SIDs. <br>
-These commands manage the Auto-Attach I-SID/VLAN
-mappings.</p>
-
-<p style="margin-top: 1em">add-aa-mapping bridge i-sid vlan
-<br>
-Creates a new Auto-Attach mapping on bridge for i-sid and
-vlan.</p>
-
-<p style="margin-top: 1em">del-aa-mapping bridge i-sid vlan
-<br>
-Deletes an Auto-Attach mapping on bridge for i-sid and
-vlan.</p>
-
-<p style="margin-top: 1em">get-aa-mapping bridge <br>
-Lists all of the Auto-Attach mappings within bridge on
-standard output.</p>
-
-<p style="margin-top: 1em">Database Commands <br>
-These commands query and modify the contents of ovsdb
-tables. They are a slight abstraction of the ovsdb interface
-and as such they operate at a lower level than other
-ovs-vsctl <br>
-commands.</p>
-
-<p style="margin-top: 1em">Identifying Tables, Records, and
-Columns</p>
-
-<p style="margin-top: 1em">Each of these commands has a
-table parameter to identify a table within the database.
-Many of them also take a record parameter that identifies a
-particular record within a ta&acirc; <br>
-ble. The record parameter may be the UUID for a record, and
-many tables offer additional ways to identify records. Some
-commands also take column parameters that identify a <br>
-particular field within the records in a table.</p>
-
-<p style="margin-top: 1em">The following tables are
-currently defined:</p>
-
-<p style="margin-top: 1em">Open_vSwitch <br>
-Global configuration for an ovs-vswitchd. This table
-contains exactly one record, identified by specifying . as
-the record name.</p>
-
-<p style="margin-top: 1em">Bridge Configuration for a
-bridge within an Open vSwitch. Records may be identified by
-bridge name.</p>
-
-<p style="margin-top: 1em">Port A bridge port. Records may
-be identified by port name.</p>
-
-<p style="margin-top: 1em">Interface <br>
-A network device attached to a port. Records may be
-identified by name.</p>
-
-<p style="margin-top: 1em">Flow_Table <br>
-Configuration for a particular OpenFlow flow table. Records
-may be identified by name.</p>
-
-<p style="margin-top: 1em">QoS Quality-of-service
-configuration for a Port. Records may be identified by port
-name.</p>
-
-<p style="margin-top: 1em">Queue Configuration for one
-queue within a QoS configuration. Records may only be
-identified by UUID.</p>
-
-<p style="margin-top: 1em">Mirror A port mirroring
-configuration attached to a bridge. Records may be
-identified by mirror name.</p>
-
-<p style="margin-top: 1em">Controller <br>
-Configuration for an OpenFlow controller. A controller
-attached to a particular bridge may be identified by the
-bridge&rsquo;s name.</p>
-
-<p style="margin-top: 1em">Manager <br>
-Configuration for an OVSDB connection. Records may be
-identified by target (e.g. tcp:1.2.3.4).</p>
-
-<p style="margin-top: 1em">NetFlow <br>
-A NetFlow configuration attached to a bridge. Records may be
-identified by bridge name.</p>
-
-<p style="margin-top: 1em">SSL The global SSL configuration
-for ovs-vswitchd. The record attached to the Open_vSwitch
-table may be identified by specifying . as the record
-name.</p>
-
-<p style="margin-top: 1em">sFlow An sFlow exporter
-configuration attached to a bridge. Records may be
-identified by bridge name.</p>
-
-<p style="margin-top: 1em">IPFIX An IPFIX exporter
-configuration attached to a bridge. Records may be
-identified by bridge name.</p>
-
-<p style="margin-top: 1em">Flow_Sample_Collector_Set <br>
-An IPFIX exporter configuration attached to a bridge for
-sampling packets on a per-flow basis using OpenFlow sample
-actions.</p>
-
-<p style="margin-top: 1em">AutoAttach <br>
-Configuration for Auto Attach within a bridge.</p>
-
-<p style="margin-top: 1em">Record names must be specified
-in full and with correct capitalization. Names of tables and
-columns are not case-sensitive, and -- and _ are treated
-interchangeably. Unique <br>
-abbreviations are acceptable, e.g. net or n is sufficient to
-identify the NetFlow table.</p>
-
-<p style="margin-top: 1em">Database Values</p>
-
-<p style="margin-top: 1em">Each column in the database
-accepts a fixed type of data. The currently defined basic
-types, and their representations, are:</p>
-
-<p style="margin-top: 1em">integer <br>
-A decimal integer in the range -2**63 to 2**63-1,
-inclusive.</p>
-
-<p style="margin-top: 1em">real A floating-point
-number.</p>
-
-<p style="margin-top: 1em">Boolean <br>
-True or false, written true or false, respectively.</p>
-
-<p style="margin-top: 1em">string An arbitrary Unicode
-string, except that null bytes are not allowed. Quotes are
-optional for most strings that begin with an English letter
-or underscore and consist only <br>
-of letters, underscores, hyphens, and periods. However, true
-and false and strings that match the syntax of UUIDs (see
-below) must be enclosed in double quotes to distin&acirc;
-<br>
-guish them from other basic types. When double quotes are
-used, the syntax is that of strings in JSON, e.g.
-backslashes may be used to escape special characters. The
-<br>
-empty string must be represented as a pair of double quotes
-(&quot;&quot;).</p>
-
-<p style="margin-top: 1em">UUID Either a universally unique
-identifier in the style of RFC 4122, e.g.
-f81d4fae-7dec-11d0-a765-00a0c91e6bf6, or an @name defined by
-a get or create command within the same <br>
-ovs-vsctl invocation.</p>
-
-<p style="margin-top: 1em">Multiple values in a single
-column may be separated by spaces or a single comma. When
-multiple values are present, duplicates are not allowed, and
-order is not important. Con&acirc; <br>
-versely, some database columns can have an empty set of
-values, represented as [], and square brackets may
-optionally enclose other non-empty sets or single values as
-well. For a <br>
-column accepting a set of integers, database commands accept
-a range. A range is represented by two integers separated by
--. A range is inclusive. A range has a maximum size of <br>
-4096 elements. If more elements are needed, they can be
-specified in seperate ranges.</p>
-
-<p style="margin-top: 1em">A few database columns are
-&lsquo;&lsquo;maps&rsquo;&rsquo; of key-value pairs, where
-the key and the value are each some fixed database type.
-These are specified in the form key=value, where key and
-<br>
-value follow the syntax for the column&rsquo;s key type and
-value type, respectively. When multiple pairs are present
-(separated by spaces or a comma), duplicate keys are not
-allowed, <br>
-and again the order is not important. Duplicate values are
-allowed. An empty map is represented as {}. Curly braces may
-optionally enclose non-empty maps as well (but use <br>
-quotes to prevent the shell from expanding
-other-config={0=x,1=y} into other-config=0=x
-other-config=1=y, which may not have the desired
-effect).</p>
-
-<p style="margin-top: 1em">Database Command Syntax</p>
-
-<p style="margin-top: 1em">[--if-exists]
-[--columns=column[,column]...] list table [record]... <br>
-Lists the data in each specified record. If no records are
-specified, lists all the records in table.</p>
-
-<p style="margin-top: 1em">If --columns is specified, only
-the requested columns are listed, in the specified order.
-Otherwise, all columns are listed, in alphabetical order by
-column name.</p>
-
-<p style="margin-top: 1em">Without --if-exists, it is an
-error if any specified record does not exist. With
---if-exists, the command ignores any record that does not
-exist, without producing any <br>
-output.</p>
-
-<p style="margin-top: 1em">[--columns=column[,column]...]
-find table [column[:key]=value]... <br>
-Lists the data in each record in table whose column equals
-value or, if key is specified, whose column contains a key
-with the specified value. The following operators <br>
-may be used where = is written in the syntax summary:</p>
-
-<p style="margin-top: 1em">= != &lt; &gt; &lt;= &gt;= <br>
-Selects records in which column[:key] equals, does not
-equal, is less than, is greater than, is less than or equal
-to, or is greater than or equal to value, respec&acirc; <br>
-tively.</p>
-
-<p style="margin-top: 1em">Consider column[:key] and value
-as sets of elements. Identical sets are considered equal.
-Otherwise, if the sets have different numbers of elements,
-then the set <br>
-with more elements is considered to be larger. Otherwise,
-consider a element from each set pairwise, in increasing
-order within each set. The first pair that dif&acirc; <br>
-fers determines the result. (For a column that contains
-key-value pairs, first all the keys are compared, and values
-are considered only if the two sets contain <br>
-identical keys.)</p>
-
-<p style="margin-top: 1em">{=} {!=} <br>
-Test for set equality or inequality, respectively.</p>
-
-<p style="margin-top: 1em">{&lt;=} Selects records in which
-column[:key] is a subset of value. For example,
-flood-vlans{&lt;=}1,2 selects records in which the
-flood-vlans column is the empty set or <br>
-contains 1 or 2 or both.</p>
-
-<p style="margin-top: 1em">{&lt;} Selects records in which
-column[:key] is a proper subset of value. For example,
-flood-vlans{&lt;}1,2 selects records in which the
-flood-vlans column is the empty set <br>
-or contains 1 or 2 but not both.</p>
-
-<p style="margin-top: 1em">{&gt;=} {&gt;} <br>
-Same as {&lt;=} and {&lt;}, respectively, except that the
-relationship is reversed. For example, flood-vlans{&gt;=}1,2
-selects records in which the flood-vlans column con&acirc;
-<br>
-tains both 1 and 2.</p>
-
-<p style="margin-top: 1em">For arithmetic operators (= !=
-&lt; &gt; &lt;= &gt;=), when key is specified but a
-particular record&rsquo;s column does not contain key, the
-record is always omitted from the results. <br>
-Thus, the condition other-config:mtu!=1500 matches records
-that have a mtu key whose value is not 1500, but not those
-that lack an mtu key.</p>
-
-<p style="margin-top: 1em">For the set operators, when key
-is specified but a particular record&rsquo;s column does not
-contain key, the comparison is done against an empty set.
-Thus, the condition <br>
-other-config:mtu{!=}1500 matches records that have a mtu key
-whose value is not 1500 and those that lack an mtu key.</p>
-
-<p style="margin-top: 1em">Don&rsquo;t forget to escape
-&lt; or &gt; from interpretation by the shell.</p>
-
-<p style="margin-top: 1em">If --columns is specified, only
-the requested columns are listed, in the specified order.
-Otherwise all columns are listed, in alphabetical order by
-column name.</p>
-
-<p style="margin-top: 1em">The UUIDs shown for rows created
-in the same ovs-vsctl invocation will be wrong.</p>
-
-<p style="margin-top: 1em">[--if-exists] [--id=@name] get
-table record [column[:key]]... <br>
-Prints the value of each specified column in the given
-record in table. For map columns, a key may optionally be
-specified, in which case the value associated with key in
-<br>
-the column is printed, instead of the entire map.</p>
-
-<p style="margin-top: 1em">Without --if-exists, it is an
-error if record does not exist or key is specified, if key
-does not exist in record. With --if-exists, a missing record
-yields no output and <br>
-a missing key prints a blank line.</p>
-
-<p style="margin-top: 1em">If @name is specified, then the
-UUID for record may be referred to by that name later in the
-same ovs-vsctl invocation in contexts where a UUID is
-expected.</p>
-
-<p style="margin-top: 1em">Both --id and the column
-arguments are optional, but usually at least one or the
-other should be specified. If both are omitted, then get has
-no effect except to verify <br>
-that record exists in table.</p>
-
-<p style="margin-top: 1em">--id and --if-exists cannot be
-used together.</p>
-
-<p style="margin-top: 1em">[--if-exists] set table record
-column[:key]=value... <br>
-Sets the value of each specified column in the given record
-in table to value. For map columns, a key may optionally be
-specified, in which case the value associated with <br>
-key in that column is changed (or added, if none exists),
-instead of the entire map.</p>
-
-<p style="margin-top: 1em">Without --if-exists, it is an
-error if record does not exist. With --if-exists, this
-command does nothing if record does not exist.</p>
-
-<p style="margin-top: 1em">[--if-exists] add table record
-column [key=]value... <br>
-Adds the specified value or key-value pair to column in
-record in table. If column is a map, then key is required,
-otherwise it is prohibited. If key already exists in a <br>
-map column, then the current value is not replaced (use the
-set command to replace an existing value).</p>
-
-<p style="margin-top: 1em">Without --if-exists, it is an
-error if record does not exist. With --if-exists, this
-command does nothing if record does not exist.</p>
-
-<p style="margin-top: 1em">[--if-exists] remove table
-record column value... <br>
-[--if-exists] remove table record column key... <br>
-[--if-exists] remove table record column key=value... <br>
-Removes the specified values or key-value pairs from column
-in record in table. The first form applies to columns that
-are not maps: each specified value is removed from <br>
-the column. The second and third forms apply to map columns:
-if only a key is specified, then any key-value pair with the
-given key is removed, regardless of its value; <br>
-if a value is given then a pair is removed only if both key
-and value match.</p>
-
-<p style="margin-top: 1em">It is not an error if the column
-does not contain the specified key or value or pair.</p>
-
-<p style="margin-top: 1em">Without --if-exists, it is an
-error if record does not exist. With --if-exists, this
-command does nothing if record does not exist.</p>
-
-<p style="margin-top: 1em">[--if-exists] clear table record
-column... <br>
-Sets each column in record in table to the empty set or
-empty map, as appropriate. This command applies only to
-columns that are allowed to be empty.</p>
-
-<p style="margin-top: 1em">Without --if-exists, it is an
-error if record does not exist. With --if-exists, this
-command does nothing if record does not exist.</p>
-
-<p style="margin-top: 1em">[--id=@name] create table
-column[:key]=value... <br>
-Creates a new record in table and sets the initial values of
-each column. Columns not explicitly set will receive their
-default values. Outputs the UUID of the new row.</p>
-
-<p style="margin-top: 1em">If @name is specified, then the
-UUID for the new row may be referred to by that name
-elsewhere in the same ovs-vsctl invocation in contexts where
-a UUID is expected. Such <br>
-references may precede or follow the create command.</p>
-
-<p style="margin-top: 1em">Caution (ovs-vsctl as exmaple)
-<br>
-Records in the Open vSwitch database are significant only
-when they can be reached directly or indirectly from the
-Open_vSwitch table. Except for records in the <br>
-QoS or Queue tables, records that are not reachable from the
-Open_vSwitch table are automatically deleted from the
-database. This deletion happens immediately, <br>
-without waiting for additional ovs-vsctl commands or other
-database activity. Thus, a create command must generally be
-accompanied by additional commands within <br>
-the same ovs-vsctl invocation to add a chain of references
-to the newly created record from the top-level Open_vSwitch
-record. The EXAMPLES section gives some <br>
-examples that show how to do this.</p>
-
-<p style="margin-top: 1em">[--if-exists] destroy table
-record... <br>
-Deletes each specified record from table. Unless --if-exists
-is specified, each records must exist.</p>
-
-<p style="margin-top: 1em">--all destroy table <br>
-Deletes all records from the table.</p>
-
-<p style="margin-top: 1em">Caution (ovs-vsctl as exmaple)
-<br>
-The destroy command is only useful for records in the QoS or
-Queue tables. Records in other tables are automatically
-deleted from the database when they become <br>
-unreachable from the Open_vSwitch table. This means that
-deleting the last reference to a record is sufficient for
-deleting the record itself. For records in <br>
-these tables, destroy is silently ignored. See the EXAMPLES
-section below for more information.</p>
-
-<p style="margin-top: 1em">wait-until table record
-[column[:key]=value]... <br>
-Waits until table contains a record named record whose
-column equals value or, if key is specified, whose column
-contains a key with the specified value. Any of the
-oper&acirc; <br>
-ators !=, &lt;, &gt;, &lt;=, or &gt;= may be substituted for
-= to test for inequality, less than, greater than, less than
-or equal to, or greater than or equal to, respectively. <br>
-(Don&rsquo;t forget to escape &lt; or &gt; from
-interpretation by the shell.)</p>
-
-<p style="margin-top: 1em">If no column[:key]=value
-arguments are given, this command waits only until record
-exists. If more than one such argument is given, the command
-waits until all of them <br>
-are satisfied.</p>
-
-<p style="margin-top: 1em">Caution (ovs-vsctl as exmaple)
-<br>
-Usually wait-until should be placed at the beginning of a
-set of ovs-vsctl commands. For example, wait-until bridge
-br0 -- get bridge br0 datapath_id waits until a <br>
-bridge named br0 is created, then prints its datapath_id
-column, whereas get bridge br0 datapath_id -- wait-until
-bridge br0 will abort if no bridge named br0 <br>
-exists when ovs-vsctl initially connects to the
-database.</p>
-
-<p style="margin-top: 1em">Consider specifying --timeout=0
-along with --wait-until, to prevent ovs-vsctl from
-terminating after waiting only at most 5 seconds.</p>
-
-<p style="margin-top: 1em">comment [arg]... <br>
-This command has no effect on behavior, but any database log
-record created by the command will include the command and
-its arguments.</p>
-
-<p style="margin-top: 1em">EXAMPLES <br>
-Create a new bridge named br0 and add port eth0 to it:</p>
-
-<p style="margin-top: 1em">ovs-vsctl add-br br0 <br>
-ovs-vsctl add-port br0 eth0</p>
-
-<p style="margin-top: 1em">Alternatively, perform both
-operations in a single atomic transaction:</p>
-
-<p style="margin-top: 1em">ovs-vsctl add-br br0 -- add-port
-br0 eth0</p>
-
-<p style="margin-top: 1em">Delete bridge br0, reporting an
-error if it does not exist:</p>
-
-<p style="margin-top: 1em">ovs-vsctl del-br br0</p>
-
-<p style="margin-top: 1em">Delete bridge br0 if it
-exists:</p>
-
-<p style="margin-top: 1em">ovs-vsctl --if-exists del-br
-br0</p>
-
-<p style="margin-top: 1em">Set the qos column of the Port
-record for eth0 to point to a new QoS record, which in turn
-points with its queue 0 to a new Queue record:</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- set port eth0
-qos=@newqos -- --id=@newqos create qos type=linux-htb
-other-config:max-rate=1000000 queues:0=@newqueue --
---id=@newqueue create queue other-con&acirc; <br>
-fig:min-rate=1000000 other-config:max-rate=1000000</p>
-
-<p style="margin-top: 1em">CONFIGURATION COOKBOOK <br>
-Port Configuration <br>
-Add an &lsquo;&lsquo;internal port&rsquo;&rsquo; vlan10 to
-bridge br0 as a VLAN access port for VLAN 10, and configure
-it with an IP address:</p>
-
-<p style="margin-top: 1em">ovs-vsctl add-port br0 vlan10
-tag=10 -- set Interface vlan10 type=internal</p>
-
-<p style="margin-top: 1em">ifconfig vlan10
-192.168.0.123</p>
-
-<p style="margin-top: 1em">Add a GRE tunnel port gre0 to
-remote IP address 1.2.3.4 to bridge br0:</p>
-
-<p style="margin-top: 1em">ovs-vsctl add-port br0 gre0 --
-set Interface gre0 type=gre options:remote_ip=1.2.3.4</p>
-
-<p style="margin-top: 1em">Port Mirroring <br>
-Mirror all packets received or sent on eth0 or eth1 onto
-eth2, assuming that all of those ports exist on bridge br0
-(as a side-effect this causes any packets received on eth2
-to <br>
-be ignored):</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- set Bridge br0
-mirrors=@m <br>
--- --id=@eth0 get Port eth0 <br>
--- --id=@eth1 get Port eth1 <br>
--- --id=@eth2 get Port eth2 <br>
--- --id=@m create Mirror name=mymirror
-select-dst-port=@eth0,@eth1 select-src-port=@eth0,@eth1
-output-port=@eth2</p>
-
-<p style="margin-top: 1em">Remove the mirror created above
-from br0, which also destroys the Mirror record (since it is
-now unreferenced):</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- --id=@rec get
-Mirror mymirror <br>
--- remove Bridge br0 mirrors @rec</p>
-
-<p style="margin-top: 1em">The following simpler command
-also works:</p>
-
-<p style="margin-top: 1em">ovs-vsctl clear Bridge br0
-mirrors</p>
-
-<p style="margin-top: 1em">Quality of Service (QoS) <br>
-Create a linux-htb QoS record that points to a few queues
-and use it on eth0 and eth1:</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- set Port eth0
-qos=@newqos <br>
--- set Port eth1 qos=@newqos <br>
--- --id=@newqos create QoS type=linux-htb
-other-config:max-rate=1000000000 queues=0=@q0,1=@q1 <br>
--- --id=@q0 create Queue other-config:min-rate=100000000
-other-config:max-rate=100000000 <br>
--- --id=@q1 create Queue other-config:min-rate=500000000</p>
-
-<p style="margin-top: 1em">Deconfigure the QoS record above
-from eth1 only:</p>
-
-<p style="margin-top: 1em">ovs-vsctl clear Port eth1
-qos</p>
-
-<p style="margin-top: 1em">To deconfigure the QoS record
-from both eth0 and eth1 and then delete the QoS record
-(which must be done explicitly because unreferenced QoS
-records are not automatically <br>
-destroyed):</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- destroy QoS eth0 --
-clear Port eth0 qos -- clear Port eth1 qos</p>
-
-<p style="margin-top: 1em">(This command will leave two
-unreferenced Queue records in the database. To delete them,
-use &quot;ovs-vsctl list Queue&quot; to find their UUIDs,
-then &quot;ovs-vsctl destroy Queue uuid1 <br>
-uuid2&quot; to destroy each of them or use &quot;ovs-vsctl
--- --all destroy Queue&quot; to delete all records.)</p>
-
-<p style="margin-top: 1em">Connectivity Monitoring <br>
-Monitor connectivity to a remote maintenance point on
-eth0.</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Interface eth0
-cfm_mpid=1</p>
-
-<p style="margin-top: 1em">Deconfigure connectivity
-monitoring from above:</p>
-
-<p style="margin-top: 1em">ovs-vsctl clear Interface eth0
-cfm_mpid</p>
-
-<p style="margin-top: 1em">NetFlow <br>
-Configure bridge br0 to send NetFlow records to UDP port
-5566 on host 192.168.0.34, with an active timeout of 30
-seconds:</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- set Bridge br0
-netflow=@nf <br>
--- --id=@nf create NetFlow targets=</p>
-
-<p style="margin-top: 1em">Update the NetFlow configuration
-created by the previous command to instead use an active
-timeout of 60 seconds:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set NetFlow br0
-active_timeout=60</p>
-
-<p style="margin-top: 1em">Deconfigure the NetFlow settings
-from br0, which also destroys the NetFlow record (since it
-is now unreferenced):</p>
-
-<p style="margin-top: 1em">ovs-vsctl clear Bridge br0
-netflow</p>
-
-<p style="margin-top: 1em">sFlow <br>
-Configure bridge br0 to send sFlow records to a collector on
-10.0.0.1 at port 6343, using eth1&Acirc;&acute;s IP address
-as the source, with specific sampling parameters:</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- --id=@s create
-sFlow agent=eth1 target=</p>
-
-<p style="margin-top: 1em">-- set Bridge br0 sflow=@s</p>
-
-<p style="margin-top: 1em">Deconfigure sFlow from br0,
-which also destroys the sFlow record (since it is now
-unreferenced):</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- clear Bridge br0
-sflow</p>
-
-<p style="margin-top: 1em">IPFIX <br>
-Configure bridge br0 to send one IPFIX flow record per
-packet sample to UDP port 4739 on host 192.168.0.34, with
-Observation Domain ID 123 and Observation Point ID 456, a
-flow <br>
-cache active timeout of 1 minute (60 seconds), maximum flow
-cache size of 13 flows, and flows sampled on output port
-with tunnel info(sampling on input and output port is
-enabled <br>
-by default if not disabled) :</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- set Bridge br0
-ipfix=@i <br>
--- --id=@i create IPFIX targets=</p>
-
-
-<p style="margin-top: 1em">other_config:enable-input-sampling=false
-other_config:enable-tunnel-sampling=true</p>
-
-<p style="margin-top: 1em">Deconfigure the IPFIX settings
-from br0, which also destroys the IPFIX record (since it is
-now unreferenced):</p>
-
-<p style="margin-top: 1em">ovs-vsctl clear Bridge br0
-ipfix</p>
-
-<p style="margin-top: 1em">802.1D Spanning Tree Protocol
-(STP) <br>
-Configure bridge br0 to participate in an 802.1D spanning
-tree:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-stp_enable=true</p>
-
-<p style="margin-top: 1em">Set the bridge priority of br0
-to 0x7800:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:stp-priority=0x7800</p>
-
-<p style="margin-top: 1em">Set the path cost of port eth0
-to 10:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:stp-path-cost=10</p>
-
-<p style="margin-top: 1em">Deconfigure STP from above:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-stp_enable=false</p>
-
-<p style="margin-top: 1em">Multicast Snooping <br>
-Configure bridge br0 to enable multicast snooping:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-mcast_snooping_enable=true</p>
-
-<p style="margin-top: 1em">Set the multicast snooping aging
-time br0 to 300 seconds:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:mcast-snooping-aging-time=300</p>
-
-<p style="margin-top: 1em">Set the multicast snooping table
-size br0 to 2048 entries:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:mcast-snooping-table-size=2048</p>
-
-<p style="margin-top: 1em">Disable flooding of unregistered
-multicast packets to all ports. When set to true, the switch
-will send unregistered multicast packets only to ports
-connected to multicast <br>
-routers. When it is set to false, the switch will send them
-to all ports. This command disables the flood of
-unregistered packets on bridge br0.</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:mcast-snooping-disable-flood-unregistered=true</p>
-
-<p style="margin-top: 1em">Enable flooding of multicast
-packets (except Reports) on a specific port.</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth1
-other_config:mcast-snooping-flood=true</p>
-
-<p style="margin-top: 1em">Enable flooding of Reports on a
-specific port.</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth1
-other_config:mcast-snooping-flood-reports=true</p>
-
-<p style="margin-top: 1em">Deconfigure multicasting
-snooping from above:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-mcast_snooping_enable=false</p>
-
-<p style="margin-top: 1em">802.1D-2004 Rapid Spanning Tree
-Protocol (RSTP) <br>
-Configure bridge br0 to participate in an 802.1D-2004 Rapid
-Spanning Tree:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-rstp_enable=true</p>
-
-<p style="margin-top: 1em">Set the bridge address of br0 to
-00:aa:aa:aa:aa:aa :</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:rstp-address=00:aa:aa:aa:aa:aa</p>
-
-<p style="margin-top: 1em">Set the bridge priority of br0
-to 0x7000. The value must be specified in decimal notation
-and should be a multiple of 4096 (if not, it is rounded down
-to the nearest multiple of <br>
-4096). The default priority value is 0x800 (32768).</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:rstp-priority=28672</p>
-
-<p style="margin-top: 1em">Set the bridge ageing time of
-br0 to 1000 s. The ageing time value should be between 10 s
-and 1000000 s. The default value is 300 s.</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:rstp-ageing-time=1000</p>
-
-<p style="margin-top: 1em">Set the bridge force protocol
-version of br0 to 0. The force protocol version has two
-acceptable values: 0 (STP compatibility mode) and 2 (normal
-operation).</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:rstp-force-protocol-version=0</p>
-
-<p style="margin-top: 1em">Set the bridge max age of br0 to
-10 s. The max age value should be between 6 s and 40 s. The
-default value is 20 s.</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:rstp-max-age=10</p>
-
-<p style="margin-top: 1em">Set the bridge forward delay of
-br0 to 15 s. This value should be between 4 s and 30 s. The
-default value is 15 s.</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:rstp-forward-delay=15</p>
-
-<p style="margin-top: 1em">Set the bridge transmit hold
-count of br0 to 7 s. This value should be between 1 s and 10
-s. The default value is 6 s.</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-other_config:rstp-transmit-hold-count=7</p>
-
-<p style="margin-top: 1em">Enable RSTP on the Port
-eth0:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-enable=true</p>
-
-<p style="margin-top: 1em">Disable RSTP on the Port
-eth0:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-enable=false</p>
-
-<p style="margin-top: 1em">Set the priority of port eth0 to
-32. The value must be specified in decimal notation and
-should be a multiple of 16 (if not, it is rounded down to
-the nearest multiple of 16). <br>
-The default priority value is 0x80 (128).</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-port-priority=32</p>
-
-<p style="margin-top: 1em">Set the port number of port eth0
-to 3:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-port-num=3</p>
-
-<p style="margin-top: 1em">Set the path cost of port eth0
-to 150:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-path-cost=150</p>
-
-<p style="margin-top: 1em">Set the admin edge value of port
-eth0:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-port-admin-edge=true</p>
-
-<p style="margin-top: 1em">Set the auto edge value of port
-eth0:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-port-auto-edge=true</p>
-
-<p style="margin-top: 1em">Set the admin point to point MAC
-value of port eth0. Acceptable values are 0 (not
-point-to-point), 1 (point-to-point, the default value) or 2
-(automatic detection). The auto- <br>
-detection mode is not currently implemented, and the value 2
-has the same effect of 0 (not point-to-point).</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-admin-p2p-mac=1</p>
-
-<p style="margin-top: 1em">Set the admin port state value
-of port eth0. true is the default value.</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-admin-port-state=false</p>
-
-<p style="margin-top: 1em">Set the mcheck value of port
-eth0:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Port eth0
-other_config:rstp-port-mcheck=true</p>
-
-<p style="margin-top: 1em">Deconfigure RSTP from above:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set Bridge br0
-rstp_enable=false</p>
-
-<p style="margin-top: 1em">OpenFlow Version <br>
-Configure bridge br0 to support OpenFlow versions 1.0, 1.2,
-and 1.3:</p>
-
-<p style="margin-top: 1em">ovs-vsctl set bridge br0
-protocols=OpenFlow10,OpenFlow12,OpenFlow13</p>
-
-<p style="margin-top: 1em">Flow Table Configuration <br>
-Make flow table 0 on bridge br0 refuse to accept more than
-100 flows:</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- --id=@ft create
-Flow_Table flow_limit=100 overflow_policy=refuse -- set
-Bridge br0 flow_tables=0=@ft</p>
-
-<p style="margin-top: 1em">Make flow table 0 on bridge br0
-evict flows, with fairness based on the matched ingress
-port, when there are more than 100:</p>
-
-<p style="margin-top: 1em">ovs-vsctl -- --id=@ft create
-Flow_Table flow_limit=100 overflow_policy=evict
-groups=&rsquo;&quot;NXM_OF_IN_PORT[]&quot;&rsquo; -- set
-Bridge br0 flow_tables:0=@ft</p>
-
-<p style="margin-top: 1em">EXIT STATUS <br>
-0 Successful program execution.</p>
-
-<p style="margin-top: 1em">1 Usage, syntax, or
-configuration file error.</p>
-
-<p style="margin-top: 1em">2 The bridge argument to
-br-exists specified the name of a bridge that does not
-exist.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-ovsdb-server(1), ovs-vswitchd(8),
-ovs-vswitchd.conf.db(5).</p>
-
-<p style="margin-top: 1em">Open vSwitch 2.7.0
-ovs-vsctl(8)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">ovs-vsctl(8)</td>
+    <td class="head-vol">Open vSwitch Manual</td>
+    <td class="head-rtitle">ovs-vsctl(8)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+ovs-vsctl - utility for querying and configuring <b>ovs-vswitchd</b>
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<b>ovs-vsctl</b> [<i>options</i>] <b>--</b> [<i>options</i>] <i>command</i>
+  <i></i>[ <i>args</i>] [<b>--</b> [<i>options</i>] <i>command
+  </i>[<i>args</i>]]...
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+The <b>ovs-vsctl</b> program configures <b>ovs-vswitchd</b>(8) by providing a
+  high-level interface to its configuration database. See
+  <b>ovs-vswitchd.conf.db</b>(5) for comprehensive documentation of the database
+  schema.
+<div class="Pp"></div>
+<b>ovs-vsctl</b> connects to an <b>ovsdb-server</b> process that maintains an
+  Open vSwitch configuration database. Using this connection, it queries and
+  possibly applies changes to the database, depending on the supplied commands.
+  Then, if it applied any changes, by default it waits until <b>ovs-vswitchd</b>
+  has finished reconfiguring itself before it exits. (If you use
+  <b>ovs-vsctl</b> when <b>ovs-vswitchd</b> is not running, use
+  <b>--no-wait</b>.)
+<div class="Pp"></div>
+<b>ovs-vsctl</b> can perform any number of commands in a single run, implemented
+  as a single atomic transaction against the database.
+<div class="Pp"></div>
+The <b>ovs-vsctl</b> command line begins with global options (see <b>OPTIONS</b>
+  below for details). The global options are followed by one or more commands.
+  Each command should begin with <b>--</b> by itself as a command-line argument,
+  to separate it from the following commands. (The <b>--</b> before the first
+  command is optional.) The command itself starts with command-specific options,
+  if any, followed by the command name and any arguments. See <b>EXAMPLES</b>
+  below for syntax examples.
+<h2 class="Ss" title="Ss" id="Linux_VLAN_Bridging_Compatibility"><a class="selflink" href="#Linux_VLAN_Bridging_Compatibility">Linux
+  VLAN Bridging Compatibility</a></h2>
+The <b>ovs-vsctl</b> program supports the model of a bridge implemented by Open
+  vSwitch, in which a single bridge supports ports on multiple VLANs. In this
+  model, each port on a bridge is either a trunk port that potentially passes
+  packets tagged with 802.1Q headers that designate VLANs or it is assigned a
+  single implicit VLAN that is never tagged with an 802.1Q header.
+<div class="Pp"></div>
+For compatibility with software designed for the Linux bridge, <b>ovs-vsctl</b>
+  also supports a model in which traffic associated with a given 802.1Q VLAN is
+  segregated into a separate bridge. A special form of the <b>add-br</b> command
+  (see below) creates a ``fake bridge'' within an Open vSwitch bridge to
+  simulate this behavior. When such a ``fake bridge'' is active,
+  <b>ovs-vsctl</b> will treat it much like a bridge separate from its ``parent
+  bridge,'' but the actual implementation in Open vSwitch uses only a single
+  bridge, with ports on the fake bridge assigned the implicit VLAN of the fake
+  bridge of which they are members. (A fake bridge for VLAN 0 receives packets
+  that have no 802.1Q tag or a tag with VLAN 0.)
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+The following options affect the behavior <b>ovs-vsctl</b> as a whole. Some
+  individual commands also accept their own options, which are given just before
+  the command name. If the first command on the command line has options, then
+  those options must be separated from the global options by <b>--</b>.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--db=</b><i>server</i></dt>
+  <dd class="It-tag">Sets <i>server</i> as the database server that
+      <b>ovs-vsctl</b> contacts to query or modify configuration. The default is
+      <b>unix:/var/run/openvswitch/db.sock</b>. <i>server</i> must take one of
+      the following forms:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ssl:</b><i>ip</i><b>:</b><i>port</i></dt>
+  <dd class="It-tag">The specified SSL <i>port</i> on the host at the given
+      <i>ip</i>, which must be expressed as an IP address (not a DNS name) in
+      IPv4 or IPv6 address format. If <i>ip</i> is an IPv6 address, then wrap
+      <i>ip</i> with square brackets, e.g.: <b>ssl:[::1]:6640</b>. The
+      <b>--private-key</b>, <b>--certificate</b>, and <b>--ca-cert</b> options
+      are mandatory when this form is used.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>tcp:</b><i>ip</i><b>:</b><i>port</i></dt>
+  <dd class="It-tag">Connect to the given TCP <i>port</i> on <i>ip</i>, where
+      <i>ip</i> can be IPv4 or IPv6 address. If <i>ip</i> is an IPv6 address,
+      then wrap <i>ip</i> with square brackets, e.g.:
+    <b>tcp:[::1]:6640</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>unix:</b><i>file</i></dt>
+  <dd class="It-tag">On POSIX, connect to the Unix domain server socket named
+      <i>file</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">On Windows, connect to a local named pipe that is
+      represented by a file created in the path <i>file</i> to mimic the
+      behavior of a Unix domain socket.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>pssl:</b><i>port</i>[<b>:</b><i>ip</i>]</dt>
+  <dd class="It-tag">Listen on the given SSL <i>port</i> for a connection. By
+      default, connections are not bound to a particular local IP address and it
+      listens only on IPv4 (but not IPv6) addresses, but specifying <i>ip</i>
+      limits connections to those from the given <i>ip</i>, either IPv4 or IPv6
+      address. If <i>ip</i> is an IPv6 address, then wrap <i>ip</i> with square
+      brackets, e.g.: <b>pssl:6640:[::1]</b>. The <b>--private-key</b>,
+      <b>--certificate</b>, and <b>--ca-cert</b> options are mandatory when this
+      form is used.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ptcp:</b><i>port</i>[<b>:</b><i>ip</i>]</dt>
+  <dd class="It-tag">Listen on the given TCP <i>port</i> for a connection. By
+      default, connections are not bound to a particular local IP address and it
+      listens only on IPv4 (but not IPv6) addresses, but <i>ip</i> may be
+      specified to listen only for connections to the given <i>ip</i>, either
+      IPv4 or IPv6 address. If <i>ip</i> is an IPv6 address, then wrap <i>ip</i>
+      with square brackets, e.g.: <b>ptcp:6640:[::1]</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>punix:</b><i>file</i></dt>
+  <dd class="It-tag">On POSIX, listen on the Unix domain server socket named
+      <i>file</i> for a connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">On Windows, listen on a local named pipe. A file is created
+      in the path <i>file</i> to mimic the behavior of a Unix domain
+    socket.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-wait</b></dt>
+  <dd class="It-tag">Prevents <b>ovs-vsctl</b> from waiting for
+      <b>ovs-vswitchd</b> to reconfigure itself according to the modified
+      database. This option should be used if <b>ovs-vswitchd</b> is not
+      running; otherwise, <b>ovs-vsctl</b> will not exit until
+      <b>ovs-vswitchd</b> starts.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">This option has no effect if the commands specified do not
+      change the database.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-syslog</b></dt>
+  <dd class="It-tag">By default, <b>ovs-vsctl</b> logs its arguments and the
+      details of any changes that it makes to the system log. This option
+      disables this logging.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">This option is equivalent to
+      <b>--verbose=vsctl:syslog:warn</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--oneline</b></dt>
+  <dd class="It-tag">Modifies the output format so that the output for each
+      command is printed on a single line. New-line characters that would
+      otherwise separate lines are printed as <b>\n</b>, and any instances of
+      <b>\</b> that would otherwise appear in the output are doubled. Prints a
+      blank line for each command that has no output. This option does not
+      affect the formatting of output from the <b>list</b> or <b>find</b>
+      commands; see <b>Table Formatting Options</b> below.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--dry-run</b></dt>
+  <dd class="It-tag">Prevents <b>ovs-vsctl</b> from actually modifying the
+      database.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-t </b><i>secs</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--timeout=</b><i>secs</i></dt>
+  <dd class="It-tag">By default, or with a <i>secs</i> of <b>0</b>,
+      <b>ovs-vsctl</b> waits forever for a response from the database. This
+      option limits runtime to approximately <i>secs</i> seconds. If the timeout
+      expires, <b>ovs-vsctl</b> will exit with a <b>SIGALRM</b> signal. (A
+      timeout would normally happen only if the database cannot be contacted, or
+      if the system is overloaded.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--retry</b></dt>
+  <dd class="It-tag">Without this option, if <b>ovs-vsctl</b> connects outward
+      to the database server (the default) then <b>ovs-vsctl</b> will try to
+      connect once and exit with an error if the connection fails (which usually
+      means that <b>ovsdb-server</b> is not running).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">With this option, or if <b>--db</b> specifies that
+      <b>ovs-vsctl</b> should listen for an incoming connection from the
+      database server, then <b>ovs-vsctl</b> will wait for a connection to the
+      database forever.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Regardless of this setting, <b>--timeout</b> always limits
+      how long <b>ovs-vsctl</b> will wait.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Table_Formatting_Options"><a class="selflink" href="#Table_Formatting_Options">Table
+  Formatting Options</a></h2>
+These options control the format of output from the <b>list</b> and <b>find</b>
+  commands.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-f </b><i>format</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--format=</b><i>format</i></dt>
+  <dd class="It-tag">Sets the type of table formatting. The following types of
+      <i>format</i> are available:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>table</b></dt>
+  <dd class="It-tag">2-D text tables with aligned columns.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>list</b> (default)</dt>
+  <dd class="It-tag">A list with one column per line and rows separated by a
+      blank line.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>html</b></dt>
+  <dd class="It-tag">HTML tables.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>csv</b></dt>
+  <dd class="It-tag">Comma-separated values as defined in RFC 4180.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>json</b></dt>
+  <dd class="It-tag">JSON format as defined in RFC 4627. The output is a
+      sequence of JSON objects, each of which corresponds to one table. Each
+      JSON object has the following members with the noted values:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>caption</b></dt>
+  <dd class="It-tag">The table's caption. This member is omitted if the table
+      has no caption.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>headings</b></dt>
+  <dd class="It-tag">An array with one element per table column. Each array
+      element is a string giving the corresponding column's heading.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>data</b></dt>
+  <dd class="It-tag">An array with one element per table row. Each element is
+      also an array with one element per table column. The elements of this
+      second-level array are the cells that constitute the table. Cells that
+      represent OVSDB data or data types are expressed in the format described
+      in the OVSDB specification; other cells are simply expressed as text
+      strings.</dd>
+</dl>
+</div>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-d </b><i>format</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--data=</b><i>format</i></dt>
+  <dd class="It-tag">Sets the formatting for cells within output tables. The
+      following types of <i>format</i> are available:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>string</b> (default)</dt>
+  <dd class="It-tag">The simple format described in the <b>Database Values</b>
+      section below.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>bare</b></dt>
+  <dd class="It-tag">The simple format with punctuation stripped off: <b>[]</b>
+      and <b>{}</b> are omitted around sets, maps, and empty columns, items
+      within sets and maps are space-separated, and strings are never quoted.
+      This format may be easier for scripts to parse.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>json</b></dt>
+  <dd class="It-tag">JSON.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">The <b>json</b> output format always outputs cells in JSON
+      format, ignoring this option.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--no-heading</b></dt>
+  <dd class="It-tag">This option suppresses the heading row that otherwise
+      appears in the first row of table output.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--pretty</b></dt>
+  <dd class="It-tag">By default, JSON in output is printed as compactly as
+      possible. This option causes JSON in output to be printed in a more
+      readable fashion. Members of objects and elements of arrays are printed
+      one per line, with indentation.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">This option does not affect JSON in tables, which is always
+      printed compactly.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--bare</b></dt>
+  <dd class="It-tag">Equivalent to <b>--format=list --data=bare
+      --no-headings</b>.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Public_Key_Infrastructure_Options"><a class="selflink" href="#Public_Key_Infrastructure_Options">Public
+  Key Infrastructure Options</a></h2>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-p</b> <i>privkey.pem</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--private-key=</b><i>privkey.pem</i></dt>
+  <dd class="It-tag">Specifies a PEM file containing the private key used as
+      <b>ovs-vsctl</b>'s identity for outgoing SSL connections.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-c</b> <i>cert.pem</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--certificate=</b><i>cert.pem</i></dt>
+  <dd class="It-tag">Specifies a PEM file containing a certificate that
+      certifies the private key specified on <b>-p</b> or <b>--private-key</b>
+      to be trustworthy. The certificate must be signed by the certificate
+      authority (CA) that the peer in SSL connections will use to verify
+    it.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-C</b> <i>cacert.pem</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--ca-cert=</b><i>cacert.pem</i></dt>
+  <dd class="It-tag">Specifies a PEM file containing the CA certificate that
+      <b>ovs-vsctl</b> should use to verify certificates presented to it by SSL
+      peers. (This may be the same certificate that SSL peers use to verify the
+      certificate specified on <b>-c</b> or <b>--certificate</b>, or it may be a
+      different one, depending on the PKI design in use.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-C none</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--ca-cert=none</b></dt>
+  <dd class="It-tag">Disables verification of certificates presented by SSL
+      peers. This introduces a security risk, because it means that certificates
+      cannot be verified to be those of known trusted hosts.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--bootstrap-ca-cert=</b><i>cacert.pem</i></dt>
+  <dd class="It-tag">When <i>cacert.pem</i> exists, this option has the same
+      effect as <b>-C</b> or <b>--ca-cert</b>. If it does not exist, then
+      <b>ovs-vsctl</b> will attempt to obtain the CA certificate from the SSL
+      peer on its first SSL connection and save it to the named PEM file. If it
+      is successful, it will immediately drop the connection and reconnect, and
+      from then on all SSL connections must be authenticated by a certificate
+      signed by the CA certificate thus obtained.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>This option exposes the SSL connection to a
+      man-in-the-middle</b> <b>attack obtaining the initial CA certificate</b>,
+      but it may be useful for bootstrapping.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">This option is only useful if the SSL peer sends its CA
+      certificate as part of the SSL certificate chain. The SSL protocol does
+      not require the server to send the CA certificate.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">This option is mutually exclusive with <b>-C</b> and
+      <b>--ca-cert</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--peer-ca-cert=</b><i>peer-cacert.pem</i></dt>
+  <dd class="It-tag">Specifies a PEM file that contains one or more additional
+      certificates to send to SSL peers. <i>peer-cacert.pem</i> should be the CA
+      certificate used to sign <b>ovs-vsctl</b>'s own certificate, that is, the
+      certificate specified on <b>-c</b> or <b>--certificate</b>. If
+      <b>ovs-vsctl</b>'s certificate is self-signed, then <b>--certificate</b>
+      and <b>--peer-ca-cert</b> should specify the same file.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">This option is not useful in normal operation, because the
+      SSL peer must already have the CA certificate for the peer to have any
+      confidence in <b>ovs-vsctl</b>'s identity. However, this offers a way for
+      a new installation to bootstrap the CA certificate on its first SSL
+      connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-v</b>[<i>spec</i>]</dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--verbose=</b>[<i>spec</i>]</dt>
+  <dd class="It-tag">Sets logging levels. Without any <i>spec</i>, sets the log
+      level for every module and destination to <b>dbg</b>. Otherwise,
+      <i>spec</i> is a list of words separated by spaces or commas or colons, up
+      to one from each category below:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A valid module name, as displayed by the <b>vlog/list</b>
+      command on <b>ovs-appctl</b>(8), limits the log level change to the
+      specified module.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag"><b>syslog</b>, <b>console</b>, or <b>file</b>, to limit the
+      log level change to only to the system log, to the console, or to a file,
+      respectively. (If <b>--detach</b> is specified, <b>ovs-vsctl</b> closes
+      its standard file descriptors, so logging to the console will have no
+      effect.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">On Windows platform, <b>syslog</b> is accepted as a word
+      and is only useful along with the <b>--syslog-target</b> option (the word
+      has no effect otherwise).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag"><b>off</b>, <b>emer</b>, <b>err</b>, <b>warn</b>,
+      <b>info</b>, or <b>dbg</b>, to control the log level. Messages of the
+      given severity or higher will be logged, and messages of lower severity
+      will be filtered out. <b>off</b> filters out all messages. See
+      <b>ovs-appctl</b>(8) for a definition of each log level.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Case is not significant within <i>spec</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Regardless of the log levels set for <b>file</b>, logging
+      to a file will not take place unless <b>--log-file</b> is also specified
+      (see below).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">For compatibility with older versions of OVS, <b>any</b> is
+      accepted as a word but has no effect.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-v</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--verbose</b></dt>
+  <dd class="It-tag">Sets the maximum logging verbosity level, equivalent to
+      <b>--verbose=dbg</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-vPATTERN:</b><i>destination</i><b>:</b><i>pattern</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--verbose=PATTERN:</b><i>destination</i><b>:</b><i>pattern</i></dt>
+  <dd class="It-tag">Sets the log pattern for <i>destination</i> to
+      <i>pattern</i>. Refer to <b>ovs-appctl</b>(8) for a description of the
+      valid syntax for <i>pattern</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-vFACILITY:</b><i>facility</i></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--verbose=FACILITY:</b><i>facility</i></dt>
+  <dd class="It-tag">Sets the RFC5424 facility of the log message.
+      <i>facility</i> can be one of <b>kern</b>, <b>user</b>, <b>mail</b>,
+      <b>daemon</b>, <b>auth</b>, <b>syslog</b>, <b>lpr</b>, <b>news</b>,
+      <b>uucp</b>, <b>clock</b>, <b>ftp</b>, <b>ntp</b>, <b>audit</b>,
+      <b>alert</b>, <b>clock2</b>, <b>local0</b>, <b>local1</b>, <b>local2</b>,
+      <b>local3</b>, <b>local4</b>, <b>local5</b>, <b>local6</b> or
+      <b>local7</b>. If this option is not specified, <b>daemon</b> is used as
+      the default for the local system syslog and <b>local0</b> is used while
+      sending a message to the target provided via the <b>--syslog-target</b>
+      option.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--log-file</b>[<b>=</b><i>file</i>]</dt>
+  <dd class="It-tag">Enables logging to a file. If <i>file</i> is specified,
+      then it is used as the exact name for the log file. The default log file
+      name used if <i>file</i> is omitted is
+      <b>/var/log/openvswitch/ovs-vsctl.log</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--syslog-target=</b><i>host</i><b>:</b><i>port</i></dt>
+  <dd class="It-tag">Send syslog messages to UDP <i>port</i> on <i>host</i>, in
+      addition to the system syslog. The <i>host</i> must be a numerical IP
+      address, not a hostname.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--syslog-method=</b><i>method</i></dt>
+  <dd class="It-tag">Specify <i>method</i> how syslog messages should be sent to
+      syslog daemon. Following forms are supported:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag"><b>libc</b>, use libc <b>syslog()</b> function. This is the
+      default behavior. Downside of using this options is that libc adds fixed
+      prefix to every message before it is actually sent to the syslog daemon
+      over <b>/dev/log</b> UNIX domain socket.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag"><b>unix:</b><i>file</i>, use UNIX domain socket directly.
+      It is possible to specify arbitrary message format with this option.
+      However, <b>rsyslogd 8.9</b> and older versions use hard coded parser
+      function anyway that limits UNIX domain socket use. If you want to use
+      arbitrary message format with older <b>rsyslogd</b> versions, then use UDP
+      socket to localhost IP address instead.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag"><b>udp:</b><i>ip</i>:<i>port</i>, use UDP socket. With this
+      method it is possible to use arbitrary message format also with older
+      <b>rsyslogd</b>. When sending syslog messages over UDP socket extra
+      precaution needs to be taken into account, for example, syslog daemon
+      needs to be configured to listen on the specified UDP port, accidental
+      iptables rules could be interfering with local syslog traffic and there
+      are some security considerations that apply to UDP sockets, but do not
+      apply to UNIX domain sockets.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-h</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--help</b></dt>
+  <dd class="It-tag">Prints a brief help message to the console.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>-V</b></dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--version</b></dt>
+  <dd class="It-tag">Prints version information to the console.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="COMMANDS"><a class="selflink" href="#COMMANDS">COMMANDS</a></h1>
+The commands implemented by <b>ovs-vsctl</b> are described in the sections
+  below.
+<h2 class="Ss" title="Ss" id="Open_vSwitch_Commands"><a class="selflink" href="#Open_vSwitch_Commands">Open
+  vSwitch Commands</a></h2>
+These commands work with an Open vSwitch as a whole.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>init</b></dt>
+  <dd class="It-tag">Initializes the Open vSwitch database, if it is empty. If
+      the database has already been initialized, this command has no
+    effect.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Any successful <b>ovs-vsctl</b> command automatically
+      initializes the Open vSwitch database if it is empty. This command is
+      provided to initialize the database without executing any other
+    command.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>show</b></dt>
+  <dd class="It-tag">Prints a brief overview of the database contents.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>emer-reset</b></dt>
+  <dd class="It-tag">Reset the configuration into a clean state. It deconfigures
+      OpenFlow controllers, OVSDB servers, and SSL, and deletes port mirroring,
+      <b>fail_mode</b>, NetFlow, sFlow, and IPFIX configuration. This command
+      also removes all <b>other-config</b> keys from all database records,
+      except that <b>other-config:hwaddr</b> is preserved if it is present in a
+      Bridge record. Other networking configuration is left as-is.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Bridge_Commands"><a class="selflink" href="#Bridge_Commands">Bridge
+  Commands</a></h2>
+These commands examine and manipulate Open vSwitch bridges.
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--may-exist</b>] <b>add-br </b><i>bridge</i></dt>
+  <dd class="It-tag">Creates a new bridge named <i>bridge</i>. Initially the
+      bridge will have no ports (other than <i>bridge</i> itself).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--may-exist</b>, attempting to create a bridge
+      that exists is an error. With <b>--may-exist</b>, this command does
+      nothing if <i>bridge</i> already exists as a real bridge.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--may-exist</b>] <b>add-br </b><i>bridge parent
+    vlan</i></dt>
+  <dd class="It-tag">Creates a ``fake bridge'' named <i>bridge</i> within the
+      existing Open vSwitch bridge <i>parent</i>, which must already exist and
+      must not itself be a fake bridge. The new fake bridge will be on 802.1Q
+      VLAN <i>vlan</i>, which must be an integer between 0 and 4095. The parent
+      bridge must not already have a fake bridge for <i>vlan</i>. Initially
+      <i>bridge</i> will have no ports (other than <i>bridge</i> itself).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--may-exist</b>, attempting to create a bridge
+      that exists is an error. With <b>--may-exist</b>, this command does
+      nothing if <i>bridge</i> already exists as a VLAN bridge under
+      <i>parent</i> for <i>vlan</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>del-br </b><i>bridge</i></dt>
+  <dd class="It-tag">Deletes <i>bridge</i> and all of its ports. If
+      <i>bridge</i> is a real bridge, this command also deletes any fake bridges
+      that were created with <i>bridge</i> as parent, including all of their
+      ports.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--if-exists</b>, attempting to delete a bridge
+      that does not exist is an error. With <b>--if-exists</b>, attempting to
+      delete a bridge that does not exist has no effect.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--real</b>|<b>--fake</b>] <b>list-br</b></dt>
+  <dd class="It-tag">Lists all existing real and fake bridges on standard
+      output, one per line. With <b>--real</b> or <b>--fake</b>, only bridges of
+      that type are returned.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>br-exists </b><i>bridge</i></dt>
+  <dd class="It-tag">Tests whether <i>bridge</i> exists as a real or fake
+      bridge. If so, <b>ovs-vsctl</b> exits successfully with exit code 0. If
+      not, <b>ovs-vsctl</b> exits unsuccessfully with exit code 2.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>br-to-vlan </b><i>bridge</i></dt>
+  <dd class="It-tag">If <i>bridge</i> is a fake bridge, prints the bridge's
+      802.1Q VLAN as a decimal integer. If <i>bridge</i> is a real bridge,
+      prints 0.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>br-to-parent </b><i>bridge</i></dt>
+  <dd class="It-tag">If <i>bridge</i> is a fake bridge, prints the name of its
+      parent bridge. If <i>bridge</i> is a real bridge, print
+    <i>bridge</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>br-set-external-id </b><i>bridge key</i>
+    [<i>value</i>]</dt>
+  <dd class="It-tag">Sets or clears an ``external ID'' value on <i>bridge</i>.
+      These values are intended to identify entities external to Open vSwitch
+      with which <i>bridge</i> is associated, e.g. the bridge's identifier in a
+      virtualization management platform. The Open vSwitch database schema
+      specifies well-known <i>key</i> values, but <i>key</i> and <i>value</i>
+      are otherwise arbitrary strings.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">If <i>value</i> is specified, then <i>key</i> is set to
+      <i>value</i> for <i>bridge</i>, overwriting any previous value. If
+      <i>value</i> is omitted, then <i>key</i> is removed from <i>bridge</i>'s
+      set of external IDs (if it was present).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">For real bridges, the effect of this command is similar to
+      that of a <b>set</b> or <b>remove</b> command in the <b>external-ids</b>
+      column of the <b>Bridge</b> table. For fake bridges, it actually modifies
+      keys with names prefixed by <b>fake-bridge-</b> in the <b>Port</b>
+    table.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>br-get-external-id </b><i>bridge</i> [<i>key</i>]</dt>
+  <dd class="It-tag">Queries the external IDs on <i>bridge</i>. If <i>key</i> is
+      specified, the output is the value for that <i>key</i> or the empty string
+      if <i>key</i> is unset. If <i>key</i> is omitted, the output is
+      <i>key</i><b>=</b><i>value</i>, one per line, for each key-value
+    pair.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">For real bridges, the effect of this command is similar to
+      that of a <b>get</b> command in the <b>external-ids</b> column of the
+      <b>Bridge</b> table. For fake bridges, it queries keys with names prefixed
+      by <b>fake-bridge-</b> in the <b>Port</b> table.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Port_Commands"><a class="selflink" href="#Port_Commands">Port
+  Commands</a></h2>
+These commands examine and manipulate Open vSwitch ports. These commands treat a
+  bonded port as a single entity.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>list-ports </b><i>bridge</i></dt>
+  <dd class="It-tag">Lists all of the ports within <i>bridge</i> on standard
+      output, one per line. The local port <i>bridge</i> is not included in the
+      list.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--may-exist</b>] <b>add-port </b><i>bridge port
+    </i>[<i>column</i>[<b>:</b><i>key</i>]=<i>value</i>]...</dt>
+  <dd class="It-tag">Creates on <i>bridge</i> a new port named <i>port</i> from
+      the network device of the same name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Optional arguments set values of column in the Port record
+      created by the command. For example, <b>tag=9</b> would make the port an
+      access port for VLAN 9. The syntax is the same as that for the <b>set</b>
+      command (see <b>Database Commands</b> below).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--may-exist</b>, attempting to create a port
+      that exists is an error. With <b>--may-exist</b>, this command does
+      nothing if <i>port</i> already exists on <i>bridge</i> and is not a bonded
+      port.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--fake-iface</b>] <b>add-bond </b><i>bridge port
+    iface</i>... [ <i>column</i>[<b>:</b><i>key</i>]=<i>value</i>]...</dt>
+  <dd class="It-tag">Creates on <i>bridge</i> a new port named <i>port</i> that
+      bonds together the network devices given as each <i>iface</i>. At least
+      two interfaces must be named. If the interfaces are DPDK enabled then the
+      transaction will need to include operations to explicitly set the
+      interface type to 'dpdk'.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Optional arguments set values of column in the Port record
+      created by the command. The syntax is the same as that for the <b>set</b>
+      command (see <b>Database Commands</b> below).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">With <b>--fake-iface</b>, a fake interface with the name
+      <i>port</i> is created. This should only be used for compatibility with
+      legacy software that requires it.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--may-exist</b>, attempting to create a port
+      that exists is an error. With <b>--may-exist</b>, this command does
+      nothing if <i>port</i> already exists on <i>bridge</i> and bonds together
+      exactly the specified interfaces.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>del-port </b>[<i>bridge</i>]
+    <i>port</i></dt>
+  <dd class="It-tag">Deletes <i>port</i>. If <i>bridge</i> is omitted,
+      <i>port</i> is removed from whatever bridge contains it; if <i>bridge</i>
+      is specified, it must be the real or fake bridge that contains
+      <i>port</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--if-exists</b>, attempting to delete a port
+      that does not exist is an error. With <b>--if-exists</b>, attempting to
+      delete a port that does not exist has no effect.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>--with-iface del-port
+    </b>[<i>bridge</i>] <i>iface</i></dt>
+  <dd class="It-tag">Deletes the port named <i>iface</i> or that has an
+      interface named <i>iface</i>. If <i>bridge</i> is omitted, the port is
+      removed from whatever bridge contains it; if <i>bridge</i> is specified,
+      it must be the real or fake bridge that contains the port.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--if-exists</b>, attempting to delete the port
+      for an interface that does not exist is an error. With <b>--if-exists</b>,
+      attempting to delete the port for an interface that does not exist has no
+      effect.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>port-to-br </b><i>port</i></dt>
+  <dd class="It-tag">Prints the name of the bridge that contains <i>port</i> on
+      standard output.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Interface_Commands"><a class="selflink" href="#Interface_Commands">Interface
+  Commands</a></h2>
+These commands examine the interfaces attached to an Open vSwitch bridge. These
+  commands treat a bonded port as a collection of two or more interfaces, rather
+  than as a single port.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>list-ifaces </b><i>bridge</i></dt>
+  <dd class="It-tag">Lists all of the interfaces within <i>bridge</i> on
+      standard output, one per line. The local port <i>bridge</i> is not
+      included in the list.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>iface-to-br </b><i>iface</i></dt>
+  <dd class="It-tag">Prints the name of the bridge that contains <i>iface</i> on
+      standard output.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="OpenFlow_Controller_Connectivity"><a class="selflink" href="#OpenFlow_Controller_Connectivity">OpenFlow
+  Controller Connectivity</a></h2>
+<b>ovs-vswitchd</b> can perform all configured bridging and switching locally,
+  or it can be configured to communicate with one or more external OpenFlow
+  controllers. The switch is typically configured to connect to a primary
+  controller that takes charge of the bridge's flow table to implement a network
+  policy. In addition, the switch can be configured to listen to connections
+  from service controllers. Service controllers are typically used for
+  occasional support and maintenance, e.g. with <b>ovs-ofctl</b>.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>get-controller</b> <i>bridge</i></dt>
+  <dd class="It-tag">Prints the configured controller target.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>del-controller</b> <i>bridge</i></dt>
+  <dd class="It-tag">Deletes the configured controller target.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>set-controller</b> <i>bridge</i> <i>target</i>...</dt>
+  <dd class="It-tag">Sets the configured controller target or targets. Each
+      <i>target</i> may use any of the following forms:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ssl:</b><i>ip</i>[<b>:</b><i>port</i>]</dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>tcp:</b><i>ip</i>[<b>:</b><i>port</i>]</dt>
+  <dd class="It-tag">The specified <i>port</i> on the host at the given
+      <i>ip</i>, which must be expressed as an IP address (not a DNS name) in
+      IPv4 or IPv6 address format. Wrap IPv6 addresses in square brackets, e.g.
+      <b>tcp:[::1]:6653</b>. For <b>ssl</b>, the <b>--private-key</b>,
+      <b>--certificate</b>, and <b>--ca-cert</b> options are mandatory.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">If <i>port</i> is not specified, it defaults to 6653.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>unix:</b><i>file</i></dt>
+  <dd class="It-tag">On POSIX, a Unix domain server socket named
+    <i>file</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">On Windows, connect to a local named pipe that is
+      represented by a file created in the path <i>file</i> to mimic the
+      behavior of a Unix domain socket.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>pssl:</b>[<i>port</i>][<b>:</b><i>ip</i>]</dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ptcp:</b>[<i>port</i>][<b>:</b><i>ip</i>]</dt>
+  <dd class="It-tag">Listens for OpenFlow connections on <i>port</i>. The
+      default <i>port</i> is 6653. By default, connections are allowed from any
+      IPv4 address. Specify <i>ip</i> as an IPv4 address or a bracketed IPv6
+      address (e.g. <b>ptcp:6653:[::1]</b>). DNS names may not be used. For
+      <b>pssl</b>, the <b>--private-key</b>,<b>--certificate</b>, and
+      <b>--ca-cert</b> options are mandatory.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>punix:</b><i>file</i></dt>
+  <dd class="It-tag">Listens for OpenFlow connections on the Unix domain server
+      socket named <i>file</i>.</dd>
+</dl>
+</div>
+<div class="Pp"></div>
+<div style="margin-left: -0.15in;"><i>Controller Failure Settings</i></div>
+<div class="Pp"></div>
+When a controller is configured, it is, ordinarily, responsible for setting up
+  all flows on the switch. Thus, if the connection to the controller fails, no
+  new network connections can be set up. If the connection to the controller
+  stays down long enough, no packets can pass through the switch at all.
+<div class="Pp"></div>
+If the value is <b>standalone</b>, or if neither of these settings is set,
+  <b>ovs-vswitchd</b> will take over responsibility for setting up flows when no
+  message has been received from the controller for three times the inactivity
+  probe interval. In this mode, <b>ovs-vswitchd</b> causes the datapath to act
+  like an ordinary MAC-learning switch. <b>ovs-vswitchd</b> will continue to
+  retry connecting to the controller in the background and, when the connection
+  succeeds, it discontinues its standalone behavior.
+<div class="Pp"></div>
+If this option is set to <b>secure</b>, <b>ovs-vswitchd</b> will not set up
+  flows on its own when the controller connection fails.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>get-fail-mode</b> <i>bridge</i></dt>
+  <dd class="It-tag">Prints the configured failure mode.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>del-fail-mode</b> <i>bridge</i></dt>
+  <dd class="It-tag">Deletes the configured failure mode.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>set-fail-mode</b> <i>bridge</i>
+    <b>standalone</b>|<b>secure</b></dt>
+  <dd class="It-tag">Sets the configured failure mode.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Manager_Connectivity"><a class="selflink" href="#Manager_Connectivity">Manager
+  Connectivity</a></h2>
+These commands manipulate the <b>manager_options</b> column in the
+  <b>Open_vSwitch</b> table and rows in the <b>Managers</b> table. When
+  <b>ovsdb-server</b> is configured to use the <b>manager_options</b> column for
+  OVSDB connections (as described in the startup scripts provided with Open
+  vSwitch), this allows the administrator to use <b>ovs-vsctl</b> to configure
+  database connections.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>get-manager</b></dt>
+  <dd class="It-tag">Prints the configured manager(s).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>del-manager</b></dt>
+  <dd class="It-tag">Deletes the configured manager(s).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>set-manager</b> <i>target</i>...</dt>
+  <dd class="It-tag">Sets the configured manager target or targets. Each
+      <i>target</i> may use any of the following forms:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ssl:</b><i>ip</i><b>:</b><i>port</i></dt>
+  <dd class="It-tag">The specified SSL <i>port</i> on the host at the given
+      <i>ip</i>, which must be expressed as an IP address (not a DNS name) in
+      IPv4 or IPv6 address format. If <i>ip</i> is an IPv6 address, then wrap
+      <i>ip</i> with square brackets, e.g.: <b>ssl:[::1]:6640</b>. The
+      <b>--private-key</b>, <b>--certificate</b>, and <b>--ca-cert</b> options
+      are mandatory when this form is used.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>tcp:</b><i>ip</i><b>:</b><i>port</i></dt>
+  <dd class="It-tag">Connect to the given TCP <i>port</i> on <i>ip</i>, where
+      <i>ip</i> can be IPv4 or IPv6 address. If <i>ip</i> is an IPv6 address,
+      then wrap <i>ip</i> with square brackets, e.g.:
+    <b>tcp:[::1]:6640</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>unix:</b><i>file</i></dt>
+  <dd class="It-tag">On POSIX, connect to the Unix domain server socket named
+      <i>file</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">On Windows, connect to a local named pipe that is
+      represented by a file created in the path <i>file</i> to mimic the
+      behavior of a Unix domain socket.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>pssl:</b><i>port</i>[<b>:</b><i>ip</i>]</dt>
+  <dd class="It-tag">Listen on the given SSL <i>port</i> for a connection. By
+      default, connections are not bound to a particular local IP address and it
+      listens only on IPv4 (but not IPv6) addresses, but specifying <i>ip</i>
+      limits connections to those from the given <i>ip</i>, either IPv4 or IPv6
+      address. If <i>ip</i> is an IPv6 address, then wrap <i>ip</i> with square
+      brackets, e.g.: <b>pssl:6640:[::1]</b>. The <b>--private-key</b>,
+      <b>--certificate</b>, and <b>--ca-cert</b> options are mandatory when this
+      form is used.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>ptcp:</b><i>port</i>[<b>:</b><i>ip</i>]</dt>
+  <dd class="It-tag">Listen on the given TCP <i>port</i> for a connection. By
+      default, connections are not bound to a particular local IP address and it
+      listens only on IPv4 (but not IPv6) addresses, but <i>ip</i> may be
+      specified to listen only for connections to the given <i>ip</i>, either
+      IPv4 or IPv6 address. If <i>ip</i> is an IPv6 address, then wrap <i>ip</i>
+      with square brackets, e.g.: <b>ptcp:6640:[::1]</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>punix:</b><i>file</i></dt>
+  <dd class="It-tag">On POSIX, listen on the Unix domain server socket named
+      <i>file</i> for a connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">On Windows, listen on a local named pipe. A file is created
+      in the path <i>file</i> to mimic the behavior of a Unix domain
+    socket.</dd>
+</dl>
+</div>
+<h2 class="Ss" title="Ss" id="SSL_Configuration"><a class="selflink" href="#SSL_Configuration">SSL
+  Configuration</a></h2>
+When <b>ovs-vswitchd</b> is configured to connect over SSL for management or
+  controller connectivity, the following parameters are required:
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>private-key</i></dt>
+  <dd class="It-tag">Specifies a PEM file containing the private key used as the
+      virtual switch's identity for SSL connections to the controller.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>certificate</i></dt>
+  <dd class="It-tag">Specifies a PEM file containing a certificate, signed by
+      the certificate authority (CA) used by the controller and manager, that
+      certifies the virtual switch's private key, identifying a trustworthy
+      switch.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><i>ca-cert</i></dt>
+  <dd class="It-tag">Specifies a PEM file containing the CA certificate used to
+      verify that the virtual switch is connected to a trustworthy
+    controller.</dd>
+</dl>
+<div class="Pp"></div>
+These files are read only once, at <b>ovs-vswitchd</b> startup time. If their
+  contents change, <b>ovs-vswitchd</b> must be killed and restarted.
+<div class="Pp"></div>
+These SSL settings apply to all SSL connections made by the virtual switch.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>get-ssl</b></dt>
+  <dd class="It-tag">Prints the SSL configuration.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>del-ssl</b></dt>
+  <dd class="It-tag">Deletes the current SSL configuration.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--bootstrap</b>] <b>set-ssl</b> <i>private-key</i>
+    <i>certificate</i> <i>ca-cert</i></dt>
+  <dd class="It-tag">Sets the SSL configuration. The <b>--bootstrap</b> option
+      is described below.</dd>
+</dl>
+<div class="Pp"></div>
+<div style="margin-left: -0.15in;"><i>CA Certificate Bootstrap</i></div>
+<div class="Pp"></div>
+Ordinarily, all of the files named in the SSL configuration must exist when
+  <b>ovs-vswitchd</b> starts. However, if the <i>ca-cert</i> file does not exist
+  and the <b>--bootstrap</b> option is given, then <b>ovs-vswitchd</b> will
+  attempt to obtain the CA certificate from the controller on its first SSL
+  connection and save it to the named PEM file. If it is successful, it will
+  immediately drop the connection and reconnect, and from then on all SSL
+  connections must be authenticated by a certificate signed by the CA
+  certificate thus obtained.
+<div class="Pp"></div>
+<b>This option exposes the SSL connection to a man-in-the-middle</b> <b>attack
+  obtaining the initial CA certificate</b>, but it may be useful for
+  bootstrapping.
+<div class="Pp"></div>
+This option is only useful if the controller sends its CA certificate as part of
+  the SSL certificate chain. The SSL protocol does not require the controller to
+  send the CA certificate.
+<h2 class="Ss" title="Ss" id="Auto-Attach_Commands"><a class="selflink" href="#Auto-Attach_Commands">Auto-Attach
+  Commands</a></h2>
+The IETF Auto-Attach SPBM draft standard describes a compact method of using
+  IEEE 802.1AB Link Layer Discovery Protocol (LLDP) together with a IEEE 802.1aq
+  Shortest Path Bridging (SPB) network to automatically attach network devices
+  to individual services in a SPB network. The intent here is to allow network
+  applications and devices using OVS to be able to easily take advantage of
+  features offered by industry standard SPB networks. A fundamental element of
+  the Auto-Attach feature is to map traditional VLANs onto SPB I_SIDs. These
+  commands manage the Auto-Attach I-SID/VLAN mappings.
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>add-aa-mapping </b><i>bridge i-sid vlan</i></dt>
+  <dd class="It-tag">Creates a new Auto-Attach mapping on <i>bridge</i> for
+      <i>i-sid</i> and <i>vlan</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>del-aa-mapping </b><i>bridge i-sid vlan</i></dt>
+  <dd class="It-tag">Deletes an Auto-Attach mapping on <i>bridge</i> for
+      <i>i-sid</i> and <i>vlan</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>get-aa-mapping </b><i>bridge</i></dt>
+  <dd class="It-tag">Lists all of the Auto-Attach mappings within <i>bridge</i>
+      on standard output.</dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Database_Commands"><a class="selflink" href="#Database_Commands">Database
+  Commands</a></h2>
+These commands query and modify the contents of <b>ovsdb</b> tables. They are a
+  slight abstraction of the <b>ovsdb</b> interface and as such they operate at a
+  lower level than other <b>ovs-vsctl</b> commands.
+<div class="Pp"></div>
+<div style="margin-left: -0.15in;"><i>Identifying Tables, Records, and
+  Columns</i></div>
+<div class="Pp"></div>
+Each of these commands has a <i>table</i> parameter to identify a table within
+  the database. Many of them also take a <i>record</i> parameter that identifies
+  a particular record within a table. The <i>record</i> parameter may be the
+  UUID for a record, and many tables offer additional ways to identify records.
+  Some commands also take <i>column</i> parameters that identify a particular
+  field within the records in a table.
+<div class="Pp"></div>
+The following tables are currently defined:
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Open_vSwitch</b></dt>
+  <dd class="It-tag">Global configuration for an <b>ovs-vswitchd</b>. This table
+      contains exactly one record, identified by specifying <b>.</b> as the
+      record name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Bridge</b></dt>
+  <dd class="It-tag">Configuration for a bridge within an Open vSwitch. Records
+      may be identified by bridge name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Port</b></dt>
+  <dd class="It-tag">A bridge port. Records may be identified by port name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Interface</b></dt>
+  <dd class="It-tag">A network device attached to a port. Records may be
+      identified by name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Flow_Table</b></dt>
+  <dd class="It-tag">Configuration for a particular OpenFlow flow table. Records
+      may be identified by name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>QoS</b></dt>
+  <dd class="It-tag">Quality-of-service configuration for a <b>Port</b>. Records
+      may be identified by port name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Queue</b></dt>
+  <dd class="It-tag">Configuration for one queue within a <b>QoS</b>
+      configuration. Records may only be identified by UUID.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Mirror</b></dt>
+  <dd class="It-tag">A port mirroring configuration attached to a bridge.
+      Records may be identified by mirror name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Controller</b></dt>
+  <dd class="It-tag">Configuration for an OpenFlow controller. A controller
+      attached to a particular bridge may be identified by the bridge's
+    name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Manager</b></dt>
+  <dd class="It-tag">Configuration for an OVSDB connection. Records may be
+      identified by target (e.g. <b>tcp:1.2.3.4</b>).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>NetFlow</b></dt>
+  <dd class="It-tag">A NetFlow configuration attached to a bridge. Records may
+      be identified by bridge name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>SSL</b></dt>
+  <dd class="It-tag">The global SSL configuration for <b>ovs-vswitchd</b>. The
+      record attached to the <b>Open_vSwitch</b> table may be identified by
+      specifying <b>.</b> as the record name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>sFlow</b></dt>
+  <dd class="It-tag">An sFlow exporter configuration attached to a bridge.
+      Records may be identified by bridge name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>IPFIX</b></dt>
+  <dd class="It-tag">An IPFIX exporter configuration attached to a bridge.
+      Records may be identified by bridge name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>Flow_Sample_Collector_Set</b></dt>
+  <dd class="It-tag">An IPFIX exporter configuration attached to a bridge for
+      sampling packets on a per-flow basis using OpenFlow <b>sample</b>
+    actions.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>AutoAttach</b></dt>
+  <dd class="It-tag">Configuration for Auto Attach within a bridge.</dd>
+</dl>
+<div class="Pp"></div>
+Record names must be specified in full and with correct capitalization. Names of
+  tables and columns are not case-sensitive, and <b>--</b> and <b>_</b> are
+  treated interchangeably. Unique abbreviations are acceptable, e.g. <b>net</b>
+  or <b>n</b> is sufficient to identify the <b>NetFlow</b> table.
+<div class="Pp"></div>
+<div style="margin-left: -0.15in;"><i>Database Values</i></div>
+<div class="Pp"></div>
+Each column in the database accepts a fixed type of data. The currently defined
+  basic types, and their representations, are:
+<dl class="Bl-tag">
+  <dt class="It-tag">integer</dt>
+  <dd class="It-tag">A decimal integer in the range -2**63 to 2**63-1,
+      inclusive.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">real</dt>
+  <dd class="It-tag">A floating-point number.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">Boolean</dt>
+  <dd class="It-tag">True or false, written <b>true</b> or <b>false</b>,
+      respectively.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">string</dt>
+  <dd class="It-tag">An arbitrary Unicode string, except that null bytes are not
+      allowed. Quotes are optional for most strings that begin with an English
+      letter or underscore and consist only of letters, underscores, hyphens,
+      and periods. However, <b>true</b> and <b>false</b> and strings that match
+      the syntax of UUIDs (see below) must be enclosed in double quotes to
+      distinguish them from other basic types. When double quotes are used, the
+      syntax is that of strings in JSON, e.g. backslashes may be used to escape
+      special characters. The empty string must be represented as a pair of
+      double quotes ( <b>&quot;&quot;</b>).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">UUID</dt>
+  <dd class="It-tag">Either a universally unique identifier in the style of RFC
+      4122, e.g. <b>f81d4fae-7dec-11d0-a765-00a0c91e6bf6</b>, or an
+      <b>@</b><i>name</i> defined by a <b>get</b> or <b>create</b> command
+      within the same <b>ovs-vsctl</b> invocation.</dd>
+</dl>
+<div class="Pp"></div>
+Multiple values in a single column may be separated by spaces or a single comma.
+  When multiple values are present, duplicates are not allowed, and order is not
+  important. Conversely, some database columns can have an empty set of values,
+  represented as <b>[]</b>, and square brackets may optionally enclose other
+  non-empty sets or single values as well. For a column accepting a set of
+  integers, database commands accept a range. A range is represented by two
+  integers separated by <b>-</b>. A range is inclusive. A range has a maximum
+  size of 4096 elements. If more elements are needed, they can be specified in
+  seperate ranges.
+<div class="Pp"></div>
+A few database columns are ``maps'' of key-value pairs, where the key and the
+  value are each some fixed database type. These are specified in the form
+  <i>key</i> <b>=</b><i>value</i>, where <i>key</i> and <i>value</i> follow the
+  syntax for the column's key type and value type, respectively. When multiple
+  pairs are present (separated by spaces or a comma), duplicate keys are not
+  allowed, and again the order is not important. Duplicate values are allowed.
+  An empty map is represented as <b>{}</b>. Curly braces may optionally enclose
+  non-empty maps as well (but use quotes to prevent the shell from expanding
+  <b>other-config={0=x,1=y}</b> into <b>other-config=0=x</b>
+  <b>other-config=1=y</b>, which may not have the desired effect).
+<div class="Pp"></div>
+<div style="margin-left: -0.15in;"><i>Database Command Syntax</i></div>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>]
+    [<b>--columns=</b><i>column</i>[<b>,</b> <i>column</i>]...] <b>list
+    </b><i>table </i>[ <i>record</i>]...</dt>
+  <dd class="It-tag">Lists the data in each specified <i>record</i>. If no
+      records are specified, lists all the records in <i>table</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">If <b>--columns</b> is specified, only the requested
+      columns are listed, in the specified order. Otherwise, all columns are
+      listed, in alphabetical order by column name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--if-exists</b>, it is an error if any specified
+      <i>record</i> does not exist. With <b>--if-exists</b>, the command ignores
+      any <i>record</i> that does not exist, without producing any output.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--columns=</b><i>column</i>[<b>,</b><i>column</i>]...]
+    <b>find </b><i>table
+    </i>[<i>column</i>[<b>:</b><i>key</i>]<b>=</b><i>value</i>]...</dt>
+  <dd class="It-tag">Lists the data in each record in <i>table</i> whose
+      <i>column</i> equals <i>value</i> or, if <i>key</i> is specified, whose
+      <i>column</i> contains a <i>key</i> with the specified <i>value</i>. The
+      following operators may be used where <b>=</b> is written in the syntax
+      summary:</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>= != &lt; &gt; &lt;= &gt;=</b></dt>
+  <dd class="It-tag">Selects records in which <i>column</i>[<b>:</b><i>key</i>]
+      equals, does not equal, is less than, is greater than, is less than or
+      equal to, or is greater than or equal to <i>value</i>, respectively.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Consider <i>column</i>[<b>:</b><i>key</i>] and <i>value</i>
+      as sets of elements. Identical sets are considered equal. Otherwise, if
+      the sets have different numbers of elements, then the set with more
+      elements is considered to be larger. Otherwise, consider a element from
+      each set pairwise, in increasing order within each set. The first pair
+      that differs determines the result. (For a column that contains key-value
+      pairs, first all the keys are compared, and values are considered only if
+      the two sets contain identical keys.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>{=} {!=}</b></dt>
+  <dd class="It-tag">Test for set equality or inequality, respectively.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>{&lt;=}</b></dt>
+  <dd class="It-tag">Selects records in which <i>column</i>[<b>:</b><i>key</i>]
+      is a subset of <i>value</i>. For example, <b>flood-vlans{&lt;=}1,2</b>
+      selects records in which the <b>flood-vlans</b> column is the empty set or
+      contains 1 or 2 or both.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>{&lt;}</b></dt>
+  <dd class="It-tag">Selects records in which <i>column</i>[<b>:</b><i>key</i>]
+      is a proper subset of <i>value</i>. For example,
+      <b>flood-vlans{&lt;}1,2</b> selects records in which the
+      <b>flood-vlans</b> column is the empty set or contains 1 or 2 but not
+      both.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>{&gt;=} {&gt;}</b></dt>
+  <dd class="It-tag">Same as <b>{&lt;=}</b> and <b>{&lt;}</b>, respectively,
+      except that the relationship is reversed. For example,
+      <b>flood-vlans{&gt;=}1,2</b> selects records in which the
+      <b>flood-vlans</b> column contains both 1 and 2.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">For arithmetic operators (<b>= != &lt; &gt; &lt;=
+      &gt;=</b>), when <i>key</i> is specified but a particular record's
+      <i>column</i> does not contain <i>key</i>, the record is always omitted
+      from the results. Thus, the condition <b>other-config:mtu!=1500</b>
+      matches records that have a <b>mtu</b> key whose value is not 1500, but
+      not those that lack an <b>mtu</b> key.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">For the set operators, when <i>key</i> is specified but a
+      particular record's <i>column</i> does not contain <i>key</i>, the
+      comparison is done against an empty set. Thus, the condition
+      <b>other-config:mtu{!=}1500</b> matches records that have a <b>mtu</b> key
+      whose value is not 1500 and those that lack an <b>mtu</b> key.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Don't forget to escape <b>&lt;</b> or <b>&gt;</b> from
+      interpretation by the shell.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">If <b>--columns</b> is specified, only the requested
+      columns are listed, in the specified order. Otherwise all columns are
+      listed, in alphabetical order by column name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">The UUIDs shown for rows created in the same
+      <b>ovs-vsctl</b> invocation will be wrong.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] [<b>--id=@</b><i>name</i>] <b>get
+    </b><i>table record </i>[<i>column</i>[<b>:</b><i>key</i>]]...</dt>
+  <dd class="It-tag">Prints the value of each specified <i>column</i> in the
+      given <i>record</i> in <i>table</i>. For map columns, a <i>key</i> may
+      optionally be specified, in which case the value associated with
+      <i>key</i> in the column is printed, instead of the entire map.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--if-exists</b>, it is an error if <i>record</i>
+      does not exist or <i>key</i> is specified, if <i>key</i> does not exist in
+      <i>record</i>. With <b>--if-exists</b>, a missing <i>record</i> yields no
+      output and a missing <i>key</i> prints a blank line.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">If <b>@</b><i>name</i> is specified, then the UUID for
+      <i>record</i> may be referred to by that name later in the same
+      <b>ovs-vsctl</b> invocation in contexts where a UUID is expected.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Both <b>--id</b> and the <i>column</i> arguments are
+      optional, but usually at least one or the other should be specified. If
+      both are omitted, then <b>get</b> has no effect except to verify that
+      <i>record</i> exists in <i>table</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>--id</b> and <b>--if-exists</b> cannot be used
+    together.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>set </b><i>table record
+    column</i>[<b>:</b><i>key</i>]<b>=</b><i>value</i>...</dt>
+  <dd class="It-tag">Sets the value of each specified <i>column</i> in the given
+      <i>record</i> in <i>table</i> to <i>value</i>. For map columns, a
+      <i>key</i> may optionally be specified, in which case the value associated
+      with <i>key</i> in that column is changed (or added, if none exists),
+      instead of the entire map.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--if-exists</b>, it is an error if <i>record</i>
+      does not exist. With <b>--if-exists</b>, this command does nothing if
+      <i>record</i> does not exist.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>add </b><i>table record column
+    </i>[ <i>key</i><b>=</b>]<i>value</i>...</dt>
+  <dd class="It-tag">Adds the specified value or key-value pair to <i>column</i>
+      in <i>record</i> in <i>table</i>. If <i>column</i> is a map, then
+      <i>key</i> is required, otherwise it is prohibited. If <i>key</i> already
+      exists in a map column, then the current <i>value</i> is not replaced (use
+      the <b>set</b> command to replace an existing value).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--if-exists</b>, it is an error if <i>record</i>
+      does not exist. With <b>--if-exists</b>, this command does nothing if
+      <i>record</i> does not exist.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>remove </b><i>table record column
+    </i> <i>value</i>...</dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>remove </b><i>table record column
+    </i> <i>key</i>...</dt>
+  <dd class="It-tag">
+    <div>&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>remove </b><i>table record column
+    </i> <i>key</i><b>=</b><i>value</i>...</dt>
+  <dd class="It-tag">Removes the specified values or key-value pairs from
+      <i>column</i> in <i>record</i> in <i>table</i>. The first form applies to
+      columns that are not maps: each specified <i>value</i> is removed from the
+      column. The second and third forms apply to map columns: if only a
+      <i>key</i> is specified, then any key-value pair with the given <i>key</i>
+      is removed, regardless of its value; if a <i>value</i> is given then a
+      pair is removed only if both key and value match.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">It is not an error if the column does not contain the
+      specified key or value or pair.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--if-exists</b>, it is an error if <i>record</i>
+      does not exist. With <b>--if-exists</b>, this command does nothing if
+      <i>record</i> does not exist.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>clear</b> <i>table record
+    column</i>...</dt>
+  <dd class="It-tag">Sets each <i>column</i> in <i>record</i> in <i>table</i> to
+      the empty set or empty map, as appropriate. This command applies only to
+      columns that are allowed to be empty.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Without <b>--if-exists</b>, it is an error if <i>record</i>
+      does not exist. With <b>--if-exists</b>, this command does nothing if
+      <i>record</i> does not exist.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--id=@</b><i>name</i>] <b>create</b> <i>table
+    column</i>[ <b>:</b><i>key</i>]<b>=</b><i>value</i>...</dt>
+  <dd class="It-tag">Creates a new record in <i>table</i> and sets the initial
+      values of each <i>column</i>. Columns not explicitly set will receive
+      their default values. Outputs the UUID of the new row.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">If <b>@</b><i>name</i> is specified, then the UUID for the
+      new row may be referred to by that name elsewhere in the same
+      <b>ovs-vsctl</b> invocation in contexts where a UUID is expected. Such
+      references may precede or follow the <b>create</b> command.</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">Caution (ovs-vsctl as exmaple)</dt>
+  <dd class="It-tag">Records in the Open vSwitch database are significant only
+      when they can be reached directly or indirectly from the
+      <b>Open_vSwitch</b> table. Except for records in the <b>QoS</b> or
+      <b>Queue</b> tables, records that are not reachable from the
+      <b>Open_vSwitch</b> table are automatically deleted from the database.
+      This deletion happens immediately, without waiting for additional
+      <b>ovs-vsctl</b> commands or other database activity. Thus, a
+      <b>create</b> command must generally be accompanied by additional commands
+      <i>within the same</i> <i></i><b>ovs-vsctl</b><i> invocation</i> to add a
+      chain of references to the newly created record from the top-level
+      <b>Open_vSwitch</b> record. The <b>EXAMPLES</b> section gives some
+      examples that show how to do this.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">[<b>--if-exists</b>] <b>destroy </b><i>table
+    record</i>...</dt>
+  <dd class="It-tag">Deletes each specified <i>record</i> from <i>table</i>.
+      Unless <b>--if-exists</b> is specified, each <i>record</i>s must
+    exist.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--all destroy </b><i>table</i></dt>
+  <dd class="It-tag">Deletes all records from the <i>table</i>.</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">Caution (ovs-vsctl as exmaple)</dt>
+  <dd class="It-tag">The <b>destroy</b> command is only useful for records in
+      the <b>QoS</b> or <b>Queue</b> tables. Records in other tables are
+      automatically deleted from the database when they become unreachable from
+      the <b>Open_vSwitch</b> table. This means that deleting the last reference
+      to a record is sufficient for deleting the record itself. For records in
+      these tables, <b>destroy</b> is silently ignored. See the <b>EXAMPLES</b>
+      section below for more information.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>wait-until </b><i>table record
+    </i>[<i>column</i>[<b>:</b> <i>key</i>]<b>=</b><i>value</i>]...</dt>
+  <dd class="It-tag">Waits until <i>table</i> contains a record named
+      <i>record</i> whose <i>column</i> equals <i>value</i> or, if <i>key</i> is
+      specified, whose <i>column</i> contains a <i>key</i> with the specified
+      <i>value</i>. Any of the operators <b>!=</b>, <b>&lt;</b>, <b>&gt;</b>,
+      <b>&lt;=</b>, or <b>&gt;=</b> may be substituted for <b>=</b> to test for
+      inequality, less than, greater than, less than or equal to, or greater
+      than or equal to, respectively. (Don't forget to escape <b>&lt;</b> or
+      <b>&gt;</b> from interpretation by the shell.)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">If no <i>column</i>[<b>:</b><i>key</i>]<b>=</b><i>value</i>
+      arguments are given, this command waits only until <i>record</i> exists.
+      If more than one such argument is given, the command waits until all of
+      them are satisfied.</dd>
+</dl>
+<div style="margin-left: 5.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">Caution (ovs-vsctl as exmaple)</dt>
+  <dd class="It-tag">Usually <b>wait-until</b> should be placed at the beginning
+      of a set of <b>ovs-vsctl</b> commands. For example, <b>wait-until bridge
+      br0</b> <b>-- get bridge br0 datapath_id</b> waits until a bridge named
+      <b>br0</b> is created, then prints its <b>datapath_id</b> column, whereas
+      <b>get bridge br0 datapath_id -- wait-until bridge br0</b> will abort if
+      no bridge named <b>br0</b> exists when <b>ovs-vsctl</b> initially connects
+      to the database.</dd>
+</dl>
+</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Consider specifying <b>--timeout=0</b> along with
+      <b>--wait-until</b>, to prevent <b>ovs-vsctl</b> from terminating after
+      waiting only at most 5 seconds.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>comment </b>[<i>arg</i>]...</dt>
+  <dd class="It-tag">This command has no effect on behavior, but any database
+      log record created by the command will include the command and its
+      arguments.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="EXAMPLES"><a class="selflink" href="#EXAMPLES">EXAMPLES</a></h1>
+Create a new bridge named br0 and add port eth0 to it:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl add-br br0</b>
+    <div>&#x00A0;</div>
+    <b>ovs-vsctl add-port br0 eth0</b></dd>
+</dl>
+<div class="Pp"></div>
+Alternatively, perform both operations in a single atomic transaction:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl add-br br0 -- add-port br0 eth0</b></dd>
+</dl>
+<div class="Pp"></div>
+Delete bridge <b>br0</b>, reporting an error if it does not exist:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl del-br br0</b></dd>
+</dl>
+<div class="Pp"></div>
+Delete bridge <b>br0</b> if it exists:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl --if-exists del-br br0</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the <b>qos</b> column of the <b>Port</b> record for <b>eth0</b> to point to
+  a new <b>QoS</b> record, which in turn points with its queue 0 to a new
+  <b>Queue</b> record:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- set port eth0 qos=@newqos -- --id=@newqos
+      create qos type=linux-htb other-config:max-rate=1000000 queues:0=@newqueue
+      -- --id=@newqueue create queue other-config:min-rate=1000000
+      other-config:max-rate=1000000</b></dd>
+</dl>
+<h1 class="Sh" title="Sh" id="CONFIGURATION_COOKBOOK"><a class="selflink" href="#CONFIGURATION_COOKBOOK">CONFIGURATION
+  COOKBOOK</a></h1>
+<h2 class="Ss" title="Ss" id="Port_Configuration"><a class="selflink" href="#Port_Configuration">Port
+  Configuration</a></h2>
+Add an ``internal port'' <b>vlan10</b> to bridge <b>br0</b> as a VLAN access
+  port for VLAN 10, and configure it with an IP address:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl add-port br0 vlan10 tag=10 -- set Interface
+      vlan10 type=internal</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ifconfig vlan10 192.168.0.123</b></dd>
+</dl>
+<div class="Pp"></div>
+Add a GRE tunnel port <b>gre0</b> to remote IP address 1.2.3.4 to bridge
+  <b>br0</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl add-port br0 gre0 -- set Interface gre0
+      type=gre options:remote_ip=1.2.3.4</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Port_Mirroring"><a class="selflink" href="#Port_Mirroring">Port
+  Mirroring</a></h2>
+Mirror all packets received or sent on <b>eth0</b> or <b>eth1</b> onto
+  <b>eth2</b>, assuming that all of those ports exist on bridge <b>br0</b> (as a
+  side-effect this causes any packets received on <b>eth2</b> to be ignored):
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- set Bridge br0 mirrors=@m \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- --id=@eth0 get Port eth0 \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- --id=@eth1 get Port eth1 \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- --id=@eth2 get Port eth2 \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- --id=@m create Mirror name=mymirror
+      select-dst-port=@eth0,@eth1 select-src-port=@eth0,@eth1
+      output-port=@eth2</b></dd>
+</dl>
+<div class="Pp"></div>
+Remove the mirror created above from <b>br0</b>, which also destroys the Mirror
+  record (since it is now unreferenced):
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- --id=@rec get Mirror mymirror \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- remove Bridge br0 mirrors @rec</b></dd>
+</dl>
+<div class="Pp"></div>
+The following simpler command also works:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl clear Bridge br0 mirrors</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Quality_of_Service_(QoS)"><a class="selflink" href="#Quality_of_Service_(QoS)">Quality
+  of Service (QoS)</a></h2>
+Create a <b>linux-htb</b> QoS record that points to a few queues and use it on
+  <b>eth0</b> and <b>eth1</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- set Port eth0 qos=@newqos \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- set Port eth1 qos=@newqos \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- --id=@newqos create QoS type=linux-htb
+      other-config:max-rate=1000000000 queues=0=@q0,1=@q1 \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- --id=@q0 create Queue other-config:min-rate=100000000
+      other-config:max-rate=100000000 \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- --id=@q1 create Queue
+      other-config:min-rate=500000000</b></dd>
+</dl>
+<div class="Pp"></div>
+Deconfigure the QoS record above from <b>eth1</b> only:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl clear Port eth1 qos</b></dd>
+</dl>
+<div class="Pp"></div>
+To deconfigure the QoS record from both <b>eth0</b> and <b>eth1</b> and then
+  delete the QoS record (which must be done explicitly because unreferenced QoS
+  records are not automatically destroyed):
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- destroy QoS eth0 -- clear Port eth0 qos --
+      clear Port eth1 qos</b></dd>
+</dl>
+<div class="Pp"></div>
+(This command will leave two unreferenced Queue records in the database. To
+  delete them, use &quot; <b>ovs-vsctl list Queue</b>&quot; to find their UUIDs,
+  then &quot; <b>ovs-vsctl destroy Queue </b><i>uuid1</i> <i>uuid2</i>&quot; to
+  destroy each of them or use &quot; <b>ovs-vsctl -- --all destroy
+  Queue</b>&quot; to delete all records.)
+<h2 class="Ss" title="Ss" id="Connectivity_Monitoring"><a class="selflink" href="#Connectivity_Monitoring">Connectivity
+  Monitoring</a></h2>
+Monitor connectivity to a remote maintenance point on eth0.
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Interface eth0 cfm_mpid=1</b></dd>
+</dl>
+<div class="Pp"></div>
+Deconfigure connectivity monitoring from above:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl clear Interface eth0 cfm_mpid</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="NetFlow"><a class="selflink" href="#NetFlow">NetFlow</a></h2>
+Configure bridge <b>br0</b> to send NetFlow records to UDP port 5566 on host
+  192.168.0.34, with an active timeout of 30 seconds:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- set Bridge br0 netflow=@nf \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- --id=@nf create NetFlow
+      targets=\&quot;192.168.0.34:5566\&quot; active-timeout=30</b></dd>
+</dl>
+<div class="Pp"></div>
+Update the NetFlow configuration created by the previous command to instead use
+  an active timeout of 60 seconds:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set NetFlow br0 active_timeout=60</b></dd>
+</dl>
+<div class="Pp"></div>
+Deconfigure the NetFlow settings from <b>br0</b>, which also destroys the
+  NetFlow record (since it is now unreferenced):
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl clear Bridge br0 netflow</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="sFlow"><a class="selflink" href="#sFlow">sFlow</a></h2>
+Configure bridge <b>br0</b> to send sFlow records to a collector on 10.0.0.1 at
+  port 6343, using <b>eth1</b>&#x00B4;s IP address as the source, with specific
+  sampling parameters:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- --id=@s create sFlow agent=eth1
+      target=\&quot;10.0.0.1:6343\&quot; header=128 sampling=64 polling=10
+    \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- set Bridge br0 sflow=@s</b></dd>
+</dl>
+<div class="Pp"></div>
+Deconfigure sFlow from <b>br0</b>, which also destroys the sFlow record (since
+  it is now unreferenced):
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- clear Bridge br0 sflow</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="IPFIX"><a class="selflink" href="#IPFIX">IPFIX</a></h2>
+Configure bridge <b>br0</b> to send one IPFIX flow record per packet sample to
+  UDP port 4739 on host 192.168.0.34, with Observation Domain ID 123 and
+  Observation Point ID 456, a flow cache active timeout of 1 minute (60
+  seconds), maximum flow cache size of 13 flows, and flows sampled on output
+  port with tunnel info(sampling on input and output port is enabled by default
+  if not disabled) :
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- set Bridge br0 ipfix=@i \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>-- --id=@i create IPFIX
+      targets=\&quot;192.168.0.34:4739\&quot; obs_domain_id=123 obs_point_id=456
+      cache_active_timeout=60 cache_max_flows=13 \</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>other_config:enable-input-sampling=false
+      other_config:enable-tunnel-sampling=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Deconfigure the IPFIX settings from <b>br0</b>, which also destroys the IPFIX
+  record (since it is now unreferenced):
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl clear Bridge br0 ipfix</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="802.1D_Spanning_Tree_Protocol_(STP)"><a class="selflink" href="#802.1D_Spanning_Tree_Protocol_(STP)">802.1D
+  Spanning Tree Protocol (STP)</a></h2>
+Configure bridge <b>br0</b> to participate in an 802.1D spanning tree:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0 stp_enable=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the bridge priority of <b>br0</b> to 0x7800:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:stp-priority=0x7800</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the path cost of port <b>eth0</b> to 10:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:stp-path-cost=10</b></dd>
+</dl>
+<div class="Pp"></div>
+Deconfigure STP from above:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0 stp_enable=false</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Multicast_Snooping"><a class="selflink" href="#Multicast_Snooping">Multicast
+  Snooping</a></h2>
+Configure bridge <b>br0</b> to enable multicast snooping:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+    mcast_snooping_enable=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the multicast snooping aging time <b>br0</b> to 300 seconds:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:mcast-snooping-aging-time=300</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the multicast snooping table size <b>br0</b> to 2048 entries:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:mcast-snooping-table-size=2048</b></dd>
+</dl>
+<div class="Pp"></div>
+Disable flooding of unregistered multicast packets to all ports. When set to
+  <b>true</b>, the switch will send unregistered multicast packets only to ports
+  connected to multicast routers. When it is set to <b>false</b>, the switch
+  will send them to all ports. This command disables the flood of unregistered
+  packets on bridge <b>br0</b>.
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:mcast-snooping-disable-flood-unregistered=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Enable flooding of multicast packets (except Reports) on a specific port.
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth1
+      other_config:mcast-snooping-flood=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Enable flooding of Reports on a specific port.
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth1
+      other_config:mcast-snooping-flood-reports=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Deconfigure multicasting snooping from above:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+    mcast_snooping_enable=false</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="802.1D-2004_Rapid_Spanning_Tree_Protocol_(RSTP)"><a class="selflink" href="#802.1D-2004_Rapid_Spanning_Tree_Protocol_(RSTP)">802.1D-2004
+  Rapid Spanning Tree Protocol (RSTP)</a></h2>
+Configure bridge <b>br0</b> to participate in an 802.1D-2004 Rapid Spanning
+  Tree:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0 rstp_enable=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the bridge address of <b>br0</b> to 00:aa:aa:aa:aa:aa :
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:rstp-address=00:aa:aa:aa:aa:aa</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the bridge priority of <b>br0</b> to 0x7000. The value must be specified in
+  decimal notation and should be a multiple of 4096 (if not, it is rounded down
+  to the nearest multiple of 4096). The default priority value is 0x800 (32768).
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:rstp-priority=28672</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the bridge ageing time of <b>br0</b> to 1000 s. The ageing time value should
+  be between 10 s and 1000000 s. The default value is 300 s.
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:rstp-ageing-time=1000</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the bridge force protocol version of <b>br0</b> to 0. The force protocol
+  version has two acceptable values: 0 (STP compatibility mode) and 2 (normal
+  operation).
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:rstp-force-protocol-version=0</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the bridge max age of <b>br0</b> to 10 s. The max age value should be
+  between 6 s and 40 s. The default value is 20 s.
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:rstp-max-age=10</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the bridge forward delay of <b>br0</b> to 15 s. This value should be between
+  4 s and 30 s. The default value is 15 s.
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:rstp-forward-delay=15</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the bridge transmit hold count of <b>br0</b> to 7 s. This value should be
+  between 1 s and 10 s. The default value is 6 s.
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0
+      other_config:rstp-transmit-hold-count=7</b></dd>
+</dl>
+<div class="Pp"></div>
+Enable RSTP on the Port <b>eth0</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:rstp-enable=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Disable RSTP on the Port <b>eth0</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:rstp-enable=false</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the priority of port <b>eth0</b> to 32. The value must be specified in
+  decimal notation and should be a multiple of 16 (if not, it is rounded down to
+  the nearest multiple of 16). The default priority value is 0x80 (128).
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:rstp-port-priority=32</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the port number of port <b>eth0</b> to 3:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+    other_config:rstp-port-num=3</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the path cost of port <b>eth0</b> to 150:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:rstp-path-cost=150</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the admin edge value of port <b>eth0</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:rstp-port-admin-edge=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the auto edge value of port <b>eth0</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:rstp-port-auto-edge=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the admin point to point MAC value of port <b>eth0</b>. Acceptable values
+  are <b>0</b> (not point-to-point), <b>1</b> (point-to-point, the default
+  value) or <b>2</b> (automatic detection). The auto-detection mode is not
+  currently implemented, and the value <b>2</b> has the same effect of <b>0</b>
+  (not point-to-point).
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:rstp-admin-p2p-mac=1</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the admin port state value of port <b>eth0</b>. <b>true</b> is the default
+  value.
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:rstp-admin-port-state=false</b></dd>
+</dl>
+<div class="Pp"></div>
+Set the mcheck value of port <b>eth0</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Port eth0
+      other_config:rstp-port-mcheck=true</b></dd>
+</dl>
+<div class="Pp"></div>
+Deconfigure RSTP from above:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set Bridge br0 rstp_enable=false</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="OpenFlow_Version"><a class="selflink" href="#OpenFlow_Version">OpenFlow
+  Version</a></h2>
+Configure bridge <b>br0</b> to support OpenFlow versions 1.0, 1.2, and 1.3:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl set bridge br0
+      protocols=OpenFlow10,OpenFlow12,OpenFlow13</b></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Flow_Table_Configuration"><a class="selflink" href="#Flow_Table_Configuration">Flow
+  Table Configuration</a></h2>
+Make flow table 0 on bridge br0 refuse to accept more than 100 flows:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- --id=@ft create Flow_Table flow_limit=100
+      overflow_policy=refuse -- set Bridge br0 flow_tables=0=@ft</b></dd>
+</dl>
+<div class="Pp"></div>
+Make flow table 0 on bridge br0 evict flows, with fairness based on the matched
+  ingress port, when there are more than 100:
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>ovs-vsctl -- --id=@ft create Flow_Table flow_limit=100
+      overflow_policy=evict groups='&quot;NXM_OF_IN_PORT[]&quot;' -- set Bridge
+      br0 flow_tables:0=@ft</b></dd>
+</dl>
+<h1 class="Sh" title="Sh" id="EXIT_STATUS"><a class="selflink" href="#EXIT_STATUS">EXIT
+  STATUS</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag">0</dt>
+  <dd class="It-tag">Successful program execution.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">1</dt>
+  <dd class="It-tag">Usage, syntax, or configuration file error.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">2</dt>
+  <dd class="It-tag">The <i>bridge</i> argument to <b>br-exists</b> specified
+      the name of a bridge that does not exist.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<b>ovsdb-server</b>(1), <b>ovs-vswitchd</b>(8),
+  <b>ovs-vswitchd.conf.db</b>(5).</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2.7.0</td>
+    <td class="foot-os">Open vSwitch</td>
+  </tr>
+</table>
 </body>
 </html>

@@ -1,1595 +1,1570 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:02:02 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>DACSCHECK(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>DACSCHECK(1) DACS Commands Manual DACSCHECK(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-dacscheck - authorization check</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-dacscheck [-admin] [-app appname] [-context file]
-[-Dname=value] <br>
-[-F field_sep] [-fd domain] [-fh hostname] [-fj jurname]
-[-fn fedname] <br>
-[-dump] [-groups group_vfs] [-h] [-i ident] [-il ident] <br>
-[-ilg ident] [-ieuid] [-ieuidg] [-iuid] [-iuidg] [-lg] [-ll
-log_level] [-name_compare method] [-q] <br>
-[-redirect] [-roles roles_vfs] [-rules rule_vfs] [-v] [-var
-name=value] <br>
-[-vfs vfs_uri] [--] object</p>
-
-<p style="margin-top: 1em">dacscheck --version</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-This program is part of the DACS suite. It is a stand-alone
-program that neither accepts the usual DACS command line
-options (dacsoptions) nor accesses any DACS configuration
-<br>
-files.</p>
-
-<p style="margin-top: 1em">dacscheck looks at access
-control rules to test if a given user is authorized to do
-something or access something. The command&rsquo;s exit
-status gives the result of the test, and <br>
-unless the -q flag is given, a line is printed to stdout
-that indicates the result. It provides simplified,
-general-purpose access to DACS&rsquo;s access control rule
-evaluation <br>
-engine, even for programs other than web services, and it
-lends itself to fine-grained access control decisions.</p>
-
-<p style="margin-top: 1em">More specifically, dacscheck
-determines if a request for object should be granted
-according to specified access control rules and a given
-evaluation context. To do its job, <br>
-dacscheck needs to know only a few things:</p>
-
-<p style="margin-top: 1em">1. where to find the access
-control rules to apply;</p>
-
-<p style="margin-top: 1em">2. the name of the object being
-accessed; and</p>
-
-<p style="margin-top: 1em">3. optionally, an evaluation
-context that specifies an identity for whom access is being
-tested and variables that can be referenced by rules.</p>
-
-<p style="margin-top: 1em">The command does not perform any
-authentication. It assumes that the caller (or the execution
-environment) has already established an identity or the
-identity is inconsequential. <br>
-It may be used like any other command: run from the command
-line or a shell script, executed by a compiled program, or
-called from a scripting language such as Perl[1], PHP[2].
-<br>
-Python[3], Ruby[4], or Tcl/Tk[5].</p>
-
-<p style="margin-top: 1em">Some simple examples will
-illustrate how dacscheck can be used.</p>
-
-<p style="margin-top: 1em">Note <br>
-The examples in this document have been simplified for
-readability; in real use, absolute pathnames should appear,
-error checking should be performed, and so on. Also, the
-<br>
-dacscheck program and the rules that it requires must have
-file permissions set appropriately.</p>
-
-<p style="margin-top: 1em">The first example shows how a
-shell script might call dacscheck to test whether the user
-running it is allowed to do so. It obtains the user&rsquo;s
-identity from the operating system; <br>
-it assumes that the user has invoked the script from the
-command line and has therefore already signed in to the
-system. In the example, dacscheck obtains the identity
-through a <br>
-system call, but a script might choose to pass the value of
-the LOGNAME or USER environment variable.</p>
-
-<p style="margin-top: 1em">The shell script simply asks
-dacscheck if the effective uid (see geteuid(2)[6]) is
-permitted to access /myapp. The exit status of dacscheck
-(e.g., $? or $status) gives the <br>
-result. The pathname /myapp is essentially a label that is
-used to find the access control rule to apply; in this
-example it simply represents the name of the program. It
-could <br>
-be the program&rsquo;s filename, but it need not be.</p>
-
-<p style="margin-top: 1em">#! /bin/sh</p>
-
-<p style="margin-top: 1em">dacscheck -q -ieuid -rules
-/usr/local/myapp/rules /myapp <br>
-st=&quot;$?&quot; <br>
-if test &quot;${st}&quot; != 0 <br>
-then <br>
-echo &quot;Access is denied&quot; <br>
-exit &quot;${st}&quot; <br>
-fi</p>
-
-<p style="margin-top: 1em">echo &quot;Access is
-granted&quot;</p>
-
-<p style="margin-top: 1em"># Do some stuff</p>
-
-<p style="margin-top: 1em">exit 0</p>
-
-<p style="margin-top: 1em">The directory
-/usr/local/myapp/rules might include a file named acl-app.0
-that grants access only to bob and alice:</p>
-
-<p style="margin-top: 1em">&lt;acl_rule
-status=&quot;enabled&quot;&gt; <br>
-&lt;services&gt; <br>
-&lt;service url_pattern=&quot;/myapp&quot;/&gt; <br>
-&lt;/services&gt;</p>
-
-<p style="margin-top: 1em">&lt;rule
-order=&quot;allow,deny&quot;&gt; <br>
-&lt;allow&gt; <br>
-user(&quot;:bob&quot;) or user(&quot;:alice&quot;) <br>
-&lt;/allow&gt; <br>
-&lt;/rule&gt; <br>
-&lt;/acl_rule&gt;</p>
-
-<p style="margin-top: 1em">Note <br>
-Access control rules are described in dacs.acls(5)[7]. As
-with dacs_acs(8)[8], these rules must be indexed by
-dacsacl(1)[9]. For example, in a common use case where a
-DACS <br>
-configuration file is not being used, the ruleset consulted
-by dacscheck might be indexed using a command like:</p>
-
-<p style="margin-top: 1em">% dacsacl -un -vfs
-&quot;[acls]file:///users/bobo/my-rules&quot; -vfs
-&quot;[dacsacls]file:///dev/null&quot;</p>
-
-<p style="margin-top: 1em">If dacsacl is successful in the
-example above, a file named INDEX will be created or updated
-in the /users/bobo/my-rules directory, where the files
-containing the rules are <br>
-also found. Warning messages can usually be ignored provided
-INDEX looks correct.</p>
-
-<p style="margin-top: 1em">A CGI program can obtain the
-identity of the user invoking it from the REMOTE_USER
-environment variable and call dacscheck, as demonstrated in
-the following shell script, which <br>
-uses the same rule as above:</p>
-
-<p style="margin-top: 1em">#! /bin/sh</p>
-
-<p style="margin-top: 1em">if test
-&quot;${REMOTE_USER}x&quot; = &quot;x&quot; <br>
-then <br>
-idarg=&quot;&quot; <br>
-else <br>
-idarg=&quot;-i ${REMOTE_USER}&quot; <br>
-fi</p>
-
-<p style="margin-top: 1em">echo &quot;Context-Type:
-text/plain&quot; <br>
-echo &quot;&quot;</p>
-
-<p style="margin-top: 1em"># Note: append 2&gt;&amp;1 to
-the end of the next line to capture error messages <br>
-dacscheck -q ${idarg} -rules /usr/local/myapp/rules
-/myapp</p>
-
-<p style="margin-top: 1em">st=&quot;$?&quot; <br>
-if test &quot;${st}&quot; = 0 <br>
-then <br>
-echo &quot;Access is granted&quot; <br>
-else <br>
-echo &quot;Access is denied&quot; <br>
-fi</p>
-
-<p style="margin-top: 1em">exit 0</p>
-
-<p style="margin-top: 1em">This example can easily be
-translated into any scripting language that allows an
-external program to be called and its exit status examined.
-Here is a similar example in PHP:</p>
-
-<p style="margin-top: 1em">$user =
-$_SERVER[&quot;REMOTE_USER&quot;]; <br>
-putenv(&quot;REMOTE_USER=$user&quot;); <br>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">DACSCHECK(1)</td>
+    <td class="head-vol">DACS Commands Manual</td>
+    <td class="head-rtitle">DACSCHECK(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+dacscheck - authorization check
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<div class="Pp" style="margin-left: 10.00ex; text-indent: -10.00ex;"><b>dacscheck</b>
+  [ <b>-admin</b>] [<b>-app&#x00A0;</b><b></b><i>appname</i>]
+  [<b>-context&#x00A0;</b> <b></b><i>file</i>]
+  [<b>-D</b><b></b><i>name=value</i>]
+<div>&#x00A0;</div>
+[ <b>-F&#x00A0;</b><b></b><i>field_sep</i>]
+  [<b>-fd&#x00A0;</b><b></b><i>domain</i>] [
+  <b>-fh&#x00A0;</b><b></b><i>hostname</i>] [
+  <b>-fj&#x00A0;</b><b></b><i>jurname</i>] [
+  <b>-fn&#x00A0;</b><b></b><i>fedname</i>]
+<div>&#x00A0;</div>
+[ <b>-dump</b>] [<b>-groups&#x00A0;</b><b></b><i>group_vfs</i>] [<b>-h</b>]
+  [<b>-i&#x00A0;</b> <b></b><i>ident</i>]
+  [<b>-il&#x00A0;</b><b></b><i>ident</i>]
+<div>&#x00A0;</div>
+[ <b>-ilg&#x00A0;</b><b></b><i>ident</i>] [<b>-ieuid</b>] [<b>-ieuidg</b>]
+  [<b>-iuid</b>] [ <b>-iuidg</b>] [<b>-lg</b>]
+  [<b>-ll&#x00A0;</b><b></b><i>log_level</i>] [
+  <b>-name_compare&#x00A0;</b><b></b> <i>method</i>] [<b>-q</b>]
+<div>&#x00A0;</div>
+[ <b>-redirect</b>] [<b>-roles&#x00A0;</b><b></b><i>roles_vfs</i>]
+  [<b>-rules&#x00A0;</b> <b></b><i>rule_vfs</i>] [<b>-v</b>]
+  [<b>-var&#x00A0;</b> <b></b><i>name=value</i>]
+<div>&#x00A0;</div>
+[ <b>-vfs&#x00A0;</b><b></b><i>vfs_uri</i>] [<b>--</b>] <i>object</i></div>
+<div class="Pp"></div>
+<div class="Pp" style="margin-left: 10.00ex; text-indent: -10.00ex;"><b>dacscheck</b>
+  <b>--version</b></div>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+This program is part of the <b>DACS</b> suite. It is a stand-alone program that
+  neither accepts the usual <b>DACS</b> command line options (
+  <i>dacsoptions</i>) nor accesses any <b>DACS</b> configuration files.
+<div class="Pp"></div>
+<b>dacscheck</b> looks at access control rules to test if a given user is
+  authorized to do something or access something. The command's exit status
+  gives the result of the test, and unless the <i>-q</i> flag is given, a line
+  is printed to stdout that indicates the result. It provides simplified,
+  general-purpose access to <b>DACS</b>'s access control rule evaluation engine,
+  even for programs other than web services, and it lends itself to fine-grained
+  access control decisions.
+<div class="Pp"></div>
+More specifically, <b>dacscheck</b> determines if a request for object should be
+  granted according to specified access control rules and a given evaluation
+  context. To do its job, <b>dacscheck</b> needs to know only a few things:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 1.where to find the access control rules to
+  apply;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 2.the name of the object being accessed;
+  and</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 3.optionally, an evaluation context that
+  specifies an identity for whom access is being tested and variables that can
+  be referenced by rules.</div>
+<div class="Pp"></div>
+The command does not perform any authentication. It assumes that the caller (or
+  the execution environment) has already established an identity or the identity
+  is inconsequential. It may be used like any other command: run from the
+  command line or a shell script, executed by a compiled program, or called from
+  a scripting language such as <b>Perl</b>[1], <b>PHP</b>[2]. <b>Python</b>[3],
+  <b>Ruby</b>[4], or <b>Tcl/Tk</b>[5].
+<div class="Pp"></div>
+Some simple examples will illustrate how <b>dacscheck</b> can be used.
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Note</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+<div class="Pp"></div>
+The examples in this document have been simplified for readability; in real use,
+  absolute pathnames should appear, error checking should be performed, and so
+  on. Also, the <b>dacscheck</b> program and the rules that it requires must
+  have file permissions set appropriately.
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+<div class="Pp"></div>
+The first example shows how a shell script might call <b>dacscheck</b> to test
+  whether the user running it is allowed to do so. It obtains the user's
+  identity from the operating system; it assumes that the user has invoked the
+  script from the command line and has therefore already signed in to the
+  system. In the example, <b>dacscheck</b> obtains the identity through a system
+  call, but a script might choose to pass the value of the <b>LOGNAME</b> or
+  <b>USER</b> environment variable.
+<div class="Pp"></div>
+The shell script simply asks <b>dacscheck</b> if the effective uid (see
+  <b>geteuid(2)</b>[6]) is permitted to access /myapp. The exit status of
+  <b>dacscheck</b> (e.g., <i>$?</i> or <i>$status</i>) gives the result. The
+  pathname /myapp is essentially a label that is used to find the access control
+  rule to apply; in this example it simply represents the name of the program.
+  It could be the program's filename, but it need not be.
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+#! /bin/sh
+<div class="Pp"></div>
+dacscheck -q -ieuid -rules /usr/local/myapp/rules /myapp
+st=&quot;$?&quot;
+if test &quot;${st}&quot; != 0
+then
+  echo &quot;Access is denied&quot;
+  exit &quot;${st}&quot;
+fi
+<div class="Pp"></div>
+echo &quot;Access is granted&quot;
+<div class="Pp"></div>
+# Do some stuff
+<div class="Pp"></div>
+exit 0
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+The directory /usr/local/myapp/rules might include a file named acl-app.0 that
+  grants access only to bob and alice:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+&lt;acl_rule status=&quot;enabled&quot;&gt;
+  &lt;services&gt;
+   &lt;service url_pattern=&quot;/myapp&quot;/&gt;
+  &lt;/services&gt;
+<div class="Pp"></div>
+  &lt;rule order=&quot;allow,deny&quot;&gt;
+   &lt;allow&gt;
+     user(&quot;:bob&quot;) or user(&quot;:alice&quot;)
+   &lt;/allow&gt;
+  &lt;/rule&gt;
+&lt;/acl_rule&gt;
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Note</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+<div class="Pp"></div>
+Access control rules are described in <b>dacs.acls(5)</b>[7]. As with
+  <b>dacs_acs(8)</b>[8], these rules must be indexed by <b>dacsacl(1)</b>[9].
+  For example, in a common use case where a <b>DACS</b> configuration file is
+  not being used, the ruleset consulted by <b>dacscheck</b> might be indexed
+  using a command like:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+% dacsacl -un -vfs &quot;[acls]file:///users/bobo/my-rules&quot; -vfs &quot;[dacsacls]file:///dev/null&quot;
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+If <b>dacsacl</b> is successful in the example above, a file named INDEX will be
+  created or updated in the /users/bobo/my-rules directory, where the files
+  containing the rules are also found. Warning messages can usually be ignored
+  provided INDEX looks correct.
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+<div class="Pp"></div>
+A CGI program can obtain the identity of the user invoking it from the
+  <b>REMOTE_USER</b> environment variable and call <b>dacscheck</b>, as
+  demonstrated in the following shell script, which uses the same rule as above:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+#! /bin/sh
+<div class="Pp"></div>
+if test &quot;${REMOTE_USER}x&quot; = &quot;x&quot;
+then
+  idarg=&quot;&quot;
+else
+  idarg=&quot;-i ${REMOTE_USER}&quot;
+fi
+<div class="Pp"></div>
+echo &quot;Context-Type: text/plain&quot;
+echo &quot;&quot;
+<div class="Pp"></div>
+# Note: append 2&gt;&amp;1 to the end of the next line to capture error messages
+dacscheck -q ${idarg} -rules /usr/local/myapp/rules /myapp
+<div class="Pp"></div>
+st=&quot;$?&quot;
+if test &quot;${st}&quot; = 0
+then
+  echo &quot;Access is granted&quot;
+else
+  echo &quot;Access is denied&quot;
+fi
+<div class="Pp"></div>
+exit 0
+</pre>
+</div>
+<div class="Pp"></div>
+This example can easily be translated into any scripting language that allows an
+  external program to be called and its exit status examined. Here is a similar
+  example in PHP:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+$user = $_SERVER[&quot;REMOTE_USER&quot;];
+putenv(&quot;REMOTE_USER=$user&quot;);
 system(&quot;/usr/local/dacs/bin/dacscheck -q -fn DEMO -icgi
-<br>
--rules /usr/local/myapp/rules /myapp&quot;, $st); <br>
-if ($st != 0) { <br>
-// Access is denied, bail out <br>
-exit($st); <br>
-}</p>
-
-<p style="margin-top: 1em">// Access is granted,
-proceed</p>
-
-<p style="margin-top: 1em">Note <br>
-Some may question the point of having a program call
-dacscheck to test if the user invoking it is allowed to
-merely run the program. At first glance it might appear that
-one <br>
-could achieve the same result by simply setting file
-permissions such that only bob and alice can run the
-program. If that could be done, the coarse-grained testing
-done by <br>
-dacscheck in the examples would be unnecessary. It turns out
-that there is more to it than that.</p>
-
-<p style="margin-top: 1em">Setting file permissions to
-achieve this on a traditional Unix-type system requires
-creating a new group in /etc/group, something that generally
-can only be done by a system <br>
-administrator. Ordinary users must therefore either bother
-the system administrator each time such a group must be
-created or modified, or find some other way to achieve the
-<br>
-same result (e.g., by encryption, using a special setuid or
-setgid command that provides password-protected access, or
-some other clumsy and possibly insecure solution).</p>
-
-<p style="margin-top: 1em">To address this limitation and
-others, many Unix-type operating systems now include file
-systems that extend the traditional Unix file permissions
-with an ACL-based mechanism <br>
-(e.g., providing the getfacl(1)[10] and setfacl(1)[11]
-commands, and the acl(3)[12] ACL security API).</p>
-
-<p style="margin-top: 1em">dacscheck provides similar
-functionality but for arbitrary names, not only for objects
-in the file system, and with respect to arbitrary
-identities, not only for those known <br>
-to the operating system. For example, a CGI script can call
-dacscheck to test access on behalf of a user known to the
-web server (e.g., via an account created using <br>
-htpasswd(1)[13]) but not having an account on the underlying
-system. Therefore, besides being portable across platforms
-and available on systems without ACL-type file <br>
-permissions, dacscheck is a much more general solution than
-what most operating systems provide. In contrast to a
-system-provided ACL-based mechanism, however, dacscheck is
-<br>
-not invoked transparently (i.e., it is not called
-automatically by the operating system when a resource such
-as a file is accessed). Also, with respect to testing
-whether a <br>
-user is allowed to run a program, that program will
-typically perform the test itself and must therefore begin
-execution.</p>
-
-<p style="margin-top: 1em">For additional information:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Using
-FreeBSD&rsquo;s ACLs[14], Dru Lavigne, ONLamp.com[15],
-22-Sep-05.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; POSIX ACLs in
-Linux[16], Mike Peters, linux.com[17], 2-Aug-04.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; For Solaris,
-Solaris acl(2) and facl(2)[18], Sun Microsystems[19] and
-Using Solaris ACLs[20] by the Dept. of Computer Science,
-Duke University[21].</p>
-
-<p style="margin-top: 1em">Because the authorization
-checking performed by dacscheck is completely separate from
-that performed by the operating system for system calls, a
-Unix identity such as root has no <br>
-special rights or capabilities as far as dacscheck is
-concerned unless rules have been written to grant them. The
-same applies to the application of Unix groups.</p>
-
-<p style="margin-top: 1em">The next example demonstrates
-how some typical Perl code can be improved by dacscheck. The
-code fragment:</p>
-
-<p style="margin-top: 1em">if ($logged_in_as_root ||
-$logged_in_as_current_admin) { <br>
-# Do something privileged... <br>
-}</p>
-
-<p style="margin-top: 1em">which depends on the two
-variables being properly initialized depending on the value
-of $username, can be replaced by this:</p>
-
-<p style="margin-top: 1em"># Determine if $username has
-admin privileges <br>
-$output = &lsquo;dacscheck -q -i $username -app myapp
-/myapp/admin&lsquo;; <br>
-$is_admin = ($? &gt;&gt; 8) == 0;</p>
-
-<p style="margin-top: 1em">if ($is_admin) { <br>
-# Do something privileged... <br>
-}</p>
-
-<p style="margin-top: 1em"># Later... <br>
-if ($is_admin) { <br>
-# Do something else privileged... <br>
-}</p>
-
-<p style="margin-top: 1em">The new authorization test
-depends on the identity that is running the program
-($username) and the separate ruleset that determines whether
-that identity should be granted access <br>
-to /myapp/admin, which is simply a label for a rule that
-might look like this:</p>
-
-<p style="margin-top: 1em">&lt;acl_rule
-status=&quot;enabled&quot;&gt; <br>
-&lt;services&gt; <br>
-&lt;service url_pattern=&quot;/myapp/admin&quot;/&gt; <br>
-&lt;/services&gt;</p>
-
-<p style="margin-top: 1em">&lt;rule
-order=&quot;allow,deny&quot;&gt; <br>
-&lt;allow&gt; <br>
-user(&quot;%:admin&quot;) <br>
-&lt;/allow&gt; <br>
-&lt;/rule&gt; <br>
-&lt;/acl_rule&gt;</p>
-
-<p style="margin-top: 1em">This rule grants access if and
-only if $username is a member of the DACS group named admin
-or is associated with that DACS role. Membership in that
-group can be changed <br>
-dynamically, and can even be reduced to zero.</p>
-
-<p style="margin-top: 1em">The important observation is
-that the conditions that determine whether the user running
-this Perl code has administrative privileges are defined
-outside of the program and can <br>
-be changed without modifying the code and often without even
-modifying access control rules.</p>
-
-<p style="margin-top: 1em">A few concepts that are used in
-this document are described elsewhere. Variables, variable
-namespaces, and expressions that are used in access control
-rules are discussed in <br>
-dacs.exprs(5)[22]. Naming in DACS is discussed in
-dacs(1)[23], and DACS groups and roles are covered in
-dacs.groups(5)[24].</p>
-
-<p style="margin-top: 1em">Security <br>
-Clearly dacscheck, its caller, and the resources in question
-must be &quot;isolated&quot; from the user on whose behalf
-dacscheck is being run, otherwise the user could access the
-<br>
-resources directly or subvert access control tests.
-Therefore, dacscheck and its caller must either be more
-privileged than the user on whose behalf it is being run or
-both <br>
-programs must run in a secure context. This generally means
-that both dacscheck and its caller should be run in
-isolation from users (as on a remote server) or as an <br>
-effective user ID different from the user&rsquo;s.</p>
-
-<p style="margin-top: 1em">Advantages <br>
-Programs that perform authorization tests typically contain
-code like:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; &quot;If the
-current user has provided a suitable password, then execute
-the following code, otherwise do not&quot;, or</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; &quot;If the
-current user is the administrator, do the following&quot;,
-or</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; &quot;If the
-current user is allowed to perform an update operation, then
-show these menu items, otherwise do not show them&quot;</p>
-
-<p style="margin-top: 1em">Complicated applications can be
-littered with these kinds of tests, making them prone to
-bugs and security problems. Changes to security policies may
-involve modifications <br>
-throughout an application or suite of applications. Also,
-password handling is often incorporated into such programs;
-because password management can require a significant <br>
-implementation effort and is difficult to do securely, it
-seems wise to try to leverage existing implementations.</p>
-
-<p style="margin-top: 1em">Compared to custom-coded
-solutions, dacscheck has many advantages:</p>
-
-<p style="margin-top: 1em">Data-driven policies <br>
-As opposed to specially-written access control logic,
-data-driven (rule-based) functionality is superior
-because:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Access control
-rules are separate from code, so changes to a set of rules
-automatically applies to all uses of those rules throughout
-an application or set of <br>
-applications; code does not need to be modified if the
-policy is changed.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Bug fixes and
-improvements to rules are automatically available to
-programs that use dacscheck; no recompilation of
-applications is necessary.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; The person who
-administers the rules does not have to be the
-application&rsquo;s programmer (or even someone who
-understands the code), so delegating responsibility is much
-<br>
-easier. This reduces the amount of programming required when
-changes are required, reduces code maintenance effort, and
-decreases the chance of error.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; It is usually
-easier to understand (and express) a set of rules that
-describes an access control policy; code that implements the
-same policy will be more complex and <br>
-difficult to understand, increasing the chance of error.</p>
-
-<p style="margin-top: 1em">Programming Efficiency</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Applications are
-simplified and programming time and effort are reduced
-because existing access control code (i.e., dacscheck) is
-reused.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Sophisticated
-rules can be constructed without having to write any code.
-DACS features are available, such as roles and groups, and
-can be used to construct simpler and <br>
-more expressive authorization policies than are likely to be
-hand-coded.</p>
-
-<p style="margin-top: 1em">Portability <br>
-Rules are platform independent, can be stored remotely from
-the applications that use them, and can potentially be
-evaluated remotely. dacscheck is available for a variety
-<br>
-of platforms.</p>
-
-<p style="margin-top: 1em">Increased Sharing <br>
-Rules can be shared and used in different situations and by
-different programs.</p>
-
-<p style="margin-top: 1em">Flexibility</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Because it does
-not rely on a web server, it can be used by virtually any
-CGI-based program.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; With respect to
-DACS, it can be used in circumstances where the
-mod_auth_dacs[25] module cannot be used with Apache, or
-where Apache cannot be used at all.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Because it is
-implemented as an ordinary command, dacscheck can be used
-from the command line or invoked from almost any script or
-program.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; For CGI-based
-programs, dacscheck can be used without any assistance from
-a system administrator; e.g., it does not require a web
-server to be configured to provide <br>
-authorization for a CGI program because all access control
-functionality is performed within the program.</p>
-
-<p style="margin-top: 1em">Increased Security <br>
-dacscheck neither performs authentication nor relies on any
-particular authentication method, so the authentication
-method can be changed without affecting the
-application&rsquo;s <br>
-use of dacscheck. Any supported means of authentication can
-be used, not only the typical password-based method.</p>
-
-<p style="margin-top: 1em">While the performance of
-dacscheck ought not to be a factor for many applications,
-the C/C++ API can be used where it is an issue. This API can
-be used to incorporate dacscheck <br>
-functionality into compiled programs and extensible
-languages, such as Perl, Python, Tcl/Tk, and PHP.</p>
-
-<p style="margin-top: 1em">Identities <br>
-The identity for which access is to be tested is given to
-the program or obtained by the program from its execution
-environment. This identity is converted into DACS&rsquo;s
-internal <br>
-representation.</p>
-
-<p style="margin-top: 1em">More than one identity can be
-specified; the check is made on behalf of the union of all
-the identities. If the identities bob and alice are
-specified, for instance, a rule that <br>
-is satisfied by either identity may grant access.</p>
-
-<p style="margin-top: 1em">If no identity is given, the
-check is made on behalf of an unauthenticated user.</p>
-
-<p style="margin-top: 1em">An identity can be:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; a login name
-that dacscheck maps to from the real or effective uid of the
-program (i.e., the user who is running the program);</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; a DACS user
-identity (e.g., :carol, DSS:bob, or EXAMPLE-COM::DEMO:alice,
-see dacs(1)[26]);</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; a simple name
-(bob is equivalent to :bob); or</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; a name expressed
-in the concise syntax[27], which gives a username and,
-optionally, roles and attributes for the identity. Any
-identity that has expired is not used.</p>
-
-<p style="margin-top: 1em">Notes <br>
-&Acirc;&middot; dacscheck validates the syntax of an
-identity it is given, converts and expands it to the concise
-syntax if necessary, and then converts it into its internal
-<br>
-representation for credentials. These credentials are
-destroyed when the program terminates.</p>
-
-<p style="margin-top: 1em">Regardless of how it is
-specified, each identity must satisfy the syntactic
-requirements of a DACS user identity after this conversion
-and expansion (see dacs(1)[26]). If <br>
-a login name is specified as an identity, for example, it
-must be valid as a component of a DACS user identity;
-therefore, it cannot contain any invalid characters.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; If no IP address
-is provided for an identity, it is obtained from the
-REMOTE_ADDR environment variable when available, otherwise a
-default of 127.0.0.1 is used. The IP <br>
-address associated with credentials is tested using the
-user() predicate.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; If an identity
-that is being tested includes a federation name, since the
-default federation name is unlikely to be correct, it will
-probably be necessary to tell <br>
-dacscheck which federation name to compare against using the
--fn flag.</p>
-
-<p style="margin-top: 1em">Here are some examples of
-identities that may follow the -i flag:</p>
-
-<p style="margin-top: 1em">bob <br>
-:bob <br>
-DSS:bob <br>
-{u = bob} <br>
-{u=&quot;bob&quot;} <br>
-{u=&quot;alice&quot;,g=&quot;admin&quot;} <br>
-{u=&quot;DSS:bob&quot;,g=&quot;guest&quot;} <br>
-{u=&quot;bob&quot;,a=&quot;a&quot;, g=&quot;guest&quot;}</p>
-
-<p style="margin-top: 1em">Note <br>
-This string may need to be quoted appropriately on the
-command line because the brace characters are significant to
-some shells; e.g.,</p>
-
-<p style="margin-top: 1em">-i
-&rsquo;{u=&quot;bob&quot;}&rsquo;</p>
-
-<p style="margin-top: 1em">Apache and other web servers set
-the environment variable REMOTE_USER to the authenticated
-identity that invoked a web service. Provided its syntax is
-suitable, this identity can <br>
-be passed to dacscheck. For DACS-wrapped web services, DACS
-identities are available in this variable.</p>
-
-<p style="margin-top: 1em">By default, the federation,
-jurisdiction, and hostnames associated with the rules are
-derived from the system&rsquo;s hostname as returned by
-gethostname(3)[28]. If that name is <br>
-unsuitable because it is not a FQDN (i.e., it is not a
-fully-qualified domain name because it does not contain a
-period), each of the alias names is examined (using <br>
-gethostbyname(3)[29]) until a FQDN is found. The
-jurisdiction name comes from the left-most component of the
-selected FQDN and the federation domain and name come from
-the <br>
-remaining components. If no FQDN is found, the
-system&rsquo;s hostname will be selected as the jurisdiction
-name and defaults will be used as the federation domain and
-name <br>
-(EXAMPLE.COM and EXAMPLE-COM, respectively).</p>
-
-<p style="margin-top: 1em">If the system&rsquo;s hostname
-is found to be (or explicitly given as) demo.example.com,
-for instance, the following variables will be set as
-indicated during rule evaluation:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot;
-${Conf::FEDERATION_NAME} and ${DACS::FEDERATION} are both
-set to EXAMPLE-COM (dots are mapped to dashes to form a
-valid name)</p>
-
-<p style="margin-top: 1em">&Acirc;&middot;
-${Conf::FEDERATION_DOMAIN} is set to EXAMPLE.COM</p>
-
-<p style="margin-top: 1em">&Acirc;&middot;
-${Conf::JURISDICTION_NAME} and ${DACS::JURISDICTION} are set
-to the jurisdiction name, DEMO</p>
-
-<p style="margin-top: 1em">&Acirc;&middot;
-${DACS::HTTP_HOST} is set to demo.example.com:80</p>
-
-<p style="margin-top: 1em">Often, rules and identities can
-be expressed such that the names chosen for the federation
-and jurisdiction are unimportant. When this is not the case,
-however, and the defaults <br>
-chosen by dacscheck are incorrect, they can be set on the
-command line. In some circumstances it might be appropriate
-for the jurisdiction name to be the name of the application,
-<br>
-for example.</p>
-
-<p style="margin-top: 1em">Regardless of their origins,
-federation and jurisdiction names must always be
-syntactically valid (see dacs(1)[26]).</p>
-
-<p style="margin-top: 1em">Objects <br>
-While an object will often be an actual thing, such as a
-file, menu, or variable, it can also be an abstraction, such
-as an operation. dacscheck works with names - in the form
-<br>
-of URIs - rather than objects per se. It does not associate
-any particular meaning with names, it merely uses them to
-locate an applicable access control rule. Therefore, <br>
-provided the rule writer and applications that consult the
-rules agree on the naming scheme, the names that are chosen
-are largely irrelevant.</p>
-
-<p style="margin-top: 1em">An application assigns names to
-every object or class of objects that need to be referenced
-by access control rules. At its simplest, only one name is
-required (the name of the <br>
-application, for example). In more complex situations, a
-wide variety of objects need to be named. The choice of
-names and the details of the naming hierarchy are up to the
-<br>
-particular application, much like the organization of a
-software package&rsquo;s run-time file and directory
-organization depends on the particular package.</p>
-
-<p style="margin-top: 1em">The object argument is the name
-that is matched against the services specified in access
-control rules. It can be either a URI or an absolute
-pathname (one that begins with a <br>
-slash character), and either can have an optional query
-string component attached. An absolute pathname path is
-mapped internally to a URI as file://path; e.g., /myapp is
-<br>
-interpreted as file:///myapp (see RFC 1738[30]).</p>
-
-<p style="margin-top: 1em">The various components of the
-URI that names the object are available as DACS variables
-and environment variables (see below). If a query string is
-given, it is parsed and the <br>
-individual arguments are made available to rules through the
-Args namespace, just as for DACS-wrapped web services.</p>
-
-<p style="margin-top: 1em">Note <br>
-Only the path component of the URI is considered when DACS
-matches an object&rsquo;s name against the url_pattern of an
-access control rule. At present, the object name is not <br>
-automatically canonicalized or resolved (see RFC 3986[31]),
-as is usually done by a web server, so relative path
-components such as &quot;.&quot; and &quot;..&quot; should
-be avoided.</p>
-
-<p style="margin-top: 1em">Rule Evaluation Context <br>
-Rules are evaluated within an execution context that may
-affect expression evaluation implicitly or may be examined
-explicitly through variables.</p>
-
-<p style="margin-top: 1em">Since dacscheck does not consult
-the DACS configuration files, the Conf namespace is
-instantiated with few variables. At present, only the VFS
-directives are available in it.</p>
-
-<p style="margin-top: 1em">The Args namespace is
-instantiated if an object argument has a query string
-component.</p>
-
-<p style="margin-top: 1em">The DACS namespace is
-instantiated with a few standard variables (such as
-${DACS::JURISDICTION}) but can also be instantiated in
-various ways from the command line and from <br>
-files.</p>
-
-<p style="margin-top: 1em">The Env namespace is
-instantiated from the environment. Syntactically invalid
-variable names are silently ignored.</p>
-
-<p style="margin-top: 1em">Many variables normally set by a
-web server are instantiated by dacscheck based on the object
-name. These variables are available in the Env and DACS
-namespaces. For example, if <br>
-the object name is
-https://example.com:8443/myapp/edit-menu?entry=item1, the
-following variables will be set as indicated:</p>
-
-<p style="margin-top: 1em">${Env::HTTPS}=on <br>
-${Env::SERVER_NAME}=example.com <br>
-${Env::SERVER_ADDR}=142.179.101.118 <br>
-${Env::HTTP_HOST}=example.com:8443 <br>
-${Env::SERVER_PORT}=8443 <br>
-${Env::REQUEST_URI}=/myapp/edit-menu <br>
-${Env::DOCUMENT_ROOT}=/ <br>
-${Env::REQUEST_METHOD}=GET <br>
-${Env::SERVER_SOFTWARE}=dacscheck-1.4.8b <br>
-${Env::QUERY_STRING}=entry=item1 <br>
-${Env::ARG_COUNT}=1 <br>
-${Env::CURRENT_URI}=/myapp/edit-menu?entry=item1 <br>
-${Env::CURRENT_URI_NO_QUERY}=/myapp/edit-menu</p>
-
-<p style="margin-top: 1em">Variables of the same name will
-also be set in the DACS namespace and exported as
-environment variables. The value of ${Args::entry} will be
-item1. The request method defaults to <br>
-GET. The variable ${Env::REMOTE_USER} (and therefore
-${DACS::REMOTE_USER} and the environment variable
-REMOTE_USER) will be set based on the first identity
-specified on the <br>
-command line; if no identity has been specified, this
-variable will be undefined.</p>
-
-<p style="margin-top: 1em">An Example Application <br>
-To illustrate how the pieces fit together, let&rsquo;s
-consider a hypothetical (yet realistic) calendar application
-named cal that is written in Perl and invoked as a CGI
-program. <br>
-We&rsquo;ll allow a user that has been authenticated by the
-web server to read, create, or update only her own
-calendars, unless the owner of a calendar gives her
-permission to perform <br>
-a read or update operation on the calendar. Each owner can
-specify which users have access to her own calendar and the
-type(s) of access allowed.</p>
-
-<p style="margin-top: 1em">This authorization policy can be
-specified fairly easily. One approach is to use:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A main rule that
-delegates responsibility for specifying a security policy
-for each user&rsquo;s calendars to that user.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Per-user,
-per-calendar rules that say which users can access a
-calendar and in what way or ways.</p>
-
-<p style="margin-top: 1em">The program&rsquo;s
-administrator might collect all of the run-time files for
-the application in the directory /usr/local/cal and its
-subdirectories, and organize it as follows:</p>
-
-
-<p style="margin-top: 1em">/usr/local/cal/rules/{acl-rule.0,acl-rule.1,...}
-<br>
-General rules for the application</p>
-
-<p style="margin-top: 1em">/usr/local/cal/users/username
-<br>
-Root directory for calendars owned by username</p>
-
-
-<p style="margin-top: 1em">/usr/local/cal/users/username/cal-1/data/*
-<br>
-Per-calendar data files</p>
-
-
-<p style="margin-top: 1em">/usr/local/cal/users/username/rules/{acl-cal1.0,acl-cal2.0,...}
-<br>
-Per-calendar DACS access control files</p>
-
-
-<p style="margin-top: 1em">/usr/local/cal/users/username/groups/*
-<br>
-Per-user DACS group lists, one per file</p>
-
-<p style="margin-top: 1em">Given these naming
-conventions:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; to test whether
-it should perform a particular operation, the application
-would call dacscheck, telling it to use the rules it finds
-in /usr/local/cal/rules.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; the general
-rules for the application would delegate access control
-decisions for objects with names that match
-/users/username/* to access control rules found in the <br>
-directory /usr/local/cal/users/username/rules. These rules
-would describe which users, if any, would be permitted to
-perform a given operation on the calendar.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; the application
-would use object names of the form
-/users/username/cal-1?OP=operation as arguments to
-dacscheck. The ruleset for cal-1 would determine whether a
-given <br>
-identity is allowed to perform the requested operation on
-the calendar. For example, alice (the owner) might be
-granted access regardless of the value of the OP argument,
-<br>
-while bob might be granted access only if OP=read, and all
-others might be denied access. Later, alice might define a
-set of users that she names family and change the rule <br>
-to allow any member of that group read and update
-access.</p>
-
-<p style="margin-top: 1em">Users&rsquo; access control
-rules could themselves be under access control. A command
-line, GUI, or web interface would give the administrator and
-users the ability to manage rules.</p>
-
-<p style="margin-top: 1em">See the EXAMPLES[32] section for
-example rules.</p>
-
-<p style="margin-top: 1em">This is by no means the only way
-to organize the calendars, and a delegation-based approach
-isn&rsquo;t required. The administrator might instead put
-all of the rules under a common <br>
-directory, like
-/usr/local/cal/rules/acl-username.0/{acl-cal1.0,acl-cal2.0,...},
-or put them closer to the calendar they are controlling,
-like <br>
-/usr/local/cal/users/username/cal-1/acl-cal1.0.</p>
-
-<p style="margin-top: 1em">Instead of testing whether an
-operation is permitted, rules can be written to return a
-constraint string that tells the caller what kind (or kinds)
-of access are permitted. The <br>
-program&rsquo;s output line will include the constraint
-string within quotes.</p>
-
-<p style="margin-top: 1em">Comparing dacscheck with
-dacs_acs <br>
-dacs_acs(8)[8] is the DACS component that is called by
-Apache (by the DACS mod_auth_dacs[25] module, actually) to
-perform access control processing on web service requests.
-Its <br>
-operation is normally invisible to web services; dacs_acs
-does all of its work before a web service is even executed
-or a web page is returned.</p>
-
-<p style="margin-top: 1em">dacscheck performs a function
-similar to the -check_only mode of operation of dacs_acs in
-that it simply returns an access control decision. There are
-important differences <br>
-between the two programs, however.</p>
-
-<p style="margin-top: 1em">dacscheck:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; is not a CGI
-program (though it can be called from one);</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; does not require
-mod_auth_dacs[25];</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; does not use any
-DACS configuration files;</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; does not
-directly interact with a web server or any other DACS
-programs; and</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; runs at the
-privilege level of the user invoking it rather than the
-privilege level of Apache.</p>
-
-<p style="margin-top: 1em">While dacscheck uses ordinary
-DACS access control rules (dacs.acls(5)[7]), unlike most
-DACS commands it does not consult any DACS configuration
-files. The evaluation environment <br>
-for access control rules is similar to that of web service
-testing, but it is not identical since there need not be a
-web server in the picture. Other than the attributes related
-<br>
-to constraints, attributes such as pass_credentials have no
-meaning to dacscheck.</p>
-
-<p style="margin-top: 1em">Use and configuration of DACS by
-dacscheck is greatly simplified because no real federation
-or jurisdictions are defined; a completely self-contained
-environment is created so <br>
-that a single program or set of related programs can perform
-both course-grained and fine-grained access control tests.
-No federation or jurisdiction cryptographic keys are used,
-<br>
-and no real DACS credentials are created. Federation and
-jurisdiction names are instantiated, but those who write
-rules will often not need to be aware of them.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-The arguments are processed as they are examined
-(left-to-right) and their ordering can be significant; for
-example, values established by the -fh flag may affect
-options that <br>
-follow it, such as those that use string interpolation.
-Exactly one object argument is required.</p>
-
-<p style="margin-top: 1em">-admin <br>
-All identities that follow on the command line are DACS
-identities that satisfy the dacs_admin() function. Refer to
-the ADMIN_IDENTITY configuration directive in <br>
-dacs.conf(5)[33] and the &quot;a&quot; attribute for
-identities.</p>
-
-<p style="margin-top: 1em">-app appname <br>
-Specify an application name to be used to construct default
-paths (see the -rules and -groups flags).</p>
-
-<p style="margin-top: 1em">-context file <br>
-Variable definitions for the DACS namespace are read, one
-per line, in the format name=value (with optional quotes
-around the value). The name must be syntactically valid. If
-<br>
-file is -, the standard input is read. For example, if file
-contains the two lines:</p>
-
-<p style="margin-top: 1em">FOO=one <br>
-BAZ=two</p>
-
-<p style="margin-top: 1em">then within access control rules
-${DACS::FOO} will have the value &quot;one&quot; and
-${DACS::BAZ} will have the value &quot;two&quot;. This flag
-may be repeated, although the standard input can <br>
-be read only once.</p>
-
-<p style="margin-top: 1em">-Dname=value <br>
-This is equivalent to -var name=value.</p>
-
-<p style="margin-top: 1em">-dump <br>
-Perform all initializations, display the evaluation context,
-and then exit.</p>
-
-<p style="margin-top: 1em">-F field_sep <br>
-When roles are looked up, use the character field_sep as the
-field separator character instead of the default. For
-details, refer to the description of the VFS directive in
-<br>
-dacs.conf(5)[34].</p>
-
-<p style="margin-top: 1em">Note <br>
-Note that only the first occurrence of the character (from
-left to right) is treated as the separator character.</p>
-
-<p style="margin-top: 1em">-fd domain <br>
-Use domain as the domain name for the federation. It must be
-syntactically valid.</p>
-
-<p style="margin-top: 1em">-fh hostname <br>
-Use hostname, a fully-qualified domain name, as the
-system&rsquo;s hostname and to derive the federation and
-jurisdiction names. It must be syntactically valid.</p>
-
-<p style="margin-top: 1em">-fj jurname <br>
-Use jurname as the jurisdiction name. It must be
-syntactically valid.</p>
-
-<p style="margin-top: 1em">-fn fedname <br>
-Use fedname as the federation name. It must be syntactically
-valid.</p>
-
-<p style="margin-top: 1em">-groups group_vfs <br>
-By default, dacscheck expects to find DACS group definitions
-rooted in the directory dacscheck/groups relative to
-DACS_HOME (e.g., /usr/local/dacs/dacscheck/groups), or if
-<br>
--app appname is given, rooted in the directory
-dacscheck/appname/groups relative to DACS_HOME (e.g.,
-/usr/local/dacs/dacscheck/myapp/groups) This flag specifies
-a different <br>
-location. It can be an absolute pathname (which will be
-string interpolated - see dacs.conf(5)[35]) or a URI in the
-syntax of the VFS[34] configuration directive. Examples:</p>
-
-<p style="margin-top: 1em">-groups
-&quot;[groups]dacs-fs:/local/groups&quot; <br>
--groups /home/bob/mygroups</p>
-
-<p style="margin-top: 1em">By default, a reference to the
-group %FOO:people will be mapped to a file named people.grp
-within the directory FOO relative to the DACS group
-directory.</p>
-
-<p style="margin-top: 1em">-h <br>
-Prints the usage blurb.</p>
-
-<p style="margin-top: 1em">-i ident <br>
-The given identity is added to the set of identities in
-effect during checking. This identity does not necessarily
-have an account on the system. If ident is the empty <br>
-string, however, the flag has no effect; this is convenient
-behaviour when the flag is used like -i
-${Env::REMOTE_USER:-&quot;&quot;}, for example, where
-REMOTE_USER may not have been <br>
-set.</p>
-
-<p style="margin-top: 1em">-icgi <br>
-If the environment variable REMOTE_USER is set to a valid
-simple name or DACS identity, it is added to the set of
-identities in effect during checking. If the variable is not
-<br>
-set or is invalid, this flag has no effect.</p>
-
-<p style="margin-top: 1em">-icgig <br>
-Like the -icgi flag, except any roles associated with the
-username will be added.</p>
-
-<p style="margin-top: 1em">-il ident <br>
-The given identity is &quot;local&quot; and must correspond
-to an account on the system; if the -groups flag is in
-effect, the account&rsquo;s group membership will be added
-as roles to <br>
-ident.</p>
-
-<p style="margin-top: 1em">-ilg ident <br>
-Like the -ilg flag, except the account&rsquo;s group
-membership will be added as roles to ident regardless of
-whether the -groups flag is in effect.</p>
-
-<p style="margin-top: 1em">-ieuid <br>
-The effective uid of the program is added to the set of
-identities. If the -groups flag is in effect, the
-account&rsquo;s group membership will be added as roles to
-ident.</p>
-
-<p style="margin-top: 1em">-ieuidg <br>
-The effective uid of the program is added to the set of
-identities. The account&rsquo;s group membership will be
-added as roles to ident regardless of whether the -groups
-flag is <br>
-in effect.</p>
-
-<p style="margin-top: 1em">-iuid <br>
-The real uid of the program is added to the set of
-identities. If the -groups flag is in effect, the
-account&rsquo;s group membership will be added as roles to
-ident.</p>
-
-<p style="margin-top: 1em">-iuidg <br>
-The real uid of the program is added to the set of
-identities. The account&rsquo;s group membership will be
-added as roles to ident regardless of whether the -groups
-flag is in <br>
-effect.</p>
-
-<p style="margin-top: 1em">-lg <br>
-For each local identity that follows on the command line,
-use its Unix group membership to the identity&rsquo;s
-roles.</p>
-
-<p style="margin-top: 1em">-ll log_level <br>
-Set the debugging output level to log_level (see
-dacs(1)[23]). The default level is warn, and the -v flag
-bumps the level to debug or trace.</p>
-
-<p style="margin-top: 1em">-name_compare method <br>
-Exactly like the NAME_COMPARE[36] directive, set the default
-method used to compare DACS names in various contexts to
-method, which may be (case-insensitively) case, nocase, <br>
-or default.</p>
-
-<p style="margin-top: 1em">-q <br>
-Be quiet, except for error messages; the outcome will not be
-printed to stdout. The -v and -ll flags are independent of
-this.</p>
-
-<p style="margin-top: 1em">-redirect <br>
-If access is denied and the applicable rule calls
-redirect()[37] with the BY_SIMPLE_REDIRECT argument, then
-the specified URL is printed to stdout. This flag enables
-the -q <br>
-flag.</p>
-
-<p style="margin-top: 1em">-roles roles_vfs <br>
-Roles for each identity that follows on the command line
-will be looked up using roles_vfs. It can be an absolute
-pathname (which will be string interpolated - see <br>
-dacs.conf(5)[35]) or a URI in the syntax of the VFS[34]
-configuration directive. If any roles are found, they will
-be added to any other roles specified for the user (whether
-<br>
-explicitly listed or obtained from Unix group membership).
-For example, if /usr/local/myapp/roles contains:</p>
-
-<p style="margin-top: 1em">bobo:users <br>
-auggie:admin,users <br>
-harley:guest</p>
-
-<p style="margin-top: 1em">then the command line:</p>
-
-<p style="margin-top: 1em">% dacscheck -roles
-/usr/local/myapp/roles -i auggie /myapp/admin</p>
-
-<p style="margin-top: 1em">will test access for the
-identity
-{u=&quot;auggie&quot;,g=&quot;admin,users&quot;}.</p>
-
-<p style="margin-top: 1em">-rules rule_vfs <br>
-By default, dacscheck expects to use a ruleset rooted in the
-directory dacscheck/acls relative to DACS_HOME (e.g.,
-/usr/local/dacs/dacscheck/acls), or if the flag -app <br>
-appname is given, rooted in the directory
-dacscheck/appname/acls relative to DACS_HOME (e.g.,
-/usr/local/dacs/dacscheck/myapp/acls). This flag specifies a
-different ruleset <br>
-to be used. It can be an absolute pathname (which will be
-string interpolated - see dacs.conf(5)[35]) or a URI in the
-syntax of the VFS[34] configuration directive. Examples:</p>
-
-<p style="margin-top: 1em">-rules
-&quot;[acls1]dacs-fs:/local/acls&quot; <br>
--rules /usr/local/myrules</p>
-
-<p style="margin-top: 1em">This flag may be repeated;
-rulesets will examined in the order in which they are
-specified on the command line.</p>
-
-<p style="margin-top: 1em">-v <br>
-Increase the level of debugging output. The flag may be
-repeated.</p>
-
-<p style="margin-top: 1em">-var name=value <br>
-Like the -context flag, this adds a variable definition to
-the DACS namespace. The variable DACS::name will be assigned
-the string value. The name must be syntactically <br>
-valid. This flag may be repeated.</p>
-
-<p style="margin-top: 1em">--version <br>
-Display the program&rsquo;s version information and then
-exit.</p>
-
-<p style="margin-top: 1em">-vfs vfs_uri <br>
-Add vfs_uri as a VFS[34] configuration directive. This flag
-may be repeated, with later occurrences having a higher
-&quot;priority&quot; than earlier ones (just as if they
-appeared <br>
-later in dacs.conf; see dacs.conf(5)[33]).</p>
-
-<p style="margin-top: 1em">-- <br>
-This marks the end of the flag arguments.</p>
-
-<p style="margin-top: 1em">EXAMPLES <br>
-To illustrate how dacscheck might be used with real
-applications, here are some examples. The first few continue
-with the hypothetical calendar application described
-earlier.</p>
-
-<p style="margin-top: 1em">1. The file
-/usr/local/cal/rules/acl-rule.0 might look like:</p>
-
-<p style="margin-top: 1em">&lt;acl_rule
-status=&quot;enabled&quot;&gt; <br>
-&lt;services&gt; <br>
-&lt;delegate url_pattern=&quot;/users/alice/*&quot; <br>
-rule_uri=&quot;/usr/local/cal/users/alice/rules/&gt; <br>
-&lt;delegate url_pattern=&quot;/users/bob/*&quot; <br>
-rule_uri=&quot;/usr/local/cal/users/bob/rules/&gt; <br>
-&lt;service
-url_pattern=&quot;/usr/local/cal/bin/*&quot;/&gt; <br>
-&lt;/services&gt;</p>
-
-<p style="margin-top: 1em">&lt;rule
-order=&quot;allow,deny&quot;&gt; <br>
-&lt;allow&gt; <br>
-user(&quot;auth&quot;) <br>
-&lt;/allow&gt; <br>
-&lt;/rule&gt; <br>
-&lt;/acl_rule&gt;</p>
-
-<p style="margin-top: 1em">This rule redirects requests for
-a particular user&rsquo;s calendar to that user&rsquo;s
-access control rules. It also says that access to the
-application&rsquo;s binaries is restricted to <br>
-authenticated users. The application might issue a command
-such as:</p>
-
-<p style="margin-top: 1em">% dacscheck -i $REMOTE_USER
--rules /usr/local/cal/rules object</p>
-
-<p style="margin-top: 1em">which will return an exit status
-of 0 if REMOTE_USER is granted access to object; otherwise
-an exit status of 1 will be returned. A better choice is to
-use the command:</p>
-
-<p style="margin-top: 1em">% dacscheck -icgi -rules
-/usr/local/cal/rules object</p>
-
-<p style="margin-top: 1em">which will leave the user
-unauthenticated if REMOTE_USER is unset or invalid.</p>
-
-<p style="margin-top: 1em">2. The file
-/usr/local/cal/users/alice/rules/acl-cal1.0 contains the
-rule for user alice&rsquo;s &quot;Calendar 1&quot; and might
-look like:</p>
-
-<p style="margin-top: 1em">&lt;acl_rule
-status=&quot;enabled&quot;&gt; <br>
-&lt;services&gt; <br>
-&lt;service
-url_pattern=&quot;/users/alice/cal-1/*&quot;/&gt; <br>
-&lt;/services&gt;</p>
-
-<p style="margin-top: 1em">&lt;rule
-order=&quot;allow,deny&quot;&gt; <br>
-&lt;precondition&gt; <br>
-&lt;predicate&gt; user(&quot;:alice&quot;)
-&lt;/predicate&gt; <br>
-&lt;/precondition&gt; <br>
-&lt;allow&gt; <br>
-return(1) <br>
-&lt;/allow&gt; <br>
-&lt;/rule&gt;</p>
-
-<p style="margin-top: 1em">&lt;rule
-order=&quot;allow,deny&quot;&gt; <br>
-&lt;precondition&gt; <br>
-&lt;predicate&gt; ${Args::OP} eq &quot;read&quot;
-&lt;/predicate&gt; <br>
-&lt;/precondition&gt; <br>
-&lt;allow&gt; <br>
-user(&quot;:bob&quot;) <br>
-&lt;/allow&gt; <br>
-&lt;/rule&gt;</p>
-
-<p style="margin-top: 1em">&lt;/acl_rule&gt;</p>
-
-<p style="margin-top: 1em">This rule says that alice is
-allowed full access to the calendar (there is no restriction
-on the operation), but bob only has read access. dacscheck
-would be called with <br>
-/users/alice/cal-1?OP=create, /users/alice/cal-1?OP=update,
-or /users/alice/cal-1?OP=read to test for authorization to
-perform a create, update, or read operation on the <br>
-calendar, respectively.</p>
-
-<p style="margin-top: 1em">3. If alice defines a DACS group
-that she calls family and adds the names julia and auggie to
-that group, she might modify the rule above by adding the
-following:</p>
-
-<p style="margin-top: 1em">&lt;rule
-order=&quot;allow,deny&quot;&gt; <br>
-&lt;precondition&gt; <br>
-&lt;predicate&gt; ${Args::OP} eq &quot;read&quot; <br>
-or ${Args::OP} eq &quot;update&quot;&lt;/predicate&gt; <br>
-&lt;/precondition&gt; <br>
-&lt;allow&gt; <br>
-user(&quot;%:alice-family&quot;) <br>
-&lt;/allow&gt; <br>
-&lt;/rule&gt;</p>
-
-<p style="margin-top: 1em">This rule says that any member
-of the group alice-family is allowed read and update access
-to this calendar. The command:</p>
-
-<p style="margin-top: 1em">% dacscheck -i julia
-/users/alice/cal-1?OP=update</p>
-
-<p style="margin-top: 1em">would report that access is
-granted.</p>
-
-<p style="margin-top: 1em">4. The membership of
-alice&rsquo;s group called alice-family might be specified
-in the file /usr/local/cal/users/alice/groups/family</p>
-
-<p style="margin-top: 1em">&lt;acl_rule
-status=&quot;enabled&quot;&gt; <br>
-&lt;services&gt; <br>
-&lt;service
-url_pattern=&quot;/users/alice/groups/*&quot;/&gt; <br>
-&lt;/services&gt;</p>
-
-<p style="margin-top: 1em">&lt;rule
-order=&quot;allow,deny&quot;&gt; <br>
-&lt;precondition&gt; <br>
-&lt;predicate&gt; user(&quot;:alice&quot;)
-&lt;/predicate&gt; <br>
-&lt;/precondition&gt; <br>
-&lt;allow&gt; <br>
-return(1) <br>
-&lt;/allow&gt; <br>
-&lt;/rule&gt; <br>
-&lt;/acl_rule&gt;</p>
-
-<p style="margin-top: 1em">This rule allows only alice to
-manage the membership of this group, but she is free modify
-the rule to allow others to manage her groups.</p>
-
-<p style="margin-top: 1em">5. As a final example for this
-application, alice&rsquo;s rules might also be under access
-control:</p>
-
-<p style="margin-top: 1em">&lt;acl_rule
-status=&quot;enabled&quot;&gt; <br>
-&lt;services&gt; <br>
-&lt;service
-url_pattern=&quot;/users/alice/groups/*&quot;/&gt; <br>
-&lt;/services&gt;</p>
-
-<p style="margin-top: 1em">&lt;rule
-order=&quot;allow,deny&quot;&gt; <br>
-&lt;precondition&gt; <br>
-&lt;predicate&gt; user(&quot;:alice&quot;)
-&lt;/predicate&gt; <br>
-&lt;/precondition&gt; <br>
-&lt;allow&gt; <br>
-return(1) <br>
-&lt;/allow&gt; <br>
-&lt;/rule&gt; <br>
-&lt;/acl_rule&gt;</p>
-
-<p style="margin-top: 1em">This rule allows only alice to
-manage the membership of this group, but she is free modify
-the rule to allow others to manage her groups.</p>
-
-<p style="margin-top: 1em">6. A popular open source web log
-analyzer program, written in Perl, can be invoked as a CGI
-program. The program includes security provisions whereby it
-can restrict access to <br>
-any user authenticated by the web server, by username (using
-REMOTE_USER, as exported by the web server), or based on the
-user&rsquo;s IP address (using REMOTE_ADDR). The <br>
-approximately 40 lines of code (plus assorted
-initializations) that implements this security policy can
-essentially be replaced by just a few lines of code:</p>
-
-<p style="margin-top: 1em">my $exit_value = 0; <br>
-system &quot;/usr/local/dacs/bin/dacscheck&quot;,
-&quot;-q&quot;, &quot;-icgi&quot;, &quot;-rules&quot;, <br>
-&quot;/usr/local/webstats/acls&quot;, &quot;/webstats&quot;;
-<br>
-$exit_value = $? &gt;&gt; 8; <br>
-# print &quot;dacscheck returned $exit_value for user <br>
-if ($exit_value != 0) { <br>
-# dacscheck denies access; print message and exit <br>
-exit 1; <br>
-}</p>
-
-<p style="margin-top: 1em"># dacscheck grants access, so
-continue</p>
-
-<p style="margin-top: 1em">Tip <br>
-The DACS distribution includes a Perl module
-(/usr/local/dacs/lib/perl/DACScheck.pm) to make dacscheck a
-little easier to use. The example above would be written
-as:</p>
-
-<p style="margin-top: 1em">use DACScheck.pm; <br>
-dacscheck_rules(&quot;/usr/local/webstats/acls&quot;);</p>
-
-<p style="margin-top: 1em">my $result =
-dacscheck_cgi(&quot;/webstats&quot;); <br>
-if ($result != 1) { <br>
-# dacscheck denies access; print message and exit <br>
-exit 1; <br>
-}</p>
-
-<p style="margin-top: 1em"># dacscheck grants access, so
-continue</p>
-
-<p style="margin-top: 1em">A simple DACS access control
-rule can be written to duplicate the program&rsquo;s
-security functionality (using the user() and from()
-predicates, see dacs.exprs(5)[22]), but more <br>
-sophisticated policies can be added easily, all without
-having to modify the Perl program again.</p>
-
-<p style="margin-top: 1em">DIAGNOSTICS <br>
-The program exits 0 if access is granted and 1 if access is
-denied. Any other exit status indicates an error
-occurred.</p>
-
-<p style="margin-top: 1em">BUGS <br>
-A light-weight method of defining DACS groups is needed.
-Once the internal are stable, this program&rsquo;s
-functionality will be made available through a C/C++ API,
-which will permit <br>
-direct, efficient use by other applications and extensible
-languages (through perlxs(1), for example).</p>
-
-<p style="margin-top: 1em">The DACS_ACS argument[38] is not
-recognized by dacscheck.</p>
-
-<p style="margin-top: 1em">Identities are not considered
-when roles are looked up; only the username is matched.</p>
-
-<p style="margin-top: 1em">Unlike dacs_acs(8)[8], there is
-no support for automatically setting variables by parsing a
-message body (a MIME document).</p>
-
-<p style="margin-top: 1em">It might be possible to create a
-layer between an application and the underlying system so
-that dacscheck can be called transparently, or nearly
-so.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-See dacs(1)[23], dacsacl(1)[9], dacs.acls(5)[7],
-dacs.conf(5)[33], dacs.exprs(5)[22], dacs.groups(5)[24],
-dacs.java(7)[39].</p>
-
-<p style="margin-top: 1em">Rule-based access
-control[40]</p>
-
-<p style="margin-top: 1em">DACScheck.pm</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Distributed Systems Software (www.dss.ca[41])</p>
-
-<p style="margin-top: 1em">COPYING <br>
-Copyright2003-2016 Distributed Systems Software. See the
-LICENSE[42] file that accompanies the distribution for
-licensing information.</p>
-
-<p style="margin-top: 1em">NOTES <br>
-1. Perl <br>
-http://www.perl.org/</p>
-
-<p style="margin-top: 1em">2. PHP <br>
-http://www.php.net/</p>
-
-<p style="margin-top: 1em">3. Python <br>
-http://www.python.org</p>
-
-<p style="margin-top: 1em">4. Ruby <br>
-http://www.ruby-lang.org</p>
-
-<p style="margin-top: 1em">5. Tcl/Tk <br>
-http://www.tcl.tk/software/</p>
-
-<p style="margin-top: 1em">6. geteuid(2) <br>
-
-http://www.freebsd.org/cgi/man.cgi?query=geteuid&amp;apropos=0&amp;sektion=2&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</p>
-
-<p style="margin-top: 1em">7. dacs.acls(5) <br>
-http://dacs.dss.ca/man/dacs.acls.5.html</p>
-
-<p style="margin-top: 1em">8. dacs_acs(8) <br>
-http://dacs.dss.ca/man/dacs_acs.8.html</p>
-
-<p style="margin-top: 1em">9. dacsacl(1) <br>
-http://dacs.dss.ca/man/dacsacl.1.html</p>
-
-<p style="margin-top: 1em">10. getfacl(1) <br>
-
-http://www.freebsd.org/cgi/man.cgi?query=getfacl&amp;apropos=0&amp;sektion=1&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</p>
-
-<p style="margin-top: 1em">11. setfacl(1) <br>
-
-http://www.freebsd.org/cgi/man.cgi?query=setfacl&amp;apropos=0&amp;sektion=1&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</p>
-
-<p style="margin-top: 1em">12. acl(3) <br>
-
-http://www.freebsd.org/cgi/man.cgi?query=acl&amp;apropos=0&amp;sektion=3&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</p>
-
-<p style="margin-top: 1em">13. htpasswd(1) <br>
-http://httpd.apache.org/docs/2.2/programs/htpasswd.html</p>
-
-<p style="margin-top: 1em">14. Using FreeBSD&rsquo;s ACLs
-<br>
-
-http://www.onlamp.com/pub/a/bsd/2005/09/22/FreeBSD_Basics.html</p>
-
-<p style="margin-top: 1em">15. ONLamp.com <br>
-http://www.onlamp.com</p>
-
-<p style="margin-top: 1em">16. POSIX ACLs in Linux <br>
-
-http://www.cs.unc.edu/cms/help/help-articles/posix-acls-in-linux</p>
-
-<p style="margin-top: 1em">17. linux.com <br>
-http://linux.com</p>
-
-<p style="margin-top: 1em">18. Solaris acl(2) and facl(2)
-<br>
-
-http://docs.oracle.com/cd/E18752_01/html/816-5167/facl-2.html</p>
-
-<p style="margin-top: 1em">19. Sun Microsystems <br>
-http://www.sun.com</p>
-
-<p style="margin-top: 1em">20. Using Solaris ACLs <br>
-http://www.cs.duke.edu/csl/faqs/solaris-acls.php</p>
-
-<p style="margin-top: 1em">21. Dept. of Computer Science,
-Duke University <br>
-http://www.cs.duke.edu</p>
-
-<p style="margin-top: 1em">22. dacs.exprs(5) <br>
-http://dacs.dss.ca/man/dacs.exprs.5.html</p>
-
-<p style="margin-top: 1em">23. dacs(1) <br>
-http://dacs.dss.ca/man/dacs.1.html</p>
-
-<p style="margin-top: 1em">24. dacs.groups(5) <br>
-http://dacs.dss.ca/man/dacs.groups.5.html</p>
-
-<p style="margin-top: 1em">25. mod_auth_dacs <br>
-http://dacs.dss.ca/man/mod_auth_dacs.html</p>
-
-<p style="margin-top: 1em">26. dacs(1) <br>
-http://dacs.dss.ca/man/dacs.1.html#naming</p>
-
-<p style="margin-top: 1em">27. concise syntax <br>
-http://dacs.dss.ca/man/dacs.1.html#concise_user_syntax</p>
-
-<p style="margin-top: 1em">28. gethostname(3) <br>
-
-http://www.freebsd.org/cgi/man.cgi?query=gethostname&amp;apropos=0&amp;sektion=3&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</p>
-
-<p style="margin-top: 1em">29. gethostbyname(3) <br>
-
-http://www.freebsd.org/cgi/man.cgi?query=gethostbyname&amp;apropos=0&amp;sektion=3&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</p>
-
-<p style="margin-top: 1em">30. RFC 1738 <br>
-http://www.rfc-editor.org/rfc/rfc1738.txt</p>
-
-<p style="margin-top: 1em">31. RFC 3986 <br>
-http://www.rfc-editor.org/rfc/rfc3986.txt</p>
-
-<p style="margin-top: 1em">32. EXAMPLES <br>
-http://dacs.dss.ca/man/#EXAMPLES</p>
-
-<p style="margin-top: 1em">33. dacs.conf(5) <br>
-http://dacs.dss.ca/man/dacs.conf.5.html</p>
-
-<p style="margin-top: 1em">34. dacs.conf(5) <br>
-http://dacs.dss.ca/man/dacs.conf.5.html#VFS</p>
-
-<p style="margin-top: 1em">35. dacs.conf(5) <br>
-http://dacs.dss.ca/man/dacs.conf.5.html#interpolation</p>
-
-<p style="margin-top: 1em">36. NAME_COMPARE <br>
-http://dacs.dss.ca/man/dacs.conf.5.html#NAME_COMPARE</p>
-
-<p style="margin-top: 1em">37. redirect() <br>
-http://dacs.dss.ca/man/dacs.exprs.5.html#redirect</p>
-
-<p style="margin-top: 1em">38. DACS_ACS argument <br>
-
-http://dacs.dss.ca/man/dacs_acs.8.html#dacs_acs_argument</p>
-
-<p style="margin-top: 1em">39. dacs.java(7) <br>
-http://dacs.dss.ca/man/dacs.java.7.html</p>
-
-<p style="margin-top: 1em">40. Rule-based access control
-<br>
-
-http://www-128.ibm.com/developerworks/webservices/library/ws-soa-access.html</p>
-
-<p style="margin-top: 1em">41. www.dss.ca <br>
-http://www.dss.ca</p>
-
-<p style="margin-top: 1em">42. LICENSE <br>
-http://dacs.dss.ca/man/../misc/LICENSE</p>
-
-<p style="margin-top: 1em">DACS 1.4.38a 01/12/2017
-DACSCHECK(1)</p>
-<hr>
+     -rules /usr/local/myapp/rules /myapp&quot;, $st);
+if ($st != 0) {
+// Access is denied, bail out
+  exit($st);
+}
+<div class="Pp"></div>
+// Access is granted, proceed
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Note</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+<div class="Pp"></div>
+Some may question the point of having a program call <b>dacscheck</b> to test if
+  the user invoking it is allowed to merely run the program. At first glance it
+  might appear that one could achieve the same result by simply setting file
+  permissions such that only bob and alice can run the program. If that could be
+  done, the coarse-grained testing done by <b>dacscheck</b> in the examples
+  would be unnecessary. It turns out that there is more to it than that.
+<div class="Pp"></div>
+Setting file permissions to achieve this on a traditional Unix-type system
+  requires creating a new group in /etc/group, something that generally can only
+  be done by a system administrator. Ordinary users must therefore either bother
+  the system administrator each time such a group must be created or modified,
+  or find some other way to achieve the same result (e.g., by encryption, using
+  a special setuid or setgid command that provides password-protected access, or
+  some other clumsy and possibly insecure solution).
+<div class="Pp"></div>
+To address this limitation and others, many Unix-type operating systems now
+  include file systems that extend the traditional Unix file permissions with an
+  ACL-based mechanism (e.g., providing the <b>getfacl(1)</b>[10] and
+  <b>setfacl(1)</b>[11] commands, and the <b>acl(3)</b>[12] ACL security API).
+<div class="Pp"></div>
+<b>dacscheck</b> provides similar functionality but for <i>arbitrary names</i>,
+  not only for objects in the file system, and with respect to <i>arbitrary
+  identities</i>, not only for those known to the operating system. For example,
+  a CGI script can call <b>dacscheck</b> to test access on behalf of a user
+  known to the web server (e.g., via an account created using
+  <b>htpasswd(1)</b>[13]) but not having an account on the underlying system.
+  Therefore, besides being portable across platforms and available on systems
+  without ACL-type file permissions, <b>dacscheck</b> is a much more general
+  solution than what most operating systems provide. In contrast to a
+  system-provided ACL-based mechanism, however, <b>dacscheck</b> is <i>not</i>
+  invoked transparently (i.e., it is not called automatically by the operating
+  system when a resource such as a file is accessed). Also, with respect to
+  testing whether a user is allowed to run a program, that program will
+  typically perform the test itself and must therefore begin execution.
+<div class="Pp"></div>
+For additional information:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;<b>Using FreeBSD's ACLs</b>[14], Dru
+  Lavigne, <b>ONLamp.com</b>[15], 22-Sep-05.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;<b>POSIX ACLs in Linux</b>[16], Mike
+  Peters, <b>linux.com</b>[17], 2-Aug-04.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;For Solaris, <b>Solaris acl(2) and
+  facl(2)</b>[18], <b>Sun Microsystems</b>[19] and <b>Using Solaris ACLs</b>[20]
+  by the <b>Dept. of Computer Science, Duke University</b>[21].</div>
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+<div class="Pp"></div>
+Because the authorization checking performed by <b>dacscheck</b> is completely
+  separate from that performed by the operating system for system calls, a
+  <b>Unix</b> identity such as root has no special rights or capabilities as far
+  as <b>dacscheck</b> is concerned unless rules have been written to grant them.
+  The same applies to the application of <b>Unix</b> groups.
+<div class="Pp"></div>
+The next example demonstrates how some typical <b>Perl</b> code can be improved
+  by <b>dacscheck</b>. The code fragment:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+if ($logged_in_as_root || $logged_in_as_current_admin) {
+  # Do something privileged...
+}
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+which depends on the two variables being properly initialized depending on the
+  value of <i>$username</i>, can be replaced by this:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+# Determine if $username has admin privileges
+$output = `dacscheck -q -i $username -app myapp /myapp/admin`;
+$is_admin = ($? &gt;&gt; 8) == 0;
+<div class="Pp"></div>
+if ($is_admin) {
+  # Do something privileged...
+}
+<div class="Pp"></div>
+# Later...
+if ($is_admin) {
+  # Do something else privileged...
+}
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+The new authorization test depends on the identity that is running the program (
+  <i>$username</i>) and the separate ruleset that determines whether that
+  identity should be granted access to /myapp/admin, which is simply a label for
+  a rule that might look like this:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+&lt;acl_rule status=&quot;enabled&quot;&gt;
+  &lt;services&gt;
+   &lt;service url_pattern=&quot;/myapp/admin&quot;/&gt;
+  &lt;/services&gt;
+<div class="Pp"></div>
+  &lt;rule order=&quot;allow,deny&quot;&gt;
+   &lt;allow&gt;
+     user(&quot;%:admin&quot;)
+   &lt;/allow&gt;
+ &lt;/rule&gt;
+&lt;/acl_rule&gt;
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+This rule grants access if and only if <i>$username</i> is a member of the
+  <b>DACS</b> group named admin or is associated with that <b>DACS</b> role.
+  Membership in that group can be changed dynamically, and can even be reduced
+  to zero.
+<div class="Pp"></div>
+The important observation is that <i>the conditions that determine whether the
+  user running this Perl code has administrative privileges are defined outside
+  of the program and can be changed without modifying the code and often without
+  even modifying access control rules</i>.
+<div class="Pp"></div>
+A few concepts that are used in this document are described elsewhere.
+  Variables, variable namespaces, and expressions that are used in access
+  control rules are discussed in <b>dacs.exprs(5)</b>[22]. Naming in <b>DACS</b>
+  is discussed in <b>dacs(1)</b>[23], and <b>DACS</b> groups and roles are
+  covered in <b>dacs.groups(5)</b>[24].
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Security</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+<div class="Pp"></div>
+Clearly <b>dacscheck</b>, its caller, and the resources in question must be
+  &quot;isolated&quot; from the user on whose behalf <b>dacscheck</b> is being
+  run, otherwise the user could access the resources directly or subvert access
+  control tests. Therefore, <b>dacscheck</b> and its caller must either be more
+  privileged than the user on whose behalf it is being run or both programs must
+  run in a secure context. This generally means that both <b>dacscheck</b> and
+  its caller should be run in isolation from users (as on a remote server) or as
+  an effective user ID different from the user's.
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+<h2 class="Ss" title="Ss" id="Advantages"><a class="selflink" href="#Advantages">Advantages</a></h2>
+Programs that perform authorization tests typically contain code like:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;&quot;If the current user has provided
+  a suitable password, then execute the following code, otherwise do not&quot;,
+  or</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;&quot;If the current user is the
+  administrator, do the following&quot;, or</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;&quot;If the current user is allowed
+  to perform an update operation, then show these menu items, otherwise do not
+  show them&quot;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+Complicated applications can be littered with these kinds of tests, making them
+  prone to bugs and security problems. Changes to security policies may involve
+  modifications throughout an application or suite of applications. Also,
+  password handling is often incorporated into such programs; because password
+  management can require a significant implementation effort and is difficult to
+  do securely, it seems wise to try to leverage existing implementations.
+<div class="Pp"></div>
+Compared to custom-coded solutions, <b>dacscheck</b> has many advantages:
+<div class="Pp"></div>
+Data-driven policies
+<div style="margin-left: 4.00ex;">As opposed to specially-written access control
+  logic, data-driven (rule-based) functionality is superior because:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;Access control rules are separate from
+  code, so changes to a set of rules automatically applies to all uses of those
+  rules throughout an application or set of applications; code does not need to
+  be modified if the policy is changed.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;Bug fixes and improvements to rules
+  are automatically available to programs that use <b>dacscheck</b>; no
+  recompilation of applications is necessary.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;The person who administers the rules
+  does not have to be the application's programmer (or even someone who
+  understands the code), so delegating responsibility is much easier. This
+  reduces the amount of programming required when changes are required, reduces
+  code maintenance effort, and decreases the chance of error.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;It is usually easier to understand
+  (and express) a set of rules that describes an access control policy; code
+  that implements the same policy will be more complex and difficult to
+  understand, increasing the chance of error.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+</div>
+<div class="Pp"></div>
+Programming Efficiency
+<div style="margin-left: 4.00ex;">
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;Applications are simplified and
+  programming time and effort are reduced because existing access control code
+  (i.e., <b>dacscheck</b>) is reused.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;Sophisticated rules can be constructed
+  without having to write any code. <b>DACS</b> features are available, such as
+  roles and groups, and can be used to construct simpler and more expressive
+  authorization policies than are likely to be hand-coded.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+</div>
+<div class="Pp"></div>
+Portability
+<div style="margin-left: 4.00ex;">Rules are platform independent, can be stored
+  remotely from the applications that use them, and can potentially be evaluated
+  remotely. <b>dacscheck</b> is available for a variety of platforms.</div>
+<div class="Pp"></div>
+Increased Sharing
+<div style="margin-left: 4.00ex;">Rules can be shared and used in different
+  situations and by different programs.</div>
+<div class="Pp"></div>
+Flexibility
+<div style="margin-left: 4.00ex;">
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;Because it does not rely on a web
+  server, it can be used by virtually any CGI-based program.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;With respect to <b>DACS</b>, it can be
+  used in circumstances where the <b>mod_auth_dacs</b>[25] module cannot be used
+  with <b>Apache</b>, or where <b>Apache</b> cannot be used at all.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;Because it is implemented as an
+  ordinary command, <b>dacscheck</b> can be used from the command line or
+  invoked from almost any script or program.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;For CGI-based programs,
+  <b>dacscheck</b> can be used without any assistance from a system
+  administrator; e.g., it does not require a web server to be configured to
+  provide authorization for a CGI program because all access control
+  functionality is performed within the program.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+</div>
+<div class="Pp"></div>
+Increased Security
+<div style="margin-left: 4.00ex;"><b>dacscheck</b> neither performs
+  authentication nor relies on any particular authentication method, so the
+  authentication method can be changed without affecting the application's use
+  of <b>dacscheck</b>. Any supported means of authentication can be used, not
+  only the typical password-based method.</div>
+<div class="Pp"></div>
+While the performance of <b>dacscheck</b> ought not to be a factor for many
+  applications, the C/C++ API can be used where it is an issue. This API can be
+  used to incorporate <b>dacscheck</b> functionality into compiled programs and
+  extensible languages, such as <b>Perl</b>, <b>Python</b>, <b>Tcl/Tk</b>, and
+  <b>PHP</b>.
+<h2 class="Ss" title="Ss" id="Identities"><a class="selflink" href="#Identities">Identities</a></h2>
+The identity for which access is to be tested is given to the program or
+  obtained by the program from its execution environment. This identity is
+  converted into <b>DACS's</b> internal representation.
+<div class="Pp"></div>
+More than one identity can be specified; the check is made on behalf of the
+  union of all the identities. If the identities bob and alice are specified,
+  for instance, a rule that is satisfied by either identity may grant access.
+<div class="Pp"></div>
+If no identity is given, the check is made on behalf of an unauthenticated user.
+<div class="Pp"></div>
+An identity can be:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;a login name that <b>dacscheck</b>
+  maps to from the real or effective uid of the program (i.e., the user who is
+  running the program);</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;a <b>DACS</b> user identity (e.g.,
+  :carol, DSS:bob, or EXAMPLE-COM::DEMO:alice, see <b>dacs(1)</b>[26]);</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;a simple name (bob is equivalent to
+  :bob); or</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;a name expressed in the <b>concise
+  syntax</b>[27], which gives a username and, optionally, roles and attributes
+  for the identity. Any identity that has expired is not used.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Notes</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;<b>dacscheck</b> validates the syntax
+  of an identity it is given, converts and expands it to the concise syntax if
+  necessary, and then converts it into its internal representation for
+  credentials. These credentials are destroyed when the program terminates.
+<div style="height: 1.00em;">&#x00A0;</div>
+Regardless of how it is specified, each identity must satisfy the syntactic
+  requirements of a <b>DACS</b> user identity after this conversion and
+  expansion (see <b>dacs(1)</b>[26]). If a login name is specified as an
+  identity, for example, it must be valid as a component of a <b>DACS</b> user
+  identity; therefore, it cannot contain any invalid characters.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;If no IP address is provided for an
+  identity, it is obtained from the <b>REMOTE_ADDR</b> environment variable when
+  available, otherwise a default of 127.0.0.1 is used. The IP address associated
+  with credentials is tested using the <b>user()</b> predicate.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;If an identity that is being tested
+  includes a federation name, since the default federation name is unlikely to
+  be correct, it will probably be necessary to tell <b>dacscheck</b> which
+  federation name to compare against using the <b>-fn</b> flag.</div>
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+<div class="Pp"></div>
+Here are some examples of identities that may follow the <b>-i</b> flag:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+bob
+:bob
+DSS:bob
+{u = bob}
+{u=&quot;bob&quot;}
+{u=&quot;alice&quot;,g=&quot;admin&quot;}
+{u=&quot;DSS:bob&quot;,g=&quot;guest&quot;}
+{u=&quot;bob&quot;,a=&quot;a&quot;, g=&quot;guest&quot;}
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Note</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+<div class="Pp"></div>
+This string may need to be quoted appropriately on the command line because the
+  brace characters are significant to some shells; e.g.,
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+<b>-i</b> '{u=&quot;bob&quot;}'
+</pre>
+</div>
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+<div class="Pp"></div>
+<b>Apache</b> and other web servers set the environment variable
+  <b>REMOTE_USER</b> to the authenticated identity that invoked a web service.
+  Provided its syntax is suitable, this identity can be passed to
+  <b>dacscheck</b>. For <b>DACS</b>-wrapped web services, <b>DACS</b> identities
+  are available in this variable.
+<div class="Pp"></div>
+By default, the federation, jurisdiction, and hostnames associated with the
+  rules are derived from the system's hostname as returned by
+  <b>gethostname(3)</b>[28]. If that name is unsuitable because it is not a FQDN
+  (i.e., it is not a fully-qualified domain name because it does not contain a
+  period), each of the alias names is examined (using
+  <b>gethostbyname(3)</b>[29]) until a FQDN is found. The jurisdiction name
+  comes from the left-most component of the selected FQDN and the federation
+  domain and name come from the remaining components. If no FQDN is found, the
+  system's hostname will be selected as the jurisdiction name and defaults will
+  be used as the federation domain and name (EXAMPLE.COM and EXAMPLE-COM,
+  respectively).
+<div class="Pp"></div>
+If the system's hostname is found to be (or explicitly given as)
+  demo.example.com, for instance, the following variables will be set as
+  indicated during rule evaluation:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;<i>${Conf::FEDERATION_NAME}</i> and
+  <i>${DACS::FEDERATION}</i> are both set to EXAMPLE-COM (dots are mapped to
+  dashes to form a valid name)</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;<i>${Conf::FEDERATION_DOMAIN}</i> is
+  set to EXAMPLE.COM</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;<i>${Conf::JURISDICTION_NAME}</i> and
+  <i>${DACS::JURISDICTION}</i> are set to the jurisdiction name, DEMO</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;<i>${DACS::HTTP_HOST}</i> is set to
+  demo.example.com:80</div>
+<div class="Pp"></div>
+Often, rules and identities can be expressed such that the names chosen for the
+  federation and jurisdiction are unimportant. When this is not the case,
+  however, and the defaults chosen by <b>dacscheck</b> are incorrect, they can
+  be set on the command line. In some circumstances it might be appropriate for
+  the jurisdiction name to be the name of the application, for example.
+<div class="Pp"></div>
+Regardless of their origins, federation and jurisdiction names must always be
+  syntactically valid (see <b>dacs(1)</b>[26]).
+<h2 class="Ss" title="Ss" id="Objects"><a class="selflink" href="#Objects">Objects</a></h2>
+While an object will often be an actual thing, such as a file, menu, or
+  variable, it can also be an abstraction, such as an operation.
+  <b>dacscheck</b> works with names - in the form of URIs - rather than objects
+  <i>per se</i>. <i>It does not associate any particular meaning with names, it
+  merely uses them to locate an applicable access control rule</i>. Therefore,
+  provided the rule writer and applications that consult the rules agree on the
+  naming scheme, the names that are chosen are largely irrelevant.
+<div class="Pp"></div>
+An application assigns names to every object or class of objects that need to be
+  referenced by access control rules. At its simplest, only one name is required
+  (the name of the application, for example). In more complex situations, a wide
+  variety of objects need to be named. The choice of names and the details of
+  the naming hierarchy are up to the particular application, much like the
+  organization of a software package's run-time file and directory organization
+  depends on the particular package.
+<div class="Pp"></div>
+The <i>object</i> argument is the name that is matched against the services
+  specified in access control rules. It can be either a URI or an absolute
+  pathname (one that begins with a slash character), and either can have an
+  optional query string component attached. An absolute pathname <i>path</i> is
+  mapped internally to a URI as file:// <i>path</i>; e.g., /myapp is interpreted
+  as file:///myapp (see <b>RFC 1738</b>[30]).
+<div class="Pp"></div>
+The various components of the URI that names the object are available as
+  <b>DACS</b> variables and environment variables (see below). If a query string
+  is given, it is parsed and the individual arguments are made available to
+  rules through the <i>Args</i> namespace, just as for <b>DACS</b>-wrapped web
+  services.
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Note</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+<div class="Pp"></div>
+Only the <i>path</i> component of the URI is considered when <b>DACS</b> matches
+  an object's name against the url_pattern of an access control rule. At
+  present, the object name is not automatically canonicalized or resolved (see
+  <b>RFC 3986</b>[31]), as is usually done by a web server, so relative path
+  components such as &quot;.&quot; and &quot;..&quot; should be avoided.
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+<h2 class="Ss" title="Ss" id="Rule_Evaluation_Context"><a class="selflink" href="#Rule_Evaluation_Context">Rule
+  Evaluation Context</a></h2>
+Rules are evaluated within an execution context that may affect expression
+  evaluation implicitly or may be examined explicitly through variables.
+<div class="Pp"></div>
+Since <b>dacscheck</b> does not consult the <b>DACS</b> configuration files, the
+  <i>Conf</i> namespace is instantiated with few variables. At present, only the
+  VFS directives are available in it.
+<div class="Pp"></div>
+The <i>Args</i> namespace is instantiated if an <i>object</i> argument has a
+  query string component.
+<div class="Pp"></div>
+The <i>DACS</i> namespace is instantiated with a few standard variables (such as
+  <i>${DACS::JURISDICTION}</i>) but can also be instantiated in various ways
+  from the command line and from files.
+<div class="Pp"></div>
+The <i>Env</i> namespace is instantiated from the environment. Syntactically
+  invalid variable names are silently ignored.
+<div class="Pp"></div>
+Many variables normally set by a web server are instantiated by <b>dacscheck</b>
+  based on the object name. These variables are available in the <i>Env</i> and
+  <i>DACS</i> namespaces. For example, if the object name is
+  https://example.com:8443/myapp/edit-menu?entry=item1, the following variables
+  will be set as indicated:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+${Env::HTTPS}=on
+${Env::SERVER_NAME}=example.com
+${Env::SERVER_ADDR}=142.179.101.118
+${Env::HTTP_HOST}=example.com:8443
+${Env::SERVER_PORT}=8443
+${Env::REQUEST_URI}=/myapp/edit-menu
+${Env::DOCUMENT_ROOT}=/
+${Env::REQUEST_METHOD}=GET
+${Env::SERVER_SOFTWARE}=dacscheck-1.4.8b
+${Env::QUERY_STRING}=entry=item1
+${Env::ARG_COUNT}=1
+${Env::CURRENT_URI}=/myapp/edit-menu?entry=item1
+${Env::CURRENT_URI_NO_QUERY}=/myapp/edit-menu
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+Variables of the same name will also be set in the <i>DACS</i> namespace and
+  exported as environment variables. The value of <i>${Args::entry}</i> will be
+  item1. The request method defaults to GET. The variable
+  <i>${Env::REMOTE_USER}</i> (and therefore <i>${DACS::REMOTE_USER}</i> and the
+  environment variable <b>REMOTE_USER</b>) will be set based on the first
+  identity specified on the command line; if no identity has been specified,
+  this variable will be undefined.
+<h2 class="Ss" title="Ss" id="An_Example_Application"><a class="selflink" href="#An_Example_Application">An
+  Example Application</a></h2>
+To illustrate how the pieces fit together, let's consider a hypothetical (yet
+  realistic) calendar application named <b>cal</b> that is written in
+  <b>Perl</b> and invoked as a CGI program. We'll allow a user that has been
+  authenticated by the web server to read, create, or update only her own
+  calendars, unless the owner of a calendar gives her permission to perform a
+  read or update operation on the calendar. Each owner can specify which users
+  have access to her own calendar and the type(s) of access allowed.
+<div class="Pp"></div>
+This authorization policy can be specified fairly easily. One approach is to
+  use:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;A main rule that delegates
+  responsibility for specifying a security policy for each user's calendars to
+  that user.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;Per-user, per-calendar rules that say
+  which users can access a calendar and in what way or ways.</div>
+<div class="Pp"></div>
+The program's administrator might collect all of the run-time files for the
+  application in the directory /usr/local/cal and its subdirectories, and
+  organize it as follows:
+<div class="Pp"></div>
+/usr/local/cal/rules/{acl-rule.0,acl-rule.1,...}
+<div style="margin-left: 4.00ex;">General rules for the application</div>
+<div class="Pp"></div>
+/usr/local/cal/users/ <i>username</i>
+<div style="margin-left: 4.00ex;">Root directory for calendars owned by
+  <i>username</i></div>
+<div class="Pp"></div>
+/usr/local/cal/users/ <i>username</i>/cal-1/data/*
+<div style="margin-left: 4.00ex;">Per-calendar data files</div>
+<div class="Pp"></div>
+/usr/local/cal/users/ <i>username</i>/rules/{acl-cal1.0,acl-cal2.0,...}
+<div style="margin-left: 4.00ex;">Per-calendar <b>DACS</b> access control
+  files</div>
+<div class="Pp"></div>
+/usr/local/cal/users/ <i>username</i>/groups/*
+<div style="margin-left: 4.00ex;">Per-user <b>DACS</b> group lists, one per
+  file</div>
+<div class="Pp"></div>
+Given these naming conventions:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;to test whether it should perform a
+  particular operation, the application would call <b>dacscheck</b>, telling it
+  to use the rules it finds in /usr/local/cal/rules.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;the general rules for the application
+  would delegate access control decisions for objects with names that match
+  /users/ <i>username</i>/* to access control rules found in the directory
+  /usr/local/cal/users/ <i>username</i>/rules. These rules would describe which
+  users, if any, would be permitted to perform a given operation on the
+  calendar.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;the application would use object names
+  of the form /users/ <i>username</i>/cal-1?OP=<i>operation</i> as arguments to
+  <b>dacscheck</b>. The ruleset for cal-1 would determine whether a given
+  identity is allowed to perform the requested <i>operation</i> on the calendar.
+  For example, alice (the owner) might be granted access regardless of the value
+  of the <i>OP</i> argument, while bob might be granted access only if OP=read,
+  and all others might be denied access. Later, alice might define a set of
+  users that she names family and change the rule to allow any member of that
+  group read and update access.</div>
+<div class="Pp"></div>
+Users' access control rules could themselves be under access control. A command
+  line, GUI, or web interface would give the administrator and users the ability
+  to manage rules.
+<div class="Pp"></div>
+See the <b>EXAMPLES</b>[32] section for example rules.
+<div class="Pp"></div>
+This is by no means the only way to organize the calendars, and a
+  delegation-based approach isn't required. The administrator might instead put
+  all of the rules under a common directory, like /usr/local/cal/rules/acl-
+  <i>username</i>.0/{acl-cal1.0,acl-cal2.0,...}, or put them closer to the
+  calendar they are controlling, like /usr/local/cal/users/
+  <i>username</i>/cal-1/acl-cal1.0.
+<div class="Pp"></div>
+Instead of testing whether an operation is permitted, rules can be written to
+  return a constraint string that tells the caller what kind (or kinds) of
+  access are permitted. The program's output line will include the constraint
+  string within quotes.
+<h2 class="Ss" title="Ss" id="Comparing_dacscheck_with_dacs_acs"><a class="selflink" href="#Comparing_dacscheck_with_dacs_acs">Comparing
+  dacscheck with dacs_acs</a></h2>
+<b>dacs_acs(8)</b>[8] is the <b>DACS</b> component that is called by
+  <b>Apache</b> (by the <b>DACS</b> <b>mod_auth_dacs</b>[25] module, actually)
+  to perform access control processing on web service requests. Its operation is
+  normally invisible to web services; <b>dacs_acs</b> does all of its work
+  before a web service is even executed or a web page is returned.
+<div class="Pp"></div>
+<b>dacscheck</b> performs a function similar to the <b>-check_only</b> mode of
+  operation of <b>dacs_acs</b> in that it simply returns an access control
+  decision. There are important differences between the two programs, however.
+<div class="Pp"></div>
+<b>dacscheck</b>:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;is not a CGI program (though it can be
+  called from one);</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;does not require
+  <b>mod_auth_dacs</b>[25];</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;does not use any <b>DACS</b>
+  configuration files;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;does not directly interact with a web
+  server or any other <b>DACS</b> programs; and</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;runs at the privilege level of the
+  user invoking it rather than the privilege level of <b>Apache</b>.</div>
+<div class="Pp"></div>
+While <b>dacscheck</b> uses ordinary <b>DACS</b> access control rules (
+  <b>dacs.acls(5)</b>[7]), unlike most <b>DACS</b> commands it does not consult
+  any <b>DACS</b> configuration files. The evaluation environment for access
+  control rules is <i>similar</i> to that of web service testing, but it is not
+  identical since there need not be a web server in the picture. Other than the
+  attributes related to constraints, attributes such as pass_credentials have no
+  meaning to <b>dacscheck</b>.
+<div class="Pp"></div>
+Use and configuration of <b>DACS</b> by <b>dacscheck</b> is greatly simplified
+  because no real federation or jurisdictions are defined; a completely
+  self-contained environment is created so that a single program or set of
+  related programs can perform both course-grained and fine-grained access
+  control tests. No federation or jurisdiction cryptographic keys are used, and
+  no real <b>DACS</b> credentials are created. Federation and jurisdiction names
+  are instantiated, but those who write rules will often not need to be aware of
+  them.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+The arguments are processed as they are examined (left-to-right) and their
+  ordering can be significant; for example, values established by the <b>-fh</b>
+  flag may affect options that follow it, such as those that use string
+  interpolation. Exactly one <i>object</i> argument is required.
+<div class="Pp"></div>
+<b>-admin</b>
+<div style="margin-left: 4.00ex;">All identities that follow on the command line
+  are <b>DACS</b> identities that satisfy the <b>dacs_admin()</b> function.
+  Refer to the ADMIN_IDENTITY configuration directive in <b>dacs.conf(5)</b>[33]
+  and the &quot;a&quot; attribute for identities.</div>
+<div class="Pp"></div>
+<b>-app </b><b></b><i>appname</i>
+<div style="margin-left: 4.00ex;">Specify an application name to be used to
+  construct default paths (see the <b>-rules</b> and <b>-groups</b>
+  flags).</div>
+<div class="Pp"></div>
+<b>-context</b> <i>file</i>
+<div style="margin-left: 4.00ex;">Variable definitions for the <i>DACS</i>
+  namespace are read, one per line, in the format <i>name</i>=<i>value</i> (with
+  optional quotes around the <i>value</i>). The <i>name</i> must be
+  syntactically valid. If <i>file</i> is <b>-</b>, the standard input is read.
+  For example, if <i>file</i> contains the two lines:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+FOO=one
+BAZ=two
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+then within access control rules <i>${DACS::FOO}</i> will have the value
+  &quot;one&quot; and <i>${DACS::BAZ}</i> will have the value &quot;two&quot;.
+  This flag may be repeated, although the standard input can be read only
+  once.</div>
+<div class="Pp"></div>
+<b>-D</b><i>name=value</i>
+<div style="margin-left: 4.00ex;">This is equivalent to <b>-var</b>
+  <i>name=value</i>.</div>
+<div class="Pp"></div>
+<b>-dump</b>
+<div style="margin-left: 4.00ex;">Perform all initializations, display the
+  evaluation context, and then exit.</div>
+<div class="Pp"></div>
+<b>-F</b> <i>field_sep</i>
+<div style="margin-left: 4.00ex;">When roles are looked up, use the character
+  <i>field_sep</i> as the field separator character instead of the default. For
+  details, refer to the description of the VFS directive in
+  <b>dacs.conf(5)</b>[34].
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Note</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+Note that only the first occurrence of the character (from left to right) is
+  treated as the separator character.
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+</div>
+<div class="Pp"></div>
+<b>-fd</b> <i>domain</i>
+<div style="margin-left: 4.00ex;">Use <i>domain</i> as the domain name for the
+  federation. It must be syntactically valid.</div>
+<div class="Pp"></div>
+<b>-fh</b> <i>hostname</i>
+<div style="margin-left: 4.00ex;">Use <i>hostname</i>, a fully-qualified domain
+  name, as the system's hostname and to derive the federation and jurisdiction
+  names. It must be syntactically valid.</div>
+<div class="Pp"></div>
+<b>-fj</b> <i>jurname</i>
+<div style="margin-left: 4.00ex;">Use <i>jurname</i> as the jurisdiction name.
+  It must be syntactically valid.</div>
+<div class="Pp"></div>
+<b>-fn</b> <i>fedname</i>
+<div style="margin-left: 4.00ex;">Use <i>fedname</i> as the federation name. It
+  must be syntactically valid.</div>
+<div class="Pp"></div>
+<b>-groups</b> <i>group_vfs</i>
+<div style="margin-left: 4.00ex;">By default, <b>dacscheck</b> expects to find
+  <b>DACS</b> group definitions rooted in the directory dacscheck/groups
+  relative to DACS_HOME (e.g., /usr/local/dacs/dacscheck/groups), or if <b>-app
+  </b> <b></b><i>appname</i> is given, rooted in the directory dacscheck/
+  <i>appname</i>/groups relative to DACS_HOME (e.g.,
+  /usr/local/dacs/dacscheck/myapp/groups) This flag specifies a different
+  location. It can be an absolute pathname (which will be string interpolated -
+  see <b>dacs.conf(5)</b>[35]) or a URI in the syntax of the <b>VFS</b>[34]
+  configuration directive. Examples:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+-groups &quot;[groups]dacs-fs:/local/groups&quot;
+-groups /home/bob/mygroups
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+By default, a reference to the group %FOO:people will be mapped to a file named
+  people.grp within the directory FOO relative to the <b>DACS</b> group
+  directory.</div>
+<div class="Pp"></div>
+<b>-h</b>
+<div style="margin-left: 4.00ex;">Prints the usage blurb.</div>
+<div class="Pp"></div>
+<b>-i</b> <i>ident</i>
+<div style="margin-left: 4.00ex;">The given identity is added to the set of
+  identities in effect during checking. This identity does not necessarily have
+  an account on the system. If <i>ident</i> is the empty string, however, the
+  flag has no effect; this is convenient behaviour when the flag is used like
+  <b>-i ${Env::REMOTE_USER:-&quot;&quot;}</b>, for example, where
+  <b>REMOTE_USER</b> may not have been set.</div>
+<div class="Pp"></div>
+<b>-icgi</b>
+<div style="margin-left: 4.00ex;">If the environment variable <b>REMOTE_USER</b>
+  is set to a valid simple name or <b>DACS</b> identity, it is added to the set
+  of identities in effect during checking. If the variable is not set or is
+  invalid, this flag has no effect.</div>
+<div class="Pp"></div>
+<b>-icgig</b>
+<div style="margin-left: 4.00ex;">Like the <b>-icgi</b> flag, except any roles
+  associated with the username will be added.</div>
+<div class="Pp"></div>
+<b>-il</b> <i>ident</i>
+<div style="margin-left: 4.00ex;">The given identity is &quot;local&quot; and
+  must correspond to an account on the system; if the <b>-groups</b> flag is in
+  effect, the account's group membership will be added as roles to
+  <i>ident</i>.</div>
+<div class="Pp"></div>
+<b>-ilg</b> <i>ident</i>
+<div style="margin-left: 4.00ex;">Like the <b>-ilg</b> flag, except the
+  account's group membership will be added as roles to <i>ident</i> regardless
+  of whether the <b>-groups</b> flag is in effect.</div>
+<div class="Pp"></div>
+<b>-ieuid</b>
+<div style="margin-left: 4.00ex;">The effective uid of the program is added to
+  the set of identities. If the <b>-groups</b> flag is in effect, the account's
+  group membership will be added as roles to <i>ident</i>.</div>
+<div class="Pp"></div>
+<b>-ieuidg</b>
+<div style="margin-left: 4.00ex;">The effective uid of the program is added to
+  the set of identities. The account's group membership will be added as roles
+  to <i>ident</i> regardless of whether the <b>-groups</b> flag is in
+  effect.</div>
+<div class="Pp"></div>
+<b>-iuid</b>
+<div style="margin-left: 4.00ex;">The real uid of the program is added to the
+  set of identities. If the <b>-groups</b> flag is in effect, the account's
+  group membership will be added as roles to <i>ident</i>.</div>
+<div class="Pp"></div>
+<b>-iuidg</b>
+<div style="margin-left: 4.00ex;">The real uid of the program is added to the
+  set of identities. The account's group membership will be added as roles to
+  <i>ident</i> regardless of whether the <b>-groups</b> flag is in effect.</div>
+<div class="Pp"></div>
+<b>-lg</b>
+<div style="margin-left: 4.00ex;">For each local identity that follows on the
+  command line, use its Unix group membership to the identity's roles.</div>
+<div class="Pp"></div>
+<b>-ll</b> <i>log_level</i>
+<div style="margin-left: 4.00ex;">Set the debugging output level to
+  <i>log_level</i> (see <b>dacs(1)</b>[23]). The default level is warn, and the
+  <b>-v</b> flag bumps the level to debug or trace.</div>
+<div class="Pp"></div>
+<b>-name_compare</b> <i>method</i>
+<div style="margin-left: 4.00ex;">Exactly like the <b>NAME_COMPARE</b>[36]
+  directive, set the default method used to compare DACS names in various
+  contexts to <i>method</i>, which may be (case-insensitively) case, nocase, or
+  default.</div>
+<div class="Pp"></div>
+<b>-q</b>
+<div style="margin-left: 4.00ex;">Be quiet, except for error messages; the
+  outcome will not be printed to stdout. The <b>-v</b> and <b>-ll</b> flags are
+  independent of this.</div>
+<div class="Pp"></div>
+<b>-redirect</b>
+<div style="margin-left: 4.00ex;">If access is denied and the applicable rule
+  calls <b>redirect()</b>[37] with the BY_SIMPLE_REDIRECT argument, then the
+  specified URL is printed to stdout. This flag enables the <b>-q</b>
+  flag.</div>
+<div class="Pp"></div>
+<b>-roles</b> <i>roles_vfs</i>
+<div style="margin-left: 4.00ex;">Roles for each identity that follows on the
+  command line will be looked up using <i>roles_vfs</i>. It can be an absolute
+  pathname (which will be string interpolated - see <b>dacs.conf(5)</b>[35]) or
+  a URI in the syntax of the <b>VFS</b>[34] configuration directive. If any
+  roles are found, they will be added to any other roles specified for the user
+  (whether explicitly listed or obtained from Unix group membership). For
+  example, if /usr/local/myapp/roles contains:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+bobo:users
+auggie:admin,users
+harley:guest
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+then the command line:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+% dacscheck -roles /usr/local/myapp/roles -i auggie /myapp/admin
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+will test access for the identity
+  {u=&quot;auggie&quot;,g=&quot;admin,users&quot;}.</div>
+<div class="Pp"></div>
+<b>-rules</b> <i>rule_vfs</i>
+<div style="margin-left: 4.00ex;">By default, <b>dacscheck</b> expects to use a
+  ruleset rooted in the directory dacscheck/acls relative to DACS_HOME (e.g.,
+  /usr/local/dacs/dacscheck/acls), or if the flag <b>-app
+  </b><b></b><i>appname</i> is given, rooted in the directory dacscheck/
+  <i>appname</i>/acls relative to DACS_HOME (e.g.,
+  /usr/local/dacs/dacscheck/myapp/acls). This flag specifies a different ruleset
+  to be used. It can be an absolute pathname (which will be string interpolated
+  - see <b>dacs.conf(5)</b>[35]) or a URI in the syntax of the <b>VFS</b>[34]
+  configuration directive. Examples:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+-rules &quot;[acls1]dacs-fs:/local/acls&quot;
+-rules /usr/local/myrules
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+This flag may be repeated; rulesets will examined in the order in which they are
+  specified on the command line.</div>
+<div class="Pp"></div>
+<b>-v</b>
+<div style="margin-left: 4.00ex;">Increase the level of debugging output. The
+  flag may be repeated.</div>
+<div class="Pp"></div>
+<b>-var</b> <i>name=value</i>
+<div style="margin-left: 4.00ex;">Like the <b>-context</b> flag, this adds a
+  variable definition to the <i>DACS</i> namespace. The variable
+  <i>DACS::</i><i></i><i>name</i> will be assigned the string <i>value</i>. The
+  <i>name</i> must be syntactically valid. This flag may be repeated.</div>
+<div class="Pp"></div>
+<b>--version</b>
+<div style="margin-left: 4.00ex;">Display the program's version information and
+  then exit.</div>
+<div class="Pp"></div>
+<b>-vfs</b> <i>vfs_uri</i>
+<div style="margin-left: 4.00ex;">Add <i>vfs_uri</i> as a <b>VFS</b>[34]
+  configuration directive. This flag may be repeated, with later occurrences
+  having a higher &quot;priority&quot; than earlier ones (just as if they
+  appeared later in dacs.conf; see <b>dacs.conf(5)</b>[33]).</div>
+<div class="Pp"></div>
+<b>--</b>
+<div style="margin-left: 4.00ex;">This marks the end of the flag
+  arguments.</div>
+<h1 class="Sh" title="Sh" id="EXAMPLES"><a class="selflink" href="#EXAMPLES">EXAMPLES</a></h1>
+To illustrate how <b>dacscheck</b> might be used with real applications, here
+  are some examples. The first few continue with the hypothetical calendar
+  application described earlier.
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 1.The file /usr/local/cal/rules/acl-rule.0
+  might look like:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+&lt;acl_rule status=&quot;enabled&quot;&gt;
+ &lt;services&gt;
+  &lt;delegate url_pattern=&quot;/users/alice/*&quot;
+          rule_uri=&quot;/usr/local/cal/users/alice/rules/&gt;
+  &lt;delegate url_pattern=&quot;/users/bob/*&quot;
+          rule_uri=&quot;/usr/local/cal/users/bob/rules/&gt;
+  &lt;service url_pattern=&quot;/usr/local/cal/bin/*&quot;/&gt;
+ &lt;/services&gt;
+<div class="Pp"></div>
+ &lt;rule order=&quot;allow,deny&quot;&gt;
+   &lt;allow&gt;
+      user(&quot;auth&quot;)
+   &lt;/allow&gt;
+ &lt;/rule&gt;
+&lt;/acl_rule&gt;
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+This rule redirects requests for a particular user's calendar to that user's
+  access control rules. It also says that access to the application's binaries
+  is restricted to authenticated users. The application might issue a command
+  such as:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+% dacscheck -i $REMOTE_USER -rules /usr/local/cal/rules  <i>object</i>
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+which will return an exit status of 0 if <b>REMOTE_USER</b> is granted access to
+  <i>object</i>; otherwise an exit status of 1 will be returned. A better choice
+  is to use the command:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+% dacscheck -icgi -rules /usr/local/cal/rules  <i>object</i>
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+which will leave the user unauthenticated if <b>REMOTE_USER</b> is unset or
+  invalid.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 2.The file
+  /usr/local/cal/users/alice/rules/acl-cal1.0 contains the rule for user alice's
+  &quot;Calendar 1&quot; and might look like:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+&lt;acl_rule status=&quot;enabled&quot;&gt;
+ &lt;services&gt;
+  &lt;service url_pattern=&quot;/users/alice/cal-1/*&quot;/&gt;
+ &lt;/services&gt;
+<div class="Pp"></div>
+ &lt;rule order=&quot;allow,deny&quot;&gt;
+   &lt;precondition&gt;
+     &lt;predicate&gt; user(&quot;:alice&quot;) &lt;/predicate&gt;
+   &lt;/precondition&gt;
+   &lt;allow&gt;
+     return(1)
+   &lt;/allow&gt;
+ &lt;/rule&gt;
+<div class="Pp"></div>
+ &lt;rule order=&quot;allow,deny&quot;&gt;
+   &lt;precondition&gt;
+     &lt;predicate&gt; ${Args::OP} eq &quot;read&quot; &lt;/predicate&gt;
+   &lt;/precondition&gt;
+   &lt;allow&gt;
+     user(&quot;:bob&quot;)
+   &lt;/allow&gt;
+ &lt;/rule&gt;
+<div class="Pp"></div>
+&lt;/acl_rule&gt;
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+This rule says that alice is allowed full access to the calendar (there is no
+  restriction on the operation), but bob only has read access. <b>dacscheck</b>
+  would be called with /users/alice/cal-1?OP=create,
+  /users/alice/cal-1?OP=update, or /users/alice/cal-1?OP=read to test for
+  authorization to perform a create, update, or read operation on the calendar,
+  respectively.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 3.If alice defines a <b>DACS</b> group that
+  she calls family and adds the names julia and auggie to that group, she might
+  modify the rule above by adding the following:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+&lt;rule order=&quot;allow,deny&quot;&gt;
+   &lt;precondition&gt;
+     &lt;predicate&gt; ${Args::OP} eq &quot;read&quot;
+             or ${Args::OP} eq &quot;update&quot;&lt;/predicate&gt;
+   &lt;/precondition&gt;
+   &lt;allow&gt;
+     user(&quot;%:alice-family&quot;)
+   &lt;/allow&gt;
+ &lt;/rule&gt;
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+This rule says that any member of the group alice-family is allowed read and
+  update access to this calendar. The command:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+% dacscheck -i julia /users/alice/cal-1?OP=update
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+would report that access is granted.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 4.The membership of alice's group called
+  alice-family might be specified in the file
+  /usr/local/cal/users/alice/groups/family
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+&lt;acl_rule status=&quot;enabled&quot;&gt;
+ &lt;services&gt;
+  &lt;service url_pattern=&quot;/users/alice/groups/*&quot;/&gt;
+ &lt;/services&gt;
+<div class="Pp"></div>
+ &lt;rule order=&quot;allow,deny&quot;&gt;
+   &lt;precondition&gt;
+     &lt;predicate&gt; user(&quot;:alice&quot;) &lt;/predicate&gt;
+   &lt;/precondition&gt;
+   &lt;allow&gt;
+     return(1)
+   &lt;/allow&gt;
+ &lt;/rule&gt;
+&lt;/acl_rule&gt;
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+This rule allows only alice to manage the membership of this group, but she is
+  free modify the rule to allow others to manage her groups.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 5.As a final example for this application,
+  alice's rules might also be under access control:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+&lt;acl_rule status=&quot;enabled&quot;&gt;
+ &lt;services&gt;
+  &lt;service url_pattern=&quot;/users/alice/groups/*&quot;/&gt;
+ &lt;/services&gt;
+<div class="Pp"></div>
+ &lt;rule order=&quot;allow,deny&quot;&gt;
+   &lt;precondition&gt;
+     &lt;predicate&gt; user(&quot;:alice&quot;) &lt;/predicate&gt;
+   &lt;/precondition&gt;
+   &lt;allow&gt;
+     return(1)
+   &lt;/allow&gt;
+ &lt;/rule&gt;
+&lt;/acl_rule&gt;
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+This rule allows only alice to manage the membership of this group, but she is
+  free modify the rule to allow others to manage her groups.</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;"> 6.A popular open source web log analyzer
+  program, written in Perl, can be invoked as a CGI program. The program
+  includes security provisions whereby it can restrict access to any user
+  authenticated by the web server, by username (using <b>REMOTE_USER</b>, as
+  exported by the web server), or based on the user's IP address (using
+  <b>REMOTE_ADDR</b>). The approximately 40 lines of code (plus assorted
+  initializations) that implements this security policy can essentially be
+  replaced by just a few lines of code:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+my $exit_value = 0;
+system &quot;/usr/local/dacs/bin/dacscheck&quot;, &quot;-q&quot;, &quot;-icgi&quot;, &quot;-rules&quot;,
+   &quot;/usr/local/webstats/acls&quot;, &quot;/webstats&quot;;
+$exit_value  = $? &gt;&gt; 8;
+# print &quot;dacscheck returned $exit_value for user \&quot;$remote_user\&quot;\n&quot;;
+if ($exit_value != 0) {
+  # dacscheck denies access; print message and exit
+  exit 1;
+}
+<div class="Pp"></div>
+# dacscheck grants access, so continue
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<div>&#x00A0;</div>
+<b>Tip</b>
+<div>&#x00A0;</div>
+<div>&#x00A0;</div>
+The <b>DACS</b> distribution includes a Perl module
+  (/usr/local/dacs/lib/perl/DACScheck.pm) to make <b>dacscheck</b> a little
+  easier to use. The example above would be written as:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+use DACScheck.pm;
+dacscheck_rules(&quot;/usr/local/webstats/acls&quot;);
+<div class="Pp"></div>
+my $result = dacscheck_cgi(&quot;/webstats&quot;);
+if ($result != 1) {
+  # dacscheck denies access; print message and exit
+  exit 1;
+}
+<div class="Pp"></div>
+# dacscheck grants access, so continue
+<div class="Pp"></div>
+</pre>
+</div>
+<div style="height: 0.50em;">&#x00A0;</div>
+</div>
+A simple <b>DACS</b> access control rule can be written to duplicate the
+  program's security functionality (using the <b>user()</b> and <b>from()</b>
+  predicates, see <b>dacs.exprs(5)</b>[22]), but more sophisticated policies can
+  be added easily, all without having to modify the Perl program again.</div>
+<h1 class="Sh" title="Sh" id="DIAGNOSTICS"><a class="selflink" href="#DIAGNOSTICS">DIAGNOSTICS</a></h1>
+The program exits 0 if access is granted and 1 if access is denied. Any other
+  exit status indicates an error occurred.
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+A light-weight method of defining <b>DACS</b> groups is needed. Once the
+  internal are stable, this program's functionality will be made available
+  through a C/C++ API, which will permit direct, efficient use by other
+  applications and extensible languages (through <b>perlxs(1)</b>, for example).
+<div class="Pp"></div>
+The <b>DACS_ACS argument</b>[38] is not recognized by <b>dacscheck</b>.
+<div class="Pp"></div>
+Identities are not considered when roles are looked up; only the username is
+  matched.
+<div class="Pp"></div>
+Unlike <b>dacs_acs(8)</b>[8], there is no support for automatically setting
+  variables by parsing a message body (a MIME document).
+<div class="Pp"></div>
+It might be possible to create a layer between an application and the underlying
+  system so that <b>dacscheck</b> can be called transparently, or nearly so.
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+See <b>dacs(1)</b>[23], <b>dacsacl(1)</b>[9], <b>dacs.acls(5)</b>[7],
+  <b>dacs.conf(5)</b>[33], <b>dacs.exprs(5)</b>[22], <b>dacs.groups(5)</b>[24],
+  <b>dacs.java(7)</b>[39].
+<div class="Pp"></div>
+<b>Rule-based access control</b>[40]
+<div class="Pp"></div>
+DACScheck.pm
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Distributed Systems Software ( <b>www.dss.ca</b>[41])
+<h1 class="Sh" title="Sh" id="COPYING"><a class="selflink" href="#COPYING">COPYING</a></h1>
+Copyright2003-2016 Distributed Systems Software. See the <b>LICENSE</b>[42] file
+  that accompanies the distribution for licensing information.
+<h1 class="Sh" title="Sh" id="NOTES"><a class="selflink" href="#NOTES">NOTES</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 1.</dt>
+  <dd class="It-tag">Perl</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.perl.org/</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 2.</dt>
+  <dd class="It-tag">PHP</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.php.net/</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 3.</dt>
+  <dd class="It-tag">Python</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.python.org</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 4.</dt>
+  <dd class="It-tag">Ruby</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.ruby-lang.org</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 5.</dt>
+  <dd class="It-tag">Tcl/Tk</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.tcl.tk/software/</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 6.</dt>
+  <dd class="It-tag">geteuid(2)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.freebsd.org/cgi/man.cgi?query=geteuid&amp;apropos=0&amp;sektion=2&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 7.</dt>
+  <dd class="It-tag">dacs.acls(5)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.acls.5.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 8.</dt>
+  <dd class="It-tag">dacs_acs(8)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs_acs.8.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 9.</dt>
+  <dd class="It-tag">dacsacl(1)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacsacl.1.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">10.</dt>
+  <dd class="It-tag">getfacl(1)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.freebsd.org/cgi/man.cgi?query=getfacl&amp;apropos=0&amp;sektion=1&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">11.</dt>
+  <dd class="It-tag">setfacl(1)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.freebsd.org/cgi/man.cgi?query=setfacl&amp;apropos=0&amp;sektion=1&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">12.</dt>
+  <dd class="It-tag">acl(3)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.freebsd.org/cgi/man.cgi?query=acl&amp;apropos=0&amp;sektion=3&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">13.</dt>
+  <dd class="It-tag">htpasswd(1)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://httpd.apache.org/docs/2.2/programs/htpasswd.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">14.</dt>
+  <dd class="It-tag">Using FreeBSD's ACLs</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.onlamp.com/pub/a/bsd/2005/09/22/FreeBSD_Basics.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">15.</dt>
+  <dd class="It-tag">ONLamp.com</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.onlamp.com</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">16.</dt>
+  <dd class="It-tag">POSIX ACLs in Linux</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.cs.unc.edu/cms/help/help-articles/posix-acls-in-linux</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">17.</dt>
+  <dd class="It-tag">linux.com</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://linux.com</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">18.</dt>
+  <dd class="It-tag">Solaris acl(2) and facl(2)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://docs.oracle.com/cd/E18752_01/html/816-5167/facl-2.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">19.</dt>
+  <dd class="It-tag">Sun Microsystems</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.sun.com</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">20.</dt>
+  <dd class="It-tag">Using Solaris ACLs</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.cs.duke.edu/csl/faqs/solaris-acls.php</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">21.</dt>
+  <dd class="It-tag">Dept. of Computer Science, Duke University</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.cs.duke.edu</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">22.</dt>
+  <dd class="It-tag">dacs.exprs(5)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.exprs.5.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">23.</dt>
+  <dd class="It-tag">dacs(1)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.1.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">24.</dt>
+  <dd class="It-tag">dacs.groups(5)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.groups.5.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">25.</dt>
+  <dd class="It-tag">mod_auth_dacs</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/mod_auth_dacs.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">26.</dt>
+  <dd class="It-tag">dacs(1)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.1.html#naming</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">27.</dt>
+  <dd class="It-tag">concise syntax</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.1.html#concise_user_syntax</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">28.</dt>
+  <dd class="It-tag">gethostname(3)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.freebsd.org/cgi/man.cgi?query=gethostname&amp;apropos=0&amp;sektion=3&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">29.</dt>
+  <dd class="It-tag">gethostbyname(3)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.freebsd.org/cgi/man.cgi?query=gethostbyname&amp;apropos=0&amp;sektion=3&amp;manpath=FreeBSD+10.3-RELEASE&amp;format=html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">30.</dt>
+  <dd class="It-tag">RFC 1738</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.rfc-editor.org/rfc/rfc1738.txt</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">31.</dt>
+  <dd class="It-tag">RFC 3986</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.rfc-editor.org/rfc/rfc3986.txt</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">32.</dt>
+  <dd class="It-tag">EXAMPLES</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/#EXAMPLES</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">33.</dt>
+  <dd class="It-tag">dacs.conf(5)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.conf.5.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">34.</dt>
+  <dd class="It-tag">dacs.conf(5)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.conf.5.html#VFS</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">35.</dt>
+  <dd class="It-tag">dacs.conf(5)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.conf.5.html#interpolation</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">36.</dt>
+  <dd class="It-tag">NAME_COMPARE</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.conf.5.html#NAME_COMPARE</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">37.</dt>
+  <dd class="It-tag">redirect()</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.exprs.5.html#redirect</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">38.</dt>
+  <dd class="It-tag">DACS_ACS argument</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs_acs.8.html#dacs_acs_argument</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">39.</dt>
+  <dd class="It-tag">dacs.java(7)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/dacs.java.7.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">40.</dt>
+  <dd class="It-tag">Rule-based access control</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www-128.ibm.com/developerworks/webservices/library/ws-soa-access.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">41.</dt>
+  <dd class="It-tag">www.dss.ca</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://www.dss.ca</div>
+<dl class="Bl-tag">
+  <dt class="It-tag">42.</dt>
+  <dd class="It-tag">LICENSE</dd>
+</dl>
+<div style="margin-left: 4.00ex;">http://dacs.dss.ca/man/../misc/LICENSE</div>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">01/12/2017</td>
+    <td class="foot-os">DACS 1.4.38a</td>
+  </tr>
+</table>
 </body>
 </html>

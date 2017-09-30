@@ -1,440 +1,386 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:25:42 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MK-TCP-MODEL(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MK-TCP-MODEL(1) User Contributed Perl Documentation
-MK-TCP-MODEL(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-mk-tcp-model - Transform tcpdump into metrics that permit
-performance and scalability modeling.</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-Usage: mk-tcp-model [OPTION...] [FILE]</p>
-
-<p style="margin-top: 1em">mk-tcp-model parses and analyzes
-tcpdump files. With no FILE, or when FILE is -, it read
-standard input.</p>
-
-<p style="margin-top: 1em">Dump TCP requests and responses
-to a file, capturing only the packet headers to avoid
-dropped packets, and ignoring any packets without a payload
-(such as ack-only packets). <br>
-Capture port 3306 (MySQL database traffic). Note that to
-avoid line breaking in terminals and man pages, the TCP
-filtering expression that follows has a line break at the
-end of <br>
-the second line; you should omit this from your tcpdump
-command.</p>
-
-<p style="margin-top: 1em">tcpdump -s 384 -i any -nnq -tttt
-&rsquo;tcp port 3306 and (((ip[2:2] -
-((ip[0]&amp;0xf)&lt;&lt;2)) <br>
-- ((tcp[12]&amp;0xf0)&gt;&gt;2)) != 0)&rsquo; &gt;
-/path/to/tcp-file.txt</p>
-
-<p style="margin-top: 1em">Extract individual response
-times, sorted by end time:</p>
-
-<p style="margin-top: 1em">mk-tcp-model
-/path/to/tcp-file.txt &gt; requests.txt</p>
-
-<p style="margin-top: 1em">Sort the result by arrival time,
-for input to the next step:</p>
-
-<p style="margin-top: 1em">sort -n -k1,1 requests.txt &gt;
-sorted.txt</p>
-
-<p style="margin-top: 1em">Slice the result into 10-second
-intervals and emit throughput, concurrency, and response
-time metrics for each interval:</p>
-
-<p style="margin-top: 1em">mk-tcp-model --type=requests
---run-time=10 sorted.txt &gt; sliced.txt</p>
-
-<p style="margin-top: 1em">Transform the result for
-modeling with Aspersa&rsquo;s usl tool, discarding the first
-and last line of each file if you specify multiple files
-(the first and last line are normally <br>
-incomplete observation periods and are aberrant):</p>
-
-<p style="margin-top: 1em">for f in sliced.txt; do <br>
-tail -n +2 &quot;$f&quot; | head -n -1 | awk &rsquo;{print
-$2, $3, $7/$4}&rsquo; <br>
-done &gt; usl-input.txt</p>
-
-<p style="margin-top: 1em">RISKS <br>
-The following section is included to inform users about the
-potential risks, whether known or unknown, of using this
-tool. The two main categories of risks are those created by
-<br>
-the nature of the tool (e.g. read-only tools vs. read-write
-tools) and those created by bugs.</p>
-
-<p style="margin-top: 1em">mk-tcp-model merely reads and
-transforms its input, printing it to the output. It should
-be very low risk.</p>
-
-<p style="margin-top: 1em">At the time of this release, we
-know of no bugs that could cause serious harm to users.</p>
-
-<p style="margin-top: 1em">The authoritative source for
-updated information is always the online issue tracking
-system. Issues that affect this tool will be marked as such.
-You can see a list of such <br>
-issues at the following URL:
-&lt;http://www.maatkit.org/bugs/mk-tcp-model&gt;.</p>
-
-<p style="margin-top: 1em">See also &quot;BUGS&quot; for
-more information on filing bugs and getting help.</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-This tool recognizes requests and responses in a TCP stream,
-and extracts the &quot;conversations&quot;. You can use it
-to capture the response times of individual queries to a
-database, <br>
-for example. It expects the TCP input to be in the following
-format, which should result from the sample shown in the
-SYNOPSIS:</p>
-
-<p style="margin-top: 1em">&lt;date&gt;
-&lt;time.microseconds&gt; IP &lt;IP.port&gt; &gt;
-&lt;IP.port&gt;: &lt;junk&gt;</p>
-
-<p style="margin-top: 1em">The tool watches for
-&quot;incoming&quot; packets to the port you specify with
-the &quot;--watch-server&quot; option. This begins a
-request. If multiple inbound packets follow each other, then
-by <br>
-default the last inbound packet seen determines the time at
-which the request is assumed to begin. This is logical if
-one assumes that a server must receive the whole SQL <br>
-statement before beginning execution, for example.</p>
-
-<p style="margin-top: 1em">When the first outbound packet
-is seen, the server is considered to have responded to the
-request. The tool might see an inbound packet, but never see
-a response. This can <br>
-happen when the kernel drops packets, for example. As a
-result, the tool never prints a request unless it sees the
-response to it. However, the tool actually does not print
-any <br>
-request until it sees the &quot;last&quot; outbound packet.
-It determines this by waiting for either another inbound
-packet, or EOF, and then considers the previous
-inbound/outbound pair <br>
-to be complete. As a result, the tool prints requests in a
-relatively random order. Most types of analysis require
-processing in either arrival or completion order. Therefore,
-<br>
-the second type of processing this tool can do requires that
-you sort the output from the first stage and supply it as
-input.</p>
-
-<p style="margin-top: 1em">The second type of processing is
-selected with the &quot;--type&quot; option set to
-&quot;requests&quot;. In this mode, the tool reads a group
-of requests and aggregates them, then emits the <br>
-aggregated metrics.</p>
-
-<p style="margin-top: 1em">OUTPUT <br>
-In the default mode (parsing tcpdump output), requests are
-printed out one per line, in the following format:</p>
-
-<p style="margin-top: 1em">&lt;id&gt; &lt;start&gt;
-&lt;end&gt; &lt;elapsed&gt; &lt;IP:port&gt;</p>
-
-<p style="margin-top: 1em">The ID is an incrementing
-number, assigned in arrival order in the original TCP
-traffic. The start and end timestamps, and the elapsed time,
-can be customized with the <br>
-&quot;--start-end&quot; option.</p>
-
-<p style="margin-top: 1em">In &quot;--type=requests&quot;
-mode, the tool prints out one line per time interval as
-defined by &quot;--run-time&quot;, with the following
-columns: ts, concurrency, throughput, arrivals, <br>
-completions, busy_time, weighted_time, sum_time,
-variance_mean, quantile_time, obs_time. A detailed
-explanation follows:</p>
-
-<p style="margin-top: 1em">ts The timestamp that defines
-the beginning of the interval.</p>
-
-<p style="margin-top: 1em">concurrency <br>
-The average number of requests resident in the server during
-the interval.</p>
-
-<p style="margin-top: 1em">throughput <br>
-The number of arrivals per second during the interval.</p>
-
-<p style="margin-top: 1em">arrivals <br>
-The number of arrivals during the interval.</p>
-
-<p style="margin-top: 1em">completions <br>
-The number of completions during the interval.</p>
-
-<p style="margin-top: 1em">busy_time <br>
-The total amount of time during which at least one request
-was resident in the server during the interval.</p>
-
-<p style="margin-top: 1em">weighted_time <br>
-The total response time of all the requests resident in the
-server during the interval, including requests that neither
-arrived nor completed during the interval.</p>
-
-<p style="margin-top: 1em">sum_time <br>
-The total response time of all the requests that arrived in
-the interval.</p>
-
-<p style="margin-top: 1em">variance_mean <br>
-The variance-to-mean ratio (index of dispersion) of the
-response times of the requests that arrived in the
-interval.</p>
-
-<p style="margin-top: 1em">quantile_time <br>
-The Nth percentile response time for all the requests that
-arrived in the interval. See also
-&quot;--quantile&quot;.</p>
-
-<p style="margin-top: 1em">obs_time <br>
-The length of the observation time window. This will usually
-be the same as the interval length, except for the first and
-last intervals in a file, which might have a <br>
-shorter observation time.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-This tool accepts additional command-line arguments. Refer
-to the &quot;SYNOPSIS&quot; and usage information for
-details.</p>
-
-<p style="margin-top: 1em">--config <br>
-type: Array</p>
-
-<p style="margin-top: 1em">Read this comma-separated list
-of config files; if specified, this must be the first option
-on the command line.</p>
-
-<p style="margin-top: 1em">--help <br>
-Show help and exit.</p>
-
-<p style="margin-top: 1em">--progress <br>
-type: array; default: time,30</p>
-
-<p style="margin-top: 1em">Print progress reports to
-STDERR. The value is a comma-separated list with two parts.
-The first part can be percentage, time, or iterations; the
-second part specifies how <br>
-often an update should be printed, in percentage, seconds,
-or number of iterations.</p>
-
-<p style="margin-top: 1em">--quantile <br>
-type: float</p>
-
-<p style="margin-top: 1em">The percentile for the last
-column when &quot;--type&quot; is &quot;requests&quot;
-(default .99).</p>
-
-<p style="margin-top: 1em">--run-time <br>
-type: float</p>
-
-<p style="margin-top: 1em">The size of the aggregation
-interval in seconds when &quot;--type&quot; is
-&quot;requests&quot; (default 1). Fractional values are
-permitted.</p>
-
-<p style="margin-top: 1em">--start-end <br>
-type: Array; default: ts,end</p>
-
-<p style="margin-top: 1em">Define how the arrival and
-completion timestamps of a query, and thus its response time
-(elapsed time) are computed. Recall that there may be
-multiple inbound and outbound <br>
-packets per request and response, and refer to the following
-ASCII diagram. Suppose that a client sends a series of three
-inbound (I) packets to the server, whch computes <br>
-the result and then sends two outbound (O) packets back:</p>
-
-<p style="margin-top: 1em">I I I ..................... O O
-<br>
-|&lt;----&gt;|&lt;---response time-----&gt;|&lt;--&gt;| <br>
-ts0 ts end end1</p>
-
-<p style="margin-top: 1em">By default, the query is
-considered to arrive at time ts, and complete at time end.
-However, this might not be what you want. Perhaps you do not
-want to consider the query <br>
-to have completed until time end1. You can accomplish this
-by setting this option to &quot;ts,end1&quot;.</p>
-
-<p style="margin-top: 1em">--type <br>
-type: string</p>
-
-<p style="margin-top: 1em">The type of input to parse
-(default tcpdump). The permitted types are</p>
-
-<p style="margin-top: 1em">tcpdump <br>
-The parser expects the input to be formatted with the
-following options: &quot;-x -n -q -tttt&quot;. For example,
-if you want to capture output from your local machine, you
-can do <br>
-something like the following (the port must come last on
-FreeBSD):</p>
-
-<p style="margin-top: 1em">tcpdump -s 65535 -x -nn -q -tttt
--i any -c 1000 port 3306 &gt; mysql.tcp.txt <br>
-mk-query-digest --type tcpdump mysql.tcp.txt</p>
-
-<p style="margin-top: 1em">The other tcpdump parameters,
-such as -s, -c, and -i, are up to you. Just make sure the
-output looks like this (there is a line break in the first
-line to avoid man-page <br>
-problems):</p>
-
-<p style="margin-top: 1em">2009-04-12 09:50:16.804849 IP
-127.0.0.1.42167 <br>
-&gt; 127.0.0.1.3306: tcp 37</p>
-
-<p style="margin-top: 1em">All MySQL servers running on
-port 3306 are automatically detected in the tcpdump output.
-Therefore, if the tcpdump out contains packets from multiple
-servers on port <br>
-3306 (for example, 10.0.0.1:3306, 10.0.0.2:3306, etc.), all
-packets/queries from all these servers will be analyzed
-together as if they were one server.</p>
-
-<p style="margin-top: 1em">If you&rsquo;re analyzing
-traffic for a protocol that is not running on port 3306, see
-&quot;--watch-server&quot;.</p>
-
-<p style="margin-top: 1em">--version <br>
-Show version and exit.</p>
-
-<p style="margin-top: 1em">--watch-server <br>
-type: string; default: 10.10.10.10:3306</p>
-
-<p style="margin-top: 1em">This option tells mk-tcp-model
-which server IP address and port (such as
-&quot;10.0.0.1:3306&quot;) to watch when parsing tcpdump for
-&quot;--type&quot; tcpdump. If you don&rsquo;t specify it,
-the <br>
-tool watches all servers by looking for any IP address using
-port 3306. If you&rsquo;re watching a server with a
-non-standard port, this won&rsquo;t work, so you must
-specify the IP <br>
-address and port to watch.</p>
-
-<p style="margin-top: 1em">Currently, IP address filtering
-isn&rsquo;t implemented; so even though you must specify the
-option in IP:port form, it ignores the IP and only looks at
-the port number.</p>
-
-<p style="margin-top: 1em">DOWNLOADING <br>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MK-TCP-MODEL(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">MK-TCP-MODEL(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+mk-tcp-model - Transform tcpdump into metrics that permit performance and
+  scalability modeling.
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+Usage: mk-tcp-model [OPTION...] [FILE]
+<div class="Pp"></div>
+mk-tcp-model parses and analyzes tcpdump files. With no FILE, or when FILE is -,
+  it read standard input.
+<div class="Pp"></div>
+Dump TCP requests and responses to a file, capturing only the packet headers to
+  avoid dropped packets, and ignoring any packets without a payload (such as
+  ack-only packets). Capture port 3306 (MySQL database traffic). Note that to
+  avoid line breaking in terminals and man pages, the TCP filtering expression
+  that follows has a line break at the end of the second line; you should omit
+  this from your tcpdump command.
+<div class="Pp"></div>
+<pre>
+ tcpdump -s 384 -i any -nnq -tttt \
+        'tcp port 3306 and (((ip[2:2] - ((ip[0]&amp;0xf)&lt;&lt;2)) 
+      - ((tcp[12]&amp;0xf0)&gt;&gt;2)) != 0)' \
+   &gt; /path/to/tcp-file.txt
+</pre>
+<div class="Pp"></div>
+Extract individual response times, sorted by end time:
+<div class="Pp"></div>
+<pre>
+ mk-tcp-model /path/to/tcp-file.txt &gt; requests.txt
+</pre>
+<div class="Pp"></div>
+Sort the result by arrival time, for input to the next step:
+<div class="Pp"></div>
+<pre>
+ sort -n -k1,1 requests.txt &gt; sorted.txt
+</pre>
+<div class="Pp"></div>
+Slice the result into 10-second intervals and emit throughput, concurrency, and
+  response time metrics for each interval:
+<div class="Pp"></div>
+<pre>
+ mk-tcp-model --type=requests --run-time=10 sorted.txt &gt; sliced.txt
+</pre>
+<div class="Pp"></div>
+Transform the result for modeling with Aspersa's usl tool, discarding the first
+  and last line of each file if you specify multiple files (the first and last
+  line are normally incomplete observation periods and are aberrant):
+<div class="Pp"></div>
+<pre>
+ for f in sliced.txt; do
+    tail -n +2 &quot;$f&quot; | head -n -1 | awk '{print $2, $3, $7/$4}'
+ done &gt; usl-input.txt
+</pre>
+<h1 class="Sh" title="Sh" id="RISKS"><a class="selflink" href="#RISKS">RISKS</a></h1>
+The following section is included to inform users about the potential risks,
+  whether known or unknown, of using this tool. The two main categories of risks
+  are those created by the nature of the tool (e.g. read-only tools vs.
+  read-write tools) and those created by bugs.
+<div class="Pp"></div>
+mk-tcp-model merely reads and transforms its input, printing it to the output.
+  It should be very low risk.
+<div class="Pp"></div>
+At the time of this release, we know of no bugs that could cause serious harm to
+  users.
+<div class="Pp"></div>
+The authoritative source for updated information is always the online issue
+  tracking system. Issues that affect this tool will be marked as such. You can
+  see a list of such issues at the following URL:
+  &lt;http://www.maatkit.org/bugs/mk-tcp-model&gt;.
+<div class="Pp"></div>
+See also &quot;BUGS&quot; for more information on filing bugs and getting help.
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+This tool recognizes requests and responses in a TCP stream, and extracts the
+  &quot;conversations&quot;. You can use it to capture the response times of
+  individual queries to a database, for example. It expects the TCP input to be
+  in the following format, which should result from the sample shown in the
+  SYNOPSIS:
+<div class="Pp"></div>
+<pre>
+ &lt;date&gt; &lt;time.microseconds&gt; IP &lt;IP.port&gt; &gt; &lt;IP.port&gt;: &lt;junk&gt;
+</pre>
+<div class="Pp"></div>
+The tool watches for &quot;incoming&quot; packets to the port you specify with
+  the &quot;--watch-server&quot; option. This begins a request. If multiple
+  inbound packets follow each other, then by default the last inbound packet
+  seen determines the time at which the request is assumed to begin. This is
+  logical if one assumes that a server must receive the whole SQL statement
+  before beginning execution, for example.
+<div class="Pp"></div>
+When the first outbound packet is seen, the server is considered to have
+  responded to the request. The tool might see an inbound packet, but never see
+  a response. This can happen when the kernel drops packets, for example. As a
+  result, the tool never prints a request unless it sees the response to it.
+  However, the tool actually does not print any request until it sees the
+  &quot;last&quot; outbound packet. It determines this by waiting for either
+  another inbound packet, or EOF, and then considers the previous
+  inbound/outbound pair to be complete. As a result, the tool prints requests in
+  a relatively random order. Most types of analysis require processing in either
+  arrival or completion order. Therefore, the second type of processing this
+  tool can do requires that you sort the output from the first stage and supply
+  it as input.
+<div class="Pp"></div>
+The second type of processing is selected with the &quot;--type&quot; option set
+  to &quot;requests&quot;. In this mode, the tool reads a group of requests and
+  aggregates them, then emits the aggregated metrics.
+<h1 class="Sh" title="Sh" id="OUTPUT"><a class="selflink" href="#OUTPUT">OUTPUT</a></h1>
+In the default mode (parsing tcpdump output), requests are printed out one per
+  line, in the following format:
+<div class="Pp"></div>
+<pre>
+ &lt;id&gt; &lt;start&gt; &lt;end&gt; &lt;elapsed&gt; &lt;IP:port&gt;
+</pre>
+<div class="Pp"></div>
+The ID is an incrementing number, assigned in arrival order in the original TCP
+  traffic. The start and end timestamps, and the elapsed time, can be customized
+  with the &quot;--start-end&quot; option.
+<div class="Pp"></div>
+In &quot;--type=requests&quot; mode, the tool prints out one line per time
+  interval as defined by &quot;--run-time&quot;, with the following columns: ts,
+  concurrency, throughput, arrivals, completions, busy_time, weighted_time,
+  sum_time, variance_mean, quantile_time, obs_time. A detailed explanation
+  follows:
+<dl class="Bl-tag">
+  <dt class="It-tag">ts</dt>
+  <dd class="It-tag">The timestamp that defines the beginning of the
+    interval.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">concurrency</dt>
+  <dd class="It-tag">The average number of requests resident in the server
+      during the interval.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">throughput</dt>
+  <dd class="It-tag">The number of arrivals per second during the interval.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">arrivals</dt>
+  <dd class="It-tag">The number of arrivals during the interval.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">completions</dt>
+  <dd class="It-tag">The number of completions during the interval.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">busy_time</dt>
+  <dd class="It-tag">The total amount of time during which at least one request
+      was resident in the server during the interval.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">weighted_time</dt>
+  <dd class="It-tag">The total response time of all the requests resident in the
+      server during the interval, including requests that neither arrived nor
+      completed during the interval.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">sum_time</dt>
+  <dd class="It-tag">The total response time of all the requests that arrived in
+      the interval.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">variance_mean</dt>
+  <dd class="It-tag">The variance-to-mean ratio (index of dispersion) of the
+      response times of the requests that arrived in the interval.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">quantile_time</dt>
+  <dd class="It-tag">The Nth percentile response time for all the requests that
+      arrived in the interval. See also &quot;--quantile&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">obs_time</dt>
+  <dd class="It-tag">The length of the observation time window. This will
+      usually be the same as the interval length, except for the first and last
+      intervals in a file, which might have a shorter observation time.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+This tool accepts additional command-line arguments. Refer to the
+  &quot;SYNOPSIS&quot; and usage information for details.
+<dl class="Bl-tag">
+  <dt class="It-tag">--config</dt>
+  <dd class="It-tag">type: Array
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Read this comma-separated list of config files; if specified, this must be
+      the first option on the command line.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--help</dt>
+  <dd class="It-tag">Show help and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--progress</dt>
+  <dd class="It-tag">type: array; default: time,30
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print progress reports to STDERR. The value is a comma-separated list with
+      two parts. The first part can be percentage, time, or iterations; the
+      second part specifies how often an update should be printed, in
+      percentage, seconds, or number of iterations.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--quantile</dt>
+  <dd class="It-tag">type: float
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The percentile for the last column when &quot;--type&quot; is
+      &quot;requests&quot; (default .99).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--run-time</dt>
+  <dd class="It-tag">type: float
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The size of the aggregation interval in seconds when &quot;--type&quot; is
+      &quot;requests&quot; (default 1). Fractional values are permitted.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--start-end</dt>
+  <dd class="It-tag">type: Array; default: ts,end
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Define how the arrival and completion timestamps of a query, and thus its
+      response time (elapsed time) are computed. Recall that there may be
+      multiple inbound and outbound packets per request and response, and refer
+      to the following ASCII diagram. Suppose that a client sends a series of
+      three inbound (I) packets to the server, whch computes the result and then
+      sends two outbound (O) packets back:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  I I    I ..................... O    O
+  |&lt;----&gt;|&lt;---response time-----&gt;|&lt;--&gt;|
+  ts0    ts                      end  end1
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    By default, the query is considered to arrive at time ts, and complete at
+      time end. However, this might not be what you want. Perhaps you do not
+      want to consider the query to have completed until time end1. You can
+      accomplish this by setting this option to &quot;ts,end1&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--type</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The type of input to parse (default tcpdump). The permitted types are</dd>
+</dl>
+<div style="margin-left: 4.00ex;">
+<dl class="Bl-tag">
+  <dt class="It-tag">tcpdump</dt>
+  <dd class="It-tag">The parser expects the input to be formatted with the
+      following options: &quot;-x -n -q -tttt&quot;. For example, if you want to
+      capture output from your local machine, you can do something like the
+      following (the port must come last on FreeBSD):
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  tcpdump -s 65535 -x -nn -q -tttt -i any -c 1000 port 3306 \
+    &gt; mysql.tcp.txt
+  mk-query-digest --type tcpdump mysql.tcp.txt
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The other tcpdump parameters, such as -s, -c, and -i, are up to you. Just
+      make sure the output looks like this (there is a line break in the first
+      line to avoid man-page problems):
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  2009-04-12 09:50:16.804849 IP 127.0.0.1.42167
+         &gt; 127.0.0.1.3306: tcp 37
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    All MySQL servers running on port 3306 are automatically detected in the
+      tcpdump output. Therefore, if the tcpdump out contains packets from
+      multiple servers on port 3306 (for example, 10.0.0.1:3306, 10.0.0.2:3306,
+      etc.), all packets/queries from all these servers will be analyzed
+      together as if they were one server.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    If you're analyzing traffic for a protocol that is not running on port 3306,
+      see &quot;--watch-server&quot;.</dd>
+</dl>
+</div>
+<div style="margin-left: 4.00ex;"></div>
+<dl class="Bl-tag">
+  <dt class="It-tag">--version</dt>
+  <dd class="It-tag">Show version and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--watch-server</dt>
+  <dd class="It-tag">type: string; default: 10.10.10.10:3306
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This option tells mk-tcp-model which server IP address and port (such as
+      &quot;10.0.0.1:3306&quot;) to watch when parsing tcpdump for
+      &quot;--type&quot; tcpdump. If you don't specify it, the tool watches all
+      servers by looking for any IP address using port 3306. If you're watching
+      a server with a non-standard port, this won't work, so you must specify
+      the IP address and port to watch.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Currently, IP address filtering isn't implemented; so even though you must
+      specify the option in IP:port form, it ignores the IP and only looks at
+      the port number.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DOWNLOADING"><a class="selflink" href="#DOWNLOADING">DOWNLOADING</a></h1>
 You can download Maatkit from Google Code at
-&lt;http://code.google.com/p/maatkit/&gt;, or you can get
-any of the tools easily with a command like the
-following:</p>
-
-<p style="margin-top: 1em">wget
-http://www.maatkit.org/get/toolname <br>
-or <br>
-wget http://www.maatkit.org/trunk/toolname</p>
-
-<p style="margin-top: 1em">Where &quot;toolname&quot; can
-be replaced with the name (or fragment of a name) of any of
-the Maatkit tools. Once downloaded, they&rsquo;re ready to
-run; no installation is needed. The first <br>
-URL gets the latest released version of the tool, and the
-second gets the latest trunk code from Subversion.</p>
-
-<p style="margin-top: 1em">ENVIRONMENT <br>
-The environment variable &quot;MKDEBUG&quot; enables verbose
-debugging output in all of the Maatkit tools:</p>
-
-<p style="margin-top: 1em">MKDEBUG=1 mk-....</p>
-
-<p style="margin-top: 1em">SYSTEM REQUIREMENTS <br>
-You need Perl and some core packages that ought to be
-installed in any reasonably new version of Perl.</p>
-
-<p style="margin-top: 1em">BUGS <br>
-For a list of known bugs see
-&lt;http://www.maatkit.org/bugs/mk-tcp-model&gt;.</p>
-
-<p style="margin-top: 1em">Please use Google Code Issues
-and Groups to report bugs or request support:
-&lt;http://code.google.com/p/maatkit/&gt;. You can also join
-#maatkit on Freenode to discuss Maatkit.</p>
-
-<p style="margin-top: 1em">Please include the complete
-command-line used to reproduce the problem you are seeing,
-the version of all MySQL servers involved, the complete
-output of the tool when run with <br>
-&quot;--version&quot;, and if possible, debugging output
-produced by running with the &quot;MKDEBUG=1&quot;
-environment variable.</p>
-
-<p style="margin-top: 1em">COPYRIGHT, LICENSE AND WARRANTY
-<br>
-This program is copyright 2011 Baron Schwartz. Feedback and
-improvements are welcome.</p>
-
-<p style="margin-top: 1em">THIS PROGRAM IS PROVIDED
-&quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A <br>
-PARTICULAR PURPOSE.</p>
-
-<p style="margin-top: 1em">This program is free software;
-you can redistribute it and/or modify it under the terms of
-the GNU General Public License as published by the Free
-Software Foundation, version 2; <br>
-OR the Perl Artistic License. On UNIX and similar systems,
-you can issue &lsquo;man perlgpl&rsquo; or &lsquo;man
-perlartistic&rsquo; to read these licenses.</p>
-
-<p style="margin-top: 1em">You should have received a copy
-of the GNU General Public License along with this program;
-if not, write to the Free Software Foundation, Inc., 59
-Temple Place, Suite 330, <br>
-Boston, MA 02111-1307 USA.</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Baron Schwartz</p>
-
-<p style="margin-top: 1em">ABOUT MAATKIT <br>
-This tool is part of Maatkit, a toolkit for power users of
-MySQL. Maatkit was created by Baron Schwartz; Baron and
-Daniel Nichter are the primary code contributors. Both are
-<br>
-employed by Percona. Financial support for Maatkit
-development is primarily provided by Percona and its
-clients.</p>
-
-<p style="margin-top: 1em">VERSION <br>
-This manual page documents Ver 1.0.1 Distrib 7540 $Revision:
-7536 $.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2011-06-08
-MK-TCP-MODEL(1)</p>
-<hr>
+  &lt;http://code.google.com/p/maatkit/&gt;, or you can get any of the tools
+  easily with a command like the following:
+<div class="Pp"></div>
+<pre>
+   wget http://www.maatkit.org/get/toolname
+   or
+   wget http://www.maatkit.org/trunk/toolname
+</pre>
+<div class="Pp"></div>
+Where &quot;toolname&quot; can be replaced with the name (or fragment of a name)
+  of any of the Maatkit tools. Once downloaded, they're ready to run; no
+  installation is needed. The first URL gets the latest released version of the
+  tool, and the second gets the latest trunk code from Subversion.
+<h1 class="Sh" title="Sh" id="ENVIRONMENT"><a class="selflink" href="#ENVIRONMENT">ENVIRONMENT</a></h1>
+The environment variable &quot;MKDEBUG&quot; enables verbose debugging output in
+  all of the Maatkit tools:
+<div class="Pp"></div>
+<pre>
+   MKDEBUG=1 mk-....
+</pre>
+<h1 class="Sh" title="Sh" id="SYSTEM_REQUIREMENTS"><a class="selflink" href="#SYSTEM_REQUIREMENTS">SYSTEM
+  REQUIREMENTS</a></h1>
+You need Perl and some core packages that ought to be installed in any
+  reasonably new version of Perl.
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+For a list of known bugs see &lt;http://www.maatkit.org/bugs/mk-tcp-model&gt;.
+<div class="Pp"></div>
+Please use Google Code Issues and Groups to report bugs or request support:
+  &lt;http://code.google.com/p/maatkit/&gt;. You can also join #maatkit on
+  Freenode to discuss Maatkit.
+<div class="Pp"></div>
+Please include the complete command-line used to reproduce the problem you are
+  seeing, the version of all MySQL servers involved, the complete output of the
+  tool when run with &quot;--version&quot;, and if possible, debugging output
+  produced by running with the &quot;MKDEBUG=1&quot; environment variable.
+<h1 class="Sh" title="Sh" id="COPYRIGHT,_LICENSE_AND_WARRANTY"><a class="selflink" href="#COPYRIGHT,_LICENSE_AND_WARRANTY">COPYRIGHT,
+  LICENSE AND WARRANTY</a></h1>
+This program is copyright 2011 Baron Schwartz. Feedback and improvements are
+  welcome.
+<div class="Pp"></div>
+THIS PROGRAM IS PROVIDED &quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
+  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+<div class="Pp"></div>
+This program is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, version 2; OR the Perl Artistic License. On UNIX and similar
+  systems, you can issue `man perlgpl' or `man perlartistic' to read these
+  licenses.
+<div class="Pp"></div>
+You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+  Place, Suite 330, Boston, MA 02111-1307 USA.
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Baron Schwartz
+<h1 class="Sh" title="Sh" id="ABOUT_MAATKIT"><a class="selflink" href="#ABOUT_MAATKIT">ABOUT
+  MAATKIT</a></h1>
+This tool is part of Maatkit, a toolkit for power users of MySQL. Maatkit was
+  created by Baron Schwartz; Baron and Daniel Nichter are the primary code
+  contributors. Both are employed by Percona. Financial support for Maatkit
+  development is primarily provided by Percona and its clients.
+<h1 class="Sh" title="Sh" id="VERSION"><a class="selflink" href="#VERSION">VERSION</a></h1>
+This manual page documents Ver 1.0.1 Distrib 7540 $Revision: 7536 $.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2011-06-08</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

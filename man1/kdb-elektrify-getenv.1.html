@@ -1,317 +1,459 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:20:20 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>KDB-ELEKTRIFY-GETENV(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>KDB-ELEKTRIFY-GETENV(1) KDB-ELEKTRIFY-GETENV(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-kdb-elektrify-getenv - elektrify the environment of
-applications</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-kdb elektrify-getenv application options</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-When an application is elektrified using libelektragetenv,
-it does not only request environ, but also Elektra for every
-getenv(3) and secure_getenv(3) library call.</p>
-
-<p style="margin-top: 1em">Its main purpose is to:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; have standard
-ways to modify the environment</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; make relogin (or
-even restart!) of applications unnecessary</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; allow a
-hierarchical structure for environment</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; allow settings
-to only apply for individual applications or only in special
-context</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; still preserve
-the advantages (inheriting of environment to
-subprocesses)</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Availability in
-at, cron and similar scripts.</p>
-
-<p style="margin-top: 1em">It is implemented using a
-LD_PRELOAD technique, see USAGE below for global
-activation.</p>
-
-<p style="margin-top: 1em">LOOKUPS <br>
-The main purpose of this approach is to finally have a
-well-defined way to set and get environment variables.
-Elektra&Acirc;&acute;s variables will be in use immediately
-for every newly <br>
-started application (no relogin necessary).</p>
-
-<p style="margin-top: 1em">To do so, getenv(3) will lookup
-multiple sources next to searching in the environment
-(environ). As running example will use
-getenv(&quot;HOME&quot;) -&gt; /path/to/home:</p>
-
-<p style="margin-top: 1em">1. Given commandline parameters
-will always be preferred (see OPTIONS below).</p>
-
-<p style="margin-top: 1em">E.g. kdb elektrify-getenv
-&lt;app&gt; --elektra:HOME=/path/to/home</p>
-
-<p style="margin-top: 1em">2. Then
-/env/override/&lt;key&gt; will be looked up, where key is
-the parameter to getenv. If found, the key will be returned,
-if it is a null keys, getenv will return NULL.</p>
-
-<p style="margin-top: 1em">E.g. kdb set
-user/env/override/HOME /path/to/home</p>
-
-<p style="margin-top: 1em">3. Then environment will be
-requested.</p>
-
-<p style="margin-top: 1em">E.g. HOME=/path/to/home kdb
-elektrify-getenv &lt;application&gt;</p>
-
-<p style="margin-top: 1em">4. Then
-/env/fallback/&lt;key&gt; will be looked up. If found, the
-key will be returned, if it is a null keys, getenv will
-return NULL.</p>
-
-<p style="margin-top: 1em">E.g. kdb set
-user/env/fallback/HOME /path/to/home</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-When elektrify-getenv is active, every application
-additionally accepts Elektra&Acirc;&acute;s getenv options.
-Interleaving Elektra&Acirc;&acute;s and the
-application&Acirc;&acute;s options is allowed. Elektra will
-<br>
-parse its options (starting with --elektra) first and
-discard them before the other application is started.
-Therefore the application will not see that they even
-existed, e.g.: <br>
-given kdb elektrify-getenv &lt;application&gt; -V
---elektra-debug -L the application will be called with
-&lt;application&gt; -V -L.</p>
-
-<p style="margin-top: 1em">Internal Options <br>
---elektra-help <br>
-Outputs this help.</p>
-
-<p style="margin-top: 1em">--elektra-version <br>
-Gives version information.</p>
-
-<p style="margin-top: 1em">--elektra-debug=file,
-ELEKTRA_DEBUG or /env/option/debug <br>
-Trace all getenv(3) calls to a file. stderr if no file is
-given, e.g. kdb set user/env/option/debug &quot;&quot;. Note
-that null values (no forth argument), will disable debug
-mes&acirc; <br>
-sages. See examples below.</p>
-
-<p style="margin-top: 1em">--elektra-clearenv,
-ELEKTRA_CLEARENV or /env/option/clearenv <br>
-Call clearenv(3) before entering main. This is a recommended
-security feature. Elektra itself, if configured that way,
-will still be able to use the environment.</p>
-
-
-<p style="margin-top: 1em">--elektra-reload-timeout=time_in_ms,
-ELEKTRA_RELOAD_TIMEOUT or /env/option/reload_timeout <br>
-Activate a timeout based feature when a time is given in ms
-(and is not 0).</p>
-
-<p style="margin-top: 1em">Internal Options are available
-in three different variants:</p>
-
-<p style="margin-top: 1em">1. as commandline parameter:
---elektra-&lt;option&gt;, which are not passed through
-exec(3) calls.</p>
-
-<p style="margin-top: 1em">2. as environment variable:
-ELEKTRA_&lt;OPTION&gt;. which might be passed through
-exec(3) calls, but are removed by clearenv(3) calls.</p>
-
-<p style="margin-top: 1em">3. as Elektra KDB entry:
-/env/option/&lt;option&gt;, which are the way to achieve an
-option to be enabled for every application.</p>
-
-<p style="margin-top: 1em">E.g. kdb set
-user/env/option/clearenv &quot;&quot; to clear the
-environment for all applications started by that user (note
-that at least PATH should to be set using kdb set <br>
-user/env/fallback/PATH &quot;/bin:/usr/bin&quot; then).</p>
-
-<p style="margin-top: 1em">Note, that null keys are equal
-to non-set options. E.g. kdb set system/env/option/debug
-&quot;/tmp/elektra.log&quot; and kdb set
-user/env/option/debug will activate logging for the <br>
-system, except for the current user.</p>
-
-<p style="margin-top: 1em">Contextual Options <br>
---elektra%&lt;name&gt;%=&lt;value&gt; or
-/env/layer/&lt;name&gt; <br>
-Add the contextual information (=layer) %&lt;name&gt;% with
-it&Acirc;&acute;s value &lt;value&gt;. Note that %name% is
-predefined with argv[0] and %basename% with
-basename(argv[0]).</p>
-
-<p style="margin-top: 1em">Values can contain / to form
-hierarchies, e.g. --elektra%name%=app/profile</p>
-
-<p style="margin-top: 1em">Options for Applications <br>
---elektra:key=value, /env/override/&lt;key&gt; or
-/env/fallback/&lt;key&gt; <br>
-set a key/value to be preferred, i.e. the first to
-considered as explained in LOOKUP.</p>
-
-<p style="margin-top: 1em">Keys can contain / to form
-hierarchies, e.g. --elektra:my/HOME=/path/to/home.</p>
-
-<p style="margin-top: 1em">USAGE <br>
-To always use Elektra&Acirc;&acute;s getenv environment,
-simply add the output to the file:</p>
-
-<p style="margin-top: 1em">kdb elektrify-getenv | tail -1 |
-sudo tee -a /etc/ld.so.preload</p>
-
-<p style="margin-top: 1em">this also can be done using
-Elektra:</p>
-
-<p style="margin-top: 1em">sudo kdb mount
-/etc/ld.so.preload system/ld/preload line null <br>
-sudo kdb set &quot;system/ld/preload/new&quot; &lsquo;kdb
-elektrify-getenv | tail -1&lsquo;</p>
-
-<p style="margin-top: 1em">CONTEXT <br>
-The metadata context in the specification can be used to
-facilitate a context-dependent lookup. In its metavalue all
-replacements of %&lt;name&gt;% will be replaced by the given
-con&acirc; <br>
-textual options --elektra%&lt;name&gt;%=&lt;value&gt; and
-/env/layer/&lt;name&gt; keys.</p>
-
-<p style="margin-top: 1em">E.g. to have a different home
-directory for any user and application:</p>
-
-<p style="margin-top: 1em">kdb set user/env/layer/user
-markus <br>
-kdb set user/users/markus/konqueror/HOME /home/download <br>
-kdb setmeta spec/env/override/HOME context
-/users/%user%/%name%/HOME</p>
-
-<p style="margin-top: 1em">BUGS <br>
-Some applications do not use getenv(3) or secure_getenv(3)
-for requesting the environment, e.g. shells. This approach
-cannot work for them.</p>
-
-<p style="margin-top: 1em">In the startup-phase (before
-main is even entered), getenv(3) will not consider
-/env/override/ or /env/fallback.</p>
-
-<p style="margin-top: 1em">Elektra internally tries to
-avoid using the environment. Some resolvers, however, use it
-to be conform to some specifications, e.g. XDG. Depending on
-the setup you use, these <br>
-parameters might be used. For more information see:</p>
-
-<p style="margin-top: 1em">kdb info resolver</p>
-
-<p style="margin-top: 1em">For these parameters,
-/env/override/ or /env/fallback will not be used internally,
-but will be used if applications request them, too.</p>
-
-<p style="margin-top: 1em">If you use the standard
-resolvers, the bug won&Acirc;&acute;t have any effect.</p>
-
-<p style="margin-top: 1em">Also note that --elektra-debug
-or ELEKTRA_DEBUG does not log getenv(3) used by plugins
-during the startup-phase.</p>
-
-<p style="margin-top: 1em">Commandline Arguments are always
-to the outmost command, e.g. nice ls --elektra:COLUMNS=20
-won&Acirc;&acute;t have any effect because only for nice
-COLUMNS will be set.</p>
-
-<p style="margin-top: 1em">EXAMPLES <br>
-For illustration this section gives some more examples.</p>
-
-<p style="margin-top: 1em">kdb elektrify-getenv man man
---elektra:MANWIDTH=40</p>
-
-<p style="margin-top: 1em">Will use MANWIDTH 40 for this
-invocation of man man. This feature is handy, if an option
-is only available by environment, but not by command-line
-arguments, because sometimes <br>
-environment variables are not trivial to set (e.g. in
-Makefiles).</p>
-
-<p style="margin-top: 1em">Debugging:</p>
-
-<p style="margin-top: 1em"># system wide to stderr (not
-recommended!): <br>
-sudo kdb set system/env/option/debug &quot;&quot; <br>
-# system wide to /var/log/elektra.log: <br>
-sudo kdb set system/env/option/debug
-&quot;/var/log/error.log&quot; <br>
-# but for my user to ~/.elektra.log: <br>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">KDB-ELEKTRIFY-GETENV(1)</td>
+    <td class="head-vol"></td>
+    <td class="head-rtitle">KDB-ELEKTRIFY-GETENV(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+<b>kdb-elektrify-getenv</b> - elektrify the environment of applications
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<b>kdb elektrify-getenv</b> <i>application</i> <i>options</i>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+When an application is elektrified using libelektragetenv, it does not only
+  request <b>environ</b>, but also Elektra for every getenv(3) and
+  secure_getenv(3) library call.
+<div class="Pp"></div>
+Its main purpose is to:
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">have standard ways to modify the environment</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">make relogin (or even restart!) of applications
+    unnecessary</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">allow a hierarchical structure for environment</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">allow settings to only apply for individual applications or
+      only in special context</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">still preserve the advantages (inheriting of environment to
+      subprocesses)</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Availability in at, cron and similar scripts.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+It is implemented using a LD_PRELOAD technique, see <i>USAGE</i> below for
+  global activation.
+<h1 class="Sh" title="Sh" id="LOOKUPS"><a class="selflink" href="#LOOKUPS">LOOKUPS</a></h1>
+The main purpose of this approach is to finally have a well-defined way to set
+  and get environment variables. Elektra&#x00B4;s variables will be in use
+  immediately for every newly started application (no relogin necessary).
+<div class="Pp"></div>
+To do so, getenv(3) will lookup multiple sources next to searching in the
+  environment (environ). As running example will use <b>getenv(&quot;HOME&quot;)
+  -&gt; /path/to/home</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag">1.</dt>
+  <dd class="It-tag">Given commandline parameters will always be preferred (see
+      <i>OPTIONS</i> below).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">E.g. <b>kdb elektrify-getenv &lt;app&gt;
+      --elektra:HOME=/path/to/home</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">2.</dt>
+  <dd class="It-tag">Then <b>/env/override/&lt;key&gt;</b> will be looked up,
+      where <i>key</i> is the parameter to <b>getenv</b>. If found, the key will
+      be returned, if it is a null keys, <b>getenv</b> will return
+    <b>NULL</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">E.g. <b>kdb set user/env/override/HOME
+    /path/to/home</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">3.</dt>
+  <dd class="It-tag">Then environment will be requested.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">E.g. <b>HOME=/path/to/home kdb elektrify-getenv
+      &lt;application&gt;</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">4.</dt>
+  <dd class="It-tag">Then <b>/env/fallback/&lt;key&gt;</b> will be looked up. If
+      found, the key will be returned, if it is a null keys, <b>getenv</b> will
+      return <b>NULL</b>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">E.g. <b>kdb set user/env/fallback/HOME
+    /path/to/home</b></dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+When <b>elektrify-getenv</b> is active, every application additionally accepts
+  Elektra&#x00B4;s getenv options. Interleaving Elektra&#x00B4;s and the
+  application&#x00B4;s options is allowed. Elektra will parse its options
+  (starting with --elektra) first and discard them before the other application
+  is started. Therefore the application will not see that they even existed,
+  e.g.: given <b>kdb elektrify-getenv &lt;application&gt; -V --elektra-debug
+  -L</b> the application will be called with <b>&lt;application&gt; -V -L</b>.
+<h2 class="Ss" title="Ss" id="Internal_Options"><a class="selflink" href="#Internal_Options">Internal
+  Options</a></h2>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--elektra-help</b></dt>
+  <dd class="It-tag">Outputs this help.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--elektra-version</b></dt>
+  <dd class="It-tag">Gives version information.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--elektra-debug=file</b>, <b>ELEKTRA_DEBUG</b> or
+    <b>/env/option/debug</b></dt>
+  <dd class="It-tag">Trace all getenv(3) calls to a file. stderr if no file is
+      given, e.g. <b>kdb set user/env/option/debug &quot;&quot;</b>. Note that
+      null values (no forth argument), will disable debug messages. See examples
+      below.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--elektra-clearenv</b>, <b>ELEKTRA_CLEARENV</b> or
+    <b>/env/option/clearenv</b></dt>
+  <dd class="It-tag">Call clearenv(3) before entering main. This is a
+      recommended security feature. Elektra itself, if configured that way, will
+      still be able to use the environment.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--elektra-reload-timeout=time_in_ms</b>,
+    <b>ELEKTRA_RELOAD_TIMEOUT</b> or <b>/env/option/reload_timeout</b></dt>
+  <dd class="It-tag">Activate a timeout based feature when a time is given in ms
+      (and is not 0).</dd>
+</dl>
+<div class="Pp"></div>
+Internal Options are available in three different variants:
+<dl class="Bl-tag">
+  <dt class="It-tag">1.</dt>
+  <dd class="It-tag">as commandline parameter: <b>--elektra-&lt;option&gt;</b>,
+      which are <i>not</i> passed through exec(3) calls.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">2.</dt>
+  <dd class="It-tag">as environment variable: <b>ELEKTRA_&lt;OPTION&gt;</b>.
+      which might be passed through exec(3) calls, but are removed by
+      clearenv(3) calls.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">3.</dt>
+  <dd class="It-tag">as Elektra KDB entry: <b>/env/option/&lt;option&gt;</b>,
+      which are the way to achieve an option to be enabled for every
+      application.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">E.g. <b>kdb set user/env/option/clearenv &quot;&quot;</b>
+      to clear the environment for all applications started by that user (note
+      that at least <b>PATH</b> should to be set using <b>kdb set
+      user/env/fallback/PATH &quot;/bin:/usr/bin&quot;</b> then).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag">Note, that null keys are equal to non-set options. E.g.
+      <b>kdb set system/env/option/debug &quot;/tmp/elektra.log&quot;</b> and
+      <b>kdb set user/env/option/debug</b> will activate logging for the system,
+      except for the current user.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<h2 class="Ss" title="Ss" id="Contextual_Options"><a class="selflink" href="#Contextual_Options">Contextual
+  Options</a></h2>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--elektra%&lt;name&gt;%=&lt;value&gt;</b> or
+    <b>/env/layer/&lt;name&gt;</b></dt>
+  <dd class="It-tag">Add the contextual information (=layer)
+      <b>%&lt;name&gt;%</b> with it&#x00B4;s value <b>&lt;value&gt;</b>. Note
+      that <b>%name%</b> is predefined with <b>argv[0]</b> and <b>%basename%</b>
+      with <b>basename(argv[0])</b>.</dd>
+</dl>
+<div class="Pp"></div>
+Values can contain / to form hierarchies, e.g.
+  <b>--elektra%name%=app/profile</b>
+<h2 class="Ss" title="Ss" id="Options_for_Applications"><a class="selflink" href="#Options_for_Applications">Options
+  for Applications</a></h2>
+<dl class="Bl-tag">
+  <dt class="It-tag"><b>--elektra:key=value</b>,
+    <b>/env/override/&lt;key&gt;</b> or <b>/env/fallback/&lt;key&gt;</b></dt>
+  <dd class="It-tag">set a key/value to be preferred, i.e. the first to
+      considered as explained in <i>LOOKUP</i>.</dd>
+</dl>
+<div class="Pp"></div>
+Keys can contain / to form hierarchies, e.g.
+  <b>--elektra:my/HOME=/path/to/home</b>.
+<h1 class="Sh" title="Sh" id="USAGE"><a class="selflink" href="#USAGE">USAGE</a></h1>
+To always use Elektra&#x00B4;s getenv environment, simply add the output to the
+  file:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+kdb elektrify-getenv | tail -1 | sudo tee -a /etc/ld.so.preload
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+this also can be done using Elektra:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+sudo kdb mount /etc/ld.so.preload system/ld/preload line null
+sudo kdb set &quot;system/ld/preload/new&quot;  `kdb elektrify-getenv | tail -1`
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<h1 class="Sh" title="Sh" id="CONTEXT"><a class="selflink" href="#CONTEXT">CONTEXT</a></h1>
+The metadata <b>context</b> in the specification can be used to facilitate a
+  context-dependent lookup. In its metavalue all replacements of
+  <b>%&lt;name&gt;%</b> will be replaced by the given contextual options
+  <b>--elektra%&lt;name&gt;%=&lt;value&gt;</b> and
+  <b>/env/layer/&lt;name&gt;</b> keys.
+<div class="Pp"></div>
+E.g. to have a different home directory for any user and application:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+kdb set user/env/layer/user markus
+kdb set user/users/markus/konqueror/HOME /home/download
+kdb setmeta spec/env/override/HOME context  /users/%user%/%name%/HOME
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+Some applications do not use <b>getenv(3)</b> or <b>secure_getenv(3)</b> for
+  requesting the environment, e.g. shells. This approach cannot work for them.
+<div class="Pp"></div>
+In the startup-phase (before main is even entered), <b>getenv(3)</b> will not
+  consider <b>/env/override/</b> or <b>/env/fallback</b>.
+<div class="Pp"></div>
+Elektra internally tries to avoid using the environment. Some resolvers,
+  however, use it to be conform to some specifications, e.g. XDG. Depending on
+  the setup you use, these parameters might be used. For more information see:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+kdb info resolver
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+For these parameters, <b>/env/override/</b> or <b>/env/fallback</b> will
+  <i>not</i> be used internally, but will be used if applications request them,
+  too.
+<div class="Pp"></div>
+If you use the standard resolvers, the bug won&#x00B4;t have any effect.
+<div class="Pp"></div>
+Also note that <b>--elektra-debug</b> or <b>ELEKTRA_DEBUG</b> does <i>not</i>
+  log <b>getenv(3)</b> used by plugins during the startup-phase.
+<div class="Pp"></div>
+Commandline Arguments are always to the outmost command, e.g. <b>nice ls
+  --elektra:COLUMNS=20</b> won&#x00B4;t have any effect because only for
+  <b>nice</b> <b>COLUMNS</b> will be set.
+<h1 class="Sh" title="Sh" id="EXAMPLES"><a class="selflink" href="#EXAMPLES">EXAMPLES</a></h1>
+For illustration this section gives some more examples.
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+kdb elektrify-getenv man man --elektra:MANWIDTH=40
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+Will use MANWIDTH 40 for this invocation of man man. This feature is handy, if
+  an option is only available by environment, but not by command-line arguments,
+  because sometimes environment variables are not trivial to set (e.g. in
+  Makefiles).
+<div class="Pp"></div>
+Debugging:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+# system wide to stderr (not recommended!):
+sudo kdb set system/env/option/debug &quot;&quot;
+# system wide to /var/log/elektra.log:
+sudo kdb set system/env/option/debug &quot;/var/log/error.log&quot;
+# but for my user to ~/.elektra.log:
 kdb set user/env/option/debug &quot;$HOME/.elektra.log&quot;
-<br>
-# or disable it for my user: <br>
-kdb set user/env/option/debug</p>
-
-<p style="margin-top: 1em">Some more examples:</p>
-
-<p style="margin-top: 1em">kdb set user/env/override/MANOPT
--- &quot;--regex -LC&quot; <br>
-kdb elektrify-getenv getenv MANOPT # to check if it is set
-as expected <br>
-kdb getenv MANOPT # if /etc/ld.so.preload is active</p>
-
-<p style="margin-top: 1em">Will permanently and user-wide
-change MANOPT to include --regex, and -LC so that regular
-expressions will be used (note man echo will return many man
-pages then) and that they <br>
-will be shown in English. This feature is handy to change
-the default behaviour of applications (either system, user
-or directory-wide).</p>
-
-<p style="margin-top: 1em">kdb set
-system/env/override/HTTP_PROXY
-http://proxy.hogege.com:8000/</p>
-
-<p style="margin-top: 1em">Will permanently and system-wide
-change the proxy for all applications that honor HTTP_PROXY,
-e.g. w3m. We can also link http_proxy to the value of
-HTTP_PROXY:</p>
-
-<p style="margin-top: 1em">kdb setmeta
-spec/env/override/http_proxy &quot;override/#0&quot;
-/env/override/HTTP_PROXY <br>
-kdb get /env/override/http_proxy</p>
-
-<p style="margin-top: 1em">2015-11-19
-KDB-ELEKTRIFY-GETENV(1)</p>
-<hr>
+# or disable it for my user:
+kdb set user/env/option/debug
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+Some more examples:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+kdb set user/env/override/MANOPT -- &quot;--regex -LC&quot;
+kdb elektrify-getenv getenv MANOPT   # to check if it is set as expected
+kdb getenv MANOPT   # if /etc/ld.so.preload is active
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+Will permanently and user-wide change MANOPT to include --regex, and -LC so that
+  regular expressions will be used (note <b>man echo</b> will return many man
+  pages then) and that they will be shown in English. This feature is handy to
+  change the default behaviour of applications (either system, user or
+  directory-wide).
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+kdb set system/env/override/HTTP_PROXY http://proxy.hogege.com:8000/
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag"></dd>
+</dl>
+<div class="Pp"></div>
+Will permanently and system-wide change the proxy for all applications that
+  honor HTTP_PROXY, e.g. w3m. We can also link <b>http_proxy</b> to the value of
+  <b>HTTP_PROXY</b>:
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <pre>
+<div class="Pp"></div>
+kdb setmeta spec/env/override/http_proxy &quot;override/#0&quot; /env/override/HTTP_PROXY
+kdb get /env/override/http_proxy
+    </pre>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">
+  <div class="Pp"></div>
+  </dt>
+  <dd class="It-tag">
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2015-11-19</td>
+    <td class="foot-os"></td>
+  </tr>
+</table>
 </body>
 </html>

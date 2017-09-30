@@ -1,651 +1,624 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:20:36 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>KILLER(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>KILLER(1) KILLER(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-killer - Background job killer</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-killer [-h] [-V] [-n] [-d]</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-killer is a perl script that gets rid of background jobs.
-Background jobs are defined as processes that belong to
-users who are not currently logged into the machine. Jobs
-can <br>
-be run in the background (and are expempt from
-killer&rsquo;s acctions) if their scheduling priority has
-been reduced by increasing their nice(1) value or if they
-are being run through <br>
-condor. For more details, see the PACKAGE main section of
-this document.</p>
-
-<p style="margin-top: 1em">The following sections describe
-the perl(1) packages that make up the killer program. I
-don&rsquo;t expect that the version that works for me will
-work for everyone. I think that the <br>
-ProcessTable and Terminals packages offer enough flexibility
-that most modifications can be done in the main package.</p>
-
-<p style="margin-top: 1em">Command line options</p>
-
-<p style="margin-top: 1em">-h Tell me how to get help</p>
-
-<p style="margin-top: 1em">-V Display version number</p>
-
-<p style="margin-top: 1em">-n Do not kill, just print what
-would be killed</p>
-
-<p style="margin-top: 1em">-d Enable debug output</p>
-
-<p style="margin-top: 1em">PACKAGE ProcessTable <br>
-Each ProcessTable object contains hashes (or associative
-arrays) that map various aspects of a job to the process ID
-(PID). The following hashes are provided:</p>
-
-<p style="margin-top: 1em">pid2user Login name associated
-with the effective UID that the process is running as.</p>
-
-<p style="margin-top: 1em">pid2ruser Login name associate
-with the real UID that the process is running as.</p>
-
-<p style="margin-top: 1em">pid2uid Effective UID that the
-process is running as.</p>
-
-<p style="margin-top: 1em">pid2ruid Real UID that the
-process is running as.</p>
-
-<p style="margin-top: 1em">pid2tty Terminal associated with
-the process.</p>
-
-<p style="margin-top: 1em">pid2ppid Parent process of the
-process</p>
-
-<p style="margin-top: 1em">pid2nice nice(1) value of the
-process.</p>
-
-<p style="margin-top: 1em">pid2comm Command name of the
-process.</p>
-
-<p style="margin-top: 1em">Additionally, the
-%remainingprocs hash provides the list of processes that
-will be killed.</p>
-
-<p style="margin-top: 1em">The intended use of this package
-calls for readProcessTable to be called to fill in all of
-the hashes defined above. Then, processes that meet specific
-requirements are removed <br>
-from the %remainingprocs hash. Those that are not removed
-are considered to be background processes and may be
-killed.</p>
-
-<p style="margin-top: 1em">new <br>
-This function creates a new ProcessTable object.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em">my $ptable = new
-ProcessTable;</p>
-
-<p style="margin-top: 1em">initialize <br>
-This function (re)initializes arrays and any environment
-variables for external commands. It generally will not need
-to be called, as it is invoked by new().</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Empty out the process table
-for reuse <br>
-$ptable-&gt;initialize();</p>
-
-<p style="margin-top: 1em">readProcessTable <br>
-This function executes the ps(1) command to figure out which
-processes are running. Note that it requires a SYSV style
-ps(1).</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Get a list of processes from
-the OS <br>
-$ptable-&gt;readProcessTable();</p>
-
-<p style="margin-top: 1em">cleanForkBombs <br>
-This function looks for a large number of processes owned by
-one user, and assumes that it is someone that is using
-fork() for the first time. An effective way to clean up such
-<br>
-a mess is to &quot;kill -STOP&quot; each process then
-&quot;kill -KILL&quot; each process.</p>
-
-<p style="margin-top: 1em">Note this function ignores such
-mistakes by root. If root is running a fork(2) bomb, this
-script wouldn&rsquo;t run, right? Also, you should be sure
-that the number of processes <br>
-mentioned below (490) is less (equal to would be better,
-right?) than the maximum number of processes per user. Also,
-the OS should have a process limit at least a couple <br>
-hundred higher than any individual. Otherwise, you will have
-to use the power switch to get rid of fork bombs.</p>
-
-<p style="margin-top: 1em">Each time a process is sent a
-signal, it is logged via syslog(3C).</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Get rid of fork bombs. Keep
-track of who did it in @idiots. <br>
-my @idiots = $ptable-&gt;cleanForkBombs();</p>
-
-<p style="margin-top: 1em">getUserProcessIds user <br>
-This returns the list of process ID&rsquo;s where the login
-associated with the real UID of the process matches the
-argument to the function.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Find all processes owned by
-httpd <br>
-my @webservers =
-$ptable-&gt;getUserProcessIds(&rsquo;httpd&rsquo;);</p>
-
-<p style="margin-top: 1em">getUniqueTtys <br>
-This function returns a list of terminals in use. Note that
-the format will be the same as given by ps(1), which will
-generally lack the leading &quot;/dev/&quot;.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Get a list of all terminals
-that processes are attached to <br>
-my @ttylist = $ptable-&gt;getUniqueTtys();</p>
-
-<p style="margin-top: 1em">removeProcessId pid <br>
-This function removes pid from the list of processes to be
-killed. That is, it gets rid of a process that should be
-allowed to run. Most likely this will only be called by <br>
-other functions in this package.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># For some reason I know that
-PID 1234 should be allowed to run <br>
-$ptable-&gt;removeProcessId(1234);</p>
-
-<p style="margin-top: 1em">removeProcesses psfield, psvalue
-<br>
-This function removes processes that possess certain traits.
-For example, if you want to get rid of all processes owned
-by the user &quot;lp&quot; or all processes that have
-/dev/console <br>
-as their controlling terminal, this is the function for
-you.</p>
-
-<p style="margin-top: 1em">psfield can be any of the
-following</p>
-
-<p style="margin-top: 1em">pid Removes process id given in
-second argument.</p>
-
-<p style="margin-top: 1em">user Removes processes with
-effective UID associated with login name given in second
-argument.</p>
-
-<p style="margin-top: 1em">ruser Removes processes with
-real UID associated with login name given in second
-argument.</p>
-
-<p style="margin-top: 1em">uid Removes processes with
-effective UID given in second argument.</p>
-
-<p style="margin-top: 1em">ruid Removes processes with real
-UID given in second argument.</p>
-
-<p style="margin-top: 1em">tty Removes processes with
-controlling terminal given in second argument. Note that it
-should NOT start with &quot;/dev/&quot;.</p>
-
-<p style="margin-top: 1em">ppid Removes children of process
-with PID given in second argument.</p>
-
-<p style="margin-top: 1em">nice Removes children with a
-nice value equal to the second argument.</p>
-
-<p style="margin-top: 1em">comm Removes children with a
-command name that is the same as the second argument.</p>
-
-<p style="margin-top: 1em">Examples:</p>
-
-<p style="margin-top: 1em"># Allow all imapd processes to
-run <br>
-$ptable-&gt;removeProcesses(&rsquo;comm&rsquo;,
-&rsquo;imapd&rsquo;);</p>
-
-<p style="margin-top: 1em"># Be sure not to kill print jobs
-<br>
-$ptable-&gt;removeProcesses(&rsquo;ruser&rsquo;,
-&rsquo;lp&rsquo;);</p>
-
-<p style="margin-top: 1em">removeChildren pid <br>
-This function removes all decendents of the given pid. That
-is, if the pid argument is 1, it will ensure that nothing is
-killed.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Be sure not to kill off any
-mail deliveries (assumes you have <br>
-# written getSendmailPid()). (Sendmail changes uid when it
-does <br>
-# local delivery.) <br>
-$ptable-&gt;removeChildren(getSendmailPid);</p>
-
-<p style="margin-top: 1em">removeCondorChildren <br>
-Condor is a batch job system that allows migration of jobs
-between machines (see http://www.cs.wisc.edu/condor/). This
-ensures that condor jobs are left alone.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Be nice to the people that are
-running their jobs through condor. <br>
-$ptable-&gt;removeCondorChildren();</p>
-
-<p style="margin-top: 1em">findChildProcs pid <br>
-This function finds and returns a list of all of the
-processess that are descendents of a the PID given in the
-first argument.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Find the processes that are
-decendents of PID 1234 <br>
-my @procs = $ptable-&gt;findChildProcs(1234);</p>
-
-<p style="margin-top: 1em">getTtys user <br>
-This function returns a list of tty&rsquo;s that are in use
-by processes owned by a particular user.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># find all tty&rsquo;s in use by
-gerdts. <br>
-my @ttylist = getTtys(&rsquo;gerdts&rsquo;);</p>
-
-<p style="margin-top: 1em">getUsers <br>
-This function lists all the users that have active
-processes.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Get all users that are logged
-in <br>
-my @lusers = $ptable-&gt;getUsers()</p>
-
-<p style="margin-top: 1em">removeNiceJobs <br>
-This function removes all jobs that have a nice value
-greater than 9. That is, they have a lower sceduling
-priority than the default (0).</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Allow people to run background
-jobs so long as they yield to <br>
-# those with &quot;foreground&quot; jobs <br>
-$ptable-&gt;removeNiceJobs();</p>
-
-<p style="margin-top: 1em">printProcess filehandle, pid
-<br>
-This function displays information about the process, kinda
-like &quot;ps | grep&quot; would.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Print info about init to
-STDERR <br>
-$ptable-&gt;printProcess(TDERR, 1);</p>
-
-<p style="margin-top: 1em">printProcessTable <br>
-printProcessTable filehandle <br>
-This function prints info about all the processes discoverd
-by readProcessTable. If an argument is given, it should be a
-file handle to which the output should be printed.</p>
-
-<p style="margin-top: 1em">Examples:</p>
-
-<p style="margin-top: 1em"># Print the process table to
-stdout <br>
-$ptable-&gt;printProcessTable();</p>
-
-<p style="margin-top: 1em"># Mail the process table to
-someone <br>
-open MAIL &rsquo;|/usr/bin/mail someone&rsquo;; <br>
-$ptable-&gt;printProcessTable(AIL); <br>
-close(MAIL);</p>
-
-<p style="margin-top: 1em">printRemainingProcesses <br>
-printRemainingProcesses filehandle <br>
-This function prints info about all the processes discoverd
-by readProcessTable, but not removed from %remainingprocs.
-If an argument is given, it should be a file handle to <br>
-which the output should be printed.</p>
-
-<p style="margin-top: 1em">Examples:</p>
-
-<p style="margin-top: 1em"># Print the jobs to be killed to
-stdout <br>
-$ptable-&gt;printRemainingProcesses();</p>
-
-<p style="margin-top: 1em"># Mail the jobs to be killed to
-someone <br>
-open MAIL &rsquo;|/usr/bin/mail someone&rsquo;; <br>
-$ptable-&gt;printRemainingProcesses(AIL); <br>
-close(MAIL);</p>
-
-<p style="margin-top: 1em">getRemainingProcesses <br>
-Returns a list of processes that are likely background
-jobs.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Get a list of the processes
-that I plan to kill <br>
-my @procsToKill = $ptable-&gt;getRemainingProcesses();</p>
-
-<p style="margin-top: 1em">killAll signalNumber <br>
-Sends the specified signal to all the processes listed. A
-syslog entry is made for each signal sent.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Send all of the remaining
-processes a TERM signal, then a <br>
-# KILL signal <br>
-$ptable-&gt;killAll(15); <br>
-sleep(10); # Give them a bit of a chance to clean up <br>
-$ptable-&gt;killAll(9);</p>
-
-<p style="margin-top: 1em">PACKAGE Terminals <br>
-The Terminals package provides a means for figuring out how
-long various users have been idle.</p>
-
-<p style="margin-top: 1em">new <br>
-This function is used to instantiate a new Terminals
-object.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Get a new Terminals object.
-<br>
-my $term = new Terminals;</p>
-
-<p style="margin-top: 1em">initialize <br>
-This function figures out who is on the system and how long
-they have been idle for. It will generally only be called by
-new().</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Refresh the state of the
-terminals. <br>
-$term-&gt;initialize();</p>
-
-<p style="margin-top: 1em">showConsoleUser <br>
-This function returns the login of the person that is
-physically sitting at the machine.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Print out the login of the
-person on the console <br>
-printf &quot;%s is on the console0,
-$term-&gt;showConsoleUser();</p>
-
-<p style="margin-top: 1em">initializeTty terminal statparts
-<br>
-This initializes internal structures for the given
-terminal.</p>
-
-<p style="margin-top: 1em">getX11IdleTime user <br>
-Figure out how long a user has been idle in X11. Return the
-seconds of idle time.</p>
-
-<p style="margin-top: 1em">getIdleTime user <br>
-Figure out how long a user has been idle. This is
-accomplished by examining all terminals that the user owns
-and returns the amount of time since the most recently
-accessed one <br>
-was used. Additionally, if the user is at the console it is
-possible that he/she is not typing, yet is quite active with
-the mouse or typing into an application that does not <br>
-use a terminal.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Figure out how long the user
-on the console has been idle <br>
-my $consoleIdle =
-$term-getIdleTime($term-&gt;showConsoleUser());</p>
-
-<p style="margin-top: 1em">printEverything <br>
-Prints to stdout who is on what terminal and how long they
-have been idle. Only useful for debugging.</p>
-
-<p style="margin-top: 1em">Example:</p>
-
-<p style="margin-top: 1em"># Take a look at the contents of
-structures in my <br>
-# Terminals object <br>
-$term-&gt;printEverything();</p>
-
-<p style="margin-top: 1em">PACKAGE main <br>
-The main package is the version used on the Unix
-workstations at the University of Wisonsin&rsquo;s
-Computer-Aided Engineering Center (CAE). I suspect that
-folks at places other than <br>
-CAE will want to do things slightly differently. Feel free
-to take this as an example of how you can make effective use
-of the processTable and Terminals packages.</p>
-
-<p style="margin-top: 1em">Configuration options <br>
-$forkadmin Email address to notify of fork bombs</p>
-
-<p style="margin-top: 1em">$killadmin Email address to
-notify of run-of-the-mill kills</p>
-
-<p style="margin-top: 1em">$fromaddr Who do email messages
-claim to be from?</p>
-
-<p style="margin-top: 1em">$stubbornadmin <br>
-Email address to notify when jobs will not die</p>
-
-<p style="margin-top: 1em">@validusers These are the folks
-that you should never kill off</p>
-
-<p style="margin-top: 1em">$minuid Do not kill processes of
-users with uid lower than this value.</p>
-
-<p style="margin-top: 1em">$maxidletime <br>
-The maximum number of seconds that a user can be idle
-without being classified as having &quot;background&quot;
-jobs.</p>
-
-<p style="margin-top: 1em">If I am a user really trying to
-avoid a background job killer, I would likely include a
-signal handler that would wait for signal 15. When I saw it,
-I would fork causing the <br>
-parent to die and the child would continue on to do my
-work.</p>
-
-<p style="margin-top: 1em">Assuming that everyone thinks
-like me, I figure that I will need to make at least two
-complete passes to clear up the bad users. The first pass is
-relatively nice (sends a <br>
-signal 15, followed a bit later by a signal 9). A
-well-written program will take the signal 15 as a sign that
-it should clean up and then shut down. When a process gets a
-<br>
-signal 9, it has no choice but to die.</p>
-
-<p style="margin-top: 1em">The second pass is not so nice.
-It finds all background processes, sends them a signal 23
-(SIGSTOP), then a signal 9 (SIGKILL). This pretty much (but
-not absolutely) guarantees <br>
-that processes are unable to find a way around the
-background job killer.</p>
-
-<p style="margin-top: 1em">gatherInfo <br>
-This function gathers information from the Terminals and
-ProcessTable packages, then based on that information
-decides which jobs should be allowed to run. Specifically it
-does <br>
-the following:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Instantiates new
-ProcessTable and Terminals objects. Note that Terminals::new
-fills in all the necessary structures to catch users that
-have logged in between calls to <br>
-gatherinfo.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Reads the
-process table</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Removes condor
-processes and condor jobs from the list of processes to be
-killed.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Removes all jobs
-belonging to all users in the configuration array
-@validusers from the list of processes to be killed.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Removes all
-nice(1) jobs from the list of jobs to be killed.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Removes all jobs
-belonging to users where the user has less than $maxidletime
-idle time on at least one terminal. Additionally, jobs
-associated with ttys that are owned by <br>
-users that have less than $maxidletime idle time on at least
-one terminal are preserved. This makes it so that if luser
-uses su(1) to gain the privileges of boozer, processes <br>
-owned by boozer will not be killed.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Removes all
-processes of users with uid lower than the $minuid
-value.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; Finally, the
-process table and terminal objects are returned.</p>
-
-<p style="margin-top: 1em">BUGS <br>
-There is a small window of opportunity for a user that
-reaches $maxidletime in the middle of this script to get
-unfair treatment. This could probably be reconciled by
-shaving <br>
-some time off of maxidletime for the second call to
-main::gatherInfo.</p>
-
-<p style="margin-top: 1em">It is still possible to get
-around the background job killer by having a lot of proceses
-that watch each other to be sure that they are still
-responding (have not yet gotten a <br>
-signal 23). As soon as a stopped process is found, the still
-running process could fork(), thus leaving a background
-process that is not going to be killed.</p>
-
-<p style="margin-top: 1em">Different operating systems have
-different notions of nice values. Some go from -20 to +19.
-Some go from 0 to 39. Solaris and HP-UX (using System V ps
-command) report nice <br>
-values between 0 and 39.</p>
-
-<p style="margin-top: 1em">It is bad to assume that all
-systems that run this have the same number of processes per
-user. The script should ask the OS how many processes normal
-(non-root) users can run.</p>
-
-<p style="margin-top: 1em">TODO <br>
-The configuration is quite minimalistic. It should be made
-possible to have per-host configuration directives so that
-you can, for instance, allow certain people to run <br>
-background jobs on certain hosts.</p>
-
-<p style="margin-top: 1em">People that really care about
-finding habitual offenders will probably want to have a way
-to add entries to a database and flag those that pop up too
-often.</p>
-
-<p style="margin-top: 1em">Thoroughly test on more
-operating systems. A very close relative of this code has
-performed well on about 60 Solaris 2.5.1 machines. It has
-been lightly tested on HP-UX 10.20 <br>
-as well.</p>
-
-<p style="margin-top: 1em">Make mailing to someone
-optional. If you have a lot of workstations killing off
-boring stuff all the time, too much meaningless mail traffic
-is generated.</p>
-
-<p style="margin-top: 1em">If you plan to run this on a
-machine that runs special processes like a POP or IMAP
-server, it would be handy to be able to check multiple
-conditions easily. Perhaps</p>
-
-<p style="margin-top: 1em">$ptable-&gt;removeProcesses( {
-comm =&gt; &rsquo;imapd&rsquo;, <br>
-parentComm =&gt; &rsquo;inetd&rsquo;, <br>
-parentUser =&gt; &rsquo;root&rsquo; } );</p>
-
-<p style="margin-top: 1em">This would make it so that
-people don&rsquo;t rename the crack binary imapd to escape
-the wrath of killer.</p>
-
-<p style="margin-top: 1em">LICENSE <br>
-This program is released under the terms of the General
-Public License (GPL) version 2. The the file COPYING with
-the distribution. If you have lost your copy, you can get a
-<br>
-new one at http://www.gnu.org/copyleft/gpl.html. In
-particular remember that this code is distributed for free
-without warranty.</p>
-
-<p style="margin-top: 1em">If you make use of this code,
-please send me some email. While I am open to suggestions to
-improvement, I by no means guarantee that I will implement
-them.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-nice(1) perl(1) ps(1) su(1) who(1) fork(2) signal(5)</p>
-
-
-<p style="margin-top: 1em">http://www.cs.wisc.edu/condor/</p>
-
-
-<p style="margin-top: 1em">http://www.cae.wisc.edu/~gerdts/killer/</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-killer was written by Mike Gerdts, gerdts@cae.wisc.edu.</p>
-
-<p style="margin-top: 1em">2014-11-29 KILLER(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">KILLER(1)</td>
+    <td class="head-vol"> </td>
+    <td class="head-rtitle">KILLER(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+killer - Background job killer
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+killer [ <b>-h</b>] [<b>-V</b>] [<b>-n</b>] [<b>-d</b>]
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+<i>killer</i> is a perl script that gets rid of background jobs. Background jobs
+  are defined as processes that belong to users who are not currently logged
+  into the machine. Jobs can be run in the background (and are expempt from
+  <i>killer</i>'s acctions) if their scheduling priority has been reduced by
+  increasing their <i>nice</i>(1) value or if they are being run through
+  <i>condor</i>. For more details, see the <i>PACKAGE main</i> section of this
+  document.
+<div class="Pp"></div>
+The following sections describe the <i>perl</i>(1) packages that make up the
+  killer program. I don't expect that the version that works for me will work
+  for everyone. I think that the ProcessTable and Terminals packages offer
+  enough flexibility that most modifications can be done in the main package.
+<div class="Pp"></div>
+Command line options
+<dl class="Bl-tag">
+  <dt class="It-tag">-h</dt>
+  <dd class="It-tag">Tell me how to get help</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-V</dt>
+  <dd class="It-tag">Display version number</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-n</dt>
+  <dd class="It-tag">Do not kill, just print what would be killed</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">-d</dt>
+  <dd class="It-tag">Enable debug output</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="PACKAGE_ProcessTable"><a class="selflink" href="#PACKAGE_ProcessTable">PACKAGE
+  ProcessTable</a></h1>
+Each ProcessTable object contains hashes (or associative arrays) that map
+  various aspects of a job to the process ID (PID). The following hashes are
+  provided:
+<dl class="Bl-tag">
+  <dt class="It-tag">pid2user</dt>
+  <dd class="It-tag">Login name associated with the effective UID that the
+      process is running as.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">pid2ruser</dt>
+  <dd class="It-tag">Login name associate with the real UID that the process is
+      running as.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">pid2uid</dt>
+  <dd class="It-tag">Effective UID that the process is running as.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">pid2ruid</dt>
+  <dd class="It-tag">Real UID that the process is running as.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">pid2tty</dt>
+  <dd class="It-tag">Terminal associated with the process.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">pid2ppid</dt>
+  <dd class="It-tag">Parent process of the process</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">pid2nice</dt>
+  <dd class="It-tag"><i>nice</i>(1) value of the process.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">pid2comm</dt>
+  <dd class="It-tag">Command name of the process.</dd>
+</dl>
+<div class="Pp"></div>
+Additionally, the %remainingprocs hash provides the list of processes that will
+  be killed.
+<div class="Pp"></div>
+The intended use of this package calls for <i>readProcessTable</i> to be called
+  to fill in all of the hashes defined above. Then, processes that meet specific
+  requirements are removed from the %remainingprocs hash. Those that are not
+  removed are considered to be background processes and may be killed.
+<h2 class="Ss" title="Ss" id="new"><a class="selflink" href="#new">new</a></h2>
+This function creates a new <i>ProcessTable</i> object.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    my $ptable = new ProcessTable;
+</pre>
+<h2 class="Ss" title="Ss" id="initialize"><a class="selflink" href="#initialize">initialize</a></h2>
+This function (re)initializes arrays and any environment variables for external
+  commands. It generally will not need to be called, as it is invoked by
+  <i>new()</i>.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Empty out the process table for reuse
+    $ptable-&gt;initialize();
+</pre>
+<h2 class="Ss" title="Ss" id="readProcessTable"><a class="selflink" href="#readProcessTable">readProcessTable</a></h2>
+This function executes the <i>ps</i>(1) command to figure out which processes
+  are running. Note that it requires a SYSV style <i>ps</i>(1).
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Get a list of processes from the OS
+    $ptable-&gt;readProcessTable();
+</pre>
+<h2 class="Ss" title="Ss" id="cleanForkBombs"><a class="selflink" href="#cleanForkBombs">cleanForkBombs</a></h2>
+This function looks for a large number of processes owned by one user, and
+  assumes that it is someone that is using <i>fork()</i> for the first time. An
+  effective way to clean up such a mess is to &quot;kill -STOP&quot; each
+  process then &quot;kill -KILL&quot; each process.
+<div class="Pp"></div>
+Note this function ignores such mistakes by root. If root is running a
+  <i>fork</i>(2) bomb, this script wouldn't run, right? Also, you should be sure
+  that the number of processes mentioned below (490) is less (equal to would be
+  better, right?) than the maximum number of processes per user. Also, the OS
+  should have a process limit at least a couple hundred higher than any
+  individual. Otherwise, you will have to use the power switch to get rid of
+  fork bombs.
+<div class="Pp"></div>
+Each time a process is sent a signal, it is logged via syslog(3C).
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Get rid of fork bombs.  Keep track of who did it in @idiots.
+    my @idiots = $ptable-&gt;cleanForkBombs();
+</pre>
+<h2 class="Ss" title="Ss" id="getUserProcessIds_user"><a class="selflink" href="#getUserProcessIds_user">getUserProcessIds
+  user</a></h2>
+This returns the list of process ID's where the login associated with the real
+  UID of the process matches the argument to the function.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Find all processes owned by httpd
+    my @webservers = $ptable-&gt;getUserProcessIds('httpd');
+</pre>
+<h2 class="Ss" title="Ss" id="getUniqueTtys"><a class="selflink" href="#getUniqueTtys">getUniqueTtys</a></h2>
+This function returns a list of terminals in use. Note that the format will be
+  the same as given by <i>ps</i>(1), which will generally lack the leading
+  &quot;/dev/&quot;.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Get a list of all terminals that processes are attached to
+    my @ttylist = $ptable-&gt;getUniqueTtys();
+</pre>
+<h2 class="Ss" title="Ss" id="removeProcessId_pid"><a class="selflink" href="#removeProcessId_pid">removeProcessId
+  pid</a></h2>
+This function removes pid from the list of processes to be killed. That is, it
+  gets rid of a process that should be allowed to run. Most likely this will
+  only be called by other functions in this package.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # For some reason I know that PID 1234 should be allowed to run
+    $ptable-&gt;removeProcessId(1234);
+</pre>
+<h2 class="Ss" title="Ss" id="removeProcesses_psfield,_psvalue"><a class="selflink" href="#removeProcesses_psfield,_psvalue">removeProcesses
+  psfield, psvalue</a></h2>
+This function removes processes that possess certain traits. For example, if you
+  want to get rid of all processes owned by the user &quot;lp&quot; or all
+  processes that have /dev/console as their controlling terminal, this is the
+  function for you.
+<div class="Pp"></div>
+psfield can be any of the following
+<dl class="Bl-tag">
+  <dt class="It-tag">pid</dt>
+  <dd class="It-tag">Removes process id given in second argument.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">user</dt>
+  <dd class="It-tag">Removes processes with effective UID associated with login
+      name given in second argument.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">ruser</dt>
+  <dd class="It-tag">Removes processes with real UID associated with login name
+      given in second argument.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">uid</dt>
+  <dd class="It-tag">Removes processes with effective UID given in second
+      argument.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">ruid</dt>
+  <dd class="It-tag">Removes processes with real UID given in second
+    argument.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">tty</dt>
+  <dd class="It-tag">Removes processes with controlling terminal given in second
+      argument. Note that it should NOT start with &quot;/dev/&quot;.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">ppid</dt>
+  <dd class="It-tag">Removes children of process with PID given in second
+      argument.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">nice</dt>
+  <dd class="It-tag">Removes children with a nice value equal to the second
+      argument.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">comm</dt>
+  <dd class="It-tag">Removes children with a command name that is the same as
+      the second argument.</dd>
+</dl>
+<div class="Pp"></div>
+Examples:
+<div class="Pp"></div>
+<pre>
+    # Allow all imapd processes to run
+    $ptable-&gt;removeProcesses('comm', 'imapd');
+    # Be sure not to kill print jobs
+    $ptable-&gt;removeProcesses('ruser', 'lp');
+</pre>
+<h2 class="Ss" title="Ss" id="removeChildren_pid"><a class="selflink" href="#removeChildren_pid">removeChildren
+  pid</a></h2>
+This function removes all decendents of the given pid. That is, if the pid
+  argument is 1, it will ensure that nothing is killed.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Be sure not to kill off any mail deliveries (assumes you have
+    # written getSendmailPid()).  (Sendmail changes uid when it does
+    # local delivery.)
+    $ptable-&gt;removeChildren(getSendmailPid);
+</pre>
+<h2 class="Ss" title="Ss" id="removeCondorChildren"><a class="selflink" href="#removeCondorChildren">removeCondorChildren</a></h2>
+Condor is a batch job system that allows migration of jobs between machines (see
+  http://www.cs.wisc.edu/condor/). This ensures that condor jobs are left alone.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Be nice to the people that are running their jobs through condor.
+    $ptable-&gt;removeCondorChildren();
+</pre>
+<h2 class="Ss" title="Ss" id="findChildProcs_pid"><a class="selflink" href="#findChildProcs_pid">findChildProcs
+  pid</a></h2>
+This function finds and returns a list of all of the processess that are
+  descendents of a the PID given in the first argument.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Find the processes that are decendents of PID 1234
+    my @procs = $ptable-&gt;findChildProcs(1234);
+</pre>
+<h2 class="Ss" title="Ss" id="getTtys_user"><a class="selflink" href="#getTtys_user">getTtys
+  user</a></h2>
+This function returns a list of tty's that are in use by processes owned by a
+  particular user.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # find all tty's in use by gerdts.
+    my @ttylist = getTtys('gerdts');
+</pre>
+<h2 class="Ss" title="Ss" id="getUsers"><a class="selflink" href="#getUsers">getUsers</a></h2>
+This function lists all the users that have active processes.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Get all users that are logged in
+    my @lusers = $ptable-&gt;getUsers()
+</pre>
+<h2 class="Ss" title="Ss" id="removeNiceJobs"><a class="selflink" href="#removeNiceJobs">removeNiceJobs</a></h2>
+This function removes all jobs that have a nice value greater than 9. That is,
+  they have a lower sceduling priority than the default (0).
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Allow people to run background jobs so long as they yield to
+    # those with &quot;foreground&quot; jobs
+    $ptable-&gt;removeNiceJobs();
+</pre>
+<h2 class="Ss" title="Ss" id="printProcess_filehandle,_pid"><a class="selflink" href="#printProcess_filehandle,_pid">printProcess
+  filehandle, pid</a></h2>
+This function displays information about the process, kinda like &quot;ps |
+  grep&quot; would.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Print info about init to STDERR
+    $ptable-&gt;printProcess(\*STDERR, 1);
+</pre>
+<h2 class="Ss" title="Ss" id="printProcessTable"><a class="selflink" href="#printProcessTable">printProcessTable</a></h2>
+<h2 class="Ss" title="Ss" id="printProcessTable_filehandle"><a class="selflink" href="#printProcessTable_filehandle">printProcessTable
+  filehandle</a></h2>
+This function prints info about all the processes discoverd by
+  <i>readProcessTable</i>. If an argument is given, it should be a file handle
+  to which the output should be printed.
+<div class="Pp"></div>
+Examples:
+<div class="Pp"></div>
+<pre>
+    # Print the process table to stdout
+    $ptable-&gt;printProcessTable();
+    # Mail the process table to someone
+    open MAIL '|/usr/bin/mail someone';
+    $ptable-&gt;printProcessTable(\*MAIL);
+    close(MAIL);
+</pre>
+<h2 class="Ss" title="Ss" id="printRemainingProcesses"><a class="selflink" href="#printRemainingProcesses">printRemainingProcesses</a></h2>
+<h2 class="Ss" title="Ss" id="printRemainingProcesses_filehandle"><a class="selflink" href="#printRemainingProcesses_filehandle">printRemainingProcesses
+  filehandle</a></h2>
+This function prints info about all the processes discoverd by
+  <i>readProcessTable</i>, but not removed from %remainingprocs. If an argument
+  is given, it should be a file handle to which the output should be printed.
+<div class="Pp"></div>
+Examples:
+<div class="Pp"></div>
+<pre>
+    # Print the jobs to be killed to stdout
+    $ptable-&gt;printRemainingProcesses();
+    # Mail the jobs to be killed to someone
+    open MAIL '|/usr/bin/mail someone';
+    $ptable-&gt;printRemainingProcesses(\*MAIL);
+    close(MAIL);
+</pre>
+<h2 class="Ss" title="Ss" id="getRemainingProcesses"><a class="selflink" href="#getRemainingProcesses">getRemainingProcesses</a></h2>
+Returns a list of processes that are likely background jobs.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Get a list of the processes that I plan to kill
+    my @procsToKill = $ptable-&gt;getRemainingProcesses();
+</pre>
+<h2 class="Ss" title="Ss" id="killAll_signalNumber"><a class="selflink" href="#killAll_signalNumber">killAll
+  signalNumber</a></h2>
+Sends the specified signal to all the processes listed. A syslog entry is made
+  for each signal sent.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Send all of the remaining processes a TERM signal, then a 
+    # KILL signal
+    $ptable-&gt;killAll(15);
+    sleep(10);          # Give them a bit of a chance to clean up
+    $ptable-&gt;killAll(9);
+</pre>
+<h1 class="Sh" title="Sh" id="PACKAGE_Terminals"><a class="selflink" href="#PACKAGE_Terminals">PACKAGE
+  Terminals</a></h1>
+The Terminals package provides a means for figuring out how long various users
+  have been idle.
+<h2 class="Ss" title="Ss" id="new"><a class="selflink" href="#new">new</a></h2>
+This function is used to instantiate a new Terminals object.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Get a new Terminals object.
+    my $term = new Terminals;
+</pre>
+<h2 class="Ss" title="Ss" id="initialize"><a class="selflink" href="#initialize">initialize</a></h2>
+This function figures out who is on the system and how long they have been idle
+  for. It will generally only be called by <i>new()</i>.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Refresh the state of the terminals.
+    $term-&gt;initialize();
+</pre>
+<h2 class="Ss" title="Ss" id="showConsoleUser"><a class="selflink" href="#showConsoleUser">showConsoleUser</a></h2>
+This function returns the login of the person that is physically sitting at the
+  machine.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Print out the login of the person on the console
+    printf &quot;%s is on the console\n&quot;, $term-&gt;showConsoleUser();
+</pre>
+<h2 class="Ss" title="Ss" id="initializeTty_terminal_statparts"><a class="selflink" href="#initializeTty_terminal_statparts">initializeTty
+  terminal statparts</a></h2>
+This initializes internal structures for the given terminal.
+<h2 class="Ss" title="Ss" id="getX11IdleTime_user"><a class="selflink" href="#getX11IdleTime_user">getX11IdleTime
+  user</a></h2>
+Figure out how long a user has been idle in X11. Return the seconds of idle
+  time.
+<h2 class="Ss" title="Ss" id="getIdleTime_user"><a class="selflink" href="#getIdleTime_user">getIdleTime
+  user</a></h2>
+Figure out how long a user has been idle. This is accomplished by examining all
+  terminals that the user owns and returns the amount of time since the most
+  recently accessed one was used. Additionally, if the user is at the console it
+  is possible that he/she is not typing, yet is quite active with the mouse or
+  typing into an application that does not use a terminal.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Figure out how long the user on the console has been idle
+    my $consoleIdle = $term-getIdleTime($term-&gt;showConsoleUser());
+</pre>
+<h2 class="Ss" title="Ss" id="printEverything"><a class="selflink" href="#printEverything">printEverything</a></h2>
+Prints to stdout who is on what terminal and how long they have been idle. Only
+  useful for debugging.
+<div class="Pp"></div>
+Example:
+<div class="Pp"></div>
+<pre>
+    # Take a look at the contents of structures in my 
+    # Terminals object
+    $term-&gt;printEverything();
+</pre>
+<h1 class="Sh" title="Sh" id="PACKAGE_main"><a class="selflink" href="#PACKAGE_main">PACKAGE
+  main</a></h1>
+The main package is the version used on the Unix workstations at the University
+  of Wisonsin's Computer-Aided Engineering Center (CAE). I suspect that folks at
+  places other than CAE will want to do things slightly differently. Feel free
+  to take this as an example of how you can make effective use of the
+  processTable and Terminals packages.
+<h2 class="Ss" title="Ss" id="Configuration_options"><a class="selflink" href="#Configuration_options">Configuration
+  options</a></h2>
+<dl class="Bl-tag">
+  <dt class="It-tag">$forkadmin</dt>
+  <dd class="It-tag">Email address to notify of fork bombs</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">$killadmin</dt>
+  <dd class="It-tag">Email address to notify of run-of-the-mill kills</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">$fromaddr</dt>
+  <dd class="It-tag">Who do email messages claim to be from?</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">$stubbornadmin</dt>
+  <dd class="It-tag">Email address to notify when jobs will not die</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">@validusers</dt>
+  <dd class="It-tag">These are the folks that you should never kill off</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">$minuid</dt>
+  <dd class="It-tag">Do not kill processes of users with uid lower than this
+      value.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">$maxidletime</dt>
+  <dd class="It-tag">The maximum number of seconds that a user can be idle
+      without being classified as having &quot;background&quot; jobs.</dd>
+</dl>
+<div class="Pp"></div>
+If I am a user really trying to avoid a background job killer, I would likely
+  include a signal handler that would wait for signal 15. When I saw it, I would
+  fork causing the parent to die and the child would continue on to do my work.
+<div class="Pp"></div>
+Assuming that everyone thinks like me, I figure that I will need to make at
+  least two complete passes to clear up the bad users. The first pass is
+  relatively nice (sends a signal 15, followed a bit later by a signal 9). A
+  well-written program will take the signal 15 as a sign that it should clean up
+  and then shut down. When a process gets a signal 9, it has no choice but to
+  die.
+<div class="Pp"></div>
+The second pass is not so nice. It finds all background processes, sends them a
+  signal 23 (SIGSTOP), then a signal 9 (SIGKILL). This pretty much (but not
+  absolutely) guarantees that processes are unable to find a way around the
+  background job killer.
+<h2 class="Ss" title="Ss" id="gatherInfo"><a class="selflink" href="#gatherInfo">gatherInfo</a></h2>
+This function gathers information from the Terminals and ProcessTable packages,
+  then based on that information decides which jobs should be allowed to run.
+  Specifically it does the following:
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Instantiates new ProcessTable and Terminals objects. Note
+      that Terminals::new fills in all the necessary structures to catch users
+      that have logged in between calls to <i>gatherinfo</i>.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Reads the process table</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Removes condor processes and condor jobs from the list of
+      processes to be killed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Removes all jobs belonging to all users in the
+      configuration array @validusers from the list of processes to be
+    killed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Removes all <i>nice</i>(1) jobs from the list of jobs to be
+      killed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Removes all jobs belonging to users where the user has less
+      than $maxidletime idle time on at least one terminal. Additionally, jobs
+      associated with ttys that are owned by users that have less than
+      $maxidletime idle time on at least one terminal are preserved. This makes
+      it so that if luser uses <i>su</i>(1) to gain the privileges of boozer,
+      processes owned by boozer will not be killed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Removes all processes of users with uid lower than the
+      $minuid value.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">Finally, the process table and terminal objects are
+      returned.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+There is a small window of opportunity for a user that reaches $maxidletime in
+  the middle of this script to get unfair treatment. This could probably be
+  reconciled by shaving some time off of maxidletime for the second call to
+  main::gatherInfo.
+<div class="Pp"></div>
+It is still possible to get around the background job killer by having a lot of
+  proceses that watch each other to be sure that they are still responding (have
+  not yet gotten a signal 23). As soon as a stopped process is found, the still
+  running process could <i>fork()</i>, thus leaving a background process that is
+  not going to be killed.
+<div class="Pp"></div>
+Different operating systems have different notions of nice values. Some go from
+  -20 to +19. Some go from 0 to 39. Solaris and HP-UX (using System V ps
+  command) report nice values between 0 and 39.
+<div class="Pp"></div>
+It is bad to assume that all systems that run this have the same number of
+  processes per user. The script should ask the OS how many processes normal
+  (non-root) users can run.
+<h1 class="Sh" title="Sh" id="TODO"><a class="selflink" href="#TODO">TODO</a></h1>
+The configuration is quite minimalistic. It should be made possible to have
+  per-host configuration directives so that you can, for instance, allow certain
+  people to run background jobs on certain hosts.
+<div class="Pp"></div>
+People that really care about finding habitual offenders will probably want to
+  have a way to add entries to a database and flag those that pop up too often.
+<div class="Pp"></div>
+Thoroughly test on more operating systems. A very close relative of this code
+  has performed well on about 60 Solaris 2.5.1 machines. It has been lightly
+  tested on HP-UX 10.20 as well.
+<div class="Pp"></div>
+Make mailing to someone optional. If you have a lot of workstations killing off
+  boring stuff all the time, too much meaningless mail traffic is generated.
+<div class="Pp"></div>
+If you plan to run this on a machine that runs special processes like a POP or
+  IMAP server, it would be handy to be able to check multiple conditions easily.
+  Perhaps
+<div class="Pp"></div>
+<pre>
+    $ptable-&gt;removeProcesses( { comm =&gt; 'imapd', 
+                                parentComm =&gt; 'inetd',
+                                parentUser =&gt; 'root' } );
+</pre>
+<div class="Pp"></div>
+This would make it so that people don't rename the crack binary imapd to escape
+  the wrath of killer.
+<h1 class="Sh" title="Sh" id="LICENSE"><a class="selflink" href="#LICENSE">LICENSE</a></h1>
+This program is released under the terms of the General Public License (GPL)
+  version 2. The the file COPYING with the distribution. If you have lost your
+  copy, you can get a new one at http://www.gnu.org/copyleft/gpl.html. In
+  particular remember that this code is distributed for free without warranty.
+<div class="Pp"></div>
+If you make use of this code, please send me some email. While I am open to
+  suggestions to improvement, I by no means guarantee that I will implement
+  them.
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<i>nice</i>(1) <i>perl</i>(1) <i>ps</i>(1) <i>su</i>(1) <i>who</i>(1)
+  <i>fork</i>(2) <i>signal</i>(5)
+<div class="Pp"></div>
+http://www.cs.wisc.edu/condor/
+<div class="Pp"></div>
+http://www.cae.wisc.edu/~gerdts/killer/
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+killer was written by Mike Gerdts, gerdts@cae.wisc.edu.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2014-11-29</td>
+    <td class="foot-os"> </td>
+  </tr>
+</table>
 </body>
 </html>

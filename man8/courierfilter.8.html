@@ -1,289 +1,238 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:09:42 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>COURIERFILTER(8)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>COURIERFILTER(8) Double Precision, Inc.
-COURIERFILTER(8)</p>
-
-<p style="margin-top: 1em">NAME <br>
-courierfilter - Courier mail filters</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-courierfilter [[start] | [stop] | [restart]]</p>
-
-<p style="margin-top: 1em">filterctl [[start] | [stop]]
-[filter]</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-The filterctl commands install or uninstall global mail
-filters. Global mail filters are used to selectively block
-unwanted mail. More than one mail filter can be enabled at
-the <br>
-same time. Two filters - dupfilter(8)[1] and
-courierperlfilter(8)[2] - are provided as examples for
-writing mail filters.</p>
-
-<p style="margin-top: 1em">courierfilter start runs all
-mail filters that have been installed by filterctl.
-courierfilter stop shuts down all running mail filters.
-After courierfilter start, any filterctl <br>
-commands take effect immediately. After courierfilter stop
-any filterctl commands will take effect at the next
-courierfilter start.</p>
-
-<p style="margin-top: 1em">courierfilter restart signals
-the running courierfilter to reread its configuration files.
-This is normally done automatically, by filterctl.</p>
-
-<p style="margin-top: 1em">If any mail filter is installed,
-the mail filter must be running in order for any mail to be
-processed. Mail filters are assumed to be empowered to
-enforce system-wide mail <br>
-policies, so if an installed mail filter is not running then
-mail will not be accepted by the system. Note that mail will
-not be rejected, if possible. Every attempt will be made
-<br>
-to send a temporary error code to an external mail system,
-asking it to try again later.</p>
-
-<p style="margin-top: 1em">For this reason, you should
-modify your system boot script to run courierfilter start as
-soon as possible, and run courierfilter stop during the
-final portion of your system <br>
-shutdown script. It is not necessary to run courierfilter if
-you do not install a mail filter with filterctl.</p>
-
-<p style="margin-top: 1em">MAIL FILTER IMPLEMENTATION <br>
-This section explains how mail filters are implemented, and
-how to write a new global mail filter.</p>
-
-<p style="margin-top: 1em">Available mail filter binaries
-are located in the directory /usr/lib/courier/filters. The
-filterctl script looks in this directory to see which mail
-filters are available to be <br>
-installed. Installing a mail filter consists of simply
-creating a soft link from the directory
-/etc/courier/filters/active to its corresponding binary in
-<br>
-/usr/lib/courier/filters. The courierfilter start command
-simply reads /etc/courier/filters/active and runs every
-program in this directory.</p>
-
-<p style="margin-top: 1em">The filterctl script sends a HUP
-signal to courierfilter after installing or uninstalling a
-filter. courierfilter will reread the contents of
-/etc/courier/filters/active then <br>
-start or stop individual mail filters.</p>
-
-<p style="margin-top: 1em">After starting, an individual
-mail filter must create a filesystem domain socket in one of
-two directories: /var/lib/courier/filters or
-/var/lib/courier/allfilters. The name of <br>
-the socket should be the same as a name of the filter, and
-the mail filter must make sure to remove any socket by the
-same name in the other directory. For various silly reasons,
-<br>
-the recommended implementation is to create
-/var/lib/courier/filters/.NAME or
-/var/lib/courier/allfilters/.NAME (after making sure that it
-doesn&rsquo;t exist) then rename .NAME to <br>
-NAME.</p>
-
-<p style="margin-top: 1em">After initializing the socket,
-the mail filter must then close its file descriptor #3. File
-descriptor 3 is inherited by every mail filter that&rsquo;s
-executed by the courierfilter <br>
-start command. The mail filter&rsquo;s file descriptor 3 is
-connected to the write end of a pipe, which may be relevant
-to certain ways of implementing the closing of the file <br>
-descriptor, for instance in Perl where you may be forced to
-pseudo-open the descriptor (in write mode) before closing
-it. The courierfilter start command will not exit until <br>
-every started mail filter closes its file descriptor 3. This
-allows for all mail filters to orderly initialize themselves
-before courierfilter start command returns.</p>
-
-<p style="margin-top: 1em">All mail filters also inherit a
-pipe on standard input, and must terminate when the pipe is
-closed. Mail filters must simultaneously listen for new
-connections on the mail filter <br>
-socket, and for their standard input to close.</p>
-
-<p style="margin-top: 1em">The mail filter receives a new
-connection on its socket for every message that needs to be
-filtered. After establishing a connection, the mail filter
-will immediately read the <br>
-following information from the new socket:</p>
-
-<p style="margin-top: 1em">A pathname to a file containing
-the contents of the message.</p>
-
-<p style="margin-top: 1em">One or more pathnames to control
-files for this message.</p>
-
-<p style="margin-top: 1em">Each pathname is terminated by a
-single newline character. The last pathname is followed by a
-second newline character. The pathnames may either be
-relative pathnames to /usr or <br>
-absolute pathnames, depending on the system
-configuration.</p>
-
-<p style="margin-top: 1em">The mail filter is free to judge
-the message&rsquo;s worthiness by reading its contents
-and/or control file(s) as soon as a second consecutive
-newline character is received. The final <br>
-verdict is rendered by writing back a result code on the
-same socket. The result code follows the same format as
-regular SMTP replies (even though the message may not have
-been <br>
-received via SMTP), and can be used to communicate
-acceptance, temporary failure, or a permanent failure. If
-it&rsquo;s a failure, then the text portion of the result
-code will be <br>
-used, if possible. The result code may be a multiline
-response, just like a regular SMTP reply. The mail filter
-must immediately close the connection after writing the
-result <br>
-code. After closing the socket the mail filter must then
-proceed to wait for another connection request on the
-original listening socket.</p>
-
-<p style="margin-top: 1em">The mail filter can be
-multithreaded or multitasked, and can accept multiple
-connections simultaneously. When its standard input is
-closed the mail filter should stop accepting <br>
-new connections and wait for any existing connections to be
-closed, prior to exiting.</p>
-
-<p style="margin-top: 1em">Global mail filters must be
-EXTREMELY resilient to runtime failures. Since mail will not
-be processed if an installed mail filter is not running, if
-a mail filter crashes it will <br>
-effectively shut down the mail server. Currently
-courierfilter does not attempt to restart mail filters which
-crash.</p>
-
-<p style="margin-top: 1em">MAIL FILTER INVOCATION <br>
-The system administrator defines what mail gets filtered by
-editing the contents of the enablefiltering configuration
-file in /etc/courier. This configuration file contains a
-<br>
-list of mail sources that should be filtered, like esmtp or
-local. See courier(8)[3] for more information. A default
-/etc/courier/enablefiltering file is installed that
-specifies <br>
-only the esmtp mail source as subject to filtering.</p>
-
-<p style="margin-top: 1em">A message is not subject to
-filtering if its source is not listed in
-/etc/courier/enablefiltering. Otherwise the following rules
-apply.</p>
-
-<p style="margin-top: 1em">Certain mail destinations have
-the ability to selectively whitelist arbitrary messages. For
-example, local mail recipients have the ability to
-selectively whitelist individual <br>
-messages, provided that a local mail filter (independent of
-any global mail filter) is installed that implements the
-maildrop filtering API[4].</p>
-
-<p style="margin-top: 1em">New messages are filtered by
-connecting to every socket in /var/lib/courier/filters
-and/or /var/lib/courier/allfilters, one at a time. All mail
-filters must accept the message, <br>
-for it to be accepted by Courier. If a socket exists but a
-connection cannot be established then the message is not
-accepted, and a temporary failure indication is returned.
-<br>
-That&rsquo;s why no mail will be accepted unless all
-installed mail filters are running.</p>
-
-<p style="margin-top: 1em">Mail recipients that did not
-whitelist the sender, via the maildrop API, will have their
-mail filtered against everything in /var/lib/courier/filters
-and <br>
-/var/lib/courier/allfilters. Mail to recipients that
-whitelisted the sender, or mail to destinations that do not
-use a maildrop API-compatible filter, will be filtered only
-<br>
-against the contents of /var/lib/courier/allfilters.</p>
-
-<p style="margin-top: 1em">This gives system administrators
-a choice whether to install selective, or mandatory mail
-filters, or a combination of both.</p>
-
-<p style="margin-top: 1em">BUGS <br>
-Many filesystem domain socket implementation are buggy.</p>
-
-<p style="margin-top: 1em">Handling of crashed mail filters
-could be improved.</p>
-
-<p style="margin-top: 1em">FILES <br>
-/usr/lib/courier/filters <br>
-Available mail filters.</p>
-
-<p style="margin-top: 1em">/etc/courier/filters <br>
-Miscellaneous configuration files.</p>
-
-<p style="margin-top: 1em">/etc/courier/filters/active <br>
-Installed mail filters.</p>
-
-<p style="margin-top: 1em">/etc/courier/enablefiltering
-<br>
-Which mail sources to filter.</p>
-
-<p style="margin-top: 1em">/var/lib/courier/allfilters <br>
-Mandatory filters.</p>
-
-<p style="margin-top: 1em">/var/lib/courier/filters <br>
-Optional filters.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-localmailfilter(7)[4], courier(8)[3], dupfilter(8)[1],
-ratefilter(8)[5], courierperlfilter(8)[2].</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Sam Varshavchik <br>
-Author</p>
-
-<p style="margin-top: 1em">NOTES <br>
-1. dupfilter(8) <br>
-[set $man.base.url.for.relative.links]/dupfilter.html</p>
-
-<p style="margin-top: 1em">2. courierperlfilter(8) <br>
-[set
-$man.base.url.for.relative.links]/courierperlfilter.html</p>
-
-<p style="margin-top: 1em">3. courier(8) <br>
-[set $man.base.url.for.relative.links]/courier.html</p>
-
-<p style="margin-top: 1em">4. maildrop filtering API <br>
-[set
-$man.base.url.for.relative.links]/localmailfilter.html</p>
-
-<p style="margin-top: 1em">5. ratefilter(8) <br>
-[set $man.base.url.for.relative.links]/ratefilter.html</p>
-
-<p style="margin-top: 1em">Courier Mail Server 06/27/2015
-COURIERFILTER(8)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">COURIERFILTER(8)</td>
+    <td class="head-vol">Double Precision, Inc.</td>
+    <td class="head-rtitle">COURIERFILTER(8)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+courierfilter - Courier mail filters
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<div class="Pp" style="margin-left: 14.00ex; text-indent: -14.00ex;"><b>courierfilter</b>
+  [[start] | [stop] | [restart]]</div>
+<div class="Pp"></div>
+<div class="Pp" style="margin-left: 10.00ex; text-indent: -10.00ex;"><b>filterctl</b>
+  [[start] | [stop]] [ <i>filter</i>]</div>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+The <b>filterctl</b> commands install or uninstall global mail <i>filter</i>s.
+  Global mail filters are used to selectively block unwanted mail. More than one
+  mail filter can be enabled at the same time. Two filters -
+  <b></b><b>dupfilter</b>(8)[1] and <b></b><b>courierperlfilter</b>(8)[2] - are
+  provided as examples for writing mail filters.
+<div class="Pp"></div>
+<b>courierfilter start</b> runs all mail filters that have been installed by
+  <b>filterctl</b>. <b>courierfilter stop</b> shuts down all running mail
+  filters. After <b>courierfilter start</b>, any <b>filterctl</b> commands take
+  effect immediately. After <b>courierfilter stop</b> any <b>filterctl</b>
+  commands will take effect at the next <b>courierfilter start</b>.
+<div class="Pp"></div>
+<b>courierfilter restart</b> signals the running <b>courierfilter</b> to reread
+  its configuration files. This is normally done automatically, by
+  <b>filterctl</b>.
+<div class="Pp"></div>
+If any mail filter is installed, the mail filter must be running in order for
+  any mail to be processed. Mail filters are assumed to be empowered to enforce
+  system-wide mail policies, so if an installed mail filter is not running then
+  mail will not be accepted by the system. Note that mail will not be rejected,
+  if possible. Every attempt will be made to send a temporary error code to an
+  external mail system, asking it to try again later.
+<div class="Pp"></div>
+For this reason, you should modify your system boot script to run
+  <b>courierfilter start</b> as soon as possible, and run <b>courierfilter
+  stop</b> during the final portion of your system shutdown script. It is not
+  necessary to run <b>courierfilter</b> if you do not install a mail filter with
+  <b>filterctl</b>.
+<h1 class="Sh" title="Sh" id="MAIL_FILTER_IMPLEMENTATION"><a class="selflink" href="#MAIL_FILTER_IMPLEMENTATION">MAIL
+  FILTER IMPLEMENTATION</a></h1>
+This section explains how mail filters are implemented, and how to write a new
+  global mail filter.
+<div class="Pp"></div>
+Available mail filter binaries are located in the directory
+  /usr/lib/courier/filters. The <b>filterctl</b> script looks in this directory
+  to see which mail filters are available to be installed. Installing a mail
+  filter consists of simply creating a soft link from the directory
+  /etc/courier/filters/active to its corresponding binary in
+  /usr/lib/courier/filters. The courierfilter start command simply reads
+  /etc/courier/filters/active and runs every program in this directory.
+<div class="Pp"></div>
+The <b>filterctl</b> script sends a HUP signal to <b>courierfilter</b> after
+  installing or uninstalling a filter. <b>courierfilter</b> will reread the
+  contents of /etc/courier/filters/active then start or stop individual mail
+  filters.
+<div class="Pp"></div>
+After starting, an individual mail filter must create a filesystem domain socket
+  in one of two directories: /var/lib/courier/filters or
+  /var/lib/courier/allfilters. The name of the socket should be the same as a
+  name of the filter, and the mail filter must make sure to remove any socket by
+  the same name in the other directory. For various silly reasons, the
+  recommended implementation is to create /var/lib/courier/filters/. <i>NAME</i>
+  or /var/lib/courier/allfilters/. <i>NAME</i> (after making sure that it
+  doesn't exist) then rename <i>.NAME</i> to <i>NAME</i>.
+<div class="Pp"></div>
+After initializing the socket, the mail filter must then close its file
+  descriptor #3. File descriptor 3 is inherited by every mail filter that's
+  executed by the <b>courierfilter start</b> command. The mail filter's file
+  descriptor 3 is connected to the <i>write</i> end of a pipe, which may be
+  relevant to certain ways of implementing the closing of the file descriptor,
+  for instance in Perl where you may be forced to pseudo-open the descriptor (in
+  write mode) before closing it. The <b>courierfilter start</b> command will not
+  exit until every started mail filter closes its file descriptor 3. This allows
+  for all mail filters to orderly initialize themselves before <b>courierfilter
+  start</b> command returns.
+<div class="Pp"></div>
+All mail filters also inherit a pipe on standard input, and must terminate when
+  the pipe is closed. Mail filters must simultaneously listen for new
+  connections on the mail filter socket, and for their standard input to close.
+<div class="Pp"></div>
+The mail filter receives a new connection on its socket for every message that
+  needs to be filtered. After establishing a connection, the mail filter will
+  immediately read the following information from the new socket:
+<div class="Pp"></div>
+A pathname to a file containing the contents of the message.
+<div class="Pp"></div>
+One or more pathnames to control files for this message.
+<div class="Pp"></div>
+Each pathname is terminated by a single newline character. The last pathname is
+  followed by a second newline character. The pathnames may either be relative
+  pathnames to /usr or absolute pathnames, depending on the system
+  configuration.
+<div class="Pp"></div>
+The mail filter is free to judge the message's worthiness by reading its
+  contents and/or control file(s) as soon as a second consecutive newline
+  character is received. The final verdict is rendered by writing back a result
+  code on the same socket. The result code follows the same format as regular
+  SMTP replies (even though the message may not have been received via SMTP),
+  and can be used to communicate acceptance, temporary failure, or a permanent
+  failure. If it's a failure, then the text portion of the result code will be
+  used, if possible. The result code may be a multiline response, just like a
+  regular SMTP reply. The mail filter must immediately close the connection
+  after writing the result code. After closing the socket the mail filter must
+  then proceed to wait for another connection request on the original listening
+  socket.
+<div class="Pp"></div>
+The mail filter can be multithreaded or multitasked, and can accept multiple
+  connections simultaneously. When its standard input is closed the mail filter
+  should stop accepting new connections and wait for any existing connections to
+  be closed, prior to exiting.
+<div class="Pp"></div>
+Global mail filters must be EXTREMELY resilient to runtime failures. Since mail
+  will not be processed if an installed mail filter is not running, if a mail
+  filter crashes it will effectively shut down the mail server. Currently
+  <b>courierfilter</b> does not attempt to restart mail filters which crash.
+<h1 class="Sh" title="Sh" id="MAIL_FILTER_INVOCATION"><a class="selflink" href="#MAIL_FILTER_INVOCATION">MAIL
+  FILTER INVOCATION</a></h1>
+The system administrator defines what mail gets filtered by editing the contents
+  of the enablefiltering configuration file in /etc/courier. This configuration
+  file contains a list of mail sources that should be filtered, like esmtp or
+  local. See <b></b><b>courier</b>(8)[3] for more information. A default
+  /etc/courier/enablefiltering file is installed that specifies only the esmtp
+  mail source as subject to filtering.
+<div class="Pp"></div>
+A message is not subject to filtering if its source is not listed in
+  /etc/courier/enablefiltering. Otherwise the following rules apply.
+<div class="Pp"></div>
+Certain mail destinations have the ability to selectively whitelist arbitrary
+  messages. For example, local mail recipients have the ability to selectively
+  whitelist individual messages, provided that a local mail filter (independent
+  of any global mail filter) is installed that implements the <b>maildrop
+  filtering API</b>[4].
+<div class="Pp"></div>
+New messages are filtered by connecting to every socket in
+  /var/lib/courier/filters and/or /var/lib/courier/allfilters, one at a time.
+  All mail filters must accept the message, for it to be accepted by Courier. If
+  a socket exists but a connection cannot be established then the message is not
+  accepted, and a temporary failure indication is returned. That's why no mail
+  will be accepted unless all installed mail filters are running.
+<div class="Pp"></div>
+Mail recipients that did not whitelist the sender, via the maildrop API, will
+  have their mail filtered against everything in /var/lib/courier/filters and
+  /var/lib/courier/allfilters. Mail to recipients that whitelisted the sender,
+  or mail to destinations that do not use a maildrop API-compatible filter, will
+  be filtered only against the contents of /var/lib/courier/allfilters.
+<div class="Pp"></div>
+This gives system administrators a choice whether to install selective, or
+  mandatory mail filters, or a combination of both.
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
+Many filesystem domain socket implementation are buggy.
+<div class="Pp"></div>
+Handling of crashed mail filters could be improved.
+<h1 class="Sh" title="Sh" id="FILES"><a class="selflink" href="#FILES">FILES</a></h1>
+/usr/lib/courier/filters
+<div style="margin-left: 4.00ex;">Available mail filters.</div>
+<div class="Pp"></div>
+/etc/courier/filters
+<div style="margin-left: 4.00ex;">Miscellaneous configuration files.</div>
+<div class="Pp"></div>
+/etc/courier/filters/active
+<div style="margin-left: 4.00ex;">Installed mail filters.</div>
+<div class="Pp"></div>
+/etc/courier/enablefiltering
+<div style="margin-left: 4.00ex;">Which mail sources to filter.</div>
+<div class="Pp"></div>
+/var/lib/courier/allfilters
+<div style="margin-left: 4.00ex;">Mandatory filters.</div>
+<div class="Pp"></div>
+/var/lib/courier/filters
+<div style="margin-left: 4.00ex;">Optional filters.</div>
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<b></b><b>localmailfilter</b>(7)[4], <b></b><b>courier</b>(8)[3],
+  <b></b><b>dupfilter</b>(8)[1], <b></b><b>ratefilter</b>(8)[5],
+  <b></b><b>courierperlfilter</b>(8)[2].
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+<b>Sam Varshavchik</b>
+<div style="margin-left: 4.00ex;">Author</div>
+<h1 class="Sh" title="Sh" id="NOTES"><a class="selflink" href="#NOTES">NOTES</a></h1>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 1.</dt>
+  <dd class="It-tag"><b>dupfilter</b>(8)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">[set
+  $man.base.url.for.relative.links]/dupfilter.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 2.</dt>
+  <dd class="It-tag"><b>courierperlfilter</b>(8)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">[set
+  $man.base.url.for.relative.links]/courierperlfilter.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 3.</dt>
+  <dd class="It-tag"><b>courier</b>(8)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">[set
+  $man.base.url.for.relative.links]/courier.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 4.</dt>
+  <dd class="It-tag">maildrop filtering API</dd>
+</dl>
+<div style="margin-left: 4.00ex;">[set
+  $man.base.url.for.relative.links]/localmailfilter.html</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"> 5.</dt>
+  <dd class="It-tag"><b>ratefilter</b>(8)</dd>
+</dl>
+<div style="margin-left: 4.00ex;">[set
+  $man.base.url.for.relative.links]/ratefilter.html</div>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">06/27/2015</td>
+    <td class="foot-os">Courier Mail Server</td>
+  </tr>
+</table>
 </body>
 </html>

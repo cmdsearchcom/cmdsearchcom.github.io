@@ -1,324 +1,312 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 19:11:06 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>FENCE_SANLOCK(8)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>FENCE_SANLOCK(8) System Manager&rsquo;s Manual
-FENCE_SANLOCK(8)</p>
-
-<p style="margin-top: 1em">NAME <br>
-fence_sanlock - fence agent using watchdog and shared
-storage leases</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-fence_sanlock [OPTIONS]</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-fence_sanlock uses the watchdog device to reset nodes, in
-conjunction with three daemons: fence_sanlockd, sanlock, and
-wdmd.</p>
-
-<p style="margin-top: 1em">The watchdog device, controlled
-through /dev/watchdog, is available when a watchdog kernel
-module is loaded. A module should be loaded for the
-available hardware. If no hard&acirc; <br>
-ware watchdog is available, or no module is loaded, the
-&quot;softdog&quot; module will be loaded, which emulates a
-hardware watchdog device.</p>
-
-<p style="margin-top: 1em">Shared storage must be
-configured for sanlock to use from all hosts. This is
-generally an lvm lv (non-clustered), but could be another
-block device, or NFS file. The storage <br>
-should be 1GB of fully allocated space. After being created,
-the storage must be initialized with the command: <br>
-# fence_sanlock -o sanlock_init -p /path/to/storage</p>
-
-<p style="margin-top: 1em">The fence_sanlock agent uses
-sanlock leases on shared storage to verify that hosts have
-been reset, and to notify fenced nodes that are still
-running, that they should be reset.</p>
-
-<p style="margin-top: 1em">The fence_sanlockd init script
-starts the wdmd, sanlock and fence_sanlockd daemons before
-the cluster or fencing systems are started (e.g. cman,
-corosync and fenced). The <br>
-fence_sanlockd daemon is started with the -w option so it
-waits for the path and host_id options to be provided when
-they are available.</p>
-
-<p style="margin-top: 1em">Unfencing must be configured for
-fence_sanlock in cluster.conf. The cman init script does
-unfencing by running fence_node -U, which in turn runs
-fence_sanlock with the &quot;on&quot; <br>
-action and local path and host_id values taken from
-cluster.conf. fence_sanlock in turn passes the path and
-host_id values to the waiting fence_sanlockd daemon. With
-these val&acirc; <br>
-ues, fence_sanlockd joins the sanlock lockspace and acquires
-a resource lease for the local host. It can take several
-minutes to complete these unfencing steps.</p>
-
-<p style="margin-top: 1em">Once unfencing is complete, the
-node is a member of the sanlock lockspace named
-&quot;fence&quot; and the node&rsquo;s fence_sanlockd
-process holds a resource lease named &quot;hN&quot;, where N
-is the <br>
-node&rsquo;s host_id. (To verify this, run the commands
-&quot;sanlock client status&quot; and &quot;sanlock client
-host_status&quot;, which show state from the sanlock daemon,
-or &quot;sanlock direct dump <br>
-&lt;path&gt;&quot; which shows state from shared
-storage.)</p>
-
-<p style="margin-top: 1em">When fence_sanlock fences a
-node, it tries to acquire that node&rsquo;s resource lease.
-sanlock will not grant the lease until the owner (the node
-being fenced) has been reset by its <br>
-watchdog device. The time it takes to acquire the lease is
-140 seconds from the victim&rsquo;s last lockspace renewal
-timestamp on the shared storage. Once acquired, the
-victim&rsquo;s <br>
-lease is released, and fencing completes successfully.</p>
-
-<p style="margin-top: 1em">Live nodes being fenced</p>
-
-<p style="margin-top: 1em">When a live node is being
-fenced, fence_sanlock will continually fail to acquire the
-victim&rsquo;s lease, because the victim continues to renew
-its lockspace membership on storage, <br>
-and the fencing node sees it is alive. This is by design. As
-long as the victim is alive, it must continue to renew its
-lockspace membership on storage. The victim must not <br>
-allow the remote fence_sanlock to acquire its lease and
-consider it fenced while it is still alive.</p>
-
-<p style="margin-top: 1em">At the same time, a victim knows
-that when it is being fenced, it should be reset to avoid
-blocking recovery of the rest of the cluster. To communicate
-this, fence_sanlock makes <br>
-a &quot;request&quot; on storage for the victim&rsquo;s
-resource lease. On the victim, fence_sanlockd, which holds
-the resource lease, is configured to receive SIGUSR1 from
-sanlock if anyone <br>
-requests its lease. Upon receiving the signal,
-fence_sanlockd knows that it is a fencing victim. In
-response to this, fence_sanlockd allows its wdmd connection
-to expire, which <br>
-in turn causes the watchdog device to fire, resetting the
-node.</p>
-
-<p style="margin-top: 1em">The watchdog reset will
-obviously have the effect of stopping the victim&rsquo;s
-lockspace membership renewals. Once the renewals stop,
-fence_sanlock will finally be able to acquire <br>
-the victim&rsquo;s lease after waiting a fixed time from the
-final lockspace renewal.</p>
-
-<p style="margin-top: 1em">Loss of shared storage</p>
-
-<p style="margin-top: 1em">If access to shared storage with
-sanlock leases is lost for 80 seconds, sanlock is not able
-to renew the lockspace membership, and enters recovery. This
-causes sanlock clients <br>
-holding leases, such as fence_sanlockd, to be notified that
-their leases are being lost. In response, fence_sanlockd
-must reset the node, much as if it was being fenced.</p>
-
-<p style="margin-top: 1em">Daemons killed/crashed/hung</p>
-
-<p style="margin-top: 1em">If sanlock, fence_sanlockd
-daemons are killed abnormally, or crash or hang, their wdmd
-connections will expire, causing the watchdog device to
-fire, resetting the node. <br>
-fence_sanlock from another node will then run and acquire
-the victim&rsquo;s resource lease. If the wdmd daemon is
-killed abnormally or crashes or hangs, it will not pet the
-watchdog <br>
-device, causing it to fire and reset the node.</p>
-
-<p style="margin-top: 1em">Time Values</p>
-
-<p style="margin-top: 1em">The specific times periods
-referenced above, e.g. 140, 80, are based on the default
-sanlock i/o timeout of 10 seconds. If sanlock is configured
-to use a different i/o timeout, <br>
-these numbers will be different.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
--o action <br>
-The agent action:</p>
-
-<p style="margin-top: 1em">on <br>
-Enable the local node to be fenced. Used by unfencing.</p>
-
-<p style="margin-top: 1em">off <br>
-Disable another node.</p>
-
-<p style="margin-top: 1em">status <br>
-Test if a node is on or off. A node is on if it&rsquo;s
-lease is held, and off is it&rsquo;s lease is free.</p>
-
-<p style="margin-top: 1em">metadata <br>
-Print xml description of required parameters.</p>
-
-<p style="margin-top: 1em">sanlock_init <br>
-Initialize sanlock leases on shared storage.</p>
-
-<p style="margin-top: 1em">-p path <br>
-The path to shared storage with sanlock leases.</p>
-
-<p style="margin-top: 1em">-i host_id <br>
-The host_id, from 1-128.</p>
-
-<p style="margin-top: 1em">STDIN PARAMETERS <br>
-Options can be passed on stdin, with the format key=val.
-Each key=val pair is separated by a new line.</p>
-
-<p style="margin-top: 1em">action=on|off|status <br>
-See -o</p>
-
-<p style="margin-top: 1em">path=/path/to/shared/storage
-<br>
-See -p</p>
-
-<p style="margin-top: 1em">host_id=num <br>
-See -i</p>
-
-<p style="margin-top: 1em">FILES <br>
-Example cluster.conf configuration for fence_sanlock. <br>
-(For cman based clusters in which fenced runs agents.) <br>
-Also see cluster.conf(5), fenced(8), fence_node(8).</p>
-
-<p style="margin-top: 1em">&lt;clusternode
-name=&quot;node01&quot; nodeid=&quot;1&quot;&gt; <br>
-&lt;fence&gt; <br>
-&lt;method name=&quot;1&quot;&gt; <br>
-&lt;device name=&quot;wd&quot; host_id=&quot;1&quot;/&gt;
-<br>
-&lt;/method&gt; <br>
-&lt;/fence&gt; <br>
-&lt;unfence&gt; <br>
-&lt;device name=&quot;wd&quot; host_id=&quot;1&quot;
-action=&quot;on&quot;/&gt; <br>
-&lt;/unfence&gt; <br>
-&lt;/clusternode&gt;</p>
-
-<p style="margin-top: 1em">&lt;clusternode
-name=&quot;node02&quot; nodeid=&quot;2&quot;&gt; <br>
-&lt;fence&gt; <br>
-&lt;method name=&quot;1&quot;&gt; <br>
-&lt;device name=&quot;wd&quot; host_id=&quot;2&quot;/&gt;
-<br>
-&lt;/method&gt; <br>
-&lt;/fence&gt; <br>
-&lt;unfence&gt; <br>
-&lt;device name=&quot;wd&quot; host_id=&quot;2&quot;
-action=&quot;on&quot;/&gt; <br>
-&lt;/unfence&gt; <br>
-&lt;/clusternode&gt;</p>
-
-<p style="margin-top: 1em">&lt;fencedevice
-name=&quot;wd&quot; agent=&quot;fence_sanlock&quot;
-path=&quot;/dev/fence/leases&quot;/&gt;</p>
-
-<p style="margin-top: 1em">Example dlm.conf configuration
-for fence_sanlock. <br>
-(For non-cman based clusters in which dlm_controld runs
-agents.) <br>
-Also see dlm.conf(5), dlm_controld(8).</p>
-
-<p style="margin-top: 1em">device wd
-/usr/sbin/fence_sanlock path=/dev/fence/leases <br>
-connect wd node=1 host_id=1 <br>
-connect wd node=2 host_id=2 <br>
-unfence wd</p>
-
-<p style="margin-top: 1em">TEST <br>
-To test fence_sanlock directly, without clustering:</p>
-
-<p style="margin-top: 1em">1. Initialize storage</p>
-
-<p style="margin-top: 1em">node1: create 1G lv on shared
-storage /dev/fence/leases <br>
-node1: fence_sanlock -o sanlock_init -p
-/dev/fence/leases</p>
-
-<p style="margin-top: 1em">2. Start services</p>
-
-<p style="margin-top: 1em">node1: service fence_sanlockd
-start <br>
-node2: service fence_sanlockd start</p>
-
-<p style="margin-top: 1em">3. Enable fencing</p>
-
-<p style="margin-top: 1em">node1: fence_sanlock -o on -p
-/dev/fence/leases -i 1 <br>
-node2: fence_sanlock -o on -p /dev/fence/leases -i 2</p>
-
-<p style="margin-top: 1em">This &quot;unfence&quot; step
-may take a couple minutes.</p>
-
-<p style="margin-top: 1em">4. Verify hosts and leases</p>
-
-<p style="margin-top: 1em">node1: sanlock status <br>
-s fence:1:/dev/fence/leases:0 <br>
-r fence:h1:/dev/fence/leases:1048576:1 p 2465</p>
-
-<p style="margin-top: 1em">node2: sanlock status <br>
-s fence:2:/dev/fence/leases:0 <br>
-r fence:h2:/dev/fence/leases:2097152:1 p 2366</p>
-
-<p style="margin-top: 1em">node1: sanlock host_status <br>
-lockspace fence <br>
-1 timestamp 717 <br>
-2 timestamp 678</p>
-
-<p style="margin-top: 1em">node2: sanlock host_status <br>
-lockspace fence <br>
-1 timestamp 738 <br>
-2 timestamp 678</p>
-
-<p style="margin-top: 1em">5. Fence node2</p>
-
-<p style="margin-top: 1em">node1: fence_sanlock -o off -p
-/dev/fence/leases -i 2</p>
-
-<p style="margin-top: 1em">This may take a few minutes to
-return.</p>
-
-<p style="margin-top: 1em">When node2 is not dead before
-fencing, sanlock on node1 will log errors <br>
-about failing to acquire the lease while node2 is still
-alive. This is <br>
-expected.</p>
-
-<p style="margin-top: 1em">6. Success</p>
-
-<p style="margin-top: 1em">node1 fence_sanlock should exit
-0 after node2 is reset by its watchdog.</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-fence_sanlockd(8), sanlock(8), wdmd(8)</p>
-
-<p style="margin-top: 1em">2013-05-02 FENCE_SANLOCK(8)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">FENCE_SANLOCK(8)</td>
+    <td class="head-vol">System Manager's Manual</td>
+    <td class="head-rtitle">FENCE_SANLOCK(8)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+fence_sanlock - fence agent using watchdog and shared storage leases
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<b>fence_sanlock</b> [OPTIONS]
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+fence_sanlock uses the watchdog device to reset nodes, in conjunction with three
+  daemons: fence_sanlockd, sanlock, and wdmd.
+<div style="height: 1.00em;">&#x00A0;</div>
+The watchdog device, controlled through /dev/watchdog, is available when a
+  watchdog kernel module is loaded. A module should be loaded for the available
+  hardware. If no hardware watchdog is available, or no module is loaded, the
+  &quot;softdog&quot; module will be loaded, which emulates a hardware watchdog
+  device.
+<div style="height: 1.00em;">&#x00A0;</div>
+Shared storage must be configured for sanlock to use from all hosts. This is
+  generally an lvm lv (non-clustered), but could be another block device, or NFS
+  file. The storage should be 1GB of fully allocated space. After being created,
+  the storage must be initialized with the command:
+<div>&#x00A0;</div>
+# fence_sanlock -o sanlock_init -p /path/to/storage
+<div style="height: 1.00em;">&#x00A0;</div>
+The fence_sanlock agent uses sanlock leases on shared storage to verify that
+  hosts have been reset, and to notify fenced nodes that are still running, that
+  they should be reset.
+<div style="height: 1.00em;">&#x00A0;</div>
+The fence_sanlockd init script starts the wdmd, sanlock and fence_sanlockd
+  daemons before the cluster or fencing systems are started (e.g. cman, corosync
+  and fenced). The fence_sanlockd daemon is started with the -w option so it
+  waits for the path and host_id options to be provided when they are available.
+<div style="height: 1.00em;">&#x00A0;</div>
+Unfencing must be configured for fence_sanlock in cluster.conf. The cman init
+  script does unfencing by running fence_node -U, which in turn runs
+  fence_sanlock with the &quot;on&quot; action and local path and host_id values
+  taken from cluster.conf. fence_sanlock in turn passes the path and host_id
+  values to the waiting fence_sanlockd daemon. With these values, fence_sanlockd
+  joins the sanlock lockspace and acquires a resource lease for the local host.
+  It can take several minutes to complete these unfencing steps.
+<div style="height: 1.00em;">&#x00A0;</div>
+Once unfencing is complete, the node is a member of the sanlock lockspace named
+  &quot;fence&quot; and the node's fence_sanlockd process holds a resource lease
+  named &quot;hN&quot;, where N is the node's host_id. (To verify this, run the
+  commands &quot;sanlock client status&quot; and &quot;sanlock client
+  host_status&quot;, which show state from the sanlock daemon, or &quot;sanlock
+  direct dump &lt;path&gt;&quot; which shows state from shared storage.)
+<div style="height: 1.00em;">&#x00A0;</div>
+When fence_sanlock fences a node, it tries to acquire that node's resource
+  lease. sanlock will not grant the lease until the owner (the node being
+  fenced) has been reset by its watchdog device. The time it takes to acquire
+  the lease is 140 seconds from the victim's last lockspace renewal timestamp on
+  the shared storage. Once acquired, the victim's lease is released, and fencing
+  completes successfully.
+<div style="height: 1.00em;">&#x00A0;</div>
+Live nodes being fenced
+<div style="height: 1.00em;">&#x00A0;</div>
+When a live node is being fenced, fence_sanlock will continually fail to acquire
+  the victim's lease, because the victim continues to renew its lockspace
+  membership on storage, and the fencing node sees it is alive. This is by
+  design. As long as the victim is alive, it must continue to renew its
+  lockspace membership on storage. The victim must not allow the remote
+  fence_sanlock to acquire its lease and consider it fenced while it is still
+  alive.
+<div style="height: 1.00em;">&#x00A0;</div>
+At the same time, a victim knows that when it is being fenced, it should be
+  reset to avoid blocking recovery of the rest of the cluster. To communicate
+  this, fence_sanlock makes a &quot;request&quot; on storage for the victim's
+  resource lease. On the victim, fence_sanlockd, which holds the resource lease,
+  is configured to receive SIGUSR1 from sanlock if anyone requests its lease.
+  Upon receiving the signal, fence_sanlockd knows that it is a fencing victim.
+  In response to this, fence_sanlockd allows its wdmd connection to expire,
+  which in turn causes the watchdog device to fire, resetting the node.
+<div style="height: 1.00em;">&#x00A0;</div>
+The watchdog reset will obviously have the effect of stopping the victim's
+  lockspace membership renewals. Once the renewals stop, fence_sanlock will
+  finally be able to acquire the victim's lease after waiting a fixed time from
+  the final lockspace renewal.
+<div style="height: 1.00em;">&#x00A0;</div>
+Loss of shared storage
+<div style="height: 1.00em;">&#x00A0;</div>
+If access to shared storage with sanlock leases is lost for 80 seconds, sanlock
+  is not able to renew the lockspace membership, and enters recovery. This
+  causes sanlock clients holding leases, such as fence_sanlockd, to be notified
+  that their leases are being lost. In response, fence_sanlockd must reset the
+  node, much as if it was being fenced.
+<div style="height: 1.00em;">&#x00A0;</div>
+Daemons killed/crashed/hung
+<div style="height: 1.00em;">&#x00A0;</div>
+If sanlock, fence_sanlockd daemons are killed abnormally, or crash or hang,
+  their wdmd connections will expire, causing the watchdog device to fire,
+  resetting the node. fence_sanlock from another node will then run and acquire
+  the victim's resource lease. If the wdmd daemon is killed abnormally or
+  crashes or hangs, it will not pet the watchdog device, causing it to fire and
+  reset the node.
+<div style="height: 1.00em;">&#x00A0;</div>
+Time Values
+<div style="height: 1.00em;">&#x00A0;</div>
+The specific times periods referenced above, e.g. 140, 80, are based on the
+  default sanlock i/o timeout of 10 seconds. If sanlock is configured to use a
+  different i/o timeout, these numbers will be different.
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+<b>-o</b><i> action</i>
+<br/>
+ The agent action:
+<div style="height: 1.00em;">&#x00A0;</div>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>on</b>
+    <div>&#x00A0;</div>
+    Enable the local node to be fenced. Used by unfencing.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>off</b>
+    <div>&#x00A0;</div>
+    Disable another node.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>status</b>
+    <div>&#x00A0;</div>
+    Test if a node is on or off. A node is on if it's lease is held, and off is
+      it's lease is free.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>metadata</b>
+    <div>&#x00A0;</div>
+    Print xml description of required parameters.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag"></dt>
+  <dd class="It-tag"><b>sanlock_init</b>
+    <div>&#x00A0;</div>
+    Initialize sanlock leases on shared storage.
+    <div style="height: 1.00em;">&#x00A0;</div>
+  </dd>
+</dl>
+<div class="Pp"></div>
+<b>-p</b><i> path</i>
+<br/>
+ The path to shared storage with sanlock leases.
+<div style="height: 1.00em;">&#x00A0;</div>
+<div class="Pp"></div>
+<b>-i</b><i> host_id</i>
+<br/>
+ The host_id, from 1-128.
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="STDIN_PARAMETERS"><a class="selflink" href="#STDIN_PARAMETERS">STDIN
+  PARAMETERS</a></h1>
+Options can be passed on stdin, with the format key=val. Each key=val pair is
+  separated by a new line.
+<div style="height: 1.00em;">&#x00A0;</div>
+action=on|off|status
+<div>&#x00A0;</div>
+See -o
+<div style="height: 1.00em;">&#x00A0;</div>
+path=/path/to/shared/storage
+<div>&#x00A0;</div>
+See -p
+<div style="height: 1.00em;">&#x00A0;</div>
+host_id=num
+<div>&#x00A0;</div>
+See -i
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="FILES"><a class="selflink" href="#FILES">FILES</a></h1>
+Example cluster.conf configuration for fence_sanlock.
+<div>&#x00A0;</div>
+(For cman based clusters in which fenced runs agents.)
+<div>&#x00A0;</div>
+Also see cluster.conf(5), fenced(8), fence_node(8).
+<div style="height: 1.00em;">&#x00A0;</div>
+<pre>
+&lt;clusternode name=&quot;node01&quot; nodeid=&quot;1&quot;&gt;
+        &lt;fence&gt;
+        &lt;method name=&quot;1&quot;&gt;
+        &lt;device name=&quot;wd&quot; host_id=&quot;1&quot;/&gt;
+        &lt;/method&gt;
+        &lt;/fence&gt;
+        &lt;unfence&gt;
+        &lt;device name=&quot;wd&quot; host_id=&quot;1&quot; action=&quot;on&quot;/&gt;
+        &lt;/unfence&gt;
+&lt;/clusternode&gt;
+<div class="Pp"></div>
+&lt;clusternode name=&quot;node02&quot; nodeid=&quot;2&quot;&gt;
+        &lt;fence&gt;
+        &lt;method name=&quot;1&quot;&gt;
+        &lt;device name=&quot;wd&quot; host_id=&quot;2&quot;/&gt;
+        &lt;/method&gt;
+        &lt;/fence&gt;
+        &lt;unfence&gt;
+        &lt;device name=&quot;wd&quot; host_id=&quot;2&quot; action=&quot;on&quot;/&gt;
+        &lt;/unfence&gt;
+&lt;/clusternode&gt;
+<div class="Pp"></div>
+&lt;fencedevice name=&quot;wd&quot; agent=&quot;fence_sanlock&quot; path=&quot;/dev/fence/leases&quot;/&gt;
+</pre>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div class="Pp"></div>
+Example dlm.conf configuration for fence_sanlock.
+<div>&#x00A0;</div>
+(For non-cman based clusters in which dlm_controld runs agents.)
+<div>&#x00A0;</div>
+Also see dlm.conf(5), dlm_controld(8).
+<div style="height: 1.00em;">&#x00A0;</div>
+<pre>
+device wd /usr/sbin/fence_sanlock path=/dev/fence/leases
+connect wd node=1 host_id=1
+connect wd node=2 host_id=2
+unfence wd
+</pre>
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="TEST"><a class="selflink" href="#TEST">TEST</a></h1>
+To test fence_sanlock directly, without clustering:
+<div style="height: 1.00em;">&#x00A0;</div>
+<pre>
+1. Initialize storage
+<div class="Pp"></div>
+node1: create 1G lv on shared storage /dev/fence/leases
+node1: fence_sanlock -o sanlock_init -p /dev/fence/leases
+<div class="Pp"></div>
+2. Start services
+<div class="Pp"></div>
+node1: service fence_sanlockd start
+node2: service fence_sanlockd start
+<div class="Pp"></div>
+3. Enable fencing
+<div class="Pp"></div>
+node1: fence_sanlock -o on -p /dev/fence/leases -i 1
+node2: fence_sanlock -o on -p /dev/fence/leases -i 2
+<div class="Pp"></div>
+This &quot;unfence&quot; step may take a couple minutes.
+<div class="Pp"></div>
+4. Verify hosts and leases
+<div class="Pp"></div>
+node1: sanlock status
+s fence:1:/dev/fence/leases:0
+r fence:h1:/dev/fence/leases:1048576:1 p 2465
+<div class="Pp"></div>
+node2: sanlock status
+s fence:2:/dev/fence/leases:0
+r fence:h2:/dev/fence/leases:2097152:1 p 2366
+<div class="Pp"></div>
+node1: sanlock host_status
+lockspace fence
+1 timestamp 717
+2 timestamp 678
+<div class="Pp"></div>
+node2: sanlock host_status
+lockspace fence
+1 timestamp 738
+2 timestamp 678
+<div class="Pp"></div>
+5. Fence node2
+<div class="Pp"></div>
+node1: fence_sanlock -o off -p /dev/fence/leases -i 2
+<div class="Pp"></div>
+This may take a few minutes to return.
+<div class="Pp"></div>
+When node2 is not dead before fencing, sanlock on node1 will log errors
+about failing to acquire the lease while node2 is still alive.  This is
+expected.
+<div class="Pp"></div>
+6. Success
+<div class="Pp"></div>
+node1 fence_sanlock should exit 0 after node2 is reset by its watchdog.
+</pre>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<b>fence_sanlockd</b>(8), <b>sanlock</b>(8), <b>wdmd</b>(8)
+<div style="height: 1.00em;">&#x00A0;</div>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2013-05-02</td>
+    <td class="foot-os"></td>
+  </tr>
+</table>
 </body>
 </html>

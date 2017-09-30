@@ -1,463 +1,417 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:25:32 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>MK-DUPLICATE-KEY-CHECKER(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>MK-DUPLICATE-KEY-CHECKER(1) User Contributed Perl
-Documentation MK-DUPLICATE-KEY-CHECKER(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-mk-duplicate-key-checker - Find duplicate indexes and
-foreign keys on MySQL tables.</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-Usage: mk-duplicate-key-checker [OPTION...] [DSN]</p>
-
-<p style="margin-top: 1em">mk-duplicate-key-checker
-examines MySQL tables for duplicate or redundant indexes and
-foreign keys. Connection options are read from MySQL option
-files.</p>
-
-<p style="margin-top: 1em">mk-duplicate-key-checker --host
-host1</p>
-
-<p style="margin-top: 1em">RISKS <br>
-The following section is included to inform users about the
-potential risks, whether known or unknown, of using this
-tool. The two main categories of risks are those created by
-<br>
-the nature of the tool (e.g. read-only tools vs. read-write
-tools) and those created by bugs.</p>
-
-<p style="margin-top: 1em">mk-duplicate-key-checker is a
-read-only tool that executes SHOW CREATE TABLE and related
-queries to inspect table structures, and thus is very
-low-risk.</p>
-
-<p style="margin-top: 1em">At the time of this release,
-there is an unconfirmed bug that causes the tool to
-crash.</p>
-
-<p style="margin-top: 1em">The authoritative source for
-updated information is always the online issue tracking
-system. Issues that affect this tool will be marked as such.
-You can see a list of such <br>
-issues at the following URL:
-&lt;http://www.maatkit.org/bugs/mk-duplicate-key-checker&gt;.</p>
-
-<p style="margin-top: 1em">See also &quot;BUGS&quot; for
-more information on filing bugs and getting help.</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-This program examines the output of SHOW CREATE TABLE on
-MySQL tables, and if it finds indexes that cover the same
-columns as another index in the same order, or cover an
-exact <br>
-leftmost prefix of another index, it prints out the
-suspicious indexes. By default, indexes must be of the same
-type, so a BTREE index is not a duplicate of a FULLTEXT
-index, <br>
-even if they have the same columns. You can override
-this.</p>
-
-<p style="margin-top: 1em">It also looks for duplicate
-foreign keys. A duplicate foreign key covers the same
-columns as another in the same table, and references the
-same parent table.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-This tool accepts additional command-line arguments. Refer
-to the &quot;SYNOPSIS&quot; and usage information for
-details.</p>
-
-<p style="margin-top: 1em">--all-structs <br>
-Compare indexes with different structs (BTREE, HASH,
-etc).</p>
-
-<p style="margin-top: 1em">By default this is disabled,
-because a BTREE index that covers the same columns as a
-FULLTEXT index is not really a duplicate, for example.</p>
-
-<p style="margin-top: 1em">--ask-pass <br>
-Prompt for a password when connecting to MySQL.</p>
-
-<p style="margin-top: 1em">--charset <br>
-short form: -A; type: string</p>
-
-<p style="margin-top: 1em">Default character set. If the
-value is utf8, sets Perl&rsquo;s binmode on STDOUT to utf8,
-passes the mysql_enable_utf8 option to DBD::mysql, and runs
-SET NAMES UTF8 after <br>
-connecting to MySQL. Any other value sets binmode on STDOUT
-without the utf8 layer, and runs SET NAMES after connecting
-to MySQL.</p>
-
-<p style="margin-top: 1em">--[no]clustered <br>
-default: yes</p>
-
-<p style="margin-top: 1em">PK columns appended to secondary
-key is duplicate.</p>
-
-<p style="margin-top: 1em">Detects when a suffix of a
-secondary key is a leftmost prefix of the primary key, and
-treats it as a duplicate key. Only detects this condition on
-storage engines whose <br>
-primary keys are clustered (currently InnoDB and
-solidDB).</p>
-
-<p style="margin-top: 1em">Clustered storage engines append
-the primary key columns to the leaf nodes of all secondary
-keys anyway, so you might consider it redundant to have them
-appear in the <br>
-internal nodes as well. Of course, you may also want them in
-the internal nodes, because just having them at the leaf
-nodes won&rsquo;t help for some queries. It does help for
-<br>
-covering index queries, however.</p>
-
-<p style="margin-top: 1em">Here&rsquo;s an example of a key
-that is considered redundant with this option:</p>
-
-<p style="margin-top: 1em">PRIMARY KEY (&lsquo;a&lsquo;)
-<br>
-KEY &lsquo;b&lsquo; (&lsquo;b&lsquo;,&lsquo;a&lsquo;)</p>
-
-<p style="margin-top: 1em">The use of such indexes is
-rather subtle. For example, suppose you have the following
-query:</p>
-
-<p style="margin-top: 1em">SELECT ... WHERE b=1 ORDER BY
-a;</p>
-
-<p style="margin-top: 1em">This query will do a filesort if
-we remove the index on &quot;b,a&quot;. But if we shorten
-the index on &quot;b,a&quot; to just &quot;b&quot; and also
-remove the ORDER BY, the query should return the <br>
-same results.</p>
-
-<p style="margin-top: 1em">The tool suggests shortening
-duplicate clustered keys by dropping the key and re-adding
-it without the primary key prefix. The shortened clustered
-key may still duplicate <br>
-another key, but the tool cannot currently detect when this
-happens without being ran a second time to re-check the
-newly shortened clustered keys. Therefore, if you shorten
-<br>
-any duplicate clustered keys, you should run the tool
-again.</p>
-
-<p style="margin-top: 1em">--config <br>
-type: Array</p>
-
-<p style="margin-top: 1em">Read this comma-separated list
-of config files; if specified, this must be the first option
-on the command line.</p>
-
-<p style="margin-top: 1em">--databases <br>
-short form: -d; type: hash</p>
-
-<p style="margin-top: 1em">Check only this comma-separated
-list of databases.</p>
-
-<p style="margin-top: 1em">--defaults-file <br>
-short form: -F; type: string</p>
-
-<p style="margin-top: 1em">Only read mysql options from the
-given file. You must give an absolute pathname.</p>
-
-<p style="margin-top: 1em">--engines <br>
-short form: -e; type: hash</p>
-
-<p style="margin-top: 1em">Check only tables whose storage
-engine is in this comma-separated list.</p>
-
-<p style="margin-top: 1em">--help <br>
-Show help and exit.</p>
-
-<p style="margin-top: 1em">--host <br>
-short form: -h; type: string</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">--ignore-databases <br>
-type: Hash</p>
-
-<p style="margin-top: 1em">Ignore this comma-separated list
-of databases.</p>
-
-<p style="margin-top: 1em">--ignore-engines <br>
-type: Hash</p>
-
-<p style="margin-top: 1em">Ignore this comma-separated list
-of storage engines.</p>
-
-<p style="margin-top: 1em">--ignore-order <br>
-Ignore index order so KEY(a,b) duplicates KEY(b,a).</p>
-
-<p style="margin-top: 1em">--ignore-tables <br>
-type: Hash</p>
-
-<p style="margin-top: 1em">Ignore this comma-separated list
-of tables. Table names may be qualified with the database
-name.</p>
-
-<p style="margin-top: 1em">--key-types <br>
-type: string; default: fk</p>
-
-<p style="margin-top: 1em">Check for duplicate f=foreign
-keys, k=keys or fk=both.</p>
-
-<p style="margin-top: 1em">--password <br>
-short form: -p; type: string</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">--pid <br>
-type: string</p>
-
-<p style="margin-top: 1em">Create the given PID file. The
-file contains the process ID of the script. The PID file is
-removed when the script exits. Before starting, the script
-checks if the PID <br>
-file already exists. If it does not, then the script creates
-and writes its own PID to it. If it does, then the script
-checks the following: if the file contains a PID and <br>
-a process is running with that PID, then the script dies;
-or, if there is no process running with that PID, then the
-script overwrites the file with its own PID and starts; <br>
-else, if the file contains no PID, then the script dies.</p>
-
-<p style="margin-top: 1em">--port <br>
-short form: -P; type: int</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">--set-vars <br>
-type: string; default: wait_timeout=10000</p>
-
-<p style="margin-top: 1em">Set these MySQL variables.
-Immediately after connecting to MySQL, this string will be
-appended to SET and executed.</p>
-
-<p style="margin-top: 1em">--socket <br>
-short form: -S; type: string</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">--[no]sql <br>
-default: yes</p>
-
-<p style="margin-top: 1em">Print DROP KEY statement for
-each duplicate key. By default an ALTER TABLE DROP KEY
-statement is printed below each duplicate key so that, if
-you want to remove the <br>
-duplicate key, you can copy-paste the statement into
-MySQL.</p>
-
-<p style="margin-top: 1em">To disable printing these
-statements, specify --nosql.</p>
-
-<p style="margin-top: 1em">--[no]summary <br>
-default: yes</p>
-
-<p style="margin-top: 1em">Print summary of indexes at end
-of output.</p>
-
-<p style="margin-top: 1em">--tables <br>
-short form: -t; type: hash</p>
-
-<p style="margin-top: 1em">Check only this comma-separated
-list of tables.</p>
-
-<p style="margin-top: 1em">Table names may be qualified
-with the database name.</p>
-
-<p style="margin-top: 1em">--user <br>
-short form: -u; type: string</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">--verbose <br>
-short form: -v</p>
-
-<p style="margin-top: 1em">Output all keys and/or foreign
-keys found, not just redundant ones.</p>
-
-<p style="margin-top: 1em">--version <br>
-Show version and exit.</p>
-
-<p style="margin-top: 1em">DSN OPTIONS <br>
-These DSN options are used to create a DSN. Each option is
-given like &quot;option=value&quot;. The options are
-case-sensitive, so P and p are not the same option. There
-cannot be <br>
-whitespace before or after the &quot;=&quot; and if the
-value contains whitespace it must be quoted. DSN options are
-comma-separated. See the maatkit manpage for full
-details.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; A</p>
-
-<p style="margin-top: 1em">dsn: charset; copy: yes</p>
-
-<p style="margin-top: 1em">Default character set.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; D</p>
-
-<p style="margin-top: 1em">dsn: database; copy: yes</p>
-
-<p style="margin-top: 1em">Default database.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; F</p>
-
-<p style="margin-top: 1em">dsn: mysql_read_default_file;
-copy: yes</p>
-
-<p style="margin-top: 1em">Only read default options from
-the given file</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; h</p>
-
-<p style="margin-top: 1em">dsn: host; copy: yes</p>
-
-<p style="margin-top: 1em">Connect to host.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; p</p>
-
-<p style="margin-top: 1em">dsn: password; copy: yes</p>
-
-<p style="margin-top: 1em">Password to use when
-connecting.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; P</p>
-
-<p style="margin-top: 1em">dsn: port; copy: yes</p>
-
-<p style="margin-top: 1em">Port number to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; S</p>
-
-<p style="margin-top: 1em">dsn: mysql_socket; copy: yes</p>
-
-<p style="margin-top: 1em">Socket file to use for
-connection.</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; u</p>
-
-<p style="margin-top: 1em">dsn: user; copy: yes</p>
-
-<p style="margin-top: 1em">User for login if not current
-user.</p>
-
-<p style="margin-top: 1em">DOWNLOADING <br>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">MK-DUPLICATE-KEY-CHECKER(1)</td>
+    <td class="head-vol">User Contributed Perl Documentation</td>
+    <td class="head-rtitle">MK-DUPLICATE-KEY-CHECKER(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+mk-duplicate-key-checker - Find duplicate indexes and foreign keys on MySQL
+  tables.
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+Usage: mk-duplicate-key-checker [OPTION...] [DSN]
+<div class="Pp"></div>
+mk-duplicate-key-checker examines MySQL tables for duplicate or redundant
+  indexes and foreign keys. Connection options are read from MySQL option files.
+<div class="Pp"></div>
+<pre>
+   mk-duplicate-key-checker --host host1
+</pre>
+<h1 class="Sh" title="Sh" id="RISKS"><a class="selflink" href="#RISKS">RISKS</a></h1>
+The following section is included to inform users about the potential risks,
+  whether known or unknown, of using this tool. The two main categories of risks
+  are those created by the nature of the tool (e.g. read-only tools vs.
+  read-write tools) and those created by bugs.
+<div class="Pp"></div>
+mk-duplicate-key-checker is a read-only tool that executes SHOW CREATE TABLE and
+  related queries to inspect table structures, and thus is very low-risk.
+<div class="Pp"></div>
+At the time of this release, there is an unconfirmed bug that causes the tool to
+  crash.
+<div class="Pp"></div>
+The authoritative source for updated information is always the online issue
+  tracking system. Issues that affect this tool will be marked as such. You can
+  see a list of such issues at the following URL:
+  &lt;http://www.maatkit.org/bugs/mk-duplicate-key-checker&gt;.
+<div class="Pp"></div>
+See also &quot;BUGS&quot; for more information on filing bugs and getting help.
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+This program examines the output of SHOW CREATE TABLE on MySQL tables, and if it
+  finds indexes that cover the same columns as another index in the same order,
+  or cover an exact leftmost prefix of another index, it prints out the
+  suspicious indexes. By default, indexes must be of the same type, so a BTREE
+  index is not a duplicate of a FULLTEXT index, even if they have the same
+  columns. You can override this.
+<div class="Pp"></div>
+It also looks for duplicate foreign keys. A duplicate foreign key covers the
+  same columns as another in the same table, and references the same parent
+  table.
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+This tool accepts additional command-line arguments. Refer to the
+  &quot;SYNOPSIS&quot; and usage information for details.
+<dl class="Bl-tag">
+  <dt class="It-tag">--all-structs</dt>
+  <dd class="It-tag">Compare indexes with different structs (BTREE, HASH, etc).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    By default this is disabled, because a BTREE index that covers the same
+      columns as a FULLTEXT index is not really a duplicate, for example.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ask-pass</dt>
+  <dd class="It-tag">Prompt for a password when connecting to MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--charset</dt>
+  <dd class="It-tag">short form: -A; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set. If the value is utf8, sets Perl's binmode on STDOUT
+      to utf8, passes the mysql_enable_utf8 option to DBD::mysql, and runs SET
+      NAMES UTF8 after connecting to MySQL. Any other value sets binmode on
+      STDOUT without the utf8 layer, and runs SET NAMES after connecting to
+      MySQL.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]clustered</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    PK columns appended to secondary key is duplicate.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Detects when a suffix of a secondary key is a leftmost prefix of the primary
+      key, and treats it as a duplicate key. Only detects this condition on
+      storage engines whose primary keys are clustered (currently InnoDB and
+      solidDB).
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Clustered storage engines append the primary key columns to the leaf nodes
+      of all secondary keys anyway, so you might consider it redundant to have
+      them appear in the internal nodes as well. Of course, you may also want
+      them in the internal nodes, because just having them at the leaf nodes
+      won't help for some queries. It does help for covering index queries,
+      however.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Here's an example of a key that is considered redundant with this option:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  PRIMARY KEY  (`a`)
+  KEY `b` (`b`,`a`)
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The use of such indexes is rather subtle. For example, suppose you have the
+      following query:
+    <div style="height: 1.00em;">&#x00A0;</div>
+    <pre>
+  SELECT ... WHERE b=1 ORDER BY a;
+    </pre>
+    <div style="height: 1.00em;">&#x00A0;</div>
+    This query will do a filesort if we remove the index on &quot;b,a&quot;. But
+      if we shorten the index on &quot;b,a&quot; to just &quot;b&quot; and also
+      remove the ORDER BY, the query should return the same results.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    The tool suggests shortening duplicate clustered keys by dropping the key
+      and re-adding it without the primary key prefix. The shortened clustered
+      key may still duplicate another key, but the tool cannot currently detect
+      when this happens without being ran a second time to re-check the newly
+      shortened clustered keys. Therefore, if you shorten any duplicate
+      clustered keys, you should run the tool again.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--config</dt>
+  <dd class="It-tag">type: Array
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Read this comma-separated list of config files; if specified, this must be
+      the first option on the command line.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--databases</dt>
+  <dd class="It-tag">short form: -d; type: hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Check only this comma-separated list of databases.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--defaults-file</dt>
+  <dd class="It-tag">short form: -F; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only read mysql options from the given file. You must give an absolute
+      pathname.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--engines</dt>
+  <dd class="It-tag">short form: -e; type: hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Check only tables whose storage engine is in this comma-separated list.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--help</dt>
+  <dd class="It-tag">Show help and exit.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--host</dt>
+  <dd class="It-tag">short form: -h; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-databases</dt>
+  <dd class="It-tag">type: Hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore this comma-separated list of databases.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-engines</dt>
+  <dd class="It-tag">type: Hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore this comma-separated list of storage engines.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-order</dt>
+  <dd class="It-tag">Ignore index order so KEY(a,b) duplicates KEY(b,a).</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--ignore-tables</dt>
+  <dd class="It-tag">type: Hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Ignore this comma-separated list of tables. Table names may be qualified
+      with the database name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--key-types</dt>
+  <dd class="It-tag">type: string; default: fk
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Check for duplicate f=foreign keys, k=keys or fk=both.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--password</dt>
+  <dd class="It-tag">short form: -p; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--pid</dt>
+  <dd class="It-tag">type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Create the given PID file. The file contains the process ID of the script.
+      The PID file is removed when the script exits. Before starting, the script
+      checks if the PID file already exists. If it does not, then the script
+      creates and writes its own PID to it. If it does, then the script checks
+      the following: if the file contains a PID and a process is running with
+      that PID, then the script dies; or, if there is no process running with
+      that PID, then the script overwrites the file with its own PID and starts;
+      else, if the file contains no PID, then the script dies.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--port</dt>
+  <dd class="It-tag">short form: -P; type: int
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--set-vars</dt>
+  <dd class="It-tag">type: string; default: wait_timeout=10000
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Set these MySQL variables. Immediately after connecting to MySQL, this
+      string will be appended to SET and executed.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--socket</dt>
+  <dd class="It-tag">short form: -S; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]sql</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print DROP KEY statement for each duplicate key. By default an ALTER TABLE
+      DROP KEY statement is printed below each duplicate key so that, if you
+      want to remove the duplicate key, you can copy-paste the statement into
+      MySQL.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    To disable printing these statements, specify --nosql.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--[no]summary</dt>
+  <dd class="It-tag">default: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Print summary of indexes at end of output.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--tables</dt>
+  <dd class="It-tag">short form: -t; type: hash
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Check only this comma-separated list of tables.
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Table names may be qualified with the database name.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--user</dt>
+  <dd class="It-tag">short form: -u; type: string
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--verbose</dt>
+  <dd class="It-tag">short form: -v
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Output all keys and/or foreign keys found, not just redundant ones.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">--version</dt>
+  <dd class="It-tag">Show version and exit.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DSN_OPTIONS"><a class="selflink" href="#DSN_OPTIONS">DSN
+  OPTIONS</a></h1>
+These DSN options are used to create a DSN. Each option is given like
+  &quot;option=value&quot;. The options are case-sensitive, so P and p are not
+  the same option. There cannot be whitespace before or after the &quot;=&quot;
+  and if the value contains whitespace it must be quoted. DSN options are
+  comma-separated. See the maatkit manpage for full details.
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">A
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: charset; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default character set.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">D
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: database; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Default database.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">F
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_read_default_file; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Only read default options from the given file</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">h
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: host; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Connect to host.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">p
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: password; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Password to use when connecting.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">P
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: port; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Port number to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">S
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: mysql_socket; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    Socket file to use for connection.</dd>
+</dl>
+<dl class="Bl-tag">
+  <dt class="It-tag">&#x2022;</dt>
+  <dd class="It-tag">u
+    <div style="height: 1.00em;">&#x00A0;</div>
+    dsn: user; copy: yes
+    <div style="height: 1.00em;">&#x00A0;</div>
+    User for login if not current user.</dd>
+</dl>
+<h1 class="Sh" title="Sh" id="DOWNLOADING"><a class="selflink" href="#DOWNLOADING">DOWNLOADING</a></h1>
 You can download Maatkit from Google Code at
-&lt;http://code.google.com/p/maatkit/&gt;, or you can get
-any of the tools easily with a command like the
-following:</p>
-
-<p style="margin-top: 1em">wget
-http://www.maatkit.org/get/toolname <br>
-or <br>
-wget http://www.maatkit.org/trunk/toolname</p>
-
-<p style="margin-top: 1em">Where &quot;toolname&quot; can
-be replaced with the name (or fragment of a name) of any of
-the Maatkit tools. Once downloaded, they&rsquo;re ready to
-run; no installation is needed. The first <br>
-URL gets the latest released version of the tool, and the
-second gets the latest trunk code from Subversion.</p>
-
-<p style="margin-top: 1em">ENVIRONMENT <br>
-The environment variable &quot;MKDEBUG&quot; enables verbose
-debugging output in all of the Maatkit tools:</p>
-
-<p style="margin-top: 1em">MKDEBUG=1 mk-....</p>
-
-<p style="margin-top: 1em">SYSTEM REQUIREMENTS <br>
-You need the following Perl modules: DBI and DBD::mysql.</p>
-
-<p style="margin-top: 1em">BUGS <br>
+  &lt;http://code.google.com/p/maatkit/&gt;, or you can get any of the tools
+  easily with a command like the following:
+<div class="Pp"></div>
+<pre>
+   wget http://www.maatkit.org/get/toolname
+   or
+   wget http://www.maatkit.org/trunk/toolname
+</pre>
+<div class="Pp"></div>
+Where &quot;toolname&quot; can be replaced with the name (or fragment of a name)
+  of any of the Maatkit tools. Once downloaded, they're ready to run; no
+  installation is needed. The first URL gets the latest released version of the
+  tool, and the second gets the latest trunk code from Subversion.
+<h1 class="Sh" title="Sh" id="ENVIRONMENT"><a class="selflink" href="#ENVIRONMENT">ENVIRONMENT</a></h1>
+The environment variable &quot;MKDEBUG&quot; enables verbose debugging output in
+  all of the Maatkit tools:
+<div class="Pp"></div>
+<pre>
+   MKDEBUG=1 mk-....
+</pre>
+<h1 class="Sh" title="Sh" id="SYSTEM_REQUIREMENTS"><a class="selflink" href="#SYSTEM_REQUIREMENTS">SYSTEM
+  REQUIREMENTS</a></h1>
+You need the following Perl modules: DBI and DBD::mysql.
+<h1 class="Sh" title="Sh" id="BUGS"><a class="selflink" href="#BUGS">BUGS</a></h1>
 For a list of known bugs see
-&lt;http://www.maatkit.org/bugs/mk-duplicate-key-checker&gt;.</p>
-
-<p style="margin-top: 1em">Please use Google Code Issues
-and Groups to report bugs or request support:
-&lt;http://code.google.com/p/maatkit/&gt;. You can also join
-#maatkit on Freenode to discuss Maatkit.</p>
-
-<p style="margin-top: 1em">Please include the complete
-command-line used to reproduce the problem you are seeing,
-the version of all MySQL servers involved, the complete
-output of the tool when run with <br>
-&quot;--version&quot;, and if possible, debugging output
-produced by running with the &quot;MKDEBUG=1&quot;
-environment variable.</p>
-
-<p style="margin-top: 1em">COPYRIGHT, LICENSE AND WARRANTY
-<br>
-This program is copyright 2007-2011 Baron Schwartz. Feedback
-and improvements are welcome.</p>
-
-<p style="margin-top: 1em">THIS PROGRAM IS PROVIDED
-&quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A <br>
-PARTICULAR PURPOSE.</p>
-
-<p style="margin-top: 1em">This program is free software;
-you can redistribute it and/or modify it under the terms of
-the GNU General Public License as published by the Free
-Software Foundation, version 2; <br>
-OR the Perl Artistic License. On UNIX and similar systems,
-you can issue &lsquo;man perlgpl&rsquo; or &lsquo;man
-perlartistic&rsquo; to read these licenses.</p>
-
-<p style="margin-top: 1em">You should have received a copy
-of the GNU General Public License along with this program;
-if not, write to the Free Software Foundation, Inc., 59
-Temple Place, Suite 330, <br>
-Boston, MA 02111-1307 USA.</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Baron Schwartz, Daniel Nichter</p>
-
-<p style="margin-top: 1em">ABOUT MAATKIT <br>
-This tool is part of Maatkit, a toolkit for power users of
-MySQL. Maatkit was created by Baron Schwartz; Baron and
-Daniel Nichter are the primary code contributors. Both are
-<br>
-employed by Percona. Financial support for Maatkit
-development is primarily provided by Percona and its
-clients.</p>
-
-<p style="margin-top: 1em">VERSION <br>
-This manual page documents Ver 1.2.15 Distrib 7540
-$Revision: 7477 $.</p>
-
-<p style="margin-top: 1em">perl v5.24.1 2011-06-08
-MK-DUPLICATE-KEY-CHECKER(1)</p>
-<hr>
+  &lt;http://www.maatkit.org/bugs/mk-duplicate-key-checker&gt;.
+<div class="Pp"></div>
+Please use Google Code Issues and Groups to report bugs or request support:
+  &lt;http://code.google.com/p/maatkit/&gt;. You can also join #maatkit on
+  Freenode to discuss Maatkit.
+<div class="Pp"></div>
+Please include the complete command-line used to reproduce the problem you are
+  seeing, the version of all MySQL servers involved, the complete output of the
+  tool when run with &quot;--version&quot;, and if possible, debugging output
+  produced by running with the &quot;MKDEBUG=1&quot; environment variable.
+<h1 class="Sh" title="Sh" id="COPYRIGHT,_LICENSE_AND_WARRANTY"><a class="selflink" href="#COPYRIGHT,_LICENSE_AND_WARRANTY">COPYRIGHT,
+  LICENSE AND WARRANTY</a></h1>
+This program is copyright 2007-2011 Baron Schwartz. Feedback and improvements
+  are welcome.
+<div class="Pp"></div>
+THIS PROGRAM IS PROVIDED &quot;AS IS&quot; AND WITHOUT ANY EXPRESS OR IMPLIED
+  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+<div class="Pp"></div>
+This program is free software; you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, version 2; OR the Perl Artistic License. On UNIX and similar
+  systems, you can issue `man perlgpl' or `man perlartistic' to read these
+  licenses.
+<div class="Pp"></div>
+You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+  Place, Suite 330, Boston, MA 02111-1307 USA.
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Baron Schwartz, Daniel Nichter
+<h1 class="Sh" title="Sh" id="ABOUT_MAATKIT"><a class="selflink" href="#ABOUT_MAATKIT">ABOUT
+  MAATKIT</a></h1>
+This tool is part of Maatkit, a toolkit for power users of MySQL. Maatkit was
+  created by Baron Schwartz; Baron and Daniel Nichter are the primary code
+  contributors. Both are employed by Percona. Financial support for Maatkit
+  development is primarily provided by Percona and its clients.
+<h1 class="Sh" title="Sh" id="VERSION"><a class="selflink" href="#VERSION">VERSION</a></h1>
+This manual page documents Ver 1.2.15 Distrib 7540 $Revision: 7477 $.</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2011-06-08</td>
+    <td class="foot-os">perl v5.24.1</td>
+  </tr>
+</table>
 </body>
 </html>

@@ -1,279 +1,240 @@
-<!-- Creator     : groff version 1.22.3 -->
-<!-- CreationDate: Sun Aug 27 16:31:29 2017 -->
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-<meta name="generator" content="groff -Thtml, see www.gnu.org">
-<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<meta name="Content-Style" content="text/css">
-<style type="text/css">
-       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
-       h1      { text-align: center }
-</style>
-<title></title>
+  <meta charset="utf-8"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    div.Pp { margin: 1ex 0ex; }
+  </style>
+  <title>PG_STANDBY(1)</title>
 </head>
 <body>
-
-<hr>
-
-
-<p>PG_STANDBY(1) PostgreSQL 9.2.18 Documentation
-PG_STANDBY(1)</p>
-
-<p style="margin-top: 1em">NAME <br>
-pg_standby - supports the creation of a PostgreSQL warm
-standby server</p>
-
-<p style="margin-top: 1em">SYNOPSIS <br>
-pg_standby [option...] archivelocation nextwalfile
-xlogfilepath [restartwalfile]</p>
-
-<p style="margin-top: 1em">DESCRIPTION <br>
-pg_standby supports creation of a &acirc;warm standby&acirc;
-database server. It is designed to be a production-ready
-program, as well as a customizable template should you
-require specific <br>
-modifications.</p>
-
-<p style="margin-top: 1em">pg_standby is designed to be a
-waiting restore_command, which is needed to turn a standard
-archive recovery into a warm standby operation. Other
-configuration is required as <br>
-well, all of which is described in the main server manual
-(see Section 25.2, &acirc;Log-Shipping Standby
-Servers&acirc;, in the documentation).</p>
-
-<p style="margin-top: 1em">To configure a standby server to
-use pg_standby, put this into its recovery.conf
-configuration file:</p>
-
-<p style="margin-top: 1em">restore_command =
-&rsquo;pg_standby archiveDir %f %p %r&rsquo;</p>
-
-<p style="margin-top: 1em">where archiveDir is the
-directory from which WAL segment files should be
-restored.</p>
-
-<p style="margin-top: 1em">If restartwalfile is specified,
-normally by using the %r macro, then all WAL files logically
-preceding this file will be removed from archivelocation.
-This minimizes the number <br>
-of files that need to be retained, while preserving
-crash-restart capability. Use of this parameter is
-appropriate if the archivelocation is a transient staging
-area for this <br>
-particular standby server, but not when the archivelocation
-is intended as a long-term WAL archive area.</p>
-
-<p style="margin-top: 1em">pg_standby assumes that
-archivelocation is a directory readable by the server-owning
-user. If restartwalfile (or -k) is specified, the
-archivelocation directory must be writable <br>
-too.</p>
-
-<p style="margin-top: 1em">There are two ways to fail over
-to a &acirc;warm standby&acirc; database server when the
-master server fails:</p>
-
-<p style="margin-top: 1em">Smart Failover <br>
-In smart failover, the server is brought up after applying
-all WAL files available in the archive. This results in zero
-data loss, even if the standby server has fallen <br>
-behind, but if there is a lot of unapplied WAL it can be a
-long time before the standby server becomes ready. To
-trigger a smart failover, create a trigger file containing
-<br>
-the word smart, or just create it and leave it empty.</p>
-
-<p style="margin-top: 1em">Fast Failover <br>
-In fast failover, the server is brought up immediately. Any
-WAL files in the archive that have not yet been applied will
-be ignored, and all transactions in those files are <br>
-lost. To trigger a fast failover, create a trigger file and
-write the word fast into it. pg_standby can also be
-configured to execute a fast failover automatically if no
-new <br>
-WAL file appears within a defined interval.</p>
-
-<p style="margin-top: 1em">OPTIONS <br>
-pg_standby accepts the following command-line arguments:</p>
-
-<p style="margin-top: 1em">-c <br>
-Use cp or copy command to restore WAL files from archive.
-This is the only supported behavior so this option is
-useless.</p>
-
-<p style="margin-top: 1em">-d <br>
-Print lots of debug logging output on stderr.</p>
-
-<p style="margin-top: 1em">-k <br>
-Remove files from archivelocation so that no more than this
-many WAL files before the current one are kept in the
-archive. Zero (the default) means not to remove any files
-<br>
-from archivelocation. This parameter will be silently
-ignored if restartwalfile is specified, since that
-specification method is more accurate in determining the
-correct <br>
-archive cut-off point. Use of this parameter is deprecated
-as of PostgreSQL 8.3; it is safer and more efficient to
-specify a restartwalfile parameter. A too small setting <br>
-could result in removal of files that are still needed for a
-restart of the standby server, while a too large setting
-wastes archive space.</p>
-
-<p style="margin-top: 1em">-r maxretries <br>
-Set the maximum number of times to retry the copy command if
-it fails (default 3). After each failure, we wait for
-sleeptime * num_retries so that the wait time increases <br>
-progressively. So by default, we will wait 5 secs, 10 secs,
-then 15 secs before reporting the failure back to the
-standby server. This will be interpreted as end of recovery
-<br>
-and the standby will come up fully as a result.</p>
-
-<p style="margin-top: 1em">-s sleeptime <br>
-Set the number of seconds (up to 60, default 5) to sleep
-between tests to see if the WAL file to be restored is
-available in the archive yet. The default setting is not
-<br>
-necessarily recommended; consult Section 25.2,
-&acirc;Log-Shipping Standby Servers&acirc;, in the
-documentation for discussion.</p>
-
-<p style="margin-top: 1em">-t triggerfile <br>
-Specify a trigger file whose presence should cause failover.
-It is recommended that you use a structured file name to
-avoid confusion as to which server is being triggered <br>
-when multiple servers exist on the same system; for example
-/tmp/pgsql.trigger.5432.</p>
-
-<p style="margin-top: 1em">-V, --version <br>
-Print the pg_standby version and exit.</p>
-
-<p style="margin-top: 1em">-w maxwaittime <br>
-Set the maximum number of seconds to wait for the next WAL
-file, after which a fast failover will be performed. A
-setting of zero (the default) means wait forever. The <br>
-default setting is not necessarily recommended; consult
-Section 25.2, &acirc;Log-Shipping Standby Servers&acirc;, in
-the documentation for discussion.</p>
-
-<p style="margin-top: 1em">-?, --help <br>
-Show help about pg_standby command line arguments, and
-exit.</p>
-
-<p style="margin-top: 1em">NOTES <br>
-pg_standby is designed to work with PostgreSQL 8.2 and
-later.</p>
-
-<p style="margin-top: 1em">PostgreSQL 8.3 provides the %r
-macro, which is designed to let pg_standby know the last
-file it needs to keep. With PostgreSQL 8.2, the -k option
-must be used if archive cleanup <br>
-is required. This option remains available in 8.3, but its
-use is deprecated.</p>
-
-<p style="margin-top: 1em">PostgreSQL 8.4 provides the
-recovery_end_command option. Without this option a leftover
-trigger file can be hazardous.</p>
-
-<p style="margin-top: 1em">pg_standby is written in C and
-has an easy-to-modify source code, with specifically
-designated sections to modify for your own needs</p>
-
-<p style="margin-top: 1em">EXAMPLES <br>
-On Linux or Unix systems, you might use:</p>
-
-<p style="margin-top: 1em">archive_command = &rsquo;cp %p
-.../archive/%f&rsquo;</p>
-
-<p style="margin-top: 1em">restore_command =
-&rsquo;pg_standby -d -s 2 -t /tmp/pgsql.trigger.5442
-.../archive %f %p %r 2&gt;&gt;standby.log&rsquo;</p>
-
-<p style="margin-top: 1em">recovery_end_command = &rsquo;rm
--f /tmp/pgsql.trigger.5442&rsquo;</p>
-
-<p style="margin-top: 1em">where the archive directory is
-physically located on the standby server, so that the
-archive_command is accessing it across NFS, but the files
-are local to the standby (enabling <br>
-use of ln). This will:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; produce
-debugging output in standby.log</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; sleep for 2
-seconds between checks for next WAL file availability</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; stop waiting
-only when a trigger file called /tmp/pgsql.trigger.5442
-appears, and perform failover according to its content</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; remove the
-trigger file when recovery ends</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; remove
-no-longer-needed files from the archive directory</p>
-
-<p style="margin-top: 1em">On Windows, you might use:</p>
-
-<p style="margin-top: 1em">archive_command = &rsquo;copy %p
-...\archive\%f&rsquo;</p>
-
-<p style="margin-top: 1em">restore_command =
-&rsquo;pg_standby -d -s 5 -t C:gsql.trigger.5442 ...rchive
-%f %p %r 2&gt;&gt;standby.log&rsquo;</p>
-
-<p style="margin-top: 1em">recovery_end_command =
-&rsquo;del C:gsql.trigger.5442&rsquo;</p>
-
-<p style="margin-top: 1em">Note that backslashes need to be
-doubled in the archive_command, but not in the
-restore_command or recovery_end_command. This will:</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; use the copy
-command to restore WAL files from archive</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; produce
-debugging output in standby.log</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; sleep for 5
-seconds between checks for next WAL file availability</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; stop waiting
-only when a trigger file called C:gsql.trigger.5442 appears,
-and perform failover according to its content</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; remove the
-trigger file when recovery ends</p>
-
-<p style="margin-top: 1em">&Acirc;&middot; remove
-no-longer-needed files from the archive directory</p>
-
-<p style="margin-top: 1em">The copy command on Windows sets
-the final file size before the file is completely copied,
-which would ordinarily confuse pg_standby. Therefore
-pg_standby waits sleeptime seconds <br>
-once it sees the proper file size. GNUWin32&rsquo;s cp sets
-the file size only after the file copy is complete.</p>
-
-<p style="margin-top: 1em">Since the Windows example uses
-copy at both ends, either or both servers might be accessing
-the archive directory across the network.</p>
-
-<p style="margin-top: 1em">AUTHOR <br>
-Simon Riggs &lt;simon@2ndquadrant.com&gt;</p>
-
-<p style="margin-top: 1em">SEE ALSO <br>
-pg_archivecleanup(1)</p>
-
-<p style="margin-top: 1em">PostgreSQL 9.2.18 2016-08-08
-PG_STANDBY(1)</p>
-<hr>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">PG_STANDBY(1)</td>
+    <td class="head-vol">PostgreSQL 9.2.18 Documentation</td>
+    <td class="head-rtitle">PG_STANDBY(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<h1 class="Sh" title="Sh" id="NAME"><a class="selflink" href="#NAME">NAME</a></h1>
+pg_standby - supports the creation of a PostgreSQL warm standby server
+<h1 class="Sh" title="Sh" id="SYNOPSIS"><a class="selflink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<div class="Pp" style="margin-left: 11.00ex; text-indent: -11.00ex;"><b>pg_standby</b>
+  [ <i>option</i>...] <i>archivelocation</i> <i>nextwalfile</i>
+  <i>xlogfilepath</i> [ <i>restartwalfile</i>]</div>
+<h1 class="Sh" title="Sh" id="DESCRIPTION"><a class="selflink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+pg_standby supports creation of a &#x201C;warm standby&#x201D; database server.
+  It is designed to be a production-ready program, as well as a customizable
+  template should you require specific modifications.
+<div class="Pp"></div>
+pg_standby is designed to be a waiting <i>restore_command</i>, which is needed
+  to turn a standard archive recovery into a warm standby operation. Other
+  configuration is required as well, all of which is described in the main
+  server manual (see Section 25.2, &#x201C;Log-Shipping Standby Servers&#x201D;,
+  in the documentation).
+<div class="Pp"></div>
+To configure a standby server to use pg_standby, put this into its recovery.conf
+  configuration file:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+restore_command = 'pg_standby  <i>archiveDir</i> %f %p %r'
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+where <i>archiveDir</i> is the directory from which WAL segment files should be
+  restored.
+<div class="Pp"></div>
+If <i>restartwalfile</i> is specified, normally by using the %r macro, then all
+  WAL files logically preceding this file will be removed from
+  <i>archivelocation</i>. This minimizes the number of files that need to be
+  retained, while preserving crash-restart capability. Use of this parameter is
+  appropriate if the <i>archivelocation</i> is a transient staging area for this
+  particular standby server, but <i>not</i> when the <i>archivelocation</i> is
+  intended as a long-term WAL archive area.
+<div class="Pp"></div>
+pg_standby assumes that <i>archivelocation</i> is a directory readable by the
+  server-owning user. If <i>restartwalfile</i> (or -k) is specified, the
+  <i>archivelocation</i> directory must be writable too.
+<div class="Pp"></div>
+There are two ways to fail over to a &#x201C;warm standby&#x201D; database
+  server when the master server fails:
+<div class="Pp"></div>
+Smart Failover
+<div style="margin-left: 4.00ex;">In smart failover, the server is brought up
+  after applying all WAL files available in the archive. This results in zero
+  data loss, even if the standby server has fallen behind, but if there is a lot
+  of unapplied WAL it can be a long time before the standby server becomes
+  ready. To trigger a smart failover, create a trigger file containing the word
+  smart, or just create it and leave it empty.</div>
+<div class="Pp"></div>
+Fast Failover
+<div style="margin-left: 4.00ex;">In fast failover, the server is brought up
+  immediately. Any WAL files in the archive that have not yet been applied will
+  be ignored, and all transactions in those files are lost. To trigger a fast
+  failover, create a trigger file and write the word fast into it. pg_standby
+  can also be configured to execute a fast failover automatically if no new WAL
+  file appears within a defined interval.</div>
+<h1 class="Sh" title="Sh" id="OPTIONS"><a class="selflink" href="#OPTIONS">OPTIONS</a></h1>
+pg_standby accepts the following command-line arguments:
+<div class="Pp"></div>
+<b>-c</b>
+<div style="margin-left: 4.00ex;">Use cp or copy command to restore WAL files
+  from archive. This is the only supported behavior so this option is
+  useless.</div>
+<div class="Pp"></div>
+<b>-d</b>
+<div style="margin-left: 4.00ex;">Print lots of debug logging output on
+  stderr.</div>
+<div class="Pp"></div>
+<b>-k</b>
+<div style="margin-left: 4.00ex;">Remove files from <i>archivelocation</i> so
+  that no more than this many WAL files before the current one are kept in the
+  archive. Zero (the default) means not to remove any files from
+  <i>archivelocation</i>. This parameter will be silently ignored if
+  <i>restartwalfile</i> is specified, since that specification method is more
+  accurate in determining the correct archive cut-off point. Use of this
+  parameter is <i>deprecated</i> as of PostgreSQL 8.3; it is safer and more
+  efficient to specify a <i>restartwalfile</i> parameter. A too small setting
+  could result in removal of files that are still needed for a restart of the
+  standby server, while a too large setting wastes archive space.</div>
+<div class="Pp"></div>
+<b>-r</b> <i>maxretries</i>
+<div style="margin-left: 4.00ex;">Set the maximum number of times to retry the
+  copy command if it fails (default 3). After each failure, we wait for
+  <i>sleeptime</i> * <i>num_retries</i> so that the wait time increases
+  progressively. So by default, we will wait 5 secs, 10 secs, then 15 secs
+  before reporting the failure back to the standby server. This will be
+  interpreted as end of recovery and the standby will come up fully as a
+  result.</div>
+<div class="Pp"></div>
+<b>-s</b> <i>sleeptime</i>
+<div style="margin-left: 4.00ex;">Set the number of seconds (up to 60, default
+  5) to sleep between tests to see if the WAL file to be restored is available
+  in the archive yet. The default setting is not necessarily recommended;
+  consult Section 25.2, &#x201C;Log-Shipping Standby Servers&#x201D;, in the
+  documentation for discussion.</div>
+<div class="Pp"></div>
+<b>-t</b> <i>triggerfile</i>
+<div style="margin-left: 4.00ex;">Specify a trigger file whose presence should
+  cause failover. It is recommended that you use a structured file name to avoid
+  confusion as to which server is being triggered when multiple servers exist on
+  the same system; for example /tmp/pgsql.trigger.5432.</div>
+<div class="Pp"></div>
+<b>-V</b>, <b>--version</b>
+<div style="margin-left: 4.00ex;">Print the pg_standby version and exit.</div>
+<div class="Pp"></div>
+<b>-w</b> <i>maxwaittime</i>
+<div style="margin-left: 4.00ex;">Set the maximum number of seconds to wait for
+  the next WAL file, after which a fast failover will be performed. A setting of
+  zero (the default) means wait forever. The default setting is not necessarily
+  recommended; consult Section 25.2, &#x201C;Log-Shipping Standby
+  Servers&#x201D;, in the documentation for discussion.</div>
+<div class="Pp"></div>
+<b>-?</b>, <b>--help</b>
+<div style="margin-left: 4.00ex;">Show help about pg_standby command line
+  arguments, and exit.</div>
+<h1 class="Sh" title="Sh" id="NOTES"><a class="selflink" href="#NOTES">NOTES</a></h1>
+pg_standby is designed to work with PostgreSQL 8.2 and later.
+<div class="Pp"></div>
+PostgreSQL 8.3 provides the %r macro, which is designed to let pg_standby know
+  the last file it needs to keep. With PostgreSQL 8.2, the -k option must be
+  used if archive cleanup is required. This option remains available in 8.3, but
+  its use is deprecated.
+<div class="Pp"></div>
+PostgreSQL 8.4 provides the <i>recovery_end_command</i> option. Without this
+  option a leftover trigger file can be hazardous.
+<div class="Pp"></div>
+pg_standby is written in C and has an easy-to-modify source code, with
+  specifically designated sections to modify for your own needs
+<h1 class="Sh" title="Sh" id="EXAMPLES"><a class="selflink" href="#EXAMPLES">EXAMPLES</a></h1>
+On Linux or Unix systems, you might use:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+archive_command = 'cp %p .../archive/%f'
+<div class="Pp"></div>
+restore_command = 'pg_standby -d -s 2 -t /tmp/pgsql.trigger.5442 .../archive %f %p %r 2&gt;&gt;standby.log'
+<div class="Pp"></div>
+recovery_end_command = 'rm -f /tmp/pgsql.trigger.5442'
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+where the archive directory is physically located on the standby server, so that
+  the <i>archive_command</i> is accessing it across NFS, but the files are local
+  to the standby (enabling use of ln). This will:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;produce debugging output in
+  standby.log</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;sleep for 2 seconds between checks for
+  next WAL file availability</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;stop waiting only when a trigger file
+  called /tmp/pgsql.trigger.5442 appears, and perform failover according to its
+  content</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;remove the trigger file when recovery
+  ends</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;remove no-longer-needed files from the
+  archive directory</div>
+<div class="Pp"></div>
+On Windows, you might use:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">
+<pre>
+archive_command = 'copy %p ...\\archive\\%f'
+<div class="Pp"></div>
+restore_command = 'pg_standby -d -s 5 -t C:\pgsql.trigger.5442 ...\archive %f %p %r 2&gt;&gt;standby.log'
+<div class="Pp"></div>
+recovery_end_command = 'del C:\pgsql.trigger.5442'
+</pre>
+</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+Note that backslashes need to be doubled in the <i>archive_command</i>, but
+  <i>not</i> in the <i>restore_command</i> or <i>recovery_end_command</i>. This
+  will:
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;use the copy command to restore WAL
+  files from archive</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;produce debugging output in
+  standby.log</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;sleep for 5 seconds between checks for
+  next WAL file availability</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;stop waiting only when a trigger file
+  called C:\pgsql.trigger.5442 appears, and perform failover according to its
+  content</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;remove the trigger file when recovery
+  ends</div>
+<div style="height: 1.00em;">&#x00A0;</div>
+<div style="margin-left: 4.00ex;">&#x2022;remove no-longer-needed files from the
+  archive directory</div>
+<div class="Pp"></div>
+The copy command on Windows sets the final file size before the file is
+  completely copied, which would ordinarily confuse pg_standby. Therefore
+  pg_standby waits sleeptime seconds once it sees the proper file size.
+  GNUWin32's cp sets the file size only after the file copy is complete.
+<div class="Pp"></div>
+Since the Windows example uses copy at both ends, either or both servers might
+  be accessing the archive directory across the network.
+<h1 class="Sh" title="Sh" id="AUTHOR"><a class="selflink" href="#AUTHOR">AUTHOR</a></h1>
+Simon Riggs &lt;simon@2ndquadrant.com&gt;
+<h1 class="Sh" title="Sh" id="SEE_ALSO"><a class="selflink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<b>pg_archivecleanup</b>(1)</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">2016-08-08</td>
+    <td class="foot-os">PostgreSQL 9.2.18</td>
+  </tr>
+</table>
 </body>
 </html>
